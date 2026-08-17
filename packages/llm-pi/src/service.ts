@@ -1,0 +1,238 @@
+/**
+ * 运行时主逻辑：注册/热更新/发现（逐点对齐官方 dsh-llm-pi-ai apply 的模式）。
+ *
+ * - profiles 回调按原始 config 对象 identity 备忘；配置变更经 settings 的
+ *   setSource/onChange 传播，下一请求生效（adapter 快照按 profiles identity 失效）；
+ * - route 集或注册时捕获的事实（displayName/retryPolicy）变化 → 原子的
+ *   handle.replace 重注册；写入被校验拒绝时保留旧注册（官方同款护栏）；
+ * - registerConfigurableProviders + registerModelDiscovery 让插件 route
+ *   正常出现在官方 Models 页与"拉取可用模型"动作里。
+ * @module llm-pi/service
+ */
+import type { Context } from '@deepseek-ai/cordis'
+import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
+import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
+import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
+import { deepEqualJson, installSettingsSection } from '@deepseek-ai/dsh-settings'
+
+import { hasBuiltinProvider } from './catalog/builtin.ts'
+import { ModelsDevSource } from './catalog/models-dev.ts'
+import { Config, SETTINGS_NS, type LlmPiConfig } from './config.ts'
+import { discoverModels } from './discovery.ts'
+import { assertServiceable, buildProfiles } from './profiles.ts'
+import { resolveDshKit, type DshKit } from './resolve-dsh.ts'
+
+export interface LlmPiRuntime {
+  /** 当前生效配置（settings 用户层解析结果或 cordis 行级 config）。 */
+  currentConfig(): LlmPiConfig
+  /** 运行时套件来源（dsh-tree / vendored）与回退诊断。 */
+  kitInfo(): { source: string; diagnostics: string[] }
+  /** models.dev 兜底源（配置卡片读状态用）。 */
+  modelsDev: ModelsDevSource
+  kit: DshKit
+}
+
+/** 注册时捕获的事实表；变化才重注册（按 provider 排序，免序误报）。 */
+function registrationFacts(profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>) {
+  return [...profiles.entries()]
+    .map(([provider, profile]) => ({
+      provider,
+      displayName: profile.displayName,
+      retryPolicy: profile.retryPolicy,
+    }))
+    .sort((left, right) => left.provider.localeCompare(right.provider))
+}
+
+/** 凭据解析（逐行对齐官方 resolveApiKey）：凭据服务优先，缺失时启动环境兜底。 */
+function makeResolveApiKey(ctx: Context, kit: DshKit) {
+  return async (provider: string, profile: ResolvedPiAiProviderProfile): Promise<string | undefined> => {
+    const ref = profile.apiKeyEnv
+    if (ref === undefined) return undefined
+    const credentials = ctx.get('credentials')
+    const hit =
+      credentials !== undefined
+        ? (await credentials.resolve(ref as CredentialRef))?.value
+        : launchEnvironmentOf(ctx).get(ref as unknown as string)?.value
+    if (hit !== undefined && hit.length > 0) return kit.assertUsableApiKey(hit, 'llm-pi', ref as unknown as string)
+    throw new kit.LlmError(
+      `llm-pi: provider route "${provider}" 的凭据引用 ${String(ref)} 未解析到值——` +
+        '请经凭据服务（web Models 页）存放或导出环境变量；仅当该 provider 应使用 pi-ai 自有环境发现时才移除 apiKeyEnv',
+      'MISSING_CREDENTIAL',
+    )
+  }
+}
+
+/** 启动插件运行时：解析套件、挂载注册/发现/settings 联动。 */
+export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promise<LlmPiRuntime> {
+  const logger = ctx.logger('llm-pi')
+  // cordis 行级 config 可能未经 schema 解析（insert 行无 config 键时为原始空对象），
+  // 在此统一规范化，保证 enabled/默认值在纯组合层场景也成立。
+  const config = Config(rawConfig ?? {})
+  const { kit, diagnostics } = await resolveDshKit()
+  for (const line of diagnostics) logger.warn(line)
+  logger.info(`运行时套件来源：${kit.source}`)
+
+  const modelsDev = new ModelsDevSource(
+    dshHomePath('storages', 'dsh-custom-llm-pi', 'models-dev.json'),
+    config.catalogUrl,
+    config.catalogRefreshHours,
+    (message) => logger.warn(message),
+    config.catalogProxy ?? '',
+  )
+  void modelsDev.ensureLoaded()
+
+  let current: () => LlmPiConfig = () => config
+  let lastRaw: LlmPiConfig | undefined
+  let memoized: Map<string, ResolvedPiAiProviderProfile> | undefined
+  const deps = { kit, modelsDev }
+  /** 当前已解析 profiles，按原始 config identity 备忘（官方同款模式）。
+   *  运行期走 lenient：数据源漂移时降级/跳过并告警，而非抛错弄挂整个 route。 */
+  const profiles = (): Map<string, ResolvedPiAiProviderProfile> => {
+    const raw = current()
+    if (raw === lastRaw && memoized !== undefined) return memoized
+    const next = raw.enabled
+      ? buildProfiles(raw.providers, { ...deps, lenient: true, warn: (message) => logger.warn(message) })
+      : new Map()
+    lastRaw = raw
+    memoized = next
+    return next
+  }
+  profiles() // 行级 config 不可服务则启动即失败（官方同款 fail-fast）
+
+  const adapter = new kit.PiAiAdapter({
+    profiles,
+    resolveApiKey: makeResolveApiKey(ctx, kit),
+    resolveAttachments: () => ctx.get('attachments'),
+  })
+
+  const storedApiKey = async (provider: string | undefined): Promise<string | undefined> => {
+    if (provider === undefined) return undefined
+    const profile = profiles().get(provider)
+    if (profile === undefined) return undefined
+    return makeResolveApiKey(ctx, kit)(provider, profile)
+  }
+  ctx.llm.registerModelDiscovery(SETTINGS_NS, (request: Parameters<typeof discoverModels>[0]) =>
+    discoverModels(request, {
+      kit,
+      configProviders: () => current().providers ?? {},
+      storedApiKey,
+    }),
+  )
+
+  /**
+   * 注册 handle 组。正常路径单个 handle 整批注册/替换；整批注册遇
+   * DUPLICATE_ADAPTER（route 名与其他 adapter 冲突）时降级为逐个注册，
+   * 跳过冲突 route——启动不再 fail-loud，其余 route 照常服务。
+   */
+  interface RegistrationGroup {
+    routes: string[]
+    handle: { replace(routes: string[]): void }
+  }
+  let registrations: RegistrationGroup[] | undefined
+  let registeredFacts: unknown
+
+  const registerGroup = (routes: string[], fallback: (error: unknown) => void): RegistrationGroup[] => {
+    try {
+      const handle = ctx.llm.registerAdapter(routes, adapter as never)
+      return [{ routes, handle }]
+    } catch (error) {
+      fallback(error)
+      const groups: RegistrationGroup[] = []
+      for (const route of routes) {
+        try {
+          const handle = ctx.llm.registerAdapter([route], adapter as never)
+          groups.push({ routes: [route], handle })
+        } catch (routeError) {
+          logger.error(`llm-pi: route "${route}" 注册失败（可能与其他 adapter 重名），该 route 不可用`)
+          logger.error(routeError)
+        }
+      }
+      return groups
+    }
+  }
+
+  const ensureRegistration = (): void => {
+    const current2 = profiles()
+    const facts = registrationFacts(current2)
+    if (deepEqualJson(facts, registeredFacts)) return
+    const routes = [...current2.keys()]
+    if (registrations === undefined) {
+      if (routes.length === 0) {
+        registeredFacts = facts
+        return
+      }
+      registrations = registerGroup(routes, (error) => {
+        logger.warn('llm-pi: 整批注册失败（可能 route 名冲突），降级为逐个 route 注册')
+        logger.warn(error)
+      })
+    } else {
+      try {
+        registrations[0]!.handle.replace(routes)
+        for (let i = 1; i < registrations.length; i += 1) registrations[i]!.handle.replace([])
+        registrations = [{ routes, handle: registrations[0]!.handle }]
+      } catch (error) {
+        // 原子 replace 被拒（含冲突）：保留此前注册（官方同款护栏）
+        logger.error('llm-pi: 更新被拒，保留此前注册的 route')
+        logger.error(error)
+      }
+    }
+    registeredFacts = facts
+  }
+
+  let directory: { replace: (entries: unknown[]) => void } | undefined
+  let directoryFacts: unknown
+  const ensureDirectory = (): void => {
+    const entries = [...profiles().entries()].map(([provider, profile]) => ({
+      provider,
+      displayName: profile.displayName,
+      settingsNs: SETTINGS_NS,
+      settingsPath: ['providers', provider],
+      declared: !hasBuiltinProvider(kit, provider),
+    }))
+    if (deepEqualJson(entries, directoryFacts)) return
+    if (entries.length === 0) {
+      // 空目录不可注册（INVALID_DIRECTORY）；等 settings 用户层供数后在 onChange 注册
+      directoryFacts = entries
+      return
+    }
+    if (directory === undefined) directory = ctx.llm.registerConfigurableProviders(entries as never)
+    else directory.replace(entries)
+    directoryFacts = entries
+  }
+
+  ensureRegistration()
+  ensureDirectory()
+
+  let settingsBound = false
+  installSettingsSection(ctx, SETTINGS_NS, Config, config, {
+    validate: (cfg: LlmPiConfig) => assertServiceable(cfg, deps),
+    setSource: (source: () => LlmPiConfig) => {
+      settingsBound = true
+      current = source
+    },
+    onChange: () => {
+      try {
+        ensureRegistration()
+      } catch (error) {
+        logger.error('llm-pi: 更新被拒，保留此前注册的 route')
+        logger.error(error)
+      }
+      try {
+        ensureDirectory()
+      } catch (error) {
+        logger.error('llm-pi: 更新被拒，保留此前的 configurable-provider 目录')
+        logger.error(error)
+      }
+      const cfg = current()
+      modelsDev.reconfigure(cfg.catalogUrl, cfg.catalogRefreshHours, cfg.catalogProxy ?? '')
+    },
+  })
+
+  return {
+    currentConfig: () => current(),
+    kitInfo: () => ({ source: kit.source, diagnostics }),
+    modelsDev,
+    kit,
+  }
+}

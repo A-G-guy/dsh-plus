@@ -1,0 +1,48 @@
+{
+  "name": "@dsh-custom/bundle-main",
+  "version": "0.1.0",
+  "description": "dsh-custom aggregate bundle: ordered cordis patch layer wiring all dsh-custom plugins",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "cordis.patch.yml"
+  ],
+  "scripts": {
+    "build": "tsdown src/index.ts -d lib --format esm --dts"
+  },
+  "dependencies": {
+    "@dsh-custom/ui-mobile-fit": "workspace:*",
+    "@dsh-custom/notify-email": "workspace:*",
+    "@dsh-custom/subagent-model": "workspace:*",
+    "@dsh-custom/llm-pi": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/A-G-guy/dsh-plugins.git",
+    "directory": "packages/bundle-main"
+  }
+}

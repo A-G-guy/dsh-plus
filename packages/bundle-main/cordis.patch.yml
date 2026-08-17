@@ -1,0 +1,14 @@
+# dsh-custom 聚合 bundle 补丁层：按序 insert 本仓库的【正式】插件行。
+# 该行会进入 profile 组合树（dsh-base / dsh-web-app 之后、用户 cordis.patch.yml 之前），
+# 后续层仍可按 id 覆盖 config 或禁用。
+# 注意：示例/演示插件（如 tool-text-transform）不入此层——它们只经 dev profile 的
+# 用户补丁层注入，避免随 bundle 进入生产、无效占用模型上下文。
+- insert:
+    - id: dsh-custom-ui-mobile-fit
+      name: '@dsh-custom/ui-mobile-fit'
+    - id: dsh-custom-notify-email
+      name: '@dsh-custom/notify-email'
+    - id: dsh-custom-subagent-model
+      name: '@dsh-custom/subagent-model'
+    - id: dsh-custom-llm-pi
+      name: '@dsh-custom/llm-pi'

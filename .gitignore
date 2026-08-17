@@ -1,0 +1,18 @@
+node_modules/
+lib/
+dist/
+*.tgz
+*.log
+__pycache__/
+scripts/git-hooks/pre-commit
+scripts/git-hooks/pre-commit.md-doc-timestamp-*
+.DS_Store
+.playwright-cli/
+output/
+
+# 本机专属，不进入公开仓库（文件保留在本地磁盘）
+AGENTS.md
+/docs/
+/scripts/
+/deploy/
+/.md-doc-timestamp.json
