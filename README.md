@@ -1,10 +1,11 @@
 <div align="center">
 
-# agguy's DSH Plugins
+# DSH+
 
-**面向 [DSH（DeepSeek Harness）](https://www.npmjs.com/package/@deepseek-ai/dsh) 的自定义插件 monorepo**
+**面向 [DSH（DeepSeek Harness）](https://www.npmjs.com/package/@deepseek-ai/dsh) 的增强插件集，发布于 npm [`@dsh-plus`](https://www.npmjs.com/org/dsh-plus) scope**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![npm @dsh-plus](https://img.shields.io/badge/npm-%40dsh--plus-CB3837?logo=npm&logoColor=white)](https://www.npmjs.com/org/dsh-plus)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
 [![dsh](https://img.shields.io/badge/dsh-0.1.0--rc.6-blue)](https://www.npmjs.com/package/@deepseek-ai/dsh)
@@ -13,7 +14,7 @@
 
 ---
 
-本仓库以 pnpm monorepo 形式维护一组 DSH 自定义插件。每个插件都是独立的 ESM npm 包
+DSH+ 以 pnpm monorepo 形式维护一组 DSH 增强插件。每个插件都是独立的 ESM npm 包
 （cordis 约定导出），全部发布在 npm 的 [`@dsh-plus`](https://www.npmjs.com/org/dsh-plus)
 scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层有序的 cordis patch 统一装配。
 

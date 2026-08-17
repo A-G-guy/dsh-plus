@@ -1,11 +1,11 @@
 {
-  "name": "dsh-plugins",
+  "name": "dsh-plus",
   "private": true,
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/A-G-guy/dsh-plugins.git"
+    "url": "git+https://github.com/A-G-guy/dsh-plus.git"
   },
   "engines": {
     "node": ">=22"
