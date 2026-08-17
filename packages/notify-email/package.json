@@ -1,7 +1,7 @@
 {
-  "name": "@dsh-custom/notify-email",
+  "name": "@dsh-plus/notify-email",
   "version": "0.1.0",
-  "description": "dsh-custom service+ui plugin: 任务结束/等待决策/出错时向指定邮箱发送邮件通知",
+  "description": "dsh-plus service+ui plugin: 任务结束/等待决策/出错时向指定邮箱发送邮件通知",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

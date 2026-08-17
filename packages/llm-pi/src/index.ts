@@ -8,7 +8,7 @@
  * - 模块解析优先 dsh 安装树（dsh 升级即自动跟随上游），vendored 副本兜底。
  *
  * 注册全新的 route 名，不触碰官方 llm-pi-ai 的任何 route 与配置。
- * @module @dsh-custom/llm-pi
+ * @module @dsh-plus/llm-pi
  */
 import type { Context } from '@deepseek-ai/cordis'
 
@@ -16,7 +16,7 @@ import { Config, type LlmPiConfig } from './config.ts'
 import { registerConfigApi } from './config-api.ts'
 import { startRuntime } from './service.ts'
 
-export const name = 'dsh-custom-llm-pi'
+export const name = 'dsh-plus-llm-pi'
 
 export const inject = ['llm'] as const
 

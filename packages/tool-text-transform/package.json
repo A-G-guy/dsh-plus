@@ -1,5 +1,5 @@
 {
-  "name": "@dsh-custom/tool-text-transform",
+  "name": "@dsh-plus/tool-text-transform",
   "version": "0.1.0",
   "description": "dsh tool plugin: pure text-transform demo tool (no network, no side effects)",
   "type": "module",
@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@deepseek-ai/dsh-tools": "0.1.0-rc.6",
-    "@dsh-custom/shared": "workspace:*"
+    "@dsh-plus/shared": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1"

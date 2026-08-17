@@ -5,15 +5,15 @@
  * 构建产物须为 window.__ModuleLoader__.load({id, factory}) 形式的 CJS factory
  * （包装见 tsdown.config.ts 的 banner/footer）；style 标签沿用官方
  * data-plugin / data-plugin-css 约定，dsh-client-hmr 据此在热更时卸载。
- * @module @dsh-custom/ui-mobile-fit/client
+ * @module @dsh-plus/ui-mobile-fit/client
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { mobileFitCss } from './styles.ts'
 import { installBehaviors } from './behaviors.ts'
 
-export const name = 'dsh-custom-ui-mobile-fit'
+export const name = 'dsh-plus-ui-mobile-fit'
 
-const PLUGIN_ID = '@dsh-custom/ui-mobile-fit'
+const PLUGIN_ID = '@dsh-plus/ui-mobile-fit'
 const STYLE_TAG_ID = `${PLUGIN_ID}/styles.css`
 
 function injectStyle(): HTMLStyleElement | null {

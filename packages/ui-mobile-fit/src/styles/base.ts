@@ -7,7 +7,7 @@
  *   后缀稳定，故一律用 [class*="_语义后缀"] 子串匹配；
  * - shell 侧旧格式为 _语义_哈希_序号（如 _remove_1hk8w_53），子串同样适配；
  * - 全局稳定类（.md-code-block、.katex-display）直接使用。
- * @module @dsh-custom/ui-mobile-fit/styles/base
+ * @module @dsh-plus/ui-mobile-fit/styles/base
  */
 
 /** 窄屏基础修复：防横向整页滚动、长串折行、输入框防 iOS 聚焦缩放。 */

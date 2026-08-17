@@ -54,8 +54,8 @@ export interface TestResult {
   detail: string
 }
 
-const ROUTE_CONFIG = '/dsh-custom/notify-email/config'
-const ROUTE_TEST = '/dsh-custom/notify-email/test'
+const ROUTE_CONFIG = '/dsh-plus/notify-email/config'
+const ROUTE_TEST = '/dsh-plus/notify-email/test'
 
 async function parse<T>(res: Response): Promise<T> {
   const body = (await res.json()) as T & { error?: string }

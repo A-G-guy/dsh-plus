@@ -4,7 +4,7 @@
  *   无 settings provider 时退化为 cordis 行级 config。
  * - 触发器：registerTrigger 是第三方插件的扩展接口；内置官方适配器同路径注册。
  * - 投递：首个非空 EmailNotice 经 Mailer 发送；单个触发器抛错不影响其余。
- * @module @dsh-custom/notify-email
+ * @module @dsh-plus/notify-email
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'

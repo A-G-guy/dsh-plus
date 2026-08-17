@@ -3,7 +3,7 @@
  * @module llm-pi/client/i18n
  */
 
-export const NS = 'dsh-custom-llm-pi'
+export const NS = 'dsh-plus-llm-pi'
 
 export const zh: Record<string, string> = {
   title: 'LLM 路由（llm-pi）',

@@ -1,7 +1,7 @@
 /**
  * 移动端覆盖样式：会话内容层（dsh-client-ui-conversation / dsh-client-ui-tool）。
  * 目标：消息流、markdown、代码块、表格、工具卡片、composer 在窄屏不溢出、可操作。
- * @module @dsh-custom/ui-mobile-fit/styles/conversation
+ * @module @dsh-plus/ui-mobile-fit/styles/conversation
  */
 
 /** 窄屏会话区修复。 */

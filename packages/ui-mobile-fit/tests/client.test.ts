@@ -36,7 +36,7 @@ test('given the conversation layer, when inspecting composer takeover cards, the
 })
 
 test('given the client module, when inspecting exports, then loader metadata is present', () => {
-  assert.equal(name, 'dsh-custom-ui-mobile-fit')
+  assert.equal(name, 'dsh-plus-ui-mobile-fit')
   assert.equal(typeof apply, 'function')
 })
 
@@ -92,7 +92,7 @@ test('given a DOM, when apply runs, then style injected, viewport meta patched, 
   globalThis.window = window
   try {
     apply(ctx)
-    assert.equal(tag.dataset.plugin, '@dsh-custom/ui-mobile-fit')
+    assert.equal(tag.dataset.plugin, '@dsh-plus/ui-mobile-fit')
     assert.equal(tag.textContent, mobileFitCss)
     // IME 适配：viewport meta 已追加 interactive-widget
     assert.match(meta.content, /interactive-widget=resizes-content/)

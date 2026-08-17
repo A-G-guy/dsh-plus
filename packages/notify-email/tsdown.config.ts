@@ -11,7 +11,7 @@
 import { defineConfig } from 'tsdown'
 
 const CLIENT_BANNER = `window.__ModuleLoader__.load({
-	id: "@dsh-custom/notify-email",
+	id: "@dsh-plus/notify-email",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;

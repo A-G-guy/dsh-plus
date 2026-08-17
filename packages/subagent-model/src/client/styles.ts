@@ -4,7 +4,7 @@
  * @module subagent-model/client/styles
  */
 
-export const PLUGIN_ID = '@dsh-custom/subagent-model'
+export const PLUGIN_ID = '@dsh-plus/subagent-model'
 export const STYLE_TAG_ID = `${PLUGIN_ID}/card.css`
 
 export const cardCss = `

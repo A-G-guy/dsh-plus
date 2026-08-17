@@ -12,7 +12,7 @@ import z from '@deepseek-ai/schemastery'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 
 /** settings 命名空间；webui 配置卡片与插件运行期读取同一份。 */
-export const SETTINGS_NS = settingsNamespace('dsh-custom-llm-pi')
+export const SETTINGS_NS = settingsNamespace('dsh-plus-llm-pi')
 
 /** 本插件可为手写 route 提供的协议实现（与官方 PROTOCOLS 表一致）。 */
 export const PROTOCOL_IDS = ['openai-completions', 'openai-responses', 'anthropic-messages'] as const

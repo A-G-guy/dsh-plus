@@ -11,7 +11,7 @@
 import { defineConfig } from 'tsdown'
 
 const CLIENT_BANNER = `window.__ModuleLoader__.load({
-	id: "@dsh-custom/subagent-model",
+	id: "@dsh-plus/subagent-model",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;

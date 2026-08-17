@@ -7,7 +7,7 @@
  * - 子代理路由：根 ctx 的 agent/request 瀑布监听，把条目 effort 应用到子代理请求。
  * - 配置通道：ctx.webServer 注册 config/catalog 同源路由（官方 settings RPC
  *   白名单不含第三方 namespace）。
- * @module @dsh-custom/subagent-model
+ * @module @dsh-plus/subagent-model
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import { installSettingsSection } from '@deepseek-ai/dsh-settings'

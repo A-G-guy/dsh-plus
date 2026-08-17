@@ -1,14 +1,14 @@
 ---
-last_modified: "2026-08-17 14:20"
+last_modified: "2026-08-17 16:37"
 ---
 
-# @dsh-custom/llm-pi 文档索引
+# @dsh-plus/llm-pi 文档索引
 
 自定义 LLM 路由插件：在官方 `llm-pi-ai` 之外，以**自动跟随 dsh 上游**的方式提供
 pi-ai 全量能力——三协议自定义 route、官方内置 provider/model 继承 + 字段级覆盖、
 全量 compat（官方配置路径会静默丢弃大部分 compat 字段）、models.dev 目录兜底。
 配置 UI 位于 webui「设置 → 插件 → 插件配置」，持久化到 `$DSH_HOME/settings.yaml`
-（namespace `dsh-custom-llm-pi`）并热生效。
+（namespace `dsh-plus-llm-pi`）并热生效。
 
 ## 与官方 llm-pi-ai 的关系
 
@@ -24,7 +24,7 @@ pi-ai 全量能力——三协议自定义 route、官方内置 provider/model �
   `resolveAttachments` 回调）是官方给出的插件自有解析钩子；schema 校验完全在
   adapter 之外，本插件自行实现配置层。
 
-## 配置项（settings namespace `dsh-custom-llm-pi`）
+## 配置项（settings namespace `dsh-plus-llm-pi`）
 
 ### 全局
 
@@ -78,7 +78,7 @@ anthropic 9 个字段，见 `src/compat.ts`）。
 
 - `startRuntime`：解析套件 → `ModelsDevSource`（**默认不自动拉取**；`catalogRefreshHours>0`
   时按 TTL 后台刷新；配置卡片「手动拉取」或 `POST /catalog/refresh` 立即拉取，可配
-  `catalogProxy` 代理；缓存 `storages/dsh-custom-llm-pi/models-dev.json`，原子写）→
+  `catalogProxy` 代理；缓存 `storages/dsh-plus-llm-pi/models-dev.json`，原子写）→
   profiles 按原始 config 对象 identity 备忘 → `PiAiAdapter`（快照随 profiles
   identity 失效）→ `registerAdapter` + `registerModelDiscovery` +
   `registerConfigurableProviders`（官方 Models 页/拉取模型动作可见）。
@@ -93,9 +93,9 @@ anthropic 9 个字段，见 `src/compat.ts`）。
   adapter 冲突）时降级为逐个 route 注册，跳过冲突者并告警——启动不再 fail-loud；
   热更新原子 replace 被拒时保留旧注册。
 - 配置 API（apiproxy 白名单挡第三方 namespace，故自建同源路由）：
-  `GET/PUT /dsh-custom/llm-pi/config`（PUT 为全量替换语义）、
-  `GET /dsh-custom/llm-pi/catalog?provider=&source=builtin|models-dev`、
-  `POST /dsh-custom/llm-pi/catalog/refresh`（手动拉取）。
+  `GET/PUT /dsh-plus/llm-pi/config`（PUT 为全量替换语义）、
+  `GET /dsh-plus/llm-pi/catalog?provider=&source=builtin|models-dev`、
+  `POST /dsh-plus/llm-pi/catalog/refresh`（手动拉取）。
 
 ## 边界与风险
 
@@ -113,7 +113,7 @@ anthropic 9 个字段，见 `src/compat.ts`）。
 ## 开发
 
 ```bash
-corepack pnpm --filter @dsh-custom/llm-pi build   # node 半 ESM + 浏览器半 CJS
+corepack pnpm --filter @dsh-plus/llm-pi build   # node 半 ESM + 浏览器半 CJS
 node --test packages/llm-pi/tests/*.test.ts        # 单测（vendored 套件，零网络）
 ```
 

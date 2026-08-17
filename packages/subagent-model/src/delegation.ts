@@ -25,7 +25,7 @@ import type { ContinuableStartSpec, SubagentStartRequest } from '@deepseek-ai/ds
 
 import { applyEffort, mergeAgentOptions, resolveEntry, type RequestConfig, type SubagentModelConfig } from './config.ts'
 
-const WRAPPED = Symbol('dsh-custom-subagent-model.wrapped')
+const WRAPPED = Symbol('dsh-plus-subagent-model.wrapped')
 
 /** 子代理服务的最小运行期面（仅包装用到的两个入口）。 */
 interface SubagentsLike {

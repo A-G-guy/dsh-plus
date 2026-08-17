@@ -17,16 +17,16 @@ importers:
 
   packages/bundle-main:
     dependencies:
-      '@dsh-custom/llm-pi':
+      '@dsh-plus/llm-pi':
         specifier: workspace:*
         version: link:../llm-pi
-      '@dsh-custom/notify-email':
+      '@dsh-plus/notify-email':
         specifier: workspace:*
         version: link:../notify-email
-      '@dsh-custom/subagent-model':
+      '@dsh-plus/subagent-model':
         specifier: workspace:*
         version: link:../subagent-model
-      '@dsh-custom/ui-mobile-fit':
+      '@dsh-plus/ui-mobile-fit':
         specifier: workspace:*
         version: link:../ui-mobile-fit
     devDependencies:
@@ -164,7 +164,7 @@ importers:
       '@deepseek-ai/dsh-tools':
         specifier: 0.1.0-rc.6
         version: 0.1.0-rc.6(f8724372086ccc1457fc84e7becee2e0)
-      '@dsh-custom/shared':
+      '@dsh-plus/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -174,7 +174,7 @@ importers:
 
   packages/ui-mobile-fit:
     dependencies:
-      '@dsh-custom/shared':
+      '@dsh-plus/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:

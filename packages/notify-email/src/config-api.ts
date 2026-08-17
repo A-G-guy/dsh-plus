@@ -13,8 +13,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import { SETTINGS_NS, toUserPatch, toWire, WirePatch, type WirePatchInput } from './config.ts'
 import type { NotifyEmailService } from './service.ts'
 
-const ROUTE_CONFIG = '/dsh-custom/notify-email/config'
-const ROUTE_TEST = '/dsh-custom/notify-email/test'
+const ROUTE_CONFIG = '/dsh-plus/notify-email/config'
+const ROUTE_TEST = '/dsh-plus/notify-email/test'
 const MAX_BODY_BYTES = 64 * 1024
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {

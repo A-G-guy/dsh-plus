@@ -1,7 +1,7 @@
 /**
  * 共享纯函数库：文本变换。
  * 不依赖 cordis / dsh，可在任意插件与测试中复用。
- * @module @dsh-custom/shared
+ * @module @dsh-plus/shared
  */
 
 export const TRANSFORM_OPS = ['uppercase', 'lowercase', 'reverse', 'length'] as const

@@ -18,7 +18,7 @@ import z from '@deepseek-ai/schemastery'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 
 /** settings 命名空间；webui 配置卡片与插件运行期读取同一份。 */
-export const SETTINGS_NS = settingsNamespace('dsh-custom-subagent-model')
+export const SETTINGS_NS = settingsNamespace('dsh-plus-subagent-model')
 
 /** 思考程度哨兵值：继承主代理（不注入 effort 字段）。 */
 export const EFFORT_INHERIT = 'inherit'

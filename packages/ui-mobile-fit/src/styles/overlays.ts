@@ -1,7 +1,7 @@
 /**
  * 移动端覆盖样式：覆盖层（对话框、菜单、设置页、tooltip 类浮层）。
  * 窄屏下浮层近全屏化并内部滚动，避免固定宽度溢出或关闭按钮不可达。
- * @module @dsh-custom/ui-mobile-fit/styles/overlays
+ * @module @dsh-plus/ui-mobile-fit/styles/overlays
  */
 
 /** 窄屏覆盖层修复。 */

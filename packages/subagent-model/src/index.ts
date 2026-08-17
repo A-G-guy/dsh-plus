@@ -4,14 +4,14 @@
  * 或选择从主代理继承；只负责模型选定，其余参数（maxTokens/persona/toolFilter/
  * maxDepth 等）保持 dsh 原生行为。配置 UI 位于 webui 设置-插件-插件配置，
  * 持久化到 $DSH_HOME/settings.yaml 并热生效。
- * @module @dsh-custom/subagent-model
+ * @module @dsh-plus/subagent-model
  */
 import type { Context } from '@deepseek-ai/cordis'
 
 import { Config, type SubagentModelConfig } from './config.ts'
 import { SubagentModelService } from './service.ts'
 
-export const name = 'dsh-custom-subagent-model'
+export const name = 'dsh-plus-subagent-model'
 
 export const inject = ['subagents', 'llm'] as const
 

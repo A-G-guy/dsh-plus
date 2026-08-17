@@ -71,8 +71,8 @@ export interface CatalogResult {
   status?: WireModelsDevStatus
 }
 
-const ROUTE_CONFIG = '/dsh-custom/llm-pi/config'
-const ROUTE_CATALOG = '/dsh-custom/llm-pi/catalog'
+const ROUTE_CONFIG = '/dsh-plus/llm-pi/config'
+const ROUTE_CATALOG = '/dsh-plus/llm-pi/catalog'
 
 async function parse<T>(res: Response): Promise<T> {
   const body = (await res.json()) as T & { error?: string }

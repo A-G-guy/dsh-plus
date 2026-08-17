@@ -4,7 +4,7 @@
  * @module llm-pi/client/styles
  */
 
-export const PLUGIN_ID = '@dsh-custom/llm-pi'
+export const PLUGIN_ID = '@dsh-plus/llm-pi'
 export const STYLE_TAG_ID = `${PLUGIN_ID}/card.css`
 
 export const cardCss = `

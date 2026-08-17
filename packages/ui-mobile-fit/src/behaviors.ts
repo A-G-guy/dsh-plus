@@ -5,7 +5,7 @@
  * 2. 屏蔽程序化自动聚焦——切换会话时不再弹出输入法，真实点按/键盘不受影响；
  * 3. 侧栏展开时点按中列（空白处）自动收起，首次点按被吞掉不穿透到下层内容。
  * 全部仅在窄屏（max-width: 767px）生效，自动聚焦/IME 额外要求 pointer: coarse。
- * @module @dsh-custom/ui-mobile-fit/behaviors
+ * @module @dsh-plus/ui-mobile-fit/behaviors
  */
 
 const NARROW_QUERY = '(max-width: 767px)'

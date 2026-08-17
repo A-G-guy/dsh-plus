@@ -1,7 +1,7 @@
 {
-  "name": "@dsh-custom/llm-pi",
+  "name": "@dsh-plus/llm-pi",
   "version": "0.1.0",
-  "description": "dsh-custom service+ui plugin: 基于 PiAiAdapter 的自定义 LLM 路由（全量 compat、模型继承、models.dev 目录兜底）",
+  "description": "dsh-plus service+ui plugin: 基于 PiAiAdapter 的自定义 LLM 路由（全量 compat、模型继承、models.dev 目录兜底）",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

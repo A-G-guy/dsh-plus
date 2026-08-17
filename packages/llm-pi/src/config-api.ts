@@ -15,8 +15,8 @@ import { builtinModelIds } from './catalog/builtin.ts'
 import { SETTINGS_NS, toWire, WirePatch, type WirePatchInput } from './config.ts'
 import type { LlmPiRuntime } from './service.ts'
 
-const ROUTE_CONFIG = '/dsh-custom/llm-pi/config'
-const ROUTE_CATALOG = '/dsh-custom/llm-pi/catalog'
+const ROUTE_CONFIG = '/dsh-plus/llm-pi/config'
+const ROUTE_CATALOG = '/dsh-plus/llm-pi/catalog'
 const MAX_BODY_BYTES = 256 * 1024
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {

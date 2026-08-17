@@ -1,14 +1,14 @@
 /**
  * dsh 工具插件：text_transform。
  * 纯函数演示工具——无网络、无文件副作用，用于验证插件链路（注册 → 模型调用 → 结果渲染）。
- * @module @dsh-custom/tool-text-transform
+ * @module @dsh-plus/tool-text-transform
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
-import { isTransformOp, transformText, TRANSFORM_OPS } from '@dsh-custom/shared'
+import { isTransformOp, transformText, TRANSFORM_OPS } from '@dsh-plus/shared'
 
-export const name = 'dsh-custom-text-transform'
+export const name = 'dsh-plus-text-transform'
 
 export const inject = ['tools'] as const
 

@@ -3,7 +3,7 @@
  * @module subagent-model/client/i18n
  */
 
-export const NS = 'dsh-custom-subagent-model'
+export const NS = 'dsh-plus-subagent-model'
 
 export const zh: Record<string, string> = {
   title: '子代理模型配置',

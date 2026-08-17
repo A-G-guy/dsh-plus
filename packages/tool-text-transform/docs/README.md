@@ -1,8 +1,8 @@
 ---
-last_modified: "2026-08-17 14:20"
+last_modified: "2026-08-17 16:37"
 ---
 
-# @dsh-custom/tool-text-transform
+# @dsh-plus/tool-text-transform
 
 纯函数演示工具插件：注册 `text_transform` 工具（uppercase/lowercase/reverse/length）。
 无网络、无文件副作用，用作本仓库插件链路（注册 → 构建 → link → 加载 → 调用）的
@@ -19,5 +19,5 @@ last_modified: "2026-08-17 14:20"
 
 ## 开发
 
-- 纯逻辑在 `@dsh-custom/shared`（`transformText`），本包只做注册与边界声明。
+- 纯逻辑在 `@dsh-plus/shared`（`transformText`），本包只做注册与边界声明。
 - 测试：`tests/tool.test.ts`（fake ctx 断言注册形状与执行结果）。

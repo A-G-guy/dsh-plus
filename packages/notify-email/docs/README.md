@@ -1,8 +1,8 @@
 ---
-last_modified: "2026-08-17 14:20"
+last_modified: "2026-08-17 16:37"
 ---
 
-# @dsh-custom/notify-email
+# @dsh-plus/notify-email
 
 任务结束邮件通知插件：在 agent 停止工作的三类时机，用配置的 SMTP 邮箱向指定
 收件人发送邮件。service+ui 混合插件（node 半编排通知，浏览器半提供配置卡片）。
@@ -30,7 +30,7 @@ last_modified: "2026-08-17 14:20"
 
 ## 配置
 
-cordis 行级 `Config`（组合默认值）与 settings namespace `dsh-custom-notify-email`
+cordis 行级 `Config`（组合默认值）与 settings namespace `dsh-plus-notify-email`
 （用户层）共用同一 schemastery schema（`src/config.ts` 单一事实源）。用户层经
 dsh-settings-file 持久化到 `$DSH_HOME/settings.yaml`，热生效。
 
@@ -54,9 +54,9 @@ dsh-settings-file 持久化到 `$DSH_HOME/settings.yaml`，热生效。
 `settings-not-exposed`，故卡片数据走自建同源 HTTP 路由（node 半经
 `ctx.webServer.register` 注册）：
 
-- `GET  /dsh-custom/notify-email/config` — 读取（pass 恒脱敏为 `passConfigured` 布尔）
-- `PUT  /dsh-custom/notify-email/config` — 保存（经 `ctx.settings.update` 写用户层）
-- `POST /dsh-custom/notify-email/test`   — 发送测试邮件（绕过 enabled 门禁）
+- `GET  /dsh-plus/notify-email/config` — 读取（pass 恒脱敏为 `passConfigured` 布尔）
+- `PUT  /dsh-plus/notify-email/config` — 保存（经 `ctx.settings.update` 写用户层）
+- `POST /dsh-plus/notify-email/test`   — 发送测试邮件（绕过 enabled 门禁）
 
 ## 投递审计
 
@@ -88,8 +88,8 @@ ctx.inject(['notifyEmail'], (ctx) => {
 ## 开发与验证
 
 ```bash
-pnpm --filter @dsh-custom/notify-email build           # 双入口构建
-pnpm --filter @dsh-custom/notify-email watch           # 浏览器半 HMR
+pnpm --filter @dsh-plus/notify-email build           # 双入口构建
+pnpm --filter @dsh-plus/notify-email watch           # 浏览器半 HMR
 node --test packages/notify-email/tests/*.test.ts      # 单元测试（纯逻辑，无网络）
 ```
 

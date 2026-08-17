@@ -13,7 +13,7 @@
 import { defineConfig } from 'tsdown'
 
 const CLIENT_BANNER = `window.__ModuleLoader__.load({
-	id: "@dsh-custom/ui-mobile-fit",
+	id: "@dsh-plus/ui-mobile-fit",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;

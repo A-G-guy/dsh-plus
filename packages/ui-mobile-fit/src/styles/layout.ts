@@ -3,7 +3,7 @@
  * - 收起态：56px rail 整体隐藏、主栏全宽，展开按钮外移到 header 左上角；
  * - 展开态：侧栏/详情面板为 drawer 覆盖层，不挤占中列；
  * - composer 随 --dsh-ime-inset 上浮（behaviors.ts 在键盘弹出时写入）。
- * @module @dsh-custom/ui-mobile-fit/styles/layout
+ * @module @dsh-plus/ui-mobile-fit/styles/layout
  */
 
 /** 窄屏布局规则。 */

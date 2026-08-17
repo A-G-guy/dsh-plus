@@ -13,7 +13,7 @@ import type { NotifyTrigger } from './types.ts'
 /** 官方决策工具名 → 渲染函数 + 对应 toggle。 */
 export function createDecisionTrigger(resolveConfig: () => NotifyEmailConfig): NotifyTrigger {
   return {
-    id: 'dsh-custom-official-decision',
+    id: 'dsh-plus-official-decision',
     onDecision(call) {
       const cfg = resolveConfig()
       if (call.name === 'ask_user_question' && cfg.triggers.onQuestion) {
@@ -29,7 +29,7 @@ export function createDecisionTrigger(resolveConfig: () => NotifyEmailConfig): N
 
 export function createTurnEndTrigger(resolveConfig: () => NotifyEmailConfig): NotifyTrigger {
   return {
-    id: 'dsh-custom-official-turn-end',
+    id: 'dsh-plus-official-turn-end',
     onTurnEnd(info) {
       const cfg = resolveConfig()
       if (info.kind === 'completed' && cfg.triggers.onComplete) {

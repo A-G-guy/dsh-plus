@@ -3,7 +3,7 @@
  * @module notify-email/client/i18n
  */
 
-export const NS = 'dsh-custom-notify-email'
+export const NS = 'dsh-plus-notify-email'
 
 export const zh: Record<string, string> = {
   title: '邮件通知',

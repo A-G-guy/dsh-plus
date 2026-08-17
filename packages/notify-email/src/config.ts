@@ -8,7 +8,7 @@ import z from '@deepseek-ai/schemastery'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 
 /** settings 命名空间；webui 配置卡片与插件运行期读取同一份。 */
-export const SETTINGS_NS = settingsNamespace('dsh-custom-notify-email')
+export const SETTINGS_NS = settingsNamespace('dsh-plus-notify-email')
 
 const SmtpSchema = z.object({
   host: z.string().description('SMTP 服务器主机名').default(''),

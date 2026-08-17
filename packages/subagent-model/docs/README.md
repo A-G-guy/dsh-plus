@@ -1,15 +1,15 @@
 ---
-last_modified: "2026-08-17 14:20"
+last_modified: "2026-08-17 16:37"
 ---
 
-# @dsh-custom/subagent-model 文档索引
+# @dsh-plus/subagent-model 文档索引
 
 子代理独立模型配置插件：为 `subagent` / `subagent_fork`（及同 provider 名下的其他子代理
 委托）单独指定 LLM 提供商、模型与思考程度（reasoningEffort），或选择从主代理继承。
 只负责模型选定，maxTokens / persona / toolFilter / maxDepth 等其余参数保持 dsh 原生行为。
 配置 UI 位于 webui「设置 → 插件 → 插件配置」，持久化到 `$DSH_HOME/settings.yaml` 并热生效。
 
-## 配置项（settings namespace `dsh-custom-subagent-model`）
+## 配置项（settings namespace `dsh-plus-subagent-model`）
 
 | 字段 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -50,11 +50,11 @@ standard preset 的映射事实：`spawn` ↔ `subagent` 工具、`fork` ↔ `su
   已配置子代理再委托时，其子代默认继承该配置。
 - 同 provider 的 `ralph` 等委托同样受条目影响（机制使然）；
   `workflow` 脚本显式 provider/model 经合并顺序仍优先。
-- 服务端 HTTP 通道：`GET/PUT /dsh-custom/subagent-model/config`、
-  `GET /dsh-custom/subagent-model/catalog`（官方 settings RPC 白名单不含第三方
+- 服务端 HTTP 通道：`GET/PUT /dsh-plus/subagent-model/config`、
+  `GET /dsh-plus/subagent-model/catalog`（官方 settings RPC 白名单不含第三方
   namespace，自建同源路由，读写仍走 `ctx.settings` 用户层）。
 
 ## 部署
 
 `pnpm pack` 产出 tarball 后 `dsh plugin --profile web add <tarball>` 安装
-（或经 `@dsh-custom/bundle-main` 聚合闭包一并安装），重启 dsh web 后生效。
+（或经 `@dsh-plus/bundle-main` 聚合闭包一并安装），重启 dsh web 后生效。

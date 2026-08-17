@@ -74,7 +74,7 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
   logger.info(`运行时套件来源：${kit.source}`)
 
   const modelsDev = new ModelsDevSource(
-    dshHomePath('storages', 'dsh-custom-llm-pi', 'models-dev.json'),
+    dshHomePath('storages', 'dsh-plus-llm-pi', 'models-dev.json'),
     config.catalogUrl,
     config.catalogRefreshHours,
     (message) => logger.warn(message),

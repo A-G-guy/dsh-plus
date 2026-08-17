@@ -1,8 +1,8 @@
 ---
-last_modified: "2026-08-17 14:20"
+last_modified: "2026-08-17 16:37"
 ---
 
-# @dsh-custom/ui-mobile-fit
+# @dsh-plus/ui-mobile-fit
 
 纯覆盖式（CSS + 极少量行为胶水）的 DSH Web UI 移动端窄屏适配插件。不 fork
 上游、不注册替代组件：浏览器半仅注入覆盖样式与少数全局事件监听，上游升级
@@ -62,8 +62,8 @@ shell 旧格式为 `_语义_哈希_序号`（`_remove_1hk8w_53`）。哈希随�
 ## 开发与验证
 
 ```bash
-pnpm --filter @dsh-custom/ui-mobile-fit build          # 构建（node 半 ESM + 浏览器半 factory）
-pnpm --filter @dsh-custom/ui-mobile-fit watch          # watch：HMR 热更浏览器半
+pnpm --filter @dsh-plus/ui-mobile-fit build          # 构建（node 半 ESM + 浏览器半 factory）
+pnpm --filter @dsh-plus/ui-mobile-fit watch          # watch：HMR 热更浏览器半
 node --test packages/ui-mobile-fit/tests/*.test.ts     # 单元测试（纯逻辑，无网络）
 ```
 

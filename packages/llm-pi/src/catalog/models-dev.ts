@@ -7,7 +7,7 @@
  * - 配置 catalogRefreshHours > 0：启动/过期后后台自动刷新；
  * - 配置卡片「手动拉取」或 POST /catalog/refresh：立即拉取。
  * 拉取可经 catalogProxy 代理（HTTP 代理，如 http://127.0.0.1:7890）。
- * 成功落盘缓存（storages/dsh-custom-llm-pi/models-dev.json）；任何失败都退化为
+ * 成功落盘缓存（storages/dsh-plus-llm-pi/models-dev.json）；任何失败都退化为
  * "仅内置目录"，绝不阻塞 route 注册。
  *
  * 保守原则：models.dev 数据未经 pi 官方校正（无 compat/thinkingLevelMap），

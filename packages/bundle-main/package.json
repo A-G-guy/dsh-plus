@@ -1,7 +1,7 @@
 {
-  "name": "@dsh-custom/bundle-main",
+  "name": "@dsh-plus/bundle-main",
   "version": "0.1.0",
-  "description": "dsh-custom aggregate bundle: ordered cordis patch layer wiring all dsh-custom plugins",
+  "description": "dsh-plus aggregate bundle: ordered cordis patch layer wiring all dsh-plus plugins",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -23,10 +23,10 @@
     "build": "tsdown src/index.ts -d lib --format esm --dts"
   },
   "dependencies": {
-    "@dsh-custom/ui-mobile-fit": "workspace:*",
-    "@dsh-custom/notify-email": "workspace:*",
-    "@dsh-custom/subagent-model": "workspace:*",
-    "@dsh-custom/llm-pi": "workspace:*"
+    "@dsh-plus/ui-mobile-fit": "workspace:*",
+    "@dsh-plus/notify-email": "workspace:*",
+    "@dsh-plus/subagent-model": "workspace:*",
+    "@dsh-plus/llm-pi": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1"

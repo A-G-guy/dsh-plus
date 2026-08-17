@@ -16,8 +16,8 @@ import {
 } from './config.ts'
 import type { SubagentModelService } from './service.ts'
 
-const ROUTE_CONFIG = '/dsh-custom/subagent-model/config'
-const ROUTE_CATALOG = '/dsh-custom/subagent-model/catalog'
+const ROUTE_CONFIG = '/dsh-plus/subagent-model/config'
+const ROUTE_CATALOG = '/dsh-plus/subagent-model/catalog'
 const MAX_BODY_BYTES = 256 * 1024
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {

@@ -8,7 +8,7 @@
 import { defineConfig } from 'tsdown'
 
 const CLIENT_BANNER = `window.__ModuleLoader__.load({
-	id: "@dsh-custom/llm-pi",
+	id: "@dsh-plus/llm-pi",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;

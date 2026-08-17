@@ -6,7 +6,7 @@
  * 类型说明：浏览器半只用到 slots/locale 的很窄一面，此处以最小本地接口声明，
  * 避免为构建期类型引入整条官方 client 依赖树；运行时契约以官方
  * dsh-client-ui-settings-plugins 的 settings.plugin.item 插槽为准。
- * @module @dsh-custom/llm-pi/client
+ * @module @dsh-plus/llm-pi/client
  */
 import type { Context } from '@deepseek-ai/cordis'
 
@@ -14,7 +14,7 @@ import { LlmPiCard } from './card.tsx'
 import { en, NS, zh } from './i18n.ts'
 import { injectStyle } from './styles.ts'
 
-export const name = 'dsh-custom-llm-pi'
+export const name = 'dsh-plus-llm-pi'
 
 /** 浏览器半需要的 cordis 服务 key（loader 据此注入；package.json 的 dsh.client.inject 管包加载顺序）。 */
 export const inject = ['slots', 'locale'] as const

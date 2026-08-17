@@ -17,7 +17,7 @@ function createFakeCtx() {
 }
 
 test('given the plugin module, when inspecting exports, then loader metadata is present', () => {
-  assert.equal(name, 'dsh-custom-text-transform')
+  assert.equal(name, 'dsh-plus-text-transform')
   assert.deepEqual([...inject], ['tools'])
 })
 

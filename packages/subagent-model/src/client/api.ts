@@ -51,8 +51,8 @@ export interface ModelCatalog {
   subagentProviders: string[]
 }
 
-const ROUTE_CONFIG = '/dsh-custom/subagent-model/config'
-const ROUTE_CATALOG = '/dsh-custom/subagent-model/catalog'
+const ROUTE_CONFIG = '/dsh-plus/subagent-model/config'
+const ROUTE_CATALOG = '/dsh-plus/subagent-model/catalog'
 
 async function parse<T>(res: Response): Promise<T> {
   const body = (await res.json()) as T & { error?: string }

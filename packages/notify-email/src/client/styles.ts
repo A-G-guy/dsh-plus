@@ -4,7 +4,7 @@
  * @module notify-email/client/styles
  */
 
-export const PLUGIN_ID = '@dsh-custom/notify-email'
+export const PLUGIN_ID = '@dsh-plus/notify-email'
 export const STYLE_TAG_ID = `${PLUGIN_ID}/card.css`
 
 export const cardCss = `
