@@ -12,3 +12,5 @@
       name: '@dsh-plus/subagent-model'
     - id: dsh-plus-llm-pi
       name: '@dsh-plus/llm-pi'
+    - id: dsh-plus-skill-manual
+      name: '@dsh-plus/skill-manual'

@@ -26,6 +26,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | [`@dsh-plus/notify-email`](packages/notify-email) | 0.1.0 | service + UI | 任务完成 / 等待决策 / 出错停止时向指定邮箱发送邮件通知 | [docs](packages/notify-email/docs/README.md) |
 | [`@dsh-plus/subagent-model`](packages/subagent-model) | 0.1.0 | service + UI | 为 `subagent` / `subagent_fork` 等子代理单独配置模型与思考程度 | [docs](packages/subagent-model/docs/README.md) |
 | [`@dsh-plus/llm-pi`](packages/llm-pi) | 0.1.0 | service + UI | 基于 pi-ai 的自定义 LLM 路由：三协议 route、官方目录继承、全量 compat、models.dev 兜底 | [docs](packages/llm-pi/docs/README.md) |
+| [`@dsh-plus/skill-manual`](packages/skill-manual) | 0.1.0 | skill provider | 手动触发技能独立目录（`$DSH_HOME/skills-manual`）：不进模型 catalog，斜杠发现 + `/name` 注入 | [docs](packages/skill-manual/docs/README.md) |
 | [`@dsh-plus/tool-text-transform`](packages/tool-text-transform) | 0.1.0 | tool | 纯函数演示工具（uppercase / lowercase / reverse / length），插件链路参考实现 | [docs](packages/tool-text-transform/docs/README.md) |
 | [`@dsh-plus/bundle-main`](packages/bundle-main) | 0.1.0 | bundle | 聚合编排层：按序 insert 正式插件行，单插件脱离 bundle 亦可独立安装 | — |
 | [`@dsh-plus/shared`](packages/shared) | 0.1.0 | library | 工作区共享纯函数库（非插件） | — |

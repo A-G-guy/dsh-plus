@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/bundle-main",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh-plus aggregate bundle: ordered cordis patch layer wiring all dsh-plus plugins",
   "type": "module",
   "main": "lib/index.js",
@@ -26,7 +26,8 @@
     "@dsh-plus/ui-mobile-fit": "workspace:*",
     "@dsh-plus/notify-email": "workspace:*",
     "@dsh-plus/subagent-model": "workspace:*",
-    "@dsh-plus/llm-pi": "workspace:*"
+    "@dsh-plus/llm-pi": "workspace:*",
+    "@dsh-plus/skill-manual": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1"
