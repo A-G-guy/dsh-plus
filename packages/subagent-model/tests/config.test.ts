@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import {
   applyEffort, Config, EFFORT_DEFAULT, EFFORT_INHERIT, mergeAgentOptions, resolveEntry,
-  toUserPatch, toWire, validateEntry, WirePatch,
+  validateEntries, validateEntry,
 } from '../src/config.ts'
 
 test('given empty config, when schema resolves, then safe defaults apply (disabled, no entries)', () => {
@@ -83,23 +83,19 @@ test('given entry validation, when model set without provider, then rejected wit
   assert.equal(validateEntry({ enabled: true, provider: 'p', model: 'm', reasoningEffort: 'max' }), null)
 })
 
-test('given config with entries, when serialized for the wire, then entries and provider list round-trip', () => {
-  const cfg = Config({ enabled: true, entries: { spawn: { enabled: true, provider: 'deepseek', model: 'm', reasoningEffort: 'max' } } })
-  const wire = toWire(cfg, ['spawn', 'fork'], true)
-  assert.equal(wire.enabled, true)
-  assert.deepEqual(wire.subagentProviders, ['spawn', 'fork'])
-  assert.deepEqual(wire.entries['spawn'], { enabled: true, provider: 'deepseek', model: 'm', reasoningEffort: 'max' })
-  assert.equal(wire.writable, true)
-})
-
-test('given a card patch, when validated and mapped, then entries map replaces wholesale', () => {
-  const patch = WirePatch({
-    enabled: true,
-    entries: { spawn: { enabled: false, provider: '', model: '', reasoningEffort: EFFORT_INHERIT } },
-  })
-  assert.deepEqual(toUserPatch(patch), {
-    enabled: true,
-    entries: { spawn: { enabled: false, provider: '', model: '', reasoningEffort: EFFORT_INHERIT } },
-  })
-  assert.throws(() => WirePatch({ enabled: true, entries: { spawn: { enabled: 'yes' } } }))
+test('given entry map validation, when one entry is invalid, then first error names the entry', () => {
+  assert.equal(
+    validateEntries({
+      spawn: { provider: 'deepseek', model: 'm', reasoningEffort: EFFORT_INHERIT },
+      fork: { provider: '', model: 'orphan', reasoningEffort: EFFORT_INHERIT },
+    }),
+    '条目 fork: model 不能脱离 provider 单独配置（请先选择提供商或改回继承）',
+  )
+  assert.equal(
+    validateEntries({
+      spawn: { provider: 'deepseek', model: 'm', reasoningEffort: EFFORT_INHERIT },
+    }),
+    null,
+  )
+  assert.equal(validateEntries({}), null)
 })

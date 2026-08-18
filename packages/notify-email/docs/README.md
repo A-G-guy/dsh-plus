@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-18 13:36"
+last_modified: "2026-08-18 14:11"
 ---
 
 # @dsh-plus/notify-email
@@ -52,15 +52,13 @@ dsh rc7 起该插槽为 **keyed** 槽位：卡片以本插件 settings 命名空
 （`dsh-plus-notify-email`，字面量统一在 `src/ns.ts`）为 key 注册，官方配置页
 按 key 与 Host 已注册命名空间配对分发。
 
-**注意**：rc6 时代官方 apiproxy 的 `settings.*` RPC 对 namespace 有硬编码白名单
-（`dsh-host-apiproxy` 的 `WEB_SETTINGS_NAMESPACES`），第三方 namespace 一律
-`settings-not-exposed`，故卡片数据走自建同源 HTTP 路由（node 半经
-`ctx.webServer.register` 注册）；rc7 起白名单已移除、全部已注册命名空间
-对 settings RPC 开放，自建路由保留（测试发信端点与密码脱敏控制仍在）：
+**配置传输**：dsh rc7 起白名单已移除、全部已注册命名空间对 `settings.*` RPC
+开放，卡片读写直接走官方 **settingsScope** 传输（浏览器半 `settingsScope.bind`
+绑定命名空间 + `connection.api.settings` 读写；pass 为 secret 角色，value 恒
+脱敏，是否已配置经 describe 的 `secrets` 列表探测；空 pass 提交 = 保持不变）。
+自定义端点仅剩「发送测试邮件」（node 半经 `ctx.webServer.register` 注册）：
 
-- `GET  /dsh-plus/notify-email/config` — 读取（pass 恒脱敏为 `passConfigured` 布尔）
-- `PUT  /dsh-plus/notify-email/config` — 保存（经 `ctx.settings.update` 写用户层）
-- `POST /dsh-plus/notify-email/test`   — 发送测试邮件（绕过 enabled 门禁）
+- `POST /dsh-plus/notify-email/test` — 发送测试邮件（绕过 enabled 门禁）
 
 ## 投递审计
 

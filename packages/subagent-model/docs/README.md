@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-18 13:36"
+last_modified: "2026-08-18 14:11"
 ---
 
 # @dsh-plus/subagent-model 文档索引
@@ -50,10 +50,11 @@ standard preset 的映射事实：`spawn` ↔ `subagent` 工具、`fork` ↔ `su
   已配置子代理再委托时，其子代默认继承该配置。
 - 同 provider 的 `ralph` 等委托同样受条目影响（机制使然）；
   `workflow` 脚本显式 provider/model 经合并顺序仍优先。
-- 服务端 HTTP 通道：`GET/PUT /dsh-plus/subagent-model/config`、
-  `GET /dsh-plus/subagent-model/catalog`（rc6 时代官方 settings RPC 白名单不含
-  第三方 namespace，自建同源路由；rc7 起白名单移除，路由保留，读写仍走
-  `ctx.settings` 用户层）。
+- 配置读写走官方 settingsScope 传输（浏览器半 `settingsScope.bind` +
+  `connection.api.settings`；rc7 起第三方命名空间对 settings RPC 全量开放），
+  写入经 settings validate 钩子跑 `validateEntries` 规则；自定义端点仅剩
+  `GET /dsh-plus/subagent-model/catalog`（模型目录，含已注册子代理 provider
+  名单与 catalog 故障报告）。
 - 浏览器配置卡片经官方 `settings.plugin.item` keyed 插槽注册（key =
   `dsh-plus-subagent-model` 命名空间，字面量统一在 `src/ns.ts`），
   rc7 配置页按 key 与 Host 已注册命名空间配对分发。

@@ -1,10 +1,10 @@
 /**
- * 可编辑草稿模型与 WireConfig ↔ Draft 双向转换。
+ * 可编辑草稿模型与 ConfigValue ↔ Draft 双向转换。
  * 设计：数值字段用字符串承载（'' = 未设置/不写入），多选枚举用布尔 map，
  * 转换时剔除空值，保证 dirty 比较（toPatch 双侧）与保存形状稳定。
  * @module llm-pi/client/draft
  */
-import type { WireConfig, WireModel, WirePatchInput, WireProvider } from './api.ts'
+import type { ConfigPatch, ConfigValue, WireModel, WireProvider } from './api.ts'
 
 export interface HeaderPair {
   key: string
@@ -267,20 +267,20 @@ export function emptyModelDraft(): ModelDraft {
   }
 }
 
-export function draftFromWire(wire: WireConfig): Draft {
+export function draftFromValue(value: ConfigValue): Draft {
   return {
-    enabled: wire.enabled,
-    catalogUrl: wire.catalogUrl,
-    catalogRefreshHours: String(wire.catalogRefreshHours),
-    catalogProxy: wire.catalogProxy,
+    enabled: value.enabled,
+    catalogUrl: value.catalogUrl,
+    catalogRefreshHours: String(value.catalogRefreshHours),
+    catalogProxy: value.catalogProxy,
     providers: Object.fromEntries(
-      Object.entries(wire.providers).map(([route, provider]) => [route, providerDraftFromWire(provider)]),
+      Object.entries(value.providers).map(([route, provider]) => [route, providerDraftFromWire(provider)]),
     ),
   }
 }
 
 /** 提交补丁：完整配置对象，providers 全量替换；空值一律剔除。 */
-export function toPatch(draft: Draft): WirePatchInput {
+export function toPatch(draft: Draft): ConfigPatch {
   return {
     enabled: draft.enabled,
     catalogUrl: draft.catalogUrl.trim(),

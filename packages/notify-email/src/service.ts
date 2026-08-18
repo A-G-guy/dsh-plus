@@ -13,7 +13,7 @@ import { createJsonlAuditSink } from './audit.ts'
 import { Config, SETTINGS_NS, type NotifyEmailConfig } from './config.ts'
 import { Mailer } from './mailer.ts'
 import { installSettingsSection } from '@deepseek-ai/dsh-settings'
-import { registerConfigApi } from './config-api.ts'
+import { registerTestApi } from './config-api.ts'
 import { createDecisionTrigger, createTurnEndTrigger } from './triggers/builtin.ts'
 import type { DecisionCall, NotifyTrigger, TurnEndInfo } from './triggers/types.ts'
 import { installDecisionWatcher } from './watchers/decision.ts'
@@ -52,7 +52,7 @@ export class NotifyEmailService extends Service {
     installDecisionWatcher(ctx, this)
     installTurnEndWatcher(ctx, this, () => this.current())
     ctx.inject(['webServer'], (webCtx) => {
-      registerConfigApi(webCtx, this)
+      registerTestApi(webCtx, this)
     })
   }
 

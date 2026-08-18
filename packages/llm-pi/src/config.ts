@@ -156,57 +156,5 @@ export const Config: z<LlmPiConfig> = z.object({
   providers: z.dict(providerProfile).description('provider 路由表，键即 route 名').default({}),
 })
 
-/** 配置卡片读取用的传输对象：配置无密钥字段，原样传输；附运行期元信息。 */
-export interface WireConfig {
-  enabled: boolean
-  catalogUrl: string
-  catalogRefreshHours: number
-  catalogProxy: string
-  providers: Record<string, ProviderProfileConfig>
-  /** 是否存在可写的 settings provider（决定卡片是否允许编辑）。 */
-  writable: boolean
-  /** 模块解析来源与自检结果（dsh 树 / vendored 兜底）。 */
-  kitSource: string
-  /** models.dev 快照状态（fetchedAt/模型数/错误），供卡片展示。 */
-  modelsDevStatus: { fetchedAt: string | null; providers: number; models: number; error: string | null } | null
-}
-
-export function toWire(
-  cfg: LlmPiConfig,
-  writable: boolean,
-  kitSource: string,
-  modelsDevStatus: WireConfig['modelsDevStatus'],
-): WireConfig {
-  return {
-    enabled: cfg.enabled,
-    catalogUrl: cfg.catalogUrl,
-    catalogRefreshHours: cfg.catalogRefreshHours,
-    catalogProxy: cfg.catalogProxy ?? '',
-    providers: cfg.providers ?? {},
-    writable,
-    kitSource,
-    modelsDevStatus,
-  }
-}
-
-/**
- * 配置卡片写回：卡片总是提交完整配置对象（含 providers 全量），
- * 后端经 settings.replace 整段覆盖用户层——providers dict 的删除语义
- * 无法经深合并表达，整段替换是唯一正确语义。
- */
-/** 卡片提交的形状：字段全可选（无默认值），只携带用户编辑过的字段。 */
-export interface WirePatchInput {
-  enabled?: boolean
-  catalogUrl?: string
-  catalogRefreshHours?: number
-  catalogProxy?: string
-  providers?: Record<string, ProviderProfileConfig>
-}
-
-export const WirePatch: z<WirePatchInput> = z.object({
-  enabled: z.boolean(),
-  catalogUrl: z.string(),
-  catalogRefreshHours: z.number(),
-  catalogProxy: z.string(),
-  providers: z.dict(providerProfile),
-})
+/** 卡片提交的形状：完整配置对象（含 providers 全量），settings.replace 整段覆盖。 */
+export type LlmPiPatch = LlmPiConfig

@@ -1,20 +1,25 @@
 /**
  * 「LLM 路由」配置卡片：注册进 settings.plugin.item 插槽（官方插件配置页）。
  * 顶部：enabled / catalogUrl / catalogRefreshHours / 只读状态行（kitSource、
- * modelsDevStatus）+ 保存（PUT 全量）与错误/成功提示；下方为 providers 路由
- * 列表（新增/删除/字段编辑/compat/模型目录，见 views/）。
+ * modelsDevStatus，来自模型目录端点）+ 保存（settings.replace 全量）与
+ * 错误/成功提示；下方为 providers 路由列表（新增/删除/字段编辑/compat/模型
+ * 目录，见 views/）。配置读写走官方 settingsScope 传输（scope.ts）。
  * 交互对齐官方卡片与 notify-email：折叠/展开、staged draft、未保存标记。
  * @module llm-pi/client/card
  */
-import { useEffect, useMemo, useState, type ReactElement } from 'react'
+import { useEffect, useMemo, useSyncExternalStore, useState, type ReactElement } from 'react'
 
-import { fetchConfig, refreshCatalog, saveConfig, type WireConfig, type WireModelsDevStatus } from './api.ts'
-import { draftFromWire, emptyProviderDraft, numTextOk, toPatch, type Draft, type ProviderDraft } from './draft.ts'
+import { SETTINGS_NS } from '../ns.ts'
+import { fetchCatalog, refreshCatalog, type ConfigValue, type WireModelsDevStatus } from './api.ts'
+import { draftFromValue, emptyProviderDraft, numTextOk, toPatch, type Draft, type ProviderDraft } from './draft.ts'
 import { CheckRow, TextField } from './fields.tsx'
+import type { Scope, SettingsApi } from './scope.ts'
 import { ProvidersSection } from './views/providers.tsx'
 
 export interface CardProps {
   t(key: string): string
+  scope: Scope
+  api: SettingsApi
 }
 
 interface Status {
@@ -32,27 +37,37 @@ function modelsDevText(status: WireModelsDevStatus | null, t: (key: string) => s
 }
 
 export function LlmPiCard(props: CardProps): ReactElement | null {
-  const { t } = props
+  const { t, scope, api } = props
+  const snapshot = useSyncExternalStore(
+    (listener: () => void) => scope.subscribe(listener),
+    () => scope.getSnapshot(),
+  )
+  const value = snapshot.value as ConfigValue | undefined
   const [open, setOpen] = useState(false)
-  const [wire, setWire] = useState<WireConfig | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [epoch, setEpoch] = useState(0)
-  const [failed, setFailed] = useState(false)
+  const [kitSource, setKitSource] = useState<string | null>(null)
+  const [modelsDevStatus, setModelsDevStatus] = useState<WireModelsDevStatus | null>(null)
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [status, setStatus] = useState<Status>(IDLE_STATUS)
 
+  // 首次拿到解析值后播种草稿；后续 Host 更新不覆盖在途编辑（与官方 staged 表单一致）。
+  useEffect(() => {
+    if (value === undefined || draft !== null) return
+    setDraft(draftFromValue(value))
+  }, [value, draft])
+
+  // 运行期诊断行（kitSource / models-dev 状态）来自模型目录端点，非配置数据。
   useEffect(() => {
     let alive = true
-    fetchConfig()
-      .then((loaded) => {
+    fetchCatalog('', 'models-dev')
+      .then((result) => {
         if (!alive) return
-        setWire(loaded)
-        setDraft(draftFromWire(loaded))
+        setKitSource(result.kitSource ?? null)
+        setModelsDevStatus(result.status ?? null)
       })
-      .catch(() => {
-        if (alive) setFailed(true)
-      })
+      .catch(() => {})
     return () => {
       alive = false
     }
@@ -60,10 +75,9 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
 
   const dirty = useMemo(
     () =>
-      wire !== null &&
-      draft !== null &&
-      JSON.stringify(toPatch(draft)) !== JSON.stringify(toPatch(draftFromWire(wire))),
-    [wire, draft],
+      value !== undefined && draft !== null &&
+      JSON.stringify(toPatch(draft)) !== JSON.stringify(toPatch(draftFromValue(value))),
+    [value, draft],
   )
   const invalid = useMemo(() => {
     if (draft === null) return false
@@ -75,8 +89,7 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
     )
   }, [draft])
 
-  if (failed) return null
-  if (wire === null || draft === null) {
+  if (value === undefined || draft === null) {
     return <li className="lpc-card"><p className="lpc-readOnly">{t('loading')}</p></li>
   }
 
@@ -97,10 +110,19 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
   }
   const onSave = (): void => {
     setSaving(true)
-    saveConfig(toPatch(draft))
-      .then((saved) => {
-        setWire(saved)
-        setDraft(draftFromWire(saved))
+    const revision = scope.getSnapshot().revision
+    api.replace({
+      ns: SETTINGS_NS,
+      section: toPatch(draft) as unknown as Record<string, unknown>,
+      ...(revision !== undefined ? { expectedRevision: revision } : {}),
+    })
+      .then(async (response) => {
+        if (!response.result.ok) {
+          throw new Error(response.result.error?.message ?? t('saveFailed'))
+        }
+        await scope.load()
+        const next = scope.getSnapshot().value as ConfigValue | undefined
+        if (next !== undefined) setDraft(draftFromValue(next))
         setEpoch((value) => value + 1)
         setStatus({ kind: 'ok', text: t('saveOk') })
       })
@@ -111,7 +133,7 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
       .finally(() => setSaving(false))
   }
   const onDiscard = (): void => {
-    setDraft(draftFromWire(wire))
+    setDraft(draftFromValue(value))
     setEpoch((value) => value + 1)
     setStatus(IDLE_STATUS)
   }
@@ -119,7 +141,7 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
     setRefreshing(true)
     refreshCatalog()
       .then((result) => {
-        setWire({ ...wire, modelsDevStatus: result.status })
+        setModelsDevStatus(result.status)
         setStatus({ kind: 'ok', text: t('refreshOk') })
       })
       .catch((error: unknown) => {
@@ -129,7 +151,7 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
       .finally(() => setRefreshing(false))
   }
 
-  const disabled = !wire.writable
+  const disabled = !snapshot.writable
   return (
     <li className={`lpc-card${open ? ' lpc-cardOpen' : ''}`}>
       <button
@@ -195,9 +217,9 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
               setStatus(IDLE_STATUS)
             }}
           />
-          <p className="lpc-statusRow">{t('kitSource')}：{wire.kitSource}</p>
+          <p className="lpc-statusRow">{t('kitSource')}：{kitSource ?? ''}</p>
           <div className="lpc-statusRow">
-            <span>{t('modelsDevStatus')}：{modelsDevText(wire.modelsDevStatus, t)}</span>
+            <span>{t('modelsDevStatus')}：{modelsDevText(modelsDevStatus, t)}</span>
             <button
               type="button"
               className="lpc-btn lpc-btnGhost lpc-btnSmall lpc-refreshBtn"

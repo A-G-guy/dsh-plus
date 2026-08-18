@@ -1,20 +1,38 @@
 /**
  * 「子代理模型配置」配置卡片：注册进 settings.plugin.item 插槽（官方插件配置页）。
- * 交互对齐官方卡片：折叠/展开、staged draft、未保存标记、保存/放弃；
- * 数据走自建同源路由（api.ts）。行集合 = 已注册子代理 provider ∪ 已配置条目，
- * 保存时全量写回 entries（未配置的新 provider 行以默认空值落盘，自文档化）。
+ * 交互对齐官方卡片：折叠/展开、staged draft、未保存标记、保存/放弃。
+ * 配置读写走官方 settingsScope 传输（scope.ts）：value 为 schema 解析后的
+ * 命名空间值（enabled + entries），行集合 = 目录返回的已注册子代理 provider
+ * ∪ 已配置条目，保存时全量写回 entries（未配置的新 provider 行以默认空值
+ * 落盘，自文档化）；「模型目录」为唯一保留的自定义端点。
  * @module subagent-model/client/card
  */
-import { useEffect, useMemo, useState, type ReactElement } from 'react'
+import { useEffect, useMemo, useSyncExternalStore, useState, type ReactElement } from 'react'
 
+import { SETTINGS_NS } from '../ns.ts'
 import {
-  fetchCatalog, fetchConfig, saveConfig,
-  type CatalogProvider, type ModelCatalog, type WireConfig, type WireEntry, type WirePatch,
+  fetchCatalog, type CatalogProvider, type ModelCatalog,
 } from './api.ts'
 import { CheckRow, SelectField, type SelectOption } from './fields.tsx'
+import type { Scope, SettingsApi } from './scope.ts'
 
 export interface CardProps {
   t(key: string): string
+  scope: Scope
+  api: SettingsApi
+}
+
+/** settings 命名空间的解析值（无 secret 字段）。 */
+export interface ConfigValue {
+  enabled: boolean
+  entries: Record<string, WireEntry>
+}
+
+export interface WireEntry {
+  enabled: boolean
+  provider: string
+  model: string
+  reasoningEffort: string
 }
 
 interface DraftRow {
@@ -39,11 +57,13 @@ const EMPTY_ROW: DraftRow = { enabled: false, provider: '', model: '', reasoning
 const EFFORT_INHERIT = 'inherit'
 const EFFORT_DEFAULT = 'default'
 
-function draftFromWire(wire: WireConfig): Draft {
+function draftFrom(value: ConfigValue, catalog: ModelCatalog | null): Draft {
   const rows: Record<string, DraftRow> = {}
-  const names = [...wire.subagentProviders, ...Object.keys(wire.entries).sort()]
+  const names = new Set<string>()
+  for (const name of catalog?.subagentProviders ?? []) names.add(name)
+  for (const name of Object.keys(value.entries).sort()) names.add(name)
   for (const name of names) {
-    const entry = wire.entries[name]
+    const entry = value.entries[name]
     rows[name] = entry === undefined
       ? { ...EMPTY_ROW }
       : {
@@ -53,18 +73,11 @@ function draftFromWire(wire: WireConfig): Draft {
           reasoningEffort: entry.reasoningEffort,
         }
   }
-  return { enabled: wire.enabled, rows }
+  return { enabled: value.enabled, rows }
 }
 
-function toPatch(draft: Draft): WirePatch {
+function toPatch(draft: Draft): Record<string, unknown> {
   return { enabled: draft.enabled, entries: draft.rows }
-}
-
-function rowNamesOf(wire: WireConfig, draft: Draft): string[] {
-  const names = new Set<string>()
-  for (const name of wire.subagentProviders) names.add(name)
-  for (const name of Object.keys(draft.rows).sort()) names.add(name)
-  return [...names]
 }
 
 function unknownOption(value: string, label: string): SelectOption {
@@ -139,31 +152,36 @@ function RowBlock(props: RowBlockProps): ReactElement {
 }
 
 export function SubagentModelCard(props: CardProps): ReactElement | null {
-  const { t } = props
+  const { t, scope, api } = props
+  const snapshot = useSyncExternalStore(
+    (listener: () => void) => scope.subscribe(listener),
+    () => scope.getSnapshot(),
+  )
+  const value = snapshot.value as ConfigValue | undefined
   const [open, setOpen] = useState(false)
-  const [wire, setWire] = useState<WireConfig | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null)
   const [catalogFailed, setCatalogFailed] = useState(false)
-  const [loadFailed, setLoadFailed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<Status>(IDLE_STATUS)
 
+  // 播种草稿（行集 = 已配置条目）；catalog 到达后只补缺失的 provider 空行，
+  // 不覆盖在途编辑；后续 Host 更新同样不覆盖。
   useEffect(() => {
-    let alive = true
-    fetchConfig()
-      .then((loaded) => {
-        if (!alive) return
-        setWire(loaded)
-        setDraft(draftFromWire(loaded))
-      })
-      .catch(() => {
-        if (alive) setLoadFailed(true)
-      })
-    return () => {
-      alive = false
-    }
-  }, [])
+    if (value === undefined) return
+    setDraft((current) => {
+      if (current === null) return draftFrom(value, catalog)
+      if (catalog === null) return current
+      const rows = { ...current.rows }
+      let changed = false
+      for (const name of catalog.subagentProviders) {
+        if (name in rows) continue
+        rows[name] = { ...EMPTY_ROW }
+        changed = true
+      }
+      return changed ? { ...current, rows } : current
+    })
+  }, [value, catalog])
 
   useEffect(() => {
     if (!open || catalog !== null) return
@@ -183,9 +201,10 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
   }, [open, catalog])
 
   const dirty = useMemo(
-    () => wire !== null && draft !== null &&
-      JSON.stringify(toPatch(draft)) !== JSON.stringify(toPatch(draftFromWire(wire))),
-    [wire, draft],
+    () =>
+      value !== undefined && draft !== null &&
+      JSON.stringify(toPatch(draft)) !== JSON.stringify(toPatch(draftFrom(value, catalog))),
+    [value, draft, catalog],
   )
   const invalid = useMemo(
     () => draft !== null && Object.values(draft.rows).some((row) =>
@@ -193,12 +212,11 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
     [draft],
   )
 
-  if (loadFailed) return null
-  if (wire === null || draft === null) {
+  if (value === undefined || draft === null) {
     return <li className="dsm-card"><p className="dsm-empty">{t('loading')}</p></li>
   }
-  const edit = <K extends keyof Draft>(key: K, value: Draft[K]): void => {
-    setDraft({ ...draft, [key]: value })
+  const edit = <K extends keyof Draft>(key: K, editValue: Draft[K]): void => {
+    setDraft({ ...draft, [key]: editValue })
     setStatus(IDLE_STATUS)
   }
   const editRow = (name: string, row: DraftRow): void => {
@@ -207,10 +225,19 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
   }
   const onSave = (): void => {
     setSaving(true)
-    saveConfig(toPatch(draft))
-      .then((saved) => {
-        setWire(saved)
-        setDraft(draftFromWire(saved))
+    const revision = scope.getSnapshot().revision
+    api.update({
+      ns: SETTINGS_NS,
+      patch: toPatch(draft),
+      ...(revision !== undefined ? { expectedRevision: revision } : {}),
+    })
+      .then(async (response) => {
+        if (!response.result.ok) {
+          throw new Error(response.result.error?.message ?? t('saveFailed'))
+        }
+        await scope.load()
+        const next = scope.getSnapshot().value as ConfigValue | undefined
+        if (next !== undefined) setDraft(draftFrom(next, catalog))
         setStatus(IDLE_STATUS)
       })
       .catch((error: unknown) => {
@@ -223,8 +250,8 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
     setCatalogFailed(false)
   }
 
-  const disabled = !wire.writable
-  const rowNames = rowNamesOf(wire, draft)
+  const disabled = !snapshot.writable
+  const rowNames = Object.keys(draft.rows).sort()
   const providerCount = (catalog?.providers ?? []).length
   return (
     <li className={`dsm-card${open ? ' dsm-cardOpen' : ''}`}>
@@ -276,7 +303,7 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
               </p>
             ) : null}
             <button type="button" className="dsm-btn dsm-btnGhost" disabled={!dirty || saving}
-              onClick={() => { setDraft(draftFromWire(wire)); setStatus(IDLE_STATUS) }}>
+              onClick={() => { setDraft(draftFrom(value, catalog)); setStatus(IDLE_STATUS) }}>
               {t('discard')}
             </button>
             <button type="button" className="dsm-btn dsm-btnPrimary" disabled={!dirty || invalid || saving || disabled}

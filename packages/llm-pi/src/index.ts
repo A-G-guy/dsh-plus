@@ -13,7 +13,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 
 import { Config, type LlmPiConfig } from './config.ts'
-import { registerConfigApi } from './config-api.ts'
+import { registerCatalogApi } from './config-api.ts'
 import { startRuntime } from './service.ts'
 
 export const name = 'dsh-plus-llm-pi'
@@ -22,12 +22,12 @@ export const inject = ['llm'] as const
 
 export { Config }
 
-export type { LlmPiConfig, ProviderProfileConfig, ModelEntryConfig, WireConfig } from './config.ts'
+export type { LlmPiConfig, ProviderProfileConfig, ModelEntryConfig } from './config.ts'
 export { SETTINGS_NS } from './config.ts'
 
 export async function apply(ctx: Context, config: LlmPiConfig): Promise<void> {
   const runtime = await startRuntime(ctx, config)
   ctx.inject(['webServer'], (webCtx) => {
-    registerConfigApi(webCtx, runtime)
+    registerCatalogApi(webCtx, runtime)
   })
 }

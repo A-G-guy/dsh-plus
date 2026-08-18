@@ -144,58 +144,11 @@ export function validateEntry(entry: EntryValidationInput): string | null {
   return null
 }
 
-/** 配置卡片读取用的传输对象（writable 表示是否存在可写的 settings provider）。 */
-export interface WireEntry {
-  enabled: boolean
-  provider: string
-  model: string
-  reasoningEffort: string
-}
-
-export interface WireConfig {
-  enabled: boolean
-  entries: Record<string, WireEntry>
-  /** 当前已注册的子代理 provider 名（spawn/fork/…），供卡片合成空行。 */
-  subagentProviders: string[]
-  writable: boolean
-}
-
-export function toWire(cfg: SubagentModelConfig, subagentProviders: string[], writable: boolean): WireConfig {
-  const entries: Record<string, WireEntry> = {}
-  for (const [name, entry] of Object.entries(cfg.entries)) {
-    entries[name] = {
-      enabled: entry.enabled,
-      provider: entry.provider,
-      model: entry.model,
-      reasoningEffort: entry.reasoningEffort,
-    }
+/** 校验整组条目（settings 写入的 validate 钩子用）；返回首个错误消息，合法时返回 null。 */
+export function validateEntries(entries: Record<string, EntryValidationInput>): string | null {
+  for (const [name, entry] of Object.entries(entries)) {
+    const error = validateEntry(entry)
+    if (error !== null) return `条目 ${name}: ${error}`
   }
-  return { enabled: cfg.enabled, entries, subagentProviders: [...subagentProviders], writable }
-}
-
-/** 配置卡片写回用的宽松输入形态（字段全部可选，无默认值，深合并进用户层）。 */
-export interface WirePatchInput {
-  enabled?: boolean | null
-  entries?: Record<string, {
-    enabled?: boolean | null
-    provider?: string | null
-    model?: string | null
-    reasoningEffort?: string | null
-  }> | null
-}
-
-/** 配置卡片写回用的规范输出形态（校验后条目已填默认）。 */
-export interface WirePatchOutput {
-  enabled: boolean
-  entries: Record<string, EntryConfig>
-}
-
-export const WirePatch: z<WirePatchInput, WirePatchOutput> = z.object({
-  enabled: z.boolean(),
-  entries: z.dict(EntrySchema),
-})
-
-/** 把卡片提交的 patch 规整为 settings.update 的用户层 patch（entries 整体替换）。 */
-export function toUserPatch(input: WirePatchInput): Record<string, unknown> {
-  return { ...input }
+  return null
 }

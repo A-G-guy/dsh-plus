@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { Config, isDeliverable, toUserPatch, toWire, WirePatch } from '../src/config.ts'
+import { Config, isDeliverable } from '../src/config.ts'
 
 test('given empty config, when schema resolves, then safe defaults apply (disabled, 465/TLS)', () => {
   const cfg = Config({})
@@ -20,29 +20,6 @@ test('given partial config, when schema resolves, then nested defaults fill gaps
   assert.equal(cfg.smtp.host, 'smtp.example.com')
   assert.equal(cfg.smtp.port, 465)
   assert.deepEqual(cfg.to, [])
-})
-
-test('given config with password, when serialized for the wire, then pass never leaves the host', () => {
-  const cfg = Config({ smtp: { pass: 's3cret' } })
-  const wire = toWire(cfg, true)
-  assert.equal(wire.smtp.passConfigured, true)
-  assert.equal(JSON.stringify(wire).includes('s3cret'), false)
-})
-
-test('given empty pass in patch, when mapped to user patch, then stored password survives', () => {
-  const patch = toUserPatch({ smtp: { host: 'h', pass: '' } })
-  assert.deepEqual(patch, { smtp: { host: 'h' } })
-})
-
-test('given non-empty pass in patch, when mapped to user patch, then pass is carried', () => {
-  const patch = toUserPatch({ smtp: { pass: 'new-secret' } })
-  assert.deepEqual(patch, { smtp: { pass: 'new-secret' } })
-})
-
-test('given invalid patch field type, when validated at the boundary, then rejected', () => {
-  assert.throws(() => WirePatch({ smtp: { port: 'abc' } }))
-  assert.throws(() => WirePatch({ maxBodyChars: 50 }))
-  assert.doesNotThrow(() => WirePatch({ enabled: true }))
 })
 
 test('given deliverability rules, when checked, then enabled+host+from+to all required', () => {

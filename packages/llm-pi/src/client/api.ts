@@ -1,6 +1,7 @@
 /**
- * 配置卡片数据通道：同源 fetch 调自建 webServer 路由（notify-email 同款模式；
- * 官方 settings.* RPC 白名单硬编码不含第三方 namespace）。
+ * 自定义端点通道：仅剩「模型目录」（配置读写已迁移到官方 settingsScope
+ * 传输，见 scope.ts 与 card.tsx）。目录响应附带 kitSource 与 models-dev
+ * 状态，供卡片的状态行展示（运行期诊断，非配置数据）。
  * @module llm-pi/client/api
  */
 
@@ -43,56 +44,32 @@ export interface WireModel {
   compat?: Record<string, unknown>
 }
 
-/** GET /config 返回（config.ts WireConfig）。 */
-export interface WireConfig {
+/** settings 命名空间的解析值（llm-pi 无 secret 字段，value 即完整配置）。 */
+export interface ConfigValue {
   enabled: boolean
   catalogUrl: string
   catalogRefreshHours: number
   catalogProxy: string
   providers: Record<string, WireProvider>
-  writable: boolean
-  kitSource: string
-  modelsDevStatus: WireModelsDevStatus | null
 }
 
-/** PUT /config 提交形状（config.ts WirePatchInput；providers 全量替换）。 */
-export interface WirePatchInput {
-  enabled?: boolean
-  catalogUrl?: string
-  catalogRefreshHours?: number
-  catalogProxy?: string
-  providers?: Record<string, WireProvider>
-}
+/** 保存提交形状：完整配置对象，providers 全量替换（settings.replace 语义）。 */
+export type ConfigPatch = ConfigValue
 
-/** GET /catalog?provider=&source= 返回。 */
+/** GET /catalog?provider=&source= 返回（kitSource 为运行期套件来源诊断）。 */
 export interface CatalogResult {
   providers: string[]
   models: string[]
   status?: WireModelsDevStatus
+  kitSource?: string
 }
 
-const ROUTE_CONFIG = '/dsh-plus/llm-pi/config'
 const ROUTE_CATALOG = '/dsh-plus/llm-pi/catalog'
 
 async function parse<T>(res: Response): Promise<T> {
   const body = (await res.json()) as T & { error?: string }
   if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`)
   return body
-}
-
-export async function fetchConfig(): Promise<WireConfig> {
-  return parse<WireConfig>(await fetch(ROUTE_CONFIG, { credentials: 'same-origin' }))
-}
-
-export async function saveConfig(patch: WirePatchInput): Promise<WireConfig> {
-  return parse<WireConfig>(
-    await fetch(ROUTE_CONFIG, {
-      method: 'PUT',
-      credentials: 'same-origin',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(patch),
-    }),
-  )
 }
 
 /** 目录查询：provider 为空时只返回该源的 provider 列表。 */

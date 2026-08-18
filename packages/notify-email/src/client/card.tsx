@@ -1,18 +1,46 @@
 /**
  * 「邮件通知」配置卡片：注册进 settings.plugin.item 插槽（官方插件配置页）。
  * 交互对齐官方卡片：折叠/展开、staged draft、未保存标记、保存/放弃；
- * 另加「发送测试邮件」。数据走自建同源路由（api.ts）。
+ * 另加「发送测试邮件」（唯一保留的自定义端点）。
+ * 配置读写走官方 settingsScope 传输（scope.ts）：value 为 schema 解析后的
+ * 脱敏视图（smtp.pass 不出现，passConfigured 由 describe 的 secrets 探测），
+ * 保存经 settings.update 深合并（空 pass 剔除 = 保持不变）。
  * @module notify-email/client/card
  */
-import { useEffect, useMemo, useState, type ReactElement } from 'react'
+import { useEffect, useMemo, useSyncExternalStore, useState, type ReactElement } from 'react'
 
-import {
-  fetchConfig, saveConfig, sendTest, type WireConfig, type WirePatch, type WireTriggers,
-} from './api.ts'
+import { SETTINGS_NS } from '../ns.ts'
+import { sendTest } from './api.ts'
 import { CheckRow, TextField } from './fields.tsx'
+import type { Scope, SettingsApi } from './scope.ts'
 
 export interface CardProps {
   t(key: string): string
+  scope: Scope
+  api: SettingsApi
+}
+
+/** settings 命名空间的脱敏解析值（smtp.pass 被脱敏剥除）。 */
+export interface ConfigValue {
+  enabled: boolean
+  smtp: {
+    host: string
+    port: number
+    secure: boolean
+    user: string
+    from: string
+  }
+  to: string[]
+  triggers: {
+    onComplete: boolean
+    onError: boolean
+    onAborted: boolean
+    onQuestion: boolean
+    onPlanReview: boolean
+  }
+  idleDebounceMs: number
+  maxBodyChars: number
+  dryRun: boolean
 }
 
 interface Draft {
@@ -24,7 +52,7 @@ interface Draft {
   pass: string
   from: string
   toText: string
-  triggers: WireTriggers
+  triggers: ConfigValue['triggers']
   idleDebounceMs: string
   maxBodyChars: string
   dryRun: boolean
@@ -37,20 +65,20 @@ interface Status {
 
 const IDLE_STATUS: Status = { kind: 'idle', text: '' }
 
-function draftFromWire(wire: WireConfig): Draft {
+function draftFromValue(value: ConfigValue): Draft {
   return {
-    enabled: wire.enabled,
-    host: wire.smtp.host,
-    port: String(wire.smtp.port),
-    secure: wire.smtp.secure,
-    user: wire.smtp.user,
+    enabled: value.enabled,
+    host: value.smtp.host,
+    port: String(value.smtp.port),
+    secure: value.smtp.secure,
+    user: value.smtp.user,
     pass: '',
-    from: wire.smtp.from,
-    toText: wire.to.join(', '),
-    triggers: { ...wire.triggers },
-    idleDebounceMs: String(wire.idleDebounceMs),
-    maxBodyChars: String(wire.maxBodyChars),
-    dryRun: wire.dryRun,
+    from: value.smtp.from,
+    toText: value.to.join(', '),
+    triggers: { ...value.triggers },
+    idleDebounceMs: String(value.idleDebounceMs),
+    maxBodyChars: String(value.maxBodyChars),
+    dryRun: value.dryRun,
   }
 }
 
@@ -58,7 +86,7 @@ function isPositiveInt(text: string): boolean {
   return /^[0-9]+$/.test(text) && Number(text) > 0
 }
 
-function toPatch(draft: Draft): WirePatch {
+function toPatch(draft: Draft): Record<string, unknown> {
   return {
     enabled: draft.enabled,
     smtp: {
@@ -80,34 +108,47 @@ function toPatch(draft: Draft): WirePatch {
 const TRIGGER_KEYS = ['onComplete', 'onError', 'onAborted', 'onQuestion', 'onPlanReview'] as const
 
 export function NotifyEmailCard(props: CardProps): ReactElement | null {
-  const { t } = props
+  const { t, scope, api } = props
+  const snapshot = useSyncExternalStore(
+    (listener: () => void) => scope.subscribe(listener),
+    () => scope.getSnapshot(),
+  )
+  const value = snapshot.value as ConfigValue | undefined
   const [open, setOpen] = useState(false)
-  const [wire, setWire] = useState<WireConfig | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [passConfigured, setPassConfigured] = useState(false)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [status, setStatus] = useState<Status>(IDLE_STATUS)
 
+  // 首次拿到解析值后播种草稿；后续 Host 更新不覆盖在途编辑（与官方 staged 表单一致）。
+  useEffect(() => {
+    if (value === undefined || draft !== null) return
+    setDraft(draftFromValue(value))
+  }, [value, draft])
+
+  // passConfigured 探测：scope 快照不含 secrets，经 describe 的 secrets 列表判断。
   useEffect(() => {
     let alive = true
-    fetchConfig()
-      .then((loaded) => {
-        if (!alive) return
-        setWire(loaded)
-        setDraft(draftFromWire(loaded))
+    api.describe()
+      .then((response) => {
+        if (!alive || !response.result.ok) return
+        const view = response.result.value?.namespaces.find((ns) => ns.ns === SETTINGS_NS)
+        setPassConfigured(
+          view?.secrets.some((secret) => secret.path.join('.') === 'smtp.pass' && secret.set) ?? false,
+        )
       })
-      .catch(() => {
-        if (alive) setFailed(true)
-      })
+      .catch(() => {})
     return () => {
       alive = false
     }
-  }, [])
+  }, [api, snapshot])
 
   const dirty = useMemo(
-    () => wire !== null && draft !== null && JSON.stringify(toPatch(draft)) !== JSON.stringify(toPatch(draftFromWire(wire))),
-    [wire, draft],
+    () =>
+      value !== undefined && draft !== null &&
+      JSON.stringify(toPatch(draft)) !== JSON.stringify(toPatch(draftFromValue(value))),
+    [value, draft],
   )
   const invalid = useMemo(
     () =>
@@ -117,27 +158,40 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
     [draft],
   )
 
-  if (failed) return null
-  if (wire === null || draft === null) {
+  if (value === undefined || draft === null) {
     return <li className="dne-card"><p className="dne-readOnly">{t('loading')}</p></li>
   }
-  const edit = <K extends keyof Draft>(key: K, value: Draft[K]): void => {
-    setDraft({ ...draft, [key]: value })
+  const edit = <K extends keyof Draft>(key: K, editValue: Draft[K]): void => {
+    setDraft({ ...draft, [key]: editValue })
     setStatus(IDLE_STATUS)
   }
-  const editTrigger = (key: keyof WireTriggers, checked: boolean): void => {
+  const editTrigger = (key: (typeof TRIGGER_KEYS)[number], checked: boolean): void => {
     edit('triggers', { ...draft.triggers, [key]: checked })
   }
   const onSave = (): void => {
     setSaving(true)
-    saveConfig(toPatch(draft))
-      .then((saved) => {
-        setWire(saved)
-        setDraft(draftFromWire(saved))
+    const patch = toPatch(draft)
+    if ((patch['smtp'] as Record<string, unknown>)['pass'] === '') {
+      delete (patch['smtp'] as Record<string, unknown>)['pass']
+    }
+    const revision = scope.getSnapshot().revision
+    api.update({
+      ns: SETTINGS_NS,
+      patch,
+      ...(revision !== undefined ? { expectedRevision: revision } : {}),
+    })
+      .then(async (response) => {
+        if (!response.result.ok) {
+          throw new Error(response.result.error?.message ?? t('saveFailed'))
+        }
+        await scope.load()
+        const next = scope.getSnapshot().value as ConfigValue | undefined
+        if (next !== undefined) setDraft(draftFromValue(next))
         setStatus(IDLE_STATUS)
       })
       .catch((error: unknown) => {
-        setStatus({ kind: 'error', text: `${t('saveFailed')} ${error instanceof Error ? error.message : ''}` })
+        const message = error instanceof Error ? error.message : String(error)
+        setStatus({ kind: 'error', text: `${t('saveFailed')}${message}` })
       })
       .finally(() => setSaving(false))
   }
@@ -158,7 +212,7 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
       .finally(() => setTesting(false))
   }
 
-  const disabled = !wire.writable
+  const disabled = !snapshot.writable
   return (
     <li className={`dne-card${open ? ' dne-cardOpen' : ''}`}>
       <button
@@ -191,7 +245,7 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
             disabled={disabled} onEdit={(v) => edit('user', v)} />
           <TextField id="dne-pass" label={t('pass')} hint={t('passHint')} value={draft.pass} password
             disabled={disabled}
-            badge={{ text: wire.smtp.passConfigured ? t('passSet') : t('passUnset'), set: wire.smtp.passConfigured }}
+            badge={{ text: passConfigured ? t('passSet') : t('passUnset'), set: passConfigured }}
             onEdit={(v) => edit('pass', v)} />
           <TextField id="dne-from" label={t('from')} hint={t('fromHint')} value={draft.from}
             disabled={disabled} onEdit={(v) => edit('from', v)} />
@@ -224,7 +278,7 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
               {t(testing ? 'testing' : 'test')}
             </button>
             <button type="button" className="dne-btn dne-btnGhost" disabled={!dirty || saving}
-              onClick={() => { setDraft(draftFromWire(wire)); setStatus(IDLE_STATUS) }}>
+              onClick={() => { setDraft(draftFromValue(value)); setStatus(IDLE_STATUS) }}>
               {t('discard')}
             </button>
             <button type="button" className="dne-btn dne-btnPrimary" disabled={!dirty || invalid || saving || disabled}
