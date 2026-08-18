@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/llm-pi",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "dsh-plus service+ui plugin: 基于 PiAiAdapter 的自定义 LLM 路由（全量 compat、模型继承、models.dev 目录兜底）",
   "type": "module",
   "main": "lib/index.js",
@@ -30,7 +30,7 @@
         "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-connection",
-        "@deepseek-ai/dsh-client-ui-settings"
+        "@deepseek-ai/dsh-api-remotes"
       ],
       "platform": "web"
     }

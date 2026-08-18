@@ -130,7 +130,7 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
   // passConfigured 探测：scope 快照不含 secrets，经 describe 的 secrets 列表判断。
   useEffect(() => {
     let alive = true
-    api.describe()
+    api.describe({})
       .then((response) => {
         if (!alive || !response.result.ok) return
         const view = response.result.value?.namespaces.find((ns) => ns.ns === SETTINGS_NS)
