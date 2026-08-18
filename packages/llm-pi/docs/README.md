@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-17 16:37"
+last_modified: "2026-08-18 13:36"
 ---
 
 # @dsh-plus/llm-pi 文档索引
@@ -92,7 +92,8 @@ anthropic 9 个字段，见 `src/compat.ts`）。
 - **注册冲突降级**：整批 `registerAdapter` 遇 `DUPLICATE_ADAPTER`（route 名与其他
   adapter 冲突）时降级为逐个 route 注册，跳过冲突者并告警——启动不再 fail-loud；
   热更新原子 replace 被拒时保留旧注册。
-- 配置 API（apiproxy 白名单挡第三方 namespace，故自建同源路由）：
+- 配置 API（rc6 时代 apiproxy 白名单挡第三方 namespace，故自建同源路由；
+  rc7 起白名单移除，路由保留）：
   `GET/PUT /dsh-plus/llm-pi/config`（PUT 为全量替换语义）、
   `GET /dsh-plus/llm-pi/catalog?provider=&source=builtin|models-dev`、
   `POST /dsh-plus/llm-pi/catalog/refresh`（手动拉取）。

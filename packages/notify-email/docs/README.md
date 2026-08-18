@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-17 16:37"
+last_modified: "2026-08-18 13:36"
 ---
 
 # @dsh-plus/notify-email
@@ -48,11 +48,15 @@ dsh-settings-file 持久化到 `$DSH_HOME/settings.yaml`，热生效。
 
 浏览器半注册进官方 `settings.plugin.item` 插槽（设置 → 插件 → 插件配置），
 视觉与交互对齐官方卡片（staged draft、保存/放弃），另加「发送测试邮件」。
+dsh rc7 起该插槽为 **keyed** 槽位：卡片以本插件 settings 命名空间
+（`dsh-plus-notify-email`，字面量统一在 `src/ns.ts`）为 key 注册，官方配置页
+按 key 与 Host 已注册命名空间配对分发。
 
-**注意**：官方 apiproxy 的 `settings.*` RPC 对 namespace 有硬编码白名单
+**注意**：rc6 时代官方 apiproxy 的 `settings.*` RPC 对 namespace 有硬编码白名单
 （`dsh-host-apiproxy` 的 `WEB_SETTINGS_NAMESPACES`），第三方 namespace 一律
 `settings-not-exposed`，故卡片数据走自建同源 HTTP 路由（node 半经
-`ctx.webServer.register` 注册）：
+`ctx.webServer.register` 注册）；rc7 起白名单已移除、全部已注册命名空间
+对 settings RPC 开放，自建路由保留（测试发信端点与密码脱敏控制仍在）：
 
 - `GET  /dsh-plus/notify-email/config` — 读取（pass 恒脱敏为 `passConfigured` 布尔）
 - `PUT  /dsh-plus/notify-email/config` — 保存（经 `ctx.settings.update` 写用户层）
