@@ -94,6 +94,11 @@ export class NotifyEmailService extends Service {
     )
   }
 
+  /** 通用直发接口（如 lifeboat 故障告警）：走正常 enabled/完整性门禁。 */
+  async sendNotice(notice: { subject: string; text: string }): Promise<{ ok: boolean; detail: string }> {
+    return this.mailer.send(notice)
+  }
+
   private async dispatch<T>(
     kind: string,
     payload: T,
