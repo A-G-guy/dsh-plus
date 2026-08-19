@@ -96,6 +96,14 @@ export function ProviderScalarFields(props: ProviderScalarFieldsProps): ReactEle
         disabled={props.disabled === true}
         onEdit={(value) => props.onPatch({ streamIdleTimeoutMs: value })}
       />
+      <TextField
+        id={`${props.id}-maxImageBytes`}
+        label={t('maxRequestImageBytes')}
+        numeric
+        value={draft.maxRequestImageBytes}
+        disabled={props.disabled === true}
+        onEdit={(value) => props.onPatch({ maxRequestImageBytes: value })}
+      />
       <div className="lpc-field">
         <span className="lpc-label">{t('defaultInput')}</span>
         {MODALITIES.map((modality) => (

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-18 14:11"
+last_modified: "2026-08-20 00:39"
 ---
 
 # @dsh-plus/llm-pi 文档索引
@@ -46,6 +46,7 @@ pi-ai 全量能力——三协议自定义 route、官方内置 provider/model �
 | `defaultContextWindow` / `defaultMaxTokens` / `defaultInput` | 模型与继承源都未标注时的兜底 |
 | `reasoning` / `thinkingBudgets` / `cacheRetention` / `transport` | 同官方语义 |
 | `timeoutMs` / `websocketConnectTimeoutMs` / `streamIdleTimeoutMs` / `retryPolicy` | 同官方语义 |
+| `maxRequestImageBytes` | 单请求 base64 图片载荷上限（字节）；缺省 20MiB（rc8 起官方 profile 必需字段，旧配置免改自动生效） |
 | `models` | 模型条目数组；**缺省且 provider 有 extends 时继承该源全部模型** |
 
 ### 模型级

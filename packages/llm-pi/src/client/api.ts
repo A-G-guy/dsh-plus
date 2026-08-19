@@ -29,6 +29,7 @@ export interface WireProvider {
   timeoutMs?: number
   websocketConnectTimeoutMs?: number
   streamIdleTimeoutMs?: number
+  maxRequestImageBytes?: number
   retryPolicy?: unknown
   models?: WireModel[]
 }

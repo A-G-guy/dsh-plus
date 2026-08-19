@@ -28,6 +28,9 @@ export const MODALITIES = ['text', 'image'] as const
 export const DEFAULT_CONTEXT_WINDOW = 262144
 export const DEFAULT_MAX_TOKENS = 32768
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300000
+/** 单请求 base64 图片载荷上限（rc8 起官方 ResolvedPiAiProviderProfile 必需字段；
+ *  缺省取官方默认 20MiB，旧配置无需改动即自动生效）。 */
+export const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
 /** dsh-timeout 的定时器上限（与官方 MAX_TIMER_DELAY_MS 对齐）。 */
 export const MAX_TIMER_DELAY_MS = 2 ** 31 - 1
 
@@ -69,6 +72,7 @@ export interface ProviderProfileConfig {
   timeoutMs?: number
   websocketConnectTimeoutMs?: number
   streamIdleTimeoutMs?: number
+  maxRequestImageBytes?: number
   retryPolicy?: unknown
   models?: ModelEntryConfig[]
 }
@@ -138,6 +142,9 @@ const providerProfile = z.object({
     .min(Number.MIN_VALUE)
     .max(MAX_TIMER_DELAY_MS)
     .description('单支流式读取的最大空闲间隔毫秒'),
+  maxRequestImageBytes: z
+    .natural()
+    .description('单请求 base64 图片载荷上限字节；缺省 20MiB（rc8 起生效，旧配置免改）'),
   retryPolicy: z.any().description('provider 重试策略（dsh-llm RetryPolicy 形状，构建期校验）'),
   models: z.array(modelEntry).description('本 route 的模型目录；缺省且 provider 有 extends 时继承该源全部模型'),
 })

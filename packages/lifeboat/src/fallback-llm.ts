@@ -159,12 +159,17 @@ interface SettingsWrite {
   mutate(ns: ReturnType<typeof settingsNamespace>, ops: readonly { op: 'set' | 'unset'; path: readonly string[]; value?: unknown }[]): Promise<void>
 }
 
-/** 写 settings 带一次冲突重试（用户同时改配置时不抢，放弃并告警）。 */
+/** 写 settings 带一次冲突重试（用户同时改配置时不抢，放弃并告警）。
+ *  冲突判定双条件：instanceof 覆盖同版本副本；error.code 覆盖跨版本副本
+ *  （插件自带 rc.7 依赖与 host rc.8 抛错时 instanceof 为 false）。 */
 async function writeWithRetry(write: () => Promise<void>): Promise<void> {
   try {
     await write()
   } catch (error) {
-    if (!(error instanceof SettingsConflictError)) throw error
+    const conflict =
+      error instanceof SettingsConflictError ||
+      (typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'SETTINGS_CONFLICT')
+    if (!conflict) throw error
     await write()
   }
 }

@@ -8,7 +8,7 @@
 [![npm @dsh-plus](https://img.shields.io/badge/npm-%40dsh--plus-CB3837?logo=npm&logoColor=white)](https://www.npmjs.com/org/dsh-plus)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![dsh](https://img.shields.io/badge/dsh-0.1.0--rc.6-blue)](https://www.npmjs.com/package/@deepseek-ai/dsh)
+[![dsh](https://img.shields.io/badge/dsh-0.1.0--rc.8-blue)](https://www.npmjs.com/package/@deepseek-ai/dsh)
 
 </div>
 
@@ -39,7 +39,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 
 - Node.js **≥ 22**（测试依赖 `node --test` 直接运行 TypeScript）
 - pnpm（经 corepack 启用）
-- 已安装 DSH（`@deepseek-ai/dsh`，基准版本 `0.1.0-rc.6`）
+- 已安装 DSH（`@deepseek-ai/dsh`，基准版本 `0.1.0-rc.8`）
 
 ### 安装到 DSH
 

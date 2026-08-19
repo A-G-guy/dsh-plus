@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/tool-text-transform",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh tool plugin: pure text-transform demo tool (no network, no side effects)",
   "type": "module",
   "main": "lib/index.js",
@@ -21,7 +21,7 @@
     "build": "tsdown src/index.ts -d lib --format esm --dts"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-tools": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-tools": "0.1.0-rc.8",
     "@dsh-plus/shared": "workspace:*"
   },
   "devDependencies": {

@@ -55,7 +55,10 @@ export const conversationCss = /* css */ `
     flex-shrink: 0;
   }
 
-  /* composer：占满窄屏宽度，附件/模式行允许换行 */
+  /* composer：占满窄屏宽度，附件/模式行允许换行。
+     rc8 起上游 .uV2eYG_row 自带 flex-wrap:wrap（输入框窄屏布局），此处保留
+     _tools/_modes 子级换行兜底；附件区 rc6 的 _attachments 已改名 _accessory
+     （dsh-client-ui-attachment 的 rail 为横向滚动，无需换行） */
   [class*="_composerStack"],
   [class*="_composerSeat"],
   [class*="_composerHero"] {
@@ -64,7 +67,7 @@ export const conversationCss = /* css */ `
 
   [class*="_tools"],
   [class*="_modes"],
-  [class*="_attachments"] {
+  [class*="_accessory"] {
     flex-wrap: wrap;
   }
 

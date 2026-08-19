@@ -172,6 +172,32 @@ test('route 内协议不一致被拒绝', () => {
   assert.throws(() => buildProfiles(providers, deps), /route 内模型协议不一致/)
 })
 
+test('rc8 兼容：maxRequestImageBytes 缺省取 20MiB，显式配置则透传', () => {
+  const { profile } = modelsOf(
+    buildProfiles(
+      { g: { api: 'openai-completions', baseURL: 'https://g.example/v1', models: [{ id: 'm' }] } },
+      deps,
+    ),
+    'g',
+  )
+  assert.equal(profile.maxRequestImageBytes, 20 * 1024 * 1024)
+  const { profile: overridden } = modelsOf(
+    buildProfiles(
+      {
+        g: {
+          api: 'openai-completions',
+          baseURL: 'https://g.example/v1',
+          maxRequestImageBytes: 1048576,
+          models: [{ id: 'm' }],
+        },
+      },
+      deps,
+    ),
+    'g',
+  )
+  assert.equal(overridden.maxRequestImageBytes, 1048576)
+})
+
 test('enabled 之外的基本校验：空 baseURL / 空 defaultInput / 坏 idle timeout', () => {
   assert.throws(() => buildProfiles({ g: { baseURL: '', models: [{ id: 'm' }] } }, deps), /baseURL 为空/)
   assert.throws(

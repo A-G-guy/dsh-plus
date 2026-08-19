@@ -20,6 +20,7 @@ import { mergeCompat, validateCompat } from './compat.ts'
 import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_MAX_TOKENS,
+  DEFAULT_MAX_REQUEST_IMAGE_BYTES,
   DEFAULT_STREAM_IDLE_TIMEOUT_MS,
   MAX_TIMER_DELAY_MS,
   THINKING_LEVELS,
@@ -311,6 +312,7 @@ export function buildProfiles(
       displayName,
       ...(profile.apiKeyEnv === undefined ? {} : { apiKeyEnv: credentialRef(profile.apiKeyEnv) }),
       streamIdleTimeoutMs,
+      maxRequestImageBytes: profile.maxRequestImageBytes ?? DEFAULT_MAX_REQUEST_IMAGE_BYTES,
       retryPolicy: deps.kit.resolveRetryPolicy(
         profile.retryPolicy as Parameters<DshKit['resolveRetryPolicy']>[0],
         `llm-pi: provider "${route}" retryPolicy`,

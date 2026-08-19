@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-17 16:37"
+last_modified: "2026-08-20 00:39"
 ---
 
 # @dsh-plus/ui-mobile-fit
@@ -54,10 +54,20 @@ last_modified: "2026-08-17 16:37"
 
 ## 选择器稳定性策略
 
-上游（基准 0.1.0-rc.6）CSS Modules 类名 = 哈希前缀 + 语义后缀（`pI_x6G_frame`），
+上游（基准 0.1.0-rc.8）CSS Modules 类名 = 哈希前缀 + 语义后缀（`pI_x6G_frame`），
 shell 旧格式为 `_语义_哈希_序号`（`_remove_1hk8w_53`）。哈希随构建变化、语义后缀
 稳定，故一律用 `[class*="_语义后缀"]` 子串匹配；`!important` 仅用于对抗内联
 `grid-template-columns` 等内联样式，并就地注释说明。
+
+## 上游版本跟进记录
+
+| 上游版本 | 变化 | 本插件动作 |
+|---|---|---|
+| 0.1.0-rc.8 | 侧栏 rail 品牌图类名 `_railFish` → `_railMark`（结构未变：collapsed 默认 brand mark、hover 换面板图标） | `layout.ts` 隐藏规则改锚 `_railMark` |
+| 0.1.0-rc.8 | composer chip 系统重构：DshChipCell 内嵌字体方案移除，改 `-webkit-text-fill-color: transparent` + glyph 图标，`_chipLabel` 类消失（nowrap+缩放自带溢出处理） | `base.ts` 删除 `_chipLabel` 折行规则 |
+| 0.1.0-rc.8 | composer 附件区 `_attachments` → `_accessory`（`dsh-client-ui-attachment` rail 改横向滚动） | `conversation.ts` 换行规则改锚 `_accessory` |
+| 0.1.0-rc.8 | composer `.uV2eYG_row` 新增 `flex-wrap:wrap`、`.uV2eYG_trailing` 新增 `margin-left:auto`（官方输入框窄屏布局） | 保留子级兜底，官方 row 级已覆盖主路径，无冲突 |
+| 0.1.0-rc.8 | layout AppFrame 窄屏机制（1024 自动折叠 + narrowExpanded）与 rc.6/rc.7 相同，官方展开为挤压式（中列被挤至 ~95px） | drawer 化覆盖保持为必要增量 |
 
 ## 开发与验证
 

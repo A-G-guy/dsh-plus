@@ -58,6 +58,7 @@ export interface ProviderDraft {
   timeoutMs: string
   websocketConnectTimeoutMs: string
   streamIdleTimeoutMs: string
+  maxRequestImageBytes: string
   retryPolicy: unknown
   models: ModelDraft[]
 }
@@ -201,6 +202,7 @@ function providerDraftFromWire(provider: WireProvider): ProviderDraft {
     timeoutMs: numToText(provider.timeoutMs),
     websocketConnectTimeoutMs: numToText(provider.websocketConnectTimeoutMs),
     streamIdleTimeoutMs: numToText(provider.streamIdleTimeoutMs),
+    maxRequestImageBytes: numToText(provider.maxRequestImageBytes),
     retryPolicy: provider.retryPolicy,
     models: (provider.models ?? []).map(modelDraftFromWire),
   }
@@ -225,6 +227,7 @@ function providerToWire(provider: ProviderDraft): WireProvider {
     timeoutMs: toNum(provider.timeoutMs),
     websocketConnectTimeoutMs: toNum(provider.websocketConnectTimeoutMs),
     streamIdleTimeoutMs: toNum(provider.streamIdleTimeoutMs),
+    maxRequestImageBytes: toNum(provider.maxRequestImageBytes),
     retryPolicy: provider.retryPolicy,
     models: provider.models.map(modelToWire),
   }) as WireProvider
@@ -249,6 +252,7 @@ export function emptyProviderDraft(): ProviderDraft {
     timeoutMs: '',
     websocketConnectTimeoutMs: '',
     streamIdleTimeoutMs: '',
+    maxRequestImageBytes: '',
     retryPolicy: undefined,
     models: [],
   }

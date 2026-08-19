@@ -51,13 +51,14 @@ export const layoutCss = /* css */ `
     padding-left: 48px;
   }
 
-  /* 外移按钮常显面板图标：上游 rail 态默认显示 fish logo、仅 hover 才换
-     面板图标，触屏无 hover 会导致展开入口不可辨识 */
+  /* 外移按钮常显面板图标：上游 rail 态默认显示 brand mark（rc6 名 _railFish，
+     rc8 改名 _railMark）、仅 hover 才换面板图标，触屏无 hover 会导致展开
+     入口不可辨识 */
   [class*="_frame"][data-sidebar-collapsed] [class*="_sidebarCol"] [class*="_toggle"] [class*="_panelIcon"] {
     display: inline !important;
   }
 
-  [class*="_frame"][data-sidebar-collapsed] [class*="_sidebarCol"] [class*="_toggle"] [class*="_railFish"] {
+  [class*="_frame"][data-sidebar-collapsed] [class*="_sidebarCol"] [class*="_toggle"] [class*="_railMark"] {
     display: none !important;
   }
 
