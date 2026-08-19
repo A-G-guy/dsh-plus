@@ -17,3 +17,5 @@
       name: '@dsh-plus/llm-pi'
     - id: dsh-plus-skill-manual
       name: '@dsh-plus/skill-manual'
+    - id: dsh-plus-reload
+      name: '@dsh-plus/reload'
