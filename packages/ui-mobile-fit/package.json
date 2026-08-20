@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/ui-mobile-fit",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "dsh-plus ui plugin: 纯 CSS 覆盖的移动端窄屏响应式适配（不注册替代组件，跟随上游）",
   "type": "module",
   "main": "lib/index.js",

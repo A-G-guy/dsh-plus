@@ -4,7 +4,7 @@
  * 支持新增 route（输入键名）与删除 route。
  * @module llm-pi/client/views/providers
  */
-import { useState, type ReactElement } from 'react'
+import { type ReactElement, useState } from 'react'
 
 import type { ProviderDraft } from '../draft.ts'
 import { CollapseSection, JsonField, KeyValueEditor } from '../fields.tsx'
@@ -93,8 +93,15 @@ export function ProviderSection(props: ProviderSectionProps): ReactElement {
   const [open, setOpen] = useState(false)
   const { route, draft, t } = props
   const id = route.replace(/[^a-zA-Z0-9_-]/g, '_')
-  const summary = draft.api !== '' ? draft.api : draft.extends !== '' ? `extends ${draft.extends}` : ''
-  const fieldProps = { id, draft, disabled: props.disabled === true, t, onPatch: props.onPatch }
+  const summary =
+    draft.api !== '' ? draft.api : draft.extends !== '' ? `extends ${draft.extends}` : ''
+  const fieldProps = {
+    id,
+    draft,
+    disabled: props.disabled === true,
+    t,
+    onPatch: props.onPatch,
+  }
   return (
     <div className="lpc-route">
       <div className="lpc-routeHead">
@@ -135,29 +142,27 @@ export function ProviderSection(props: ProviderSectionProps): ReactElement {
             onEdit={(headers) => props.onPatch({ headers })}
           />
           <CollapseSection id={`${id}-advanced`} title={t('advancedGroup')} defaultOpen={false}>
-            <>
-              <JsonField
-                id={`${id}-retry`}
-                label={t('retryPolicy')}
-                hint={t('retryPolicyHint')}
-                invalidText={t('invalidJson')}
-                value={draft.retryPolicy}
-                epoch={props.epoch}
-                disabled={props.disabled === true}
-                wide
-                onEdit={(retryPolicy) => props.onPatch({ retryPolicy })}
-              />
-              <CompatEditor
-                idPrefix={`${id}-compat`}
-                api={draft.api}
-                compat={draft.compat}
-                epoch={props.epoch}
-                disabled={props.disabled === true}
-                wide
-                t={t}
-                onEdit={(compat) => props.onPatch({ compat })}
-              />
-            </>
+            <JsonField
+              id={`${id}-retry`}
+              label={t('retryPolicy')}
+              hint={t('retryPolicyHint')}
+              invalidText={t('invalidJson')}
+              value={draft.retryPolicy}
+              epoch={props.epoch}
+              disabled={props.disabled === true}
+              wide
+              onEdit={(retryPolicy) => props.onPatch({ retryPolicy })}
+            />
+            <CompatEditor
+              idPrefix={`${id}-compat`}
+              api={draft.api}
+              compat={draft.compat}
+              epoch={props.epoch}
+              disabled={props.disabled === true}
+              wide
+              t={t}
+              onEdit={(compat) => props.onPatch({ compat })}
+            />
           </CollapseSection>
           <ModelsTable
             route={route}

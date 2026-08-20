@@ -14,7 +14,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 
 import { agentsOf, countRunning } from './agents.ts'
-import { registerReloadCommand, type CommandDeps } from './command.ts'
+import { type CommandDeps, registerReloadCommand } from './command.ts'
 import { Config, type ReloadConfig } from './config.ts'
 import { runPreflight, systemRunner } from './preflight.ts'
 import { registerReloadRoutes } from './routes.ts'
@@ -53,6 +53,11 @@ export function apply(ctx: Context, config: ReloadConfig): void {
   })
 
   ctx.inject(['webServer'], (webCtx) => {
-    registerReloadRoutes(webCtx, { scheduler, config, runningAgents: () => runningAgents(), onError })
+    registerReloadRoutes(webCtx, {
+      scheduler,
+      config,
+      runningAgents: () => runningAgents(),
+      onError,
+    })
   })
 }

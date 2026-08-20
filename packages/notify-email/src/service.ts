@@ -8,12 +8,11 @@
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
-
-import { createJsonlAuditSink } from './audit.ts'
-import { Config, SETTINGS_NS, type NotifyEmailConfig } from './config.ts'
-import { Mailer } from './mailer.ts'
 import { installSettingsSection } from '@deepseek-ai/dsh-settings'
+import { createJsonlAuditSink } from './audit.ts'
+import { Config, type NotifyEmailConfig, SETTINGS_NS } from './config.ts'
 import { registerTestApi } from './config-api.ts'
+import { Mailer } from './mailer.ts'
 import { createDecisionTrigger, createTurnEndTrigger } from './triggers/builtin.ts'
 import type { DecisionCall, NotifyTrigger, TurnEndInfo } from './triggers/types.ts'
 import { installDecisionWatcher } from './watchers/decision.ts'
@@ -42,9 +41,8 @@ export class NotifyEmailService extends Service {
       onChange: () => {},
     })
     const logger = ctx.logger('notify-email')
-    const audit = createJsonlAuditSink(
-      dshHomePath('logs', 'notify-email.jsonl'),
-      (message) => logger.warn(`audit write failed: ${message}`),
+    const audit = createJsonlAuditSink(dshHomePath('logs', 'notify-email.jsonl'), (message) =>
+      logger.warn(`audit write failed: ${message}`),
     )
     this.mailer = new Mailer(() => this.current(), logger, undefined, audit)
     this.registerTrigger(createDecisionTrigger(() => this.current()))
@@ -89,37 +87,45 @@ export class NotifyEmailService extends Service {
   /** 配置卡片「发送测试邮件」：绕过 enabled 门禁，仍需 SMTP 完整。 */
   async sendTest(): Promise<{ ok: boolean; detail: string }> {
     return this.mailer.send(
-      { subject: '[DSH] 邮件通知测试', text: '这是一封来自 dsh notify-email 插件的测试邮件。' },
+      {
+        subject: '[DSH] 邮件通知测试',
+        text: '这是一封来自 dsh notify-email 插件的测试邮件。',
+      },
       true,
     )
   }
 
   /** 通用直发接口（如 lifeboat 故障告警）：走正常 enabled/完整性门禁。 */
-  async sendNotice(notice: { subject: string; text: string }): Promise<{ ok: boolean; detail: string }> {
+  async sendNotice(notice: {
+    subject: string
+    text: string
+  }): Promise<{ ok: boolean; detail: string }> {
     return this.mailer.send(notice)
   }
 
   private async dispatch<T>(
     kind: string,
-    payload: T,
+    _payload: T,
     produce: (t: NotifyTrigger) => { subject: string; text: string; html?: string } | undefined,
   ): Promise<void> {
     for (const trigger of [...this.triggers]) {
-      let notice
+      let notice: ReturnType<typeof produce>
       try {
         notice = produce(trigger)
       } catch (error) {
-        this.ctx.logger('notify-email').warn(
-          `trigger ${trigger.id} failed on ${kind}: ${error instanceof Error ? error.message : String(error)}`,
-        )
+        this.ctx
+          .logger('notify-email')
+          .warn(
+            `trigger ${trigger.id} failed on ${kind}: ${error instanceof Error ? error.message : String(error)}`,
+          )
         continue
       }
       if (notice === undefined) continue
       const result = await this.mailer.send(notice)
       if (!result.ok && result.detail !== 'disabled' && result.detail !== 'incomplete') {
-        this.ctx.logger('notify-email').warn(
-          `deliver failed via trigger ${trigger.id}: ${result.detail}`,
-        )
+        this.ctx
+          .logger('notify-email')
+          .warn(`deliver failed via trigger ${trigger.id}: ${result.detail}`)
       }
       return
     }

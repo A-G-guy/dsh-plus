@@ -7,12 +7,10 @@
  * 落盘，自文档化）；「模型目录」为唯一保留的自定义端点。
  * @module subagent-model/client/card
  */
-import { useEffect, useMemo, useSyncExternalStore, useState, type ReactElement } from 'react'
+import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { SETTINGS_NS } from '../ns.ts'
-import {
-  fetchCatalog, type CatalogProvider, type ModelCatalog,
-} from './api.ts'
+import { type CatalogProvider, fetchCatalog, type ModelCatalog } from './api.ts'
 import { CheckRow, SelectField, type SelectOption } from './fields.tsx'
 import type { Scope, SettingsApi } from './scope.ts'
 
@@ -53,7 +51,12 @@ interface Status {
 }
 
 const IDLE_STATUS: Status = { kind: 'idle', text: '' }
-const EMPTY_ROW: DraftRow = { enabled: false, provider: '', model: '', reasoningEffort: 'inherit' }
+const EMPTY_ROW: DraftRow = {
+  enabled: false,
+  provider: '',
+  model: '',
+  reasoningEffort: 'inherit',
+}
 const EFFORT_INHERIT = 'inherit'
 const EFFORT_DEFAULT = 'default'
 
@@ -64,14 +67,15 @@ function draftFrom(value: ConfigValue, catalog: ModelCatalog | null): Draft {
   for (const name of Object.keys(value.entries).sort()) names.add(name)
   for (const name of names) {
     const entry = value.entries[name]
-    rows[name] = entry === undefined
-      ? { ...EMPTY_ROW }
-      : {
-          enabled: entry.enabled,
-          provider: entry.provider,
-          model: entry.model,
-          reasoningEffort: entry.reasoningEffort,
-        }
+    rows[name] =
+      entry === undefined
+        ? { ...EMPTY_ROW }
+        : {
+            enabled: entry.enabled,
+            provider: entry.provider,
+            model: entry.model,
+            reasoningEffort: entry.reasoningEffort,
+          }
   }
   return { enabled: value.enabled, rows }
 }
@@ -84,16 +88,25 @@ function unknownOption(value: string, label: string): SelectOption {
   return { value, label: `${value}（${label}）` }
 }
 
-function providerOptions(catalog: ModelCatalog | null, row: DraftRow, t: (k: string) => string): SelectOption[] {
+function providerOptions(
+  catalog: ModelCatalog | null,
+  row: DraftRow,
+  t: (k: string) => string,
+): SelectOption[] {
   const options: SelectOption[] = [{ value: '', label: t('inheritProvider') }]
-  for (const provider of catalog?.providers ?? []) options.push({ value: provider.id, label: provider.name })
+  for (const provider of catalog?.providers ?? [])
+    options.push({ value: provider.id, label: provider.name })
   if (row.provider.length > 0 && !options.some((o) => o.value === row.provider)) {
     options.push(unknownOption(row.provider, t('unknownValue')))
   }
   return options
 }
 
-function modelOptions(catalog: ModelCatalog | null, row: DraftRow, t: (k: string) => string): SelectOption[] {
+function modelOptions(
+  catalog: ModelCatalog | null,
+  row: DraftRow,
+  t: (k: string) => string,
+): SelectOption[] {
   const options: SelectOption[] = [{ value: '', label: t('inheritModel') }]
   const provider = catalog?.providers.find((p) => p.id === row.provider)
   for (const model of provider?.models ?? []) options.push({ value: model.id, label: model.name })
@@ -103,14 +116,19 @@ function modelOptions(catalog: ModelCatalog | null, row: DraftRow, t: (k: string
   return options
 }
 
-function effortOptions(catalog: ModelCatalog | null, row: DraftRow, t: (k: string) => string): SelectOption[] {
+function effortOptions(
+  catalog: ModelCatalog | null,
+  row: DraftRow,
+  t: (k: string) => string,
+): SelectOption[] {
   const options: SelectOption[] = [
     { value: EFFORT_INHERIT, label: t('effortInherit') },
     { value: EFFORT_DEFAULT, label: t('effortDefault') },
   ]
   const provider = catalog?.providers.find((p) => p.id === row.provider)
   const model = provider?.models.find((m) => m.id === row.model)
-  for (const effort of model?.reasoning?.efforts ?? []) options.push({ value: effort.id, label: effort.name })
+  for (const effort of model?.reasoning?.efforts ?? [])
+    options.push({ value: effort.id, label: effort.name })
   if (row.reasoningEffort.length > 0 && !options.some((o) => o.value === row.reasoningEffort)) {
     options.push(unknownOption(row.reasoningEffort, t('unknownValue')))
   }
@@ -133,20 +151,44 @@ function RowBlock(props: RowBlockProps): ReactElement {
     <div className="dsm-row">
       <div className="dsm-rowHead">
         <span className="dsm-rowName">{name}</span>
-        <CheckRow id={`dsm-row-${name}`} label={t('rowEnabled')} checked={row.enabled}
-          disabled={disabled} onEdit={(v) => onEdit({ ...row, enabled: v })} />
+        <CheckRow
+          id={`dsm-row-${name}`}
+          label={t('rowEnabled')}
+          checked={row.enabled}
+          disabled={disabled}
+          onEdit={(v) => onEdit({ ...row, enabled: v })}
+        />
       </div>
       <p className="dsm-rowHint">{t('rowHint')}</p>
-      <SelectField id={`dsm-provider-${name}`} label={t('provider')} hint={t('providerHint')}
-        value={row.provider} options={providerOptions(catalog, row, t)} disabled={disabled}
-        onEdit={(v) => onEdit({ ...row, provider: v })} />
-      <SelectField id={`dsm-model-${name}`} label={t('model')} hint={t('modelHint')}
-        value={row.model} options={modelOptions(catalog, row, t)} disabled={disabled || row.provider.length === 0}
-        invalid={invalidModel} invalidLabel={t('invalidModel')}
-        onEdit={(v) => onEdit({ ...row, model: v })} />
-      <SelectField id={`dsm-effort-${name}`} label={t('effort')} hint={t('effortHint')}
-        value={row.reasoningEffort} options={effortOptions(catalog, row, t)} disabled={disabled}
-        onEdit={(v) => onEdit({ ...row, reasoningEffort: v })} />
+      <SelectField
+        id={`dsm-provider-${name}`}
+        label={t('provider')}
+        hint={t('providerHint')}
+        value={row.provider}
+        options={providerOptions(catalog, row, t)}
+        disabled={disabled}
+        onEdit={(v) => onEdit({ ...row, provider: v })}
+      />
+      <SelectField
+        id={`dsm-model-${name}`}
+        label={t('model')}
+        hint={t('modelHint')}
+        value={row.model}
+        options={modelOptions(catalog, row, t)}
+        disabled={disabled || row.provider.length === 0}
+        invalid={invalidModel}
+        invalidLabel={t('invalidModel')}
+        onEdit={(v) => onEdit({ ...row, model: v })}
+      />
+      <SelectField
+        id={`dsm-effort-${name}`}
+        label={t('effort')}
+        hint={t('effortHint')}
+        value={row.reasoningEffort}
+        options={effortOptions(catalog, row, t)}
+        disabled={disabled}
+        onEdit={(v) => onEdit({ ...row, reasoningEffort: v })}
+      />
     </div>
   )
 }
@@ -202,18 +244,24 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
 
   const dirty = useMemo(
     () =>
-      value !== undefined && draft !== null &&
+      value !== undefined &&
+      draft !== null &&
       JSON.stringify(toPatch(draft)) !== JSON.stringify(toPatch(draftFrom(value, catalog))),
     [value, draft, catalog],
   )
   const invalid = useMemo(
-    () => draft !== null && Object.values(draft.rows).some((row) =>
-      row.model.length > 0 && row.provider.length === 0),
+    () =>
+      draft !== null &&
+      Object.values(draft.rows).some((row) => row.model.length > 0 && row.provider.length === 0),
     [draft],
   )
 
   if (value === undefined || draft === null) {
-    return <li className="dsm-card"><p className="dsm-empty">{t('loading')}</p></li>
+    return (
+      <li className="dsm-card">
+        <p className="dsm-empty">{t('loading')}</p>
+      </li>
+    )
   }
   const edit = <K extends keyof Draft>(key: K, editValue: Draft[K]): void => {
     setDraft({ ...draft, [key]: editValue })
@@ -226,11 +274,12 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
   const onSave = (): void => {
     setSaving(true)
     const revision = scope.getSnapshot().revision
-    api.update({
-      ns: SETTINGS_NS,
-      patch: toPatch(draft),
-      ...(revision !== undefined ? { expectedRevision: revision } : {}),
-    })
+    api
+      .update({
+        ns: SETTINGS_NS,
+        patch: toPatch(draft),
+        ...(revision !== undefined ? { expectedRevision: revision } : {}),
+      })
       .then(async (response) => {
         if (!response.result.ok) {
           throw new Error(response.result.error?.message ?? t('saveFailed'))
@@ -241,7 +290,10 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
         setStatus(IDLE_STATUS)
       })
       .catch((error: unknown) => {
-        setStatus({ kind: 'error', text: `${t('saveFailed')}${error instanceof Error ? error.message : ''}` })
+        setStatus({
+          kind: 'error',
+          text: `${t('saveFailed')}${error instanceof Error ? error.message : ''}`,
+        })
       })
       .finally(() => setSaving(false))
   }
@@ -271,9 +323,18 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
       </button>
       {open ? (
         <div className="dsm-body">
-          {disabled ? <p className="dsm-empty" role="status">{t('readOnly')}</p> : null}
-          <CheckRow id="dsm-enabled" label={t('enabled')} checked={draft.enabled} disabled={disabled}
-            onEdit={(v) => edit('enabled', v)} />
+          {disabled ? (
+            <p className="dsm-empty" role="status">
+              {t('readOnly')}
+            </p>
+          ) : null}
+          <CheckRow
+            id="dsm-enabled"
+            label={t('enabled')}
+            checked={draft.enabled}
+            disabled={disabled}
+            onEdit={(v) => edit('enabled', v)}
+          />
           {catalogFailed ? (
             <div className="dsm-banner" role="status">
               <span>{t('catalogError')}</span>
@@ -283,31 +344,53 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
             </div>
           ) : null}
           {catalog === null && !catalogFailed ? (
-            <p className="dsm-empty" role="status">{t('catalogLoading')}</p>
+            <p className="dsm-empty" role="status">
+              {t('catalogLoading')}
+            </p>
           ) : null}
           {rowNames.length === 0 ? (
-            <p className="dsm-empty" role="status">{t('noRows')}</p>
+            <p className="dsm-empty" role="status">
+              {t('noRows')}
+            </p>
           ) : null}
           {rowNames.map((name) => (
-            <RowBlock key={name} name={name} row={draft.rows[name] ?? { ...EMPTY_ROW }}
-              catalog={catalog} disabled={disabled} t={t}
-              onEdit={(row) => editRow(name, row)} />
+            <RowBlock
+              key={name}
+              name={name}
+              row={draft.rows[name] ?? { ...EMPTY_ROW }}
+              catalog={catalog}
+              disabled={disabled}
+              t={t}
+              onEdit={(row) => editRow(name, row)}
+            />
           ))}
-          <p className="dsm-hint dsm-rowHint">
-            {providerCount > 0 ? t('rowDesc') : ''}
-          </p>
+          <p className="dsm-hint dsm-rowHint">{providerCount > 0 ? t('rowDesc') : ''}</p>
           <div className="dsm-footer">
             {status.kind !== 'idle' ? (
-              <p className={`dsm-status${status.kind === 'error' ? ' dsm-statusError' : ''}`} role="status">
+              <p
+                className={`dsm-status${status.kind === 'error' ? ' dsm-statusError' : ''}`}
+                role="status"
+              >
                 {status.text}
               </p>
             ) : null}
-            <button type="button" className="dsm-btn dsm-btnGhost" disabled={!dirty || saving}
-              onClick={() => { setDraft(draftFrom(value, catalog)); setStatus(IDLE_STATUS) }}>
+            <button
+              type="button"
+              className="dsm-btn dsm-btnGhost"
+              disabled={!dirty || saving}
+              onClick={() => {
+                setDraft(draftFrom(value, catalog))
+                setStatus(IDLE_STATUS)
+              }}
+            >
               {t('discard')}
             </button>
-            <button type="button" className="dsm-btn dsm-btnPrimary" disabled={!dirty || invalid || saving || disabled}
-              onClick={onSave}>
+            <button
+              type="button"
+              className="dsm-btn dsm-btnPrimary"
+              disabled={!dirty || invalid || saving || disabled}
+              onClick={onSave}
+            >
               {t(saving ? 'saving' : 'save')}
             </button>
           </div>

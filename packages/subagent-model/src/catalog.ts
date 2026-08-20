@@ -48,7 +48,7 @@ function toEffort(effort: LlmReasoningEffortInfo): CatalogEffort {
   return {
     id: String(effort.id),
     name: effort.name,
-    ...effort.description === undefined ? {} : { description: effort.description },
+    ...(effort.description === undefined ? {} : { description: effort.description }),
   }
 }
 
@@ -59,49 +59,62 @@ function toEffort(effort: LlmReasoningEffortInfo): CatalogEffort {
 export async function buildModelCatalog(ctx: Context): Promise<ModelCatalog> {
   const llm = ctx.get('llm')
   if (llm === undefined) {
-    return { providers: [], failures: [], subagentProviders: subagentProvidersOf(ctx) }
-  }
-  const catalog = await Promise.all(llm.listProviders().map(async (provider) => {
-    try {
-      const models = await llm.listModels(provider.id)
-      const entries = await Promise.all(models.map(async (model) => {
-        const resolved = await llm.resolveModelInfo(provider.id, model.id)
-        const reasoning = resolved.reasoning === undefined ? undefined : {
-          efforts: resolved.reasoning.efforts.map(toEffort),
-          ...resolved.reasoning.defaultEffort === undefined
-            ? {}
-            : { defaultEffort: String(resolved.reasoning.defaultEffort) },
-        }
-        return {
-          id: model.id,
-          name: model.name,
-          ...model.description === undefined ? {} : { description: model.description },
-          ...reasoning === undefined ? {} : { reasoning },
-        }
-      }))
-      return {
-        kind: 'group' as const,
-        group: { id: provider.id, name: provider.name, models: entries },
-      }
-    } catch (error) {
-      return {
-        kind: 'failure' as const,
-        failure: {
-          id: provider.id,
-          name: provider.name,
-          message: error instanceof Error ? error.message : String(error),
-        },
-      }
+    return {
+      providers: [],
+      failures: [],
+      subagentProviders: subagentProvidersOf(ctx),
     }
-  }))
+  }
+  const catalog = await Promise.all(
+    llm.listProviders().map(async (provider) => {
+      try {
+        const models = await llm.listModels(provider.id)
+        const entries = await Promise.all(
+          models.map(async (model) => {
+            const resolved = await llm.resolveModelInfo(provider.id, model.id)
+            const reasoning =
+              resolved.reasoning === undefined
+                ? undefined
+                : {
+                    efforts: resolved.reasoning.efforts.map(toEffort),
+                    ...(resolved.reasoning.defaultEffort === undefined
+                      ? {}
+                      : {
+                          defaultEffort: String(resolved.reasoning.defaultEffort),
+                        }),
+                  }
+            return {
+              id: model.id,
+              name: model.name,
+              ...(model.description === undefined ? {} : { description: model.description }),
+              ...(reasoning === undefined ? {} : { reasoning }),
+            }
+          }),
+        )
+        return {
+          kind: 'group' as const,
+          group: { id: provider.id, name: provider.name, models: entries },
+        }
+      } catch (error) {
+        return {
+          kind: 'failure' as const,
+          failure: {
+            id: provider.id,
+            name: provider.name,
+            message: error instanceof Error ? error.message : String(error),
+          },
+        }
+      }
+    }),
+  )
   return {
     providers: catalog
       .filter((item) => item.kind === 'group' && item.group.models.length > 0)
-      .map((item) => item.kind === 'group' ? item.group : undefined)
+      .map((item) => (item.kind === 'group' ? item.group : undefined))
       .filter((group): group is CatalogProvider => group !== undefined),
     failures: catalog
       .filter((item) => item.kind === 'failure')
-      .map((item) => item.kind === 'failure' ? item.failure : undefined)
+      .map((item) => (item.kind === 'failure' ? item.failure : undefined))
       .filter((failure): failure is CatalogFailure => failure !== undefined),
     subagentProviders: subagentProvidersOf(ctx),
   }

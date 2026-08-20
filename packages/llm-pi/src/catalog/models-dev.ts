@@ -15,9 +15,10 @@
  * 视觉等模态须用户在条目上显式声明（防 over-claiming 导致会话重复失败请求）。
  * @module llm-pi/catalog/models-dev
  */
+
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
-import { mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 import HttpsProxyAgentModule from 'https-proxy-agent'
@@ -73,7 +74,8 @@ function fetchJson(url: string, proxy: string, timeoutMs: number): Promise<JsonR
   return new Promise((resolve, reject) => {
     const target = new URL(url)
     const request = target.protocol === 'https:' ? httpsRequest : httpRequest
-    const agent = target.protocol === 'https:' && proxy.length > 0 ? new HttpsProxyAgent(proxy) : undefined
+    const agent =
+      target.protocol === 'https:' && proxy.length > 0 ? new HttpsProxyAgent(proxy) : undefined
     const req = request(
       url,
       { agent, timeout: timeoutMs, headers: { accept: 'application/json' } },
@@ -89,7 +91,10 @@ function fetchJson(url: string, proxy: string, timeoutMs: number): Promise<JsonR
           chunks.push(chunk)
         })
         response.on('end', () => {
-          resolve({ status: response.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf8') })
+          resolve({
+            status: response.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString('utf8'),
+          })
         })
       },
     )
@@ -108,7 +113,8 @@ function toModelBase(entry: ModelsDevModelEntry): ModelBase {
   const base: ModelBase = {}
   if (typeof entry.name === 'string' && entry.name.length > 0) base.name = entry.name
   const context = entry.limit?.context
-  if (typeof context === 'number' && Number.isInteger(context) && context > 0) base.contextWindow = context
+  if (typeof context === 'number' && Number.isInteger(context) && context > 0)
+    base.contextWindow = context
   const output = entry.limit?.output
   if (typeof output === 'number' && Number.isInteger(output) && output > 0) base.maxTokens = output
   base.reasoning = entry.reasoning === true
@@ -178,7 +184,7 @@ export class ModelsDevSource {
 
   /** 全部 provider id（UI extends 选择器用）。 */
   providerIds(): string[] {
-  return Object.keys(this.document ?? {})
+    return Object.keys(this.document ?? {})
   }
 
   /** 某 provider 的模型 id 列表（UI extends 选择器用）。 */
@@ -209,7 +215,8 @@ export class ModelsDevSource {
   private loadCache(): void {
     try {
       const raw = JSON.parse(readFileSync(this.cacheFile, 'utf8')) as CacheFile
-      if (!isDocument(raw.data) || typeof raw.fetchedAt !== 'string') throw new Error('缓存形状非法')
+      if (!isDocument(raw.data) || typeof raw.fetchedAt !== 'string')
+        throw new Error('缓存形状非法')
       this.document = raw.data
       this.fetchedAt = raw.fetchedAt
     } catch {

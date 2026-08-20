@@ -7,11 +7,18 @@
  * 交互对齐官方卡片与 notify-email：折叠/展开、staged draft、未保存标记。
  * @module llm-pi/client/card
  */
-import { useEffect, useMemo, useSyncExternalStore, useState, type ReactElement } from 'react'
+import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { SETTINGS_NS } from '../ns.ts'
-import { fetchCatalog, refreshCatalog, type ConfigValue, type WireModelsDevStatus } from './api.ts'
-import { draftFromValue, emptyProviderDraft, numTextOk, toPatch, type Draft, type ProviderDraft } from './draft.ts'
+import { type ConfigValue, fetchCatalog, refreshCatalog, type WireModelsDevStatus } from './api.ts'
+import {
+  type Draft,
+  draftFromValue,
+  emptyProviderDraft,
+  numTextOk,
+  type ProviderDraft,
+  toPatch,
+} from './draft.ts'
 import { CheckRow, TextField } from './fields.tsx'
 import type { Scope, SettingsApi } from './scope.ts'
 import { ProvidersSection } from './views/providers.tsx'
@@ -75,7 +82,8 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
 
   const dirty = useMemo(
     () =>
-      value !== undefined && draft !== null &&
+      value !== undefined &&
+      draft !== null &&
       JSON.stringify(toPatch(draft)) !== JSON.stringify(toPatch(draftFromValue(value))),
     [value, draft],
   )
@@ -90,16 +98,26 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
   }, [draft])
 
   if (value === undefined || draft === null) {
-    return <li className="lpc-card"><p className="lpc-readOnly">{t('loading')}</p></li>
+    return (
+      <li className="lpc-card">
+        <p className="lpc-readOnly">{t('loading')}</p>
+      </li>
+    )
   }
 
   const setProvider = (route: string, patch: Partial<ProviderDraft>): void => {
     const current = draft.providers[route] ?? emptyProviderDraft()
-    setDraft({ ...draft, providers: { ...draft.providers, [route]: { ...current, ...patch } } })
+    setDraft({
+      ...draft,
+      providers: { ...draft.providers, [route]: { ...current, ...patch } },
+    })
     setStatus(IDLE_STATUS)
   }
   const onAddRoute = (key: string): void => {
-    setDraft({ ...draft, providers: { ...draft.providers, [key]: emptyProviderDraft() } })
+    setDraft({
+      ...draft,
+      providers: { ...draft.providers, [key]: emptyProviderDraft() },
+    })
     setStatus(IDLE_STATUS)
   }
   const onRemoveRoute = (route: string): void => {
@@ -111,11 +129,12 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
   const onSave = (): void => {
     setSaving(true)
     const revision = scope.getSnapshot().revision
-    api.replace({
-      ns: SETTINGS_NS,
-      section: toPatch(draft) as unknown as Record<string, unknown>,
-      ...(revision !== undefined ? { expectedRevision: revision } : {}),
-    })
+    api
+      .replace({
+        ns: SETTINGS_NS,
+        section: toPatch(draft) as unknown as Record<string, unknown>,
+        ...(revision !== undefined ? { expectedRevision: revision } : {}),
+      })
       .then(async (response) => {
         if (!response.result.ok) {
           throw new Error(response.result.error?.message ?? t('saveFailed'))
@@ -170,7 +189,11 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
       </button>
       {open ? (
         <div className="lpc-body">
-          {disabled ? <p className="lpc-readOnly" role="status">{t('readOnly')}</p> : null}
+          {disabled ? (
+            <p className="lpc-readOnly" role="status">
+              {t('readOnly')}
+            </p>
+          ) : null}
           <CheckRow
             id="lpc-enabled"
             label={t('enabled')}
@@ -217,9 +240,13 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
               setStatus(IDLE_STATUS)
             }}
           />
-          <p className="lpc-statusRow">{t('kitSource')}：{kitSource ?? ''}</p>
+          <p className="lpc-statusRow">
+            {t('kitSource')}：{kitSource ?? ''}
+          </p>
           <div className="lpc-statusRow">
-            <span>{t('modelsDevStatus')}：{modelsDevText(modelsDevStatus, t)}</span>
+            <span>
+              {t('modelsDevStatus')}：{modelsDevText(modelsDevStatus, t)}
+            </span>
             <button
               type="button"
               className="lpc-btn lpc-btnGhost lpc-btnSmall lpc-refreshBtn"
@@ -240,17 +267,27 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
           />
           <div className="lpc-footer">
             {status.kind !== 'idle' ? (
-              <p className={`lpc-status${status.kind === 'error' ? ' lpc-statusError' : ''}`} role="status">
+              <p
+                className={`lpc-status${status.kind === 'error' ? ' lpc-statusError' : ''}`}
+                role="status"
+              >
                 {status.text}
               </p>
             ) : null}
-            <button type="button" className="lpc-btn lpc-btnGhost" disabled={!dirty || saving}
-              onClick={onDiscard}>
+            <button
+              type="button"
+              className="lpc-btn lpc-btnGhost"
+              disabled={!dirty || saving}
+              onClick={onDiscard}
+            >
               {t('discard')}
             </button>
-            <button type="button" className="lpc-btn lpc-btnPrimary"
+            <button
+              type="button"
+              className="lpc-btn lpc-btnPrimary"
               disabled={!dirty || invalid || saving || disabled}
-              onClick={onSave}>
+              onClick={onSave}
+            >
               {t(saving ? 'saving' : 'save')}
             </button>
           </div>

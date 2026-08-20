@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { runReloadCommand, type CommandDeps } from '../src/command.ts'
+import { type CommandDeps, runReloadCommand } from '../src/command.ts'
 import type { PreflightResult } from '../src/preflight.ts'
 import { ReloadScheduler } from '../src/scheduler.ts'
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 const PREFLIGHT_OK: PreflightResult = { ok: true, reasons: [] }
-const PREFLIGHT_FAIL: PreflightResult = { ok: false, reasons: ['当前进程非 systemd 托管'] }
+const PREFLIGHT_FAIL: PreflightResult = {
+  ok: false,
+  reasons: ['当前进程非 systemd 托管'],
+}
 
-function makeDeps(overrides: {
-  preflight?: PreflightResult
-  running?: number
-} = {}) {
+function makeDeps(overrides: { preflight?: PreflightResult; running?: number } = {}) {
   const spawned: string[] = []
   const scheduler = new ReloadScheduler({
     unitName: 'dsh-web',

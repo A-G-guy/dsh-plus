@@ -26,7 +26,14 @@ export type Phase =
   | { kind: 'idle' }
   | { kind: 'preparing' }
   | { kind: 'failed'; title: string; lines: string[] }
-  | { kind: 'countdown'; token: string; left: number; runningAgents: number; bootId: string; pollTimeoutMs: number }
+  | {
+      kind: 'countdown'
+      token: string
+      left: number
+      runningAgents: number
+      bootId: string
+      pollTimeoutMs: number
+    }
   | { kind: 'restarting'; bootId: string; pollTimeoutMs: number }
   | { kind: 'timeout'; bootId: string; pollTimeoutMs: number }
 
@@ -95,9 +102,17 @@ export function useReloadFlow(t: Translate): Flow {
   // restarting 阶段的唯一轮询驱动：无论从哪条路径进入都生效。
   useEffect(() => {
     if (phase.kind !== 'restarting') return
-    const flag: RestartFlag = { bootId: phase.bootId, at: Date.now(), pollTimeoutMs: phase.pollTimeoutMs }
+    const flag: RestartFlag = {
+      bootId: phase.bootId,
+      at: Date.now(),
+      pollTimeoutMs: phase.pollTimeoutMs,
+    }
     return pollUntilRestarted(flag, () => {
-      setPhase({ kind: 'timeout', bootId: phase.bootId, pollTimeoutMs: phase.pollTimeoutMs })
+      setPhase({
+        kind: 'timeout',
+        bootId: phase.bootId,
+        pollTimeoutMs: phase.pollTimeoutMs,
+      })
     })
   }, [phase])
 
@@ -110,44 +125,76 @@ export function useReloadFlow(t: Translate): Flow {
           if (health.bootId !== existing.bootId) {
             localStorage.removeItem(RESTART_FLAG)
           } else {
-            setPhase({ kind: 'restarting', bootId: existing.bootId, pollTimeoutMs: existing.pollTimeoutMs })
+            setPhase({
+              kind: 'restarting',
+              bootId: existing.bootId,
+              pollTimeoutMs: existing.pollTimeoutMs,
+            })
           }
         })
         .catch(() => {
-          setPhase({ kind: 'restarting', bootId: existing.bootId, pollTimeoutMs: existing.pollTimeoutMs })
+          setPhase({
+            kind: 'restarting',
+            bootId: existing.bootId,
+            pollTimeoutMs: existing.pollTimeoutMs,
+          })
         })
     }
     const onStorage = (event: StorageEvent): void => {
       if (event.key !== RESTART_FLAG || !event.newValue || phaseRef.current.kind !== 'idle') return
       const flag = readFlag()
-      if (flag) setPhase({ kind: 'restarting', bootId: flag.bootId, pollTimeoutMs: flag.pollTimeoutMs })
+      if (flag)
+        setPhase({
+          kind: 'restarting',
+          bootId: flag.bootId,
+          pollTimeoutMs: flag.pollTimeoutMs,
+        })
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
   }, [])
 
-  const confirm = useCallback(async (token: string, force: boolean, bootId: string, pollTimeoutMs: number): Promise<void> => {
-    try {
-      await postConfirm(token, force)
-      writeFlag(bootId, pollTimeoutMs)
-      setPhase({ kind: 'restarting', bootId, pollTimeoutMs })
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 409 && typeof error.runningAgents === 'number') {
-        // prepare 后才有会话进入 running：回到倒计时 0 的待命态，等用户 force。
-        setPhase({ kind: 'countdown', token, left: 0, runningAgents: error.runningAgents, bootId, pollTimeoutMs })
-      } else if (error instanceof ApiError && error.status === 403) {
-        setPhase({ kind: 'failed', title: '', lines: [t('tokenExpired')] })
-      } else {
-        setPhase({ kind: 'failed', title: '', lines: [error instanceof Error ? error.message : String(error)] })
+  const confirm = useCallback(
+    async (token: string, force: boolean, bootId: string, pollTimeoutMs: number): Promise<void> => {
+      try {
+        await postConfirm(token, force)
+        writeFlag(bootId, pollTimeoutMs)
+        setPhase({ kind: 'restarting', bootId, pollTimeoutMs })
+      } catch (error) {
+        if (
+          error instanceof ApiError &&
+          error.status === 409 &&
+          typeof error.runningAgents === 'number'
+        ) {
+          // prepare 后才有会话进入 running：回到倒计时 0 的待命态，等用户 force。
+          setPhase({
+            kind: 'countdown',
+            token,
+            left: 0,
+            runningAgents: error.runningAgents,
+            bootId,
+            pollTimeoutMs,
+          })
+        } else if (error instanceof ApiError && error.status === 403) {
+          setPhase({ kind: 'failed', title: '', lines: [t('tokenExpired')] })
+        } else {
+          setPhase({
+            kind: 'failed',
+            title: '',
+            lines: [error instanceof Error ? error.message : String(error)],
+          })
+        }
       }
-    }
-  }, [t])
+    },
+    [t],
+  )
 
   // 倒计时滴答：归零且无 running 会话时自动确认；有 running 会话停在 0 等 force。
   useEffect(() => {
     if (phase.kind !== 'countdown') return
     if (phase.left === 0) {
-      if (phase.runningAgents === 0) void confirm(phase.token, false, phase.bootId, phase.pollTimeoutMs)
+      if (phase.runningAgents === 0)
+        void confirm(phase.token, false, phase.bootId, phase.pollTimeoutMs)
       return
     }
     const timer = setTimeout(() => {
@@ -172,9 +219,17 @@ export function useReloadFlow(t: Translate): Flow {
       })
     } catch (error) {
       if (error instanceof ApiError && error.preflight) {
-        setPhase({ kind: 'failed', title: t('preflightFailed'), lines: error.preflight.reasons })
+        setPhase({
+          kind: 'failed',
+          title: t('preflightFailed'),
+          lines: error.preflight.reasons,
+        })
       } else {
-        setPhase({ kind: 'failed', title: '', lines: [error instanceof Error ? error.message : String(error)] })
+        setPhase({
+          kind: 'failed',
+          title: '',
+          lines: [error instanceof Error ? error.message : String(error)],
+        })
       }
     }
   }, [t])
@@ -194,18 +249,24 @@ export function useReloadFlow(t: Translate): Flow {
 
   const forceRestart = useCallback((): void => {
     const current = phaseRef.current
-    if (current.kind === 'countdown') void confirm(current.token, true, current.bootId, current.pollTimeoutMs)
+    if (current.kind === 'countdown')
+      void confirm(current.token, true, current.bootId, current.pollTimeoutMs)
   }, [confirm])
 
   const retry = useCallback((): void => {
     const current = phaseRef.current
     if (current.kind !== 'timeout') return
     writeFlag(current.bootId, current.pollTimeoutMs)
-    setPhase({ kind: 'restarting', bootId: current.bootId, pollTimeoutMs: current.pollTimeoutMs })
+    setPhase({
+      kind: 'restarting',
+      bootId: current.bootId,
+      pollTimeoutMs: current.pollTimeoutMs,
+    })
   }, [])
 
   const dismiss = useCallback((): void => {
-    if (phaseRef.current.kind === 'failed' || phaseRef.current.kind === 'timeout') setPhase({ kind: 'idle' })
+    if (phaseRef.current.kind === 'failed' || phaseRef.current.kind === 'timeout')
+      setPhase({ kind: 'idle' })
   }, [])
 
   return { phase, start, restartNow, forceRestart, cancel, dismiss, retry }

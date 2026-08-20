@@ -61,6 +61,8 @@ dsh plugin --profile web add @dsh-plus/bundle-main
 ```bash
 pnpm install      # 安装 workspace 依赖
 pnpm build        # 构建全部插件（产物在 packages/*/lib）
+pnpm lint         # biome 静态检查（lint + format + import 整理）
+pnpm lint:fix     # biome 自动修复并格式化
 pnpm test         # 运行全部单元测试（纯逻辑，无网络、零 API 费用）
 
 # 本地开发：link 安装，配合 tsdown --watch 热更浏览器半

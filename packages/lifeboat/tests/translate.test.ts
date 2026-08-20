@@ -14,12 +14,23 @@ test('given route name hint, when inferring without explicit api, then uses rout
 })
 
 test('given only model extends, when inferring, then maps known source prefix', () => {
-  assert.equal(inferApi('custom', { models: [{ id: 'k3', extends: 'kimi-coding/k3' }] }), 'anthropic-messages')
-  assert.equal(inferApi('custom', { models: [{ id: 'v4', extends: 'deepseek/deepseek-v4-flash' }] }), 'openai-completions')
+  assert.equal(
+    inferApi('custom', { models: [{ id: 'k3', extends: 'kimi-coding/k3' }] }),
+    'anthropic-messages',
+  )
+  assert.equal(
+    inferApi('custom', {
+      models: [{ id: 'v4', extends: 'deepseek/deepseek-v4-flash' }],
+    }),
+    'openai-completions',
+  )
 })
 
 test('given no hint at all, when inferring, then falls back to openai-completions', () => {
-  assert.equal(inferApi('mystery', { models: [{ id: 'm', extends: 'unknown/m' }] }), 'openai-completions')
+  assert.equal(
+    inferApi('mystery', { models: [{ id: 'm', extends: 'unknown/m' }] }),
+    'openai-completions',
+  )
   assert.equal(inferApi('mystery', {}), 'openai-completions')
 })
 
@@ -29,9 +40,18 @@ test('given full provider, when translating, then carries whitelisted fields onl
     apiKeyEnv: 'NEWAPI_API_KEY',
     baseURL: 'https://gw.example/v1',
     reasoning: 'max',
-    compat: { thinkingFormat: 'deepseek', maxTokensField: 'max_completion_tokens' },
+    compat: {
+      thinkingFormat: 'deepseek',
+      maxTokensField: 'max_completion_tokens',
+    },
     models: [
-      { id: 'deepseek-v4-flash', name: 'Flash', contextWindow: 400000, input: [], extends: 'deepseek/deepseek-v4-flash' },
+      {
+        id: 'deepseek-v4-flash',
+        name: 'Flash',
+        contextWindow: 400000,
+        input: [],
+        extends: 'deepseek/deepseek-v4-flash',
+      },
     ],
   })
   assert.equal(out.displayName, 'newapi(chat) [fallback]')

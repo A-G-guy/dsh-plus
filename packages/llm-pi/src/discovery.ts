@@ -6,7 +6,7 @@
  * GET {baseURL}/models、4MB 上限、署名头）与官方一致。结果不落盘。
  * @module llm-pi/discovery
  */
-import { hasBuiltinProvider, builtinModelIds } from './catalog/builtin.ts'
+import { builtinModelIds, hasBuiltinProvider } from './catalog/builtin.ts'
 import type { ProviderProfileConfig } from './config.ts'
 import type { DshKit } from './resolve-dsh.ts'
 
@@ -37,7 +37,8 @@ export interface DiscoveryDeps {
 
 /** 读取有界响应体：声明超长或累计超长都拒绝（对齐官方 readBounded）。 */
 async function readBounded(kit: DshKit, response: Response, url: string): Promise<string> {
-  const oversized = () => new kit.LlmError(`${url} 响应超过 ${MAX_RESPONSE_BYTES} 字节`, 'DISCOVERY_FAILED')
+  const oversized = () =>
+    new kit.LlmError(`${url} 响应超过 ${MAX_RESPONSE_BYTES} 字节`, 'DISCOVERY_FAILED')
   const declared = Number(response.headers.get('content-length') ?? NaN)
   if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
     await response.body?.cancel()
@@ -87,7 +88,12 @@ function readListing(kit: DshKit, body: unknown): DiscoveryEntry[] {
       ['max_tokens', 'maxTokens'],
     ] as const) {
       const value = entry[key]
-      if (typeof value === 'number' && Number.isInteger(value) && value > 0 && out[field] === undefined) {
+      if (
+        typeof value === 'number' &&
+        Number.isInteger(value) &&
+        value > 0 &&
+        out[field] === undefined
+      ) {
         out[field] = value
       }
     }
@@ -114,7 +120,10 @@ function catalogAnswer(kit: DshKit, source: string): DiscoveryEntry[] {
  * 回答"该 provider 可服务哪些模型"：extends 内置源零网络直答；
  * 否则仅 openai 系协议走 GET {baseURL}/models；其余协议明确不支持。
  */
-export async function discoverModels(request: DiscoveryRequest, deps: DiscoveryDeps): Promise<DiscoveryEntry[]> {
+export async function discoverModels(
+  request: DiscoveryRequest,
+  deps: DiscoveryDeps,
+): Promise<DiscoveryEntry[]> {
   const { kit } = deps
   const route: ProviderProfileConfig | undefined =
     request.provider === undefined ? undefined : deps.configProviders()[request.provider]
@@ -130,7 +139,10 @@ export async function discoverModels(request: DiscoveryRequest, deps: DiscoveryD
   }
   const api = request.api ?? route?.api ?? 'openai-completions'
   if (!LISTABLE_PROTOCOLS.has(api)) {
-    throw new kit.LlmError(`协议 "${api}" 无可读取的模型清单端点；请手工录入模型`, 'DISCOVERY_UNSUPPORTED')
+    throw new kit.LlmError(
+      `协议 "${api}" 无可读取的模型清单端点；请手工录入模型`,
+      'DISCOVERY_UNSUPPORTED',
+    )
   }
   const url = `${baseURL.replace(/\/+$/, '')}/models`
   const supplied = request.apiKey ?? (await deps.storedApiKey(request.provider))
@@ -139,7 +151,9 @@ export async function discoverModels(request: DiscoveryRequest, deps: DiscoveryD
     const checked = kit.normalizeApiKey(supplied)
     if (!checked.ok) {
       throw new kit.LlmError(
-        checked.reason === 'empty' ? 'API key 为空；请在 Models 页配置或留空以匿名探测' : 'API key 含有 HTTP 头无法携带的字符',
+        checked.reason === 'empty'
+          ? 'API key 为空；请在 Models 页配置或留空以匿名探测'
+          : 'API key 含有 HTTP 头无法携带的字符',
         kit.INVALID_CREDENTIAL_CODE,
       )
     }
@@ -157,8 +171,13 @@ export async function discoverModels(request: DiscoveryRequest, deps: DiscoveryD
       ...(request.signal === undefined ? {} : { signal: request.signal }),
     })
   } catch (error) {
-    if (request.signal?.aborted) throw new kit.LlmError('模型发现被调用方中止', 'ABORTED', { cause: error })
-    throw new kit.LlmError(`无法连接 ${url}`, 'DISCOVERY_FAILED', { cause: error })
+    if (request.signal?.aborted)
+      throw new kit.LlmError('模型发现被调用方中止', 'ABORTED', {
+        cause: error,
+      })
+    throw new kit.LlmError(`无法连接 ${url}`, 'DISCOVERY_FAILED', {
+      cause: error,
+    })
   }
   if (!response.ok) {
     throw new kit.LlmError(
@@ -171,6 +190,8 @@ export async function discoverModels(request: DiscoveryRequest, deps: DiscoveryD
     return readListing(kit, JSON.parse(text))
   } catch (error) {
     if (error instanceof kit.LlmError) throw error
-    throw new kit.LlmError(`${url} 未返回 JSON`, 'DISCOVERY_FAILED', { cause: error })
+    throw new kit.LlmError(`${url} 未返回 JSON`, 'DISCOVERY_FAILED', {
+      cause: error,
+    })
   }
 }

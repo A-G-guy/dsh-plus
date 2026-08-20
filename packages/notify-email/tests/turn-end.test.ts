@@ -118,7 +118,10 @@ test('given a new turn starting inside the debounce window, when it arrives, the
 
 test('given the same turn end replayed, when dedup applies, then only one notification', async () => {
   const h = createHarness()
-  const end = { turn: 4, reason: { kind: 'error', error: { message: 'boom' } } }
+  const end = {
+    turn: 4,
+    reason: { kind: 'error', error: { message: 'boom' } },
+  }
   h.emit('turn/end', end)
   await sleep(DEBOUNCE_MS * 6)
   h.emit('turn/end', end)

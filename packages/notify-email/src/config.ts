@@ -4,8 +4,9 @@
  * 共用同一 schemastery schema。SMTP 密码标记 secret 角色，任何读取通道不得回传。
  * @module notify-email/config
  */
-import z from '@deepseek-ai/schemastery'
+
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
+import z from '@deepseek-ai/schemastery'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
@@ -31,10 +32,21 @@ const TriggerSchema = z.object({
 
 export const Config = z.object({
   enabled: z.boolean().description('总开关').default(false),
-  smtp: SmtpSchema.default({ host: '', port: 465, secure: true, user: '', pass: '', from: '' }),
+  smtp: SmtpSchema.default({
+    host: '',
+    port: 465,
+    secure: true,
+    user: '',
+    pass: '',
+    from: '',
+  }),
   to: z.array(z.string()).description('收件邮箱列表').default([]),
   triggers: TriggerSchema.default({
-    onComplete: true, onError: true, onAborted: false, onQuestion: true, onPlanReview: true,
+    onComplete: true,
+    onError: true,
+    onAborted: false,
+    onQuestion: true,
+    onPlanReview: true,
   }),
   idleDebounceMs: z.natural().description('turn 结束后确认无后续工作的等待毫秒数').default(3000),
   maxBodyChars: z.natural().min(200).description('邮件正文内容截断长度').default(4000),

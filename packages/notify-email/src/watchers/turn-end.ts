@@ -91,13 +91,10 @@ export function installTurnEndWatcher(
     const watch = watchOf(session.id)
     if (watch.timer !== undefined) clearTimeout(watch.timer)
     const errorMessage = extractErrorMessage(reason)
-    watch.timer = setTimeout(
-      () => {
-        watch.timer = undefined
-        fire(session, turn, reason.kind, errorMessage)
-      },
-      resolveConfig().idleDebounceMs,
-    )
+    watch.timer = setTimeout(() => {
+      watch.timer = undefined
+      fire(session, turn, reason.kind, errorMessage)
+    }, resolveConfig().idleDebounceMs)
   }
 
   ctx.on('session/event', (session, event) => {

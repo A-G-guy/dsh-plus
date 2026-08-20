@@ -23,7 +23,12 @@ export interface WireProvider {
   defaultMaxTokens?: number
   defaultInput?: string[]
   reasoning?: string
-  thinkingBudgets?: { minimal: number; low: number; medium: number; high: number }
+  thinkingBudgets?: {
+    minimal: number
+    low: number
+    medium: number
+    high: number
+  }
   cacheRetention?: string
   transport?: string
   timeoutMs?: number
@@ -74,14 +79,22 @@ async function parse<T>(res: Response): Promise<T> {
 }
 
 /** 目录查询：provider 为空时只返回该源的 provider 列表。 */
-export async function fetchCatalog(provider: string, source: 'builtin' | 'models-dev'): Promise<CatalogResult> {
+export async function fetchCatalog(
+  provider: string,
+  source: 'builtin' | 'models-dev',
+): Promise<CatalogResult> {
   const url = `${ROUTE_CATALOG}?provider=${encodeURIComponent(provider)}&source=${source}`
   return parse<CatalogResult>(await fetch(url, { credentials: 'same-origin' }))
 }
 
 /** 手动拉取 models.dev 目录：POST /catalog/refresh → 最新快照状态。 */
-export async function refreshCatalog(): Promise<{ status: WireModelsDevStatus }> {
+export async function refreshCatalog(): Promise<{
+  status: WireModelsDevStatus
+}> {
   return parse<{ status: WireModelsDevStatus }>(
-    await fetch(`${ROUTE_CATALOG}/refresh`, { method: 'POST', credentials: 'same-origin' }),
+    await fetch(`${ROUTE_CATALOG}/refresh`, {
+      method: 'POST',
+      credentials: 'same-origin',
+    }),
   )
 }

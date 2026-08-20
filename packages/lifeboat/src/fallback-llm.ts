@@ -15,7 +15,11 @@ import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type {} from '@deepseek-ai/dsh-llm'
-import { SettingsConflictError, settingsNamespace, type SettingsProvider } from '@deepseek-ai/dsh-settings'
+import {
+  SettingsConflictError,
+  type SettingsProvider,
+  settingsNamespace,
+} from '@deepseek-ai/dsh-settings'
 import { parseDocument } from 'yaml'
 
 import type { FallbackStateT } from './config.ts'
@@ -100,7 +104,8 @@ export function inferApi(routeKey: string, provider: RawProvider): string {
   if (routeHint !== undefined) return routeHint
   const firstExtends = provider.models?.find((m) => typeof m.extends === 'string')?.extends
   const source = firstExtends?.split('/')[0]
-  if (source !== undefined && EXTENDS_PROTOCOL[source] !== undefined) return EXTENDS_PROTOCOL[source]
+  if (source !== undefined && EXTENDS_PROTOCOL[source] !== undefined)
+    return EXTENDS_PROTOCOL[source]
   return 'openai-completions'
 }
 
@@ -113,9 +118,11 @@ export function translateProvider(routeKey: string, raw: RawProvider): Translate
   if (raw.apiKeyEnv !== undefined) out.apiKeyEnv = raw.apiKeyEnv
   if (raw.baseURL !== undefined) out.baseURL = raw.baseURL
   if (raw.headers !== undefined) out.headers = raw.headers
-  if (raw.reasoning !== undefined && REASONING_LEVELS.has(raw.reasoning)) out.reasoning = raw.reasoning
+  if (raw.reasoning !== undefined && REASONING_LEVELS.has(raw.reasoning))
+    out.reasoning = raw.reasoning
   if (raw.thinkingBudgets !== undefined) out.thinkingBudgets = raw.thinkingBudgets
-  if (Array.isArray(raw.defaultInput) && raw.defaultInput.length > 0) out.defaultInput = raw.defaultInput
+  if (Array.isArray(raw.defaultInput) && raw.defaultInput.length > 0)
+    out.defaultInput = raw.defaultInput
   if (raw.compat !== undefined) {
     const compat: Record<string, unknown> = {}
     for (const key of COMPAT_WHITELIST) {
@@ -137,7 +144,9 @@ export function translateProvider(routeKey: string, raw: RawProvider): Translate
 }
 
 /** 整表翻译：键加 -fb 后缀（纯函数）。 */
-export function translateProviders(providers: Record<string, RawProvider>): Record<string, TranslatedProvider> {
+export function translateProviders(
+  providers: Record<string, RawProvider>,
+): Record<string, TranslatedProvider> {
   const out: Record<string, TranslatedProvider> = {}
   for (const [key, raw] of Object.entries(providers)) {
     out[`${key}${FALLBACK_SUFFIX}`] = translateProvider(key, raw)
@@ -146,7 +155,10 @@ export function translateProviders(providers: Record<string, RawProvider>): Reco
 }
 
 /** 读 settings.yaml 原始文档的指定段落（只读；文件/段落缺失返回 undefined）。 */
-export async function readRawSection(settingsFile: string, ns: string): Promise<Record<string, unknown> | undefined> {
+export async function readRawSection(
+  settingsFile: string,
+  ns: string,
+): Promise<Record<string, unknown> | undefined> {
   const text = await readFile(settingsFile, 'utf-8')
   const doc = parseDocument(text).toJS() as Record<string, unknown>
   const section = doc[ns]
@@ -156,7 +168,14 @@ export async function readRawSection(settingsFile: string, ns: string): Promise<
 
 interface SettingsWrite {
   update(ns: ReturnType<typeof settingsNamespace>, patch: object): Promise<void>
-  mutate(ns: ReturnType<typeof settingsNamespace>, ops: readonly { op: 'set' | 'unset'; path: readonly string[]; value?: unknown }[]): Promise<void>
+  mutate(
+    ns: ReturnType<typeof settingsNamespace>,
+    ops: readonly {
+      op: 'set' | 'unset'
+      path: readonly string[]
+      value?: unknown
+    }[],
+  ): Promise<void>
 }
 
 /** 写 settings 带一次冲突重试（用户同时改配置时不抢，放弃并告警）。
@@ -168,7 +187,9 @@ async function writeWithRetry(write: () => Promise<void>): Promise<void> {
   } catch (error) {
     const conflict =
       error instanceof SettingsConflictError ||
-      (typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'SETTINGS_CONFLICT')
+      (typeof error === 'object' &&
+        error !== null &&
+        (error as { code?: unknown }).code === 'SETTINGS_CONFLICT')
     if (!conflict) throw error
     await write()
   }
@@ -190,8 +211,7 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
   const settingsFile = dshHomePath('settings.yaml')
   let inFlight: Promise<void> | undefined
 
-  const listProviderIds = (): Set<string> =>
-    new Set(ctx.llm.listProviders().map((p) => p.id))
+  const listProviderIds = (): Set<string> => new Set(ctx.llm.listProviders().map((p) => p.id))
 
   async function activate(provider: string, model: string): Promise<void> {
     const section = await readRawSection(settingsFile, RAW_NS_LLM_PI).catch(() => undefined)
@@ -215,7 +235,10 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
       providers: Object.keys(translated),
       at: new Date().toISOString(),
     })
-    deps.journal('llm-fallback', `默认模型切换到 ${fbProvider}/${model}（翻译 ${Object.keys(translated).length} 个 provider）`)
+    deps.journal(
+      'llm-fallback',
+      `默认模型切换到 ${fbProvider}/${model}（翻译 ${Object.keys(translated).length} 个 provider）`,
+    )
     deps.alert(
       '[DSH] LLM 配置已应急翻译',
       `默认模型的 provider "${provider}" 不可用（llm-pi 缺席？），已把 ${RAW_NS_LLM_PI} 配置翻译为官方 llm-pi-ai 路由（-fb 后缀）并切换默认模型为 ${fbProvider}/${model}。源插件恢复后将自动还原。`,
@@ -223,13 +246,22 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
   }
 
   async function revert(state: FallbackStateT): Promise<void> {
-    const ops = state.providers.map((key) => ({ op: 'unset' as const, path: ['providers', key] }))
+    const ops = state.providers.map((key) => ({
+      op: 'unset' as const,
+      path: ['providers', key],
+    }))
     await writeWithRetry(() => writes.mutate(NS_PI_AI, ops))
     await writeWithRetry(() =>
-      writes.update(NS_AGENT_DEFAULT, { provider: state.originalProvider, model: state.originalModel }),
+      writes.update(NS_AGENT_DEFAULT, {
+        provider: state.originalProvider,
+        model: state.originalModel,
+      }),
     )
     await deps.writeState(null)
-    deps.journal('llm-fallback-revert', `默认模型还原为 ${state.originalProvider}/${state.originalModel}`)
+    deps.journal(
+      'llm-fallback-revert',
+      `默认模型还原为 ${state.originalProvider}/${state.originalModel}`,
+    )
     deps.alert(
       '[DSH] LLM 应急翻译已还原',
       `provider "${state.originalProvider}" 恢复健康，默认模型已还原，临时翻译路由已清除。`,
@@ -243,14 +275,17 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
       if (ids.has(state.originalProvider)) await revert(state)
       return
     }
-    const def = ctx.settings.get(NS_AGENT_DEFAULT) as { provider?: string; model?: string } | undefined
+    const def = ctx.settings.get(NS_AGENT_DEFAULT) as
+      | { provider?: string; model?: string }
+      | undefined
     if (def?.provider === undefined || def.model === undefined) return
     if (ids.has(def.provider)) return
     await activate(def.provider, def.model)
   }
 
   const run = (): void => {
-    inFlight ??= evaluate()
+    if (inFlight !== undefined) return
+    inFlight = evaluate()
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error)
         logger.warn(`llm fallback 评估失败: ${message}`)
@@ -264,10 +299,7 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
   // 首次评估延迟到启动收尾：lifeboat 首位加载时兄弟插件的 adapter 尚未注册，
   // 立刻评估会把"还没加载"误判为"缺席"。事件订阅覆盖后续变化。
   const bootTimer = setTimeout(run, 10_000)
-  ctx.effect(
-    () => () => clearTimeout(bootTimer),
-    'lifeboat: fallback boot timer',
-  )
+  ctx.effect(() => () => clearTimeout(bootTimer), 'lifeboat: fallback boot timer')
   ctx.on('ready' as never, run)
   // 只响应与本判定相关的命名空间变化：journal 写自身命名空间，不过滤会自触发循环。
   const WATCHED_NS = new Set(['agent-default-model', 'llm-pi-ai', RAW_NS_LLM_PI])

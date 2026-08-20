@@ -11,7 +11,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 
 import type { ReloadConfig } from './config.ts'
-import { runPreflight, systemRunner, type PreflightResult, type Runner } from './preflight.ts'
+import { type PreflightResult, type Runner, runPreflight, systemRunner } from './preflight.ts'
 import type { ReloadScheduler } from './scheduler.ts'
 
 const ROUTE = '/dsh-plus/reload'
@@ -55,7 +55,7 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown> |
   try {
     const parsed: unknown = JSON.parse(await readBody(req))
     return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? parsed as Record<string, unknown>
+      ? (parsed as Record<string, unknown>)
       : null
   } catch {
     return null
@@ -63,7 +63,9 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown> |
 }
 
 /** 组装请求处理器；env/runner/runningAgents 均可注入，测试零真实副作用。 */
-export function createReloadHandler(deps: RouteDeps): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
+export function createReloadHandler(
+  deps: RouteDeps,
+): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
   const { scheduler, config } = deps
   const pid = deps.pid ?? process.pid
   const runner = deps.runner ?? systemRunner
@@ -103,8 +105,17 @@ export function createReloadHandler(deps: RouteDeps): (req: IncomingMessage, res
       runningAgents: runningAgents(),
     })
     if (result.kind === 'invalid-token') sendJson(res, 403, { error: 'invalid or expired token' })
-    else if (result.kind === 'agents-running') sendJson(res, 409, { error: 'agents running', runningAgents: result.count })
-    else sendJson(res, 200, { ok: true, etaMs: result.etaMs, bootId: scheduler.bootId })
+    else if (result.kind === 'agents-running')
+      sendJson(res, 409, {
+        error: 'agents running',
+        runningAgents: result.count,
+      })
+    else
+      sendJson(res, 200, {
+        ok: true,
+        etaMs: result.etaMs,
+        bootId: scheduler.bootId,
+      })
   }
 
   const handleCancel = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -113,7 +124,9 @@ export function createReloadHandler(deps: RouteDeps): (req: IncomingMessage, res
       sendJson(res, 400, { error: 'invalid json body' })
       return
     }
-    sendJson(res, scheduler.cancel(body.token) ? 200 : 404, { ok: scheduler.getState() === 'idle' })
+    sendJson(res, scheduler.cancel(body.token) ? 200 : 404, {
+      ok: scheduler.getState() === 'idle',
+    })
   }
 
   return async (req, res) => {

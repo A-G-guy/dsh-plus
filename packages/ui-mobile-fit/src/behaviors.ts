@@ -120,5 +120,7 @@ function installTapOutsideClose(): Dispose {
 export function installBehaviors(): Dispose {
   installViewportMeta()
   const disposes = [installImeInset(), installAutofocusGuard(), installTapOutsideClose()]
-  return () => disposes.forEach((dispose) => dispose())
+  return () => {
+    for (const dispose of disposes) dispose()
+  }
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { isTransformOp, transformText, TRANSFORM_OPS } from '../src/index.ts'
+import { isTransformOp, TRANSFORM_OPS, transformText } from '../src/index.ts'
 
 test('given text and uppercase op, when transforming, then returns uppercased text', () => {
   assert.equal(transformText('hello dsh', 'uppercase'), 'HELLO DSH')

@@ -12,9 +12,12 @@
   },
   "scripts": {
     "build": "pnpm --filter './packages/*' -r build",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "test": "node --test \"packages/*/tests/*.test.ts\""
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.9",
     "tsdown": "^0.15.0",
     "typescript": "^5.9.0"
   }

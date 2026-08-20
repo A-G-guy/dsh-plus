@@ -15,10 +15,13 @@ export const name = 'dsh-plus-subagent-model'
 
 export const inject = ['subagents', 'llm'] as const
 
-export { Config }
-
-export type { EntryConfig, InjectedOptions, SubagentModelConfig } from './config.ts'
+export type {
+  EntryConfig,
+  InjectedOptions,
+  SubagentModelConfig,
+} from './config.ts'
 export { SubagentModelService } from './service.ts'
+export { Config }
 
 export function apply(ctx: Context, config: SubagentModelConfig): void {
   ctx.plugin(SubagentModelService, config)

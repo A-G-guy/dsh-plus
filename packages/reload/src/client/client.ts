@@ -44,10 +44,7 @@ export function apply(ctx: Context): void {
     },
     'reload: style',
   )
-  c.effect(
-    () => c.locale.register(NS, { zh, en }),
-    'reload: locale',
-  )
+  c.effect(() => c.locale.register(NS, { zh, en }), 'reload: locale')
   c.slots.inject('settings.general.item', () =>
     c.slots.register(
       {

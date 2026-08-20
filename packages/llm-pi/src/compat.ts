@@ -90,7 +90,13 @@ export function compatFieldSpec(api: ProtocolId, field: string): CompatValue | u
   return FIELDS_BY_PROTOCOL[api][field]
 }
 
-function checkValue(api: ProtocolId, field: string, spec: CompatValue, value: unknown, where: string): void {
+function checkValue(
+  _api: ProtocolId,
+  field: string,
+  spec: CompatValue,
+  value: unknown,
+  where: string,
+): void {
   if (spec === 'boolean') {
     if (typeof value !== 'boolean') throw new Error(`${where}: compat.${field} 必须是布尔值`)
     return
@@ -102,7 +108,9 @@ function checkValue(api: ProtocolId, field: string, spec: CompatValue, value: un
     return
   }
   if (typeof value !== 'string' || !spec.includes(value)) {
-    throw new Error(`${where}: compat.${field} 必须是 ${spec.map((v) => JSON.stringify(v)).join(' | ')} 之一`)
+    throw new Error(
+      `${where}: compat.${field} 必须是 ${spec.map((v) => JSON.stringify(v)).join(' | ')} 之一`,
+    )
   }
 }
 
@@ -110,11 +118,17 @@ function checkValue(api: ProtocolId, field: string, spec: CompatValue, value: un
  * 校验一份 compat 字典对指定协议合法：未知协议/未知键拒绝（对比官方的静默丢弃），
  * 已知键校验值类型/枚举。undefined 值视为未设置，跳过（语义同 pi-ai 的 ??）。
  */
-export function validateCompat(api: string, compat: Record<string, unknown> | undefined, where: string): void {
+export function validateCompat(
+  api: string,
+  compat: Record<string, unknown> | undefined,
+  where: string,
+): void {
   if (compat === undefined) return
   const fields = FIELDS_BY_PROTOCOL[api as ProtocolId]
   if (fields === undefined) {
-    throw new Error(`${where}: 协议 ${JSON.stringify(api)} 无 compat 字段表（支持：${Object.keys(FIELDS_BY_PROTOCOL).join(', ')}）`)
+    throw new Error(
+      `${where}: 协议 ${JSON.stringify(api)} 无 compat 字段表（支持：${Object.keys(FIELDS_BY_PROTOCOL).join(', ')}）`,
+    )
   }
   for (const [key, value] of Object.entries(compat)) {
     const spec = fields[key]

@@ -100,7 +100,10 @@ export function pairsToHeaders(pairs: HeaderPair[]): Record<string, string> | un
 }
 
 function inputFromWire(list: string[] | undefined): InputDraft {
-  return { text: list?.includes('text') ?? false, image: list?.includes('image') ?? false }
+  return {
+    text: list?.includes('text') ?? false,
+    image: list?.includes('image') ?? false,
+  }
 }
 
 function inputToWire(input: InputDraft): string[] | undefined {
@@ -110,7 +113,9 @@ function inputToWire(input: InputDraft): string[] | undefined {
   return out.length > 0 ? out : undefined
 }
 
-function reasoningFromWire(value: false | Record<string, string | null> | undefined): ReasoningDraft {
+function reasoningFromWire(
+  value: false | Record<string, string | null> | undefined,
+): ReasoningDraft {
   if (value === false) return { nonReasoning: true, levels: {} }
   const levels: Record<string, string> = {}
   for (const [level, line] of Object.entries(value ?? {})) levels[level] = line ?? ''
@@ -126,7 +131,9 @@ function reasoningToWire(value: ReasoningDraft): false | Record<string, string> 
   return Object.keys(out).length > 0 ? out : undefined
 }
 
-function budgetFromWire(value: { minimal: number; low: number; medium: number; high: number } | undefined): BudgetDraft {
+function budgetFromWire(
+  value: { minimal: number; low: number; medium: number; high: number } | undefined,
+): BudgetDraft {
   return {
     minimal: numToText(value?.minimal),
     low: numToText(value?.low),
@@ -135,13 +142,17 @@ function budgetFromWire(value: { minimal: number; low: number; medium: number; h
   }
 }
 
-function budgetToWire(value: BudgetDraft): { minimal: number; low: number; medium: number; high: number } | undefined {
+function budgetToWire(
+  value: BudgetDraft,
+): { minimal: number; low: number; medium: number; high: number } | undefined {
   const out: Record<string, number> = {}
   for (const key of ['minimal', 'low', 'medium', 'high'] as const) {
     const num = toNum(value[key])
     if (num !== undefined) out[key] = num
   }
-  return Object.keys(out).length > 0 ? (out as { minimal: number; low: number; medium: number; high: number }) : undefined
+  return Object.keys(out).length > 0
+    ? (out as { minimal: number; low: number; medium: number; high: number })
+    : undefined
 }
 
 /** 剔除空值：undefined / '' / 空数组 / 空对象。 */
@@ -278,7 +289,10 @@ export function draftFromValue(value: ConfigValue): Draft {
     catalogRefreshHours: String(value.catalogRefreshHours),
     catalogProxy: value.catalogProxy,
     providers: Object.fromEntries(
-      Object.entries(value.providers).map(([route, provider]) => [route, providerDraftFromWire(provider)]),
+      Object.entries(value.providers).map(([route, provider]) => [
+        route,
+        providerDraftFromWire(provider),
+      ]),
     ),
   }
 }

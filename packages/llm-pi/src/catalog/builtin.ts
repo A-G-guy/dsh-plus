@@ -19,7 +19,12 @@ export interface ModelBase {
   compat?: Record<string, unknown>
   contextWindow?: number
   maxTokens?: number
-  cost?: { input: number; output: number; cacheRead: number; cacheWrite: number }
+  cost?: {
+    input: number
+    output: number
+    cacheRead: number
+    cacheWrite: number
+  }
   headers?: Record<string, string>
 }
 
@@ -40,7 +45,11 @@ export function builtinModelIds(kit: DshKit, provider: string): string[] {
 }
 
 /** 查单个内置模型为继承 base；未命中返回 undefined。 */
-export function builtinModelBase(kit: DshKit, provider: string, modelId: string): ModelBase | undefined {
+export function builtinModelBase(
+  kit: DshKit,
+  provider: string,
+  modelId: string,
+): ModelBase | undefined {
   if (!hasBuiltinProvider(kit, provider)) return undefined
   const model = kit.getBuiltinModels(provider).find((m) => m.id === modelId)
   if (model === undefined) return undefined
@@ -50,8 +59,12 @@ export function builtinModelBase(kit: DshKit, provider: string, modelId: string)
     baseUrl: model.baseUrl,
     input: [...model.input],
     reasoning: model.reasoning,
-    ...(model.thinkingLevelMap === undefined ? {} : { thinkingLevelMap: { ...model.thinkingLevelMap } }),
-    ...(model.compat === undefined ? {} : { compat: { ...(model.compat as Record<string, unknown>) } }),
+    ...(model.thinkingLevelMap === undefined
+      ? {}
+      : { thinkingLevelMap: { ...model.thinkingLevelMap } }),
+    ...(model.compat === undefined
+      ? {}
+      : { compat: { ...(model.compat as Record<string, unknown>) } }),
     contextWindow: model.contextWindow,
     maxTokens: model.maxTokens,
     cost: { ...model.cost },

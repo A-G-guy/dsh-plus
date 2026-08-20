@@ -32,9 +32,18 @@ export class ApiError extends Error {
 }
 
 async function parse<T>(res: Response): Promise<T> {
-  const body = (await res.json()) as T & { error?: string; preflight?: PreflightInfo; runningAgents?: number }
+  const body = (await res.json()) as T & {
+    error?: string
+    preflight?: PreflightInfo
+    runningAgents?: number
+  }
   if (!res.ok) {
-    throw new ApiError(body.error ?? `HTTP ${res.status}`, res.status, body.preflight, body.runningAgents)
+    throw new ApiError(
+      body.error ?? `HTTP ${res.status}`,
+      res.status,
+      body.preflight,
+      body.runningAgents,
+    )
   }
   return body
 }
@@ -44,10 +53,18 @@ export async function fetchHealth(): Promise<{ ok: boolean; bootId: string }> {
 }
 
 export async function postPrepare(): Promise<PrepareInfo> {
-  return parse(await fetch(`${ROUTE}/prepare`, { method: 'POST', credentials: 'same-origin' }))
+  return parse(
+    await fetch(`${ROUTE}/prepare`, {
+      method: 'POST',
+      credentials: 'same-origin',
+    }),
+  )
 }
 
-export async function postConfirm(token: string, force: boolean): Promise<{ ok: boolean; etaMs: number; bootId: string }> {
+export async function postConfirm(
+  token: string,
+  force: boolean,
+): Promise<{ ok: boolean; etaMs: number; bootId: string }> {
   return parse(
     await fetch(`${ROUTE}/confirm`, {
       method: 'POST',

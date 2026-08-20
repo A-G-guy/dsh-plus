@@ -19,11 +19,17 @@
  * @module subagent-model/delegation
  */
 import type { Context } from '@deepseek-ai/cordis'
-import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'
+import type { AgentOptions } from '@deepseek-ai/dsh-agent'
 import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
 import type { ContinuableStartSpec, SubagentStartRequest } from '@deepseek-ai/dsh-subagent'
 
-import { applyEffort, mergeAgentOptions, resolveEntry, type RequestConfig, type SubagentModelConfig } from './config.ts'
+import {
+  applyEffort,
+  mergeAgentOptions,
+  type RequestConfig,
+  resolveEntry,
+  type SubagentModelConfig,
+} from './config.ts'
 
 const WRAPPED = Symbol('dsh-plus-subagent-model.wrapped')
 

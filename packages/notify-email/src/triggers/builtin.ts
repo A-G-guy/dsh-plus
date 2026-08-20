@@ -5,8 +5,11 @@
  */
 import type { NotifyEmailConfig } from '../config.ts'
 import {
-  renderAbortedNotice, renderCompletionNotice, renderErrorNotice,
-  renderPlanNotice, renderQuestionNotice,
+  renderAbortedNotice,
+  renderCompletionNotice,
+  renderErrorNotice,
+  renderPlanNotice,
+  renderQuestionNotice,
 } from './render.ts'
 import type { NotifyTrigger } from './types.ts'
 

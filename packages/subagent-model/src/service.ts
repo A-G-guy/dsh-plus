@@ -11,9 +11,8 @@
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import { installSettingsSection } from '@deepseek-ai/dsh-settings'
-
+import { Config, SETTINGS_NS, type SubagentModelConfig, validateEntries } from './config.ts'
 import { registerCatalogApi } from './config-api.ts'
-import { Config, SETTINGS_NS, validateEntries, type SubagentModelConfig } from './config.ts'
 import { installChildRoute, installDelegationHook } from './delegation.ts'
 
 declare module '@deepseek-ai/cordis' {

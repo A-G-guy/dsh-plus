@@ -41,7 +41,10 @@ export function createManualProvider(inner: SkillProvider): SkillProvider {
     async list(options) {
       const result = await inner.list(options)
       if (isObservation(result)) {
-        return { candidates: result.candidates.map(toManualSkill), complete: result.complete }
+        return {
+          candidates: result.candidates.map(toManualSkill),
+          complete: result.complete,
+        }
       }
       return result.map(toManualSkill)
     },

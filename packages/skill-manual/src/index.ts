@@ -11,8 +11,8 @@
  * @module @dsh-plus/skill-manual
  */
 import type { Context } from '@deepseek-ai/cordis'
-import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type { FsTarget } from '@deepseek-ai/dsh-fs'
+import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { FileSystemSkillProvider } from '@deepseek-ai/dsh-skill-filesystem'
 import z from '@deepseek-ai/schemastery'
 

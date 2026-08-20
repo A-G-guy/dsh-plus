@@ -11,8 +11,9 @@
  *   测试替换为探针，严禁测试触发真实重启。
  * @module reload/scheduler
  */
-import { randomUUID } from 'node:crypto'
+
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 
 export type SchedulerState = 'idle' | 'prepared' | 'scheduled'
 
@@ -84,7 +85,9 @@ export class ReloadScheduler {
         this.spawnRestart(this.deps.unitName)
       } catch (error) {
         // spawn 同步失败（如 sudo 缺席）：回到 idle 并上报，进程继续服役。
-        this.deps.onError?.(`重启执行失败: ${error instanceof Error ? error.message : String(error)}`)
+        this.deps.onError?.(
+          `重启执行失败: ${error instanceof Error ? error.message : String(error)}`,
+        )
         this.reset()
       }
     }, this.deps.serverGraceMs)

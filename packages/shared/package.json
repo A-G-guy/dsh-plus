@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/shared",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh-plus workspace shared pure helpers (not a dsh plugin)",
   "type": "module",
   "main": "lib/index.js",

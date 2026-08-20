@@ -20,7 +20,8 @@ export const zh: Record<string, string> = {
   restartingTitle: '正在重启 dsh-web…',
   restartingHint: '服务恢复后本页将自动刷新。',
   timeoutTitle: '等待服务恢复超时',
-  timeoutHint: '请手动检查服务状态：journalctl -u dsh-web；或执行 dshctl restart-prod 后自行刷新页面。',
+  timeoutHint:
+    '请手动检查服务状态：journalctl -u dsh-web；或执行 dshctl restart-prod 后自行刷新页面。',
   retry: '重试',
   close: '关闭',
   preflightFailed: '重启预检未通过：',
@@ -30,7 +31,8 @@ export const zh: Record<string, string> = {
 
 export const en: Record<string, string> = {
   title: 'Reload',
-  description: 'Restart the dsh-web service to apply plugin changes; this page refreshes automatically once the service is back. Sessions persist.',
+  description:
+    'Restart the dsh-web service to apply plugin changes; this page refreshes automatically once the service is back. Sessions persist.',
   action: 'Reload',
   preparing: 'Preflight…',
   countdownTitle: 'Restarting dsh-web soon',
@@ -43,7 +45,8 @@ export const en: Record<string, string> = {
   restartingTitle: 'Restarting dsh-web…',
   restartingHint: 'This page refreshes automatically once the service is back.',
   timeoutTitle: 'Timed out waiting for the service',
-  timeoutHint: 'Check the service manually: journalctl -u dsh-web; or run dshctl restart-prod and refresh this page yourself.',
+  timeoutHint:
+    'Check the service manually: journalctl -u dsh-web; or run dshctl restart-prod and refresh this page yourself.',
   retry: 'Retry',
   close: 'Close',
   preflightFailed: 'Restart preflight failed:',

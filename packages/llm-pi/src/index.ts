@@ -20,10 +20,13 @@ export const name = 'dsh-plus-llm-pi'
 
 export const inject = ['llm'] as const
 
-export { Config }
-
-export type { LlmPiConfig, ProviderProfileConfig, ModelEntryConfig } from './config.ts'
+export type {
+  LlmPiConfig,
+  ModelEntryConfig,
+  ProviderProfileConfig,
+} from './config.ts'
 export { SETTINGS_NS } from './config.ts'
+export { Config }
 
 export async function apply(ctx: Context, config: LlmPiConfig): Promise<void> {
   const runtime = await startRuntime(ctx, config)

@@ -14,10 +14,15 @@ export const name = 'dsh-plus-notify-email'
 
 export const inject = ['agents', 'tools'] as const
 
-export { Config }
-
-export type { EmailNotice, DecisionCall, TurnEndInfo, NotifyTrigger } from './triggers/types.ts'
 export { NotifyEmailService } from './service.ts'
+
+export type {
+  DecisionCall,
+  EmailNotice,
+  NotifyTrigger,
+  TurnEndInfo,
+} from './triggers/types.ts'
+export { Config }
 
 export function apply(ctx: Context, config: NotifyEmailConfig): void {
   ctx.plugin(NotifyEmailService, config)

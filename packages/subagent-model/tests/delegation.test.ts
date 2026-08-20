@@ -36,8 +36,18 @@ function fakeCtx(service: unknown) {
 const ACTIVE: SubagentModelConfig = {
   enabled: true,
   entries: {
-    spawn: { enabled: true, provider: 'deepseek', model: 'deepseek-v4-flash', reasoningEffort: 'max' },
-    fork: { enabled: true, provider: 'kimi-coding', model: 'k3', reasoningEffort: EFFORT_INHERIT },
+    spawn: {
+      enabled: true,
+      provider: 'deepseek',
+      model: 'deepseek-v4-flash',
+      reasoningEffort: 'max',
+    },
+    fork: {
+      enabled: true,
+      provider: 'kimi-coding',
+      model: 'k3',
+      reasoningEffort: EFFORT_INHERIT,
+    },
   },
 }
 
@@ -53,7 +63,11 @@ test('given an enabled entry, when start is called, then agentOptions are inject
   assert.equal(calls.length, 1)
   assert.deepEqual(calls[0]?.request, {
     ...request,
-    agentOptions: { provider: 'deepseek', model: 'deepseek-v4-flash', reasoningEffort: 'max' },
+    agentOptions: {
+      provider: 'deepseek',
+      model: 'deepseek-v4-flash',
+      reasoningEffort: 'max',
+    },
   })
   /* 调用方对象不被篡改 */
   assert.deepEqual(request, { prompt: [], parent: {}, signal: {} })
@@ -98,11 +112,20 @@ test('given an existing tool-line agentOptions, when injected, then the tool lin
   const service = fakeSubagents(calls)
   const ctx = fakeCtx(service)
   installDelegationHook(ctx as never, () => ACTIVE)
-  const request = { prompt: [], parent: {}, signal: {}, agentOptions: { provider: 'openai', model: 'gpt-5.6-sol' } }
+  const request = {
+    prompt: [],
+    parent: {},
+    signal: {},
+    agentOptions: { provider: 'openai', model: 'gpt-5.6-sol' },
+  }
   await service.start('spawn', request)
   assert.deepEqual(calls[0]?.request, {
     ...request,
-    agentOptions: { provider: 'openai', model: 'gpt-5.6-sol', reasoningEffort: 'max' },
+    agentOptions: {
+      provider: 'openai',
+      model: 'gpt-5.6-sol',
+      reasoningEffort: 'max',
+    },
   })
 })
 
@@ -111,11 +134,19 @@ test('given startContinuable, when an entry hits, then spec.request gets the inj
   const service = fakeSubagents(calls)
   const ctx = fakeCtx(service)
   installDelegationHook(ctx as never, () => ACTIVE)
-  const spec = { provider: 'spawn', label: 'l', request: { prompt: [], parent: {}, signal: {} } }
+  const spec = {
+    provider: 'spawn',
+    label: 'l',
+    request: { prompt: [], parent: {}, signal: {} },
+  }
   await service.startContinuable(spec)
   assert.deepEqual(calls[0]?.request, {
     ...spec.request,
-    agentOptions: { provider: 'deepseek', model: 'deepseek-v4-flash', reasoningEffort: 'max' },
+    agentOptions: {
+      provider: 'deepseek',
+      model: 'deepseek-v4-flash',
+      reasoningEffort: 'max',
+    },
   })
   /* 调用方 spec 不被篡改 */
   assert.deepEqual(spec.request, { prompt: [], parent: {}, signal: {} })
@@ -142,7 +173,11 @@ test('given a re-install, when the previous hook was not disposed, then it is re
   await service.start('spawn', request)
   assert.deepEqual(calls[0]?.request, {
     ...request,
-    agentOptions: { provider: 'deepseek', model: 'deepseek-v4-flash', reasoningEffort: 'max' },
+    agentOptions: {
+      provider: 'deepseek',
+      model: 'deepseek-v4-flash',
+      reasoningEffort: 'max',
+    },
   })
   /* 重复安装被拒后，首个挂钩仍生效（不叠包、不破坏注入） */
   second()
@@ -150,20 +185,36 @@ test('given a re-install, when the previous hook was not disposed, then it is re
   await service.start('spawn', request2)
   assert.deepEqual(calls[1]?.request, {
     ...request2,
-    agentOptions: { provider: 'deepseek', model: 'deepseek-v4-flash', reasoningEffort: 'max' },
+    agentOptions: {
+      provider: 'deepseek',
+      model: 'deepseek-v4-flash',
+      reasoningEffort: 'max',
+    },
   })
 })
 
 test('given a main agent, when the route filter runs, then no effort is applied', () => {
-  const main = { session: { header: { origin: undefined } }, options: { provider: 'p', reasoningEffort: 'max' } }
+  const main = {
+    session: { header: { origin: undefined } },
+    options: { provider: 'p', reasoningEffort: 'max' },
+  }
   assert.equal(childEffortOf(main as never), undefined)
 })
 
 test('given a subagent, when the route filter runs, then its stamped effort is returned', () => {
-  const spawn = { session: { header: { origin: 'subagent' } }, options: { provider: 'p', reasoningEffort: 'max' } }
+  const spawn = {
+    session: { header: { origin: 'subagent' } },
+    options: { provider: 'p', reasoningEffort: 'max' },
+  }
   assert.equal(childEffortOf(spawn as never), 'max')
-  const unstamped = { session: { header: { origin: 'subagent' } }, options: { provider: 'p' } }
+  const unstamped = {
+    session: { header: { origin: 'subagent' } },
+    options: { provider: 'p' },
+  }
   assert.equal(childEffortOf(unstamped as never), undefined)
-  const defaultEffort = { session: { header: { origin: 'subagent' } }, options: { provider: 'p', reasoningEffort: EFFORT_INHERIT } }
+  const defaultEffort = {
+    session: { header: { origin: 'subagent' } },
+    options: { provider: 'p', reasoningEffort: EFFORT_INHERIT },
+  }
   assert.equal(childEffortOf(defaultEffort as never), EFFORT_INHERIT)
 })

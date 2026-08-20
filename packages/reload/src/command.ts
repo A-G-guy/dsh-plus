@@ -8,7 +8,6 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { CommandResult } from '@deepseek-ai/dsh-commands'
-import type {} from '@deepseek-ai/dsh-commands'
 
 import type { PreflightResult } from './preflight.ts'
 import type { ReloadScheduler } from './scheduler.ts'
@@ -48,7 +47,10 @@ function schedule(deps: CommandDeps, force: boolean): CommandResult {
 }
 
 /** 命令纯核心：解析 rawInput 并执行，返回直渲结果。 */
-export async function runReloadCommand(rawInput: string, deps: CommandDeps): Promise<CommandResult> {
+export async function runReloadCommand(
+  rawInput: string,
+  deps: CommandDeps,
+): Promise<CommandResult> {
   const arg = rawInput.trim().toLowerCase()
 
   if (arg === 'cancel') {

@@ -16,7 +16,10 @@ export type Alerter = (subject: string, text: string) => void
  * 装配告警出口。返回同步派单函数：内部异步发送，失败只记日志。
  * notify-email 出现时升级为邮件；全程 journal 兜底可溯。
  */
-export function installAlerter(ctx: Context, journal: (kind: string, detail: string) => void): Alerter {
+export function installAlerter(
+  ctx: Context,
+  journal: (kind: string, detail: string) => void,
+): Alerter {
   const logger: Logger = ctx.logger('lifeboat')
   let mailer: NotifyEmailLike | undefined
   ctx.inject(['notifyEmail' as never], (mailCtx) => {
@@ -32,10 +35,13 @@ export function installAlerter(ctx: Context, journal: (kind: string, detail: str
       logger.warn(`${subject} —— ${text}`)
       return
     }
-    void active.sendNotice({ subject, text }).then((result) => {
-      if (!result.ok) logger.warn(`邮件告警投递失败: ${result.detail}`)
-    }, (error: unknown) => {
-      logger.warn(`邮件告警异常: ${error instanceof Error ? error.message : String(error)}`)
-    })
+    void active.sendNotice({ subject, text }).then(
+      (result) => {
+        if (!result.ok) logger.warn(`邮件告警投递失败: ${result.detail}`)
+      },
+      (error: unknown) => {
+        logger.warn(`邮件告警异常: ${error instanceof Error ? error.message : String(error)}`)
+      },
+    )
   }
 }

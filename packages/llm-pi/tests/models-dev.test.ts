@@ -40,7 +40,10 @@ test('catalogRefreshHours=0 但已有缓存：数据可用（兜底源不因关�
     JSON.stringify({
       fetchedAt: new Date().toISOString(),
       data: {
-        'acme-lab': { id: 'acme-lab', models: { 'acme-huge': { id: 'acme-huge', name: 'Acme Huge' } } },
+        'acme-lab': {
+          id: 'acme-lab',
+          models: { 'acme-huge': { id: 'acme-huge', name: 'Acme Huge' } },
+        },
       },
     }),
   )

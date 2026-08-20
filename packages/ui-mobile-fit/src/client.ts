@@ -8,8 +8,8 @@
  * @module @dsh-plus/ui-mobile-fit/client
  */
 import type { Context } from '@deepseek-ai/cordis'
-import { mobileFitCss } from './styles.ts'
 import { installBehaviors } from './behaviors.ts'
+import { mobileFitCss } from './styles.ts'
 
 export const name = 'dsh-plus-ui-mobile-fit'
 

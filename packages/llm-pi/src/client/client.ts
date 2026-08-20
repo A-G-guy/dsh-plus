@@ -64,7 +64,12 @@ interface ClientContext {
  * （loopback 或 tailnet 信任域名）下行为一致。
  */
 function createApiScope(api: SettingsApi, ns: string, c: ClientContext): Scope {
-  let state: ScopeSnapshot = { status: 'loading', value: undefined, revision: undefined, writable: false }
+  let state: ScopeSnapshot = {
+    status: 'loading',
+    value: undefined,
+    revision: undefined,
+    writable: false,
+  }
   const listeners = new Set<() => void>()
   let generation = 0
   const publish = (next: ScopeSnapshot): void => {
@@ -73,7 +78,7 @@ function createApiScope(api: SettingsApi, ns: string, c: ClientContext): Scope {
   }
   const load = async (): Promise<void> => {
     const gen = ++generation
-    let response
+    let response: Awaited<ReturnType<SettingsApi['describe']>>
     try {
       response = await api.describe({})
     } catch {
@@ -83,10 +88,20 @@ function createApiScope(api: SettingsApi, ns: string, c: ClientContext): Scope {
     const writable = response.result.value?.writable ?? false
     const view = response.result.value?.namespaces.find((candidate) => candidate.ns === ns)
     if (view === undefined) {
-      publish({ status: 'unavailable', value: undefined, revision: undefined, writable })
+      publish({
+        status: 'unavailable',
+        value: undefined,
+        revision: undefined,
+        writable,
+      })
       return
     }
-    publish({ status: 'ready', value: view.value, revision: view.revision, writable })
+    publish({
+      status: 'ready',
+      value: view.value,
+      revision: view.revision,
+      writable,
+    })
   }
   const refresh = (namespace?: unknown): void => {
     if (namespace !== undefined && namespace !== ns) return
@@ -118,7 +133,6 @@ function createApiScope(api: SettingsApi, ns: string, c: ClientContext): Scope {
 }
 
 export function apply(ctx: Context): void {
-
   const c = ctx as unknown as ClientContext
   const tag = injectStyle()
   c.effect(
@@ -127,10 +141,7 @@ export function apply(ctx: Context): void {
     },
     'llm-pi: style',
   )
-  c.effect(
-    () => c.locale.register(NS, { zh, en }),
-    'llm-pi: locale',
-  )
+  c.effect(() => c.locale.register(NS, { zh, en }), 'llm-pi: locale')
   const api = c.get('connection').api.settings
   const scope = createApiScope(api, SETTINGS_NS, c)
   c.slots.inject('settings.plugin.item', () =>

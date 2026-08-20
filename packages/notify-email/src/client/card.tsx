@@ -7,7 +7,7 @@
  * 保存经 settings.update 深合并（空 pass 剔除 = 保持不变）。
  * @module notify-email/client/card
  */
-import { useEffect, useMemo, useSyncExternalStore, useState, type ReactElement } from 'react'
+import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { SETTINGS_NS } from '../ns.ts'
 import { sendTest } from './api.ts'
@@ -97,7 +97,10 @@ function toPatch(draft: Draft): Record<string, unknown> {
       pass: draft.pass,
       from: draft.from.trim(),
     },
-    to: draft.toText.split(',').map((s) => s.trim()).filter((s) => s.length > 0),
+    to: draft.toText
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
     triggers: { ...draft.triggers },
     idleDebounceMs: Number(draft.idleDebounceMs),
     maxBodyChars: Number(draft.maxBodyChars),
@@ -128,14 +131,17 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
   }, [value, draft])
 
   // passConfigured 探测：scope 快照不含 secrets，经 describe 的 secrets 列表判断。
+  // biome-ignore lint/correctness/useExhaustiveDependencies: snapshot 变化（保存后 revision 推进）时刻意重探 secrets 状态
   useEffect(() => {
     let alive = true
-    api.describe({})
+    api
+      .describe({})
       .then((response) => {
         if (!alive || !response.result.ok) return
         const view = response.result.value?.namespaces.find((ns) => ns.ns === SETTINGS_NS)
         setPassConfigured(
-          view?.secrets.some((secret) => secret.path.join('.') === 'smtp.pass' && secret.set) ?? false,
+          view?.secrets.some((secret) => secret.path.join('.') === 'smtp.pass' && secret.set) ??
+            false,
         )
       })
       .catch(() => {})
@@ -146,20 +152,27 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
 
   const dirty = useMemo(
     () =>
-      value !== undefined && draft !== null &&
+      value !== undefined &&
+      draft !== null &&
       JSON.stringify(toPatch(draft)) !== JSON.stringify(toPatch(draftFromValue(value))),
     [value, draft],
   )
   const invalid = useMemo(
     () =>
       draft !== null &&
-      (!isPositiveInt(draft.port) || !isPositiveInt(draft.idleDebounceMs) ||
-        !isPositiveInt(draft.maxBodyChars) || Number(draft.maxBodyChars) < 200),
+      (!isPositiveInt(draft.port) ||
+        !isPositiveInt(draft.idleDebounceMs) ||
+        !isPositiveInt(draft.maxBodyChars) ||
+        Number(draft.maxBodyChars) < 200),
     [draft],
   )
 
   if (value === undefined || draft === null) {
-    return <li className="dne-card"><p className="dne-readOnly">{t('loading')}</p></li>
+    return (
+      <li className="dne-card">
+        <p className="dne-readOnly">{t('loading')}</p>
+      </li>
+    )
   }
   const edit = <K extends keyof Draft>(key: K, editValue: Draft[K]): void => {
     setDraft({ ...draft, [key]: editValue })
@@ -175,11 +188,12 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
       delete (patch['smtp'] as Record<string, unknown>)['pass']
     }
     const revision = scope.getSnapshot().revision
-    api.update({
-      ns: SETTINGS_NS,
-      patch,
-      ...(revision !== undefined ? { expectedRevision: revision } : {}),
-    })
+    api
+      .update({
+        ns: SETTINGS_NS,
+        patch,
+        ...(revision !== undefined ? { expectedRevision: revision } : {}),
+      })
       .then(async (response) => {
         if (!response.result.ok) {
           throw new Error(response.result.error?.message ?? t('saveFailed'))
@@ -200,14 +214,20 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
     sendTest()
       .then((result) => {
         if (result.ok) {
-          setStatus({ kind: 'ok', text: result.detail === 'dry-run' ? t('testDryRun') : t('testOk') })
+          setStatus({
+            kind: 'ok',
+            text: result.detail === 'dry-run' ? t('testDryRun') : t('testOk'),
+          })
         } else {
           const why = result.detail === 'incomplete' ? t('incomplete') : result.detail
           setStatus({ kind: 'error', text: `${t('testFailed')}${why}` })
         }
       })
       .catch((error: unknown) => {
-        setStatus({ kind: 'error', text: `${t('testFailed')}${error instanceof Error ? error.message : ''}` })
+        setStatus({
+          kind: 'error',
+          text: `${t('testFailed')}${error instanceof Error ? error.message : ''}`,
+        })
       })
       .finally(() => setTesting(false))
   }
@@ -231,58 +251,155 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
       </button>
       {open ? (
         <div className="dne-body">
-          {disabled ? <p className="dne-readOnly" role="status">{t('readOnly')}</p> : null}
-          <CheckRow id="dne-enabled" label={t('enabled')} checked={draft.enabled} disabled={disabled}
-            onEdit={(v) => edit('enabled', v)} />
-          <TextField id="dne-host" label={t('host')} hint={t('hostHint')} value={draft.host}
-            disabled={disabled} onEdit={(v) => edit('host', v)} />
-          <TextField id="dne-port" label={t('port')} hint={t('portHint')} value={draft.port} numeric
-            disabled={disabled} invalid={!isPositiveInt(draft.port)} invalidLabel={t('invalidNumber')}
-            onEdit={(v) => edit('port', v)} />
-          <CheckRow id="dne-secure" label={t('secure')} checked={draft.secure} disabled={disabled}
-            onEdit={(v) => edit('secure', v)} />
-          <TextField id="dne-user" label={t('user')} hint={t('userHint')} value={draft.user}
-            disabled={disabled} onEdit={(v) => edit('user', v)} />
-          <TextField id="dne-pass" label={t('pass')} hint={t('passHint')} value={draft.pass} password
+          {disabled ? (
+            <p className="dne-readOnly" role="status">
+              {t('readOnly')}
+            </p>
+          ) : null}
+          <CheckRow
+            id="dne-enabled"
+            label={t('enabled')}
+            checked={draft.enabled}
             disabled={disabled}
-            badge={{ text: passConfigured ? t('passSet') : t('passUnset'), set: passConfigured }}
-            onEdit={(v) => edit('pass', v)} />
-          <TextField id="dne-from" label={t('from')} hint={t('fromHint')} value={draft.from}
-            disabled={disabled} onEdit={(v) => edit('from', v)} />
-          <TextField id="dne-to" label={t('to')} hint={t('toHint')} value={draft.toText}
-            disabled={disabled} onEdit={(v) => edit('toText', v)} />
+            onEdit={(v) => edit('enabled', v)}
+          />
+          <TextField
+            id="dne-host"
+            label={t('host')}
+            hint={t('hostHint')}
+            value={draft.host}
+            disabled={disabled}
+            onEdit={(v) => edit('host', v)}
+          />
+          <TextField
+            id="dne-port"
+            label={t('port')}
+            hint={t('portHint')}
+            value={draft.port}
+            numeric
+            disabled={disabled}
+            invalid={!isPositiveInt(draft.port)}
+            invalidLabel={t('invalidNumber')}
+            onEdit={(v) => edit('port', v)}
+          />
+          <CheckRow
+            id="dne-secure"
+            label={t('secure')}
+            checked={draft.secure}
+            disabled={disabled}
+            onEdit={(v) => edit('secure', v)}
+          />
+          <TextField
+            id="dne-user"
+            label={t('user')}
+            hint={t('userHint')}
+            value={draft.user}
+            disabled={disabled}
+            onEdit={(v) => edit('user', v)}
+          />
+          <TextField
+            id="dne-pass"
+            label={t('pass')}
+            hint={t('passHint')}
+            value={draft.pass}
+            password
+            disabled={disabled}
+            badge={{
+              text: passConfigured ? t('passSet') : t('passUnset'),
+              set: passConfigured,
+            }}
+            onEdit={(v) => edit('pass', v)}
+          />
+          <TextField
+            id="dne-from"
+            label={t('from')}
+            hint={t('fromHint')}
+            value={draft.from}
+            disabled={disabled}
+            onEdit={(v) => edit('from', v)}
+          />
+          <TextField
+            id="dne-to"
+            label={t('to')}
+            hint={t('toHint')}
+            value={draft.toText}
+            disabled={disabled}
+            onEdit={(v) => edit('toText', v)}
+          />
           <p className="dne-groupLabel">{t('triggerGroup')}</p>
           {TRIGGER_KEYS.map((key) => (
-            <CheckRow key={key} id={`dne-${key}`} label={t(key)} checked={draft.triggers[key]}
-              disabled={disabled} onEdit={(v) => editTrigger(key, v)} />
+            <CheckRow
+              key={key}
+              id={`dne-${key}`}
+              label={t(key)}
+              checked={draft.triggers[key]}
+              disabled={disabled}
+              onEdit={(v) => editTrigger(key, v)}
+            />
           ))}
-          <TextField id="dne-debounce" label={t('idleDebounceMs')} hint={t('idleDebounceMsHint')}
-            value={draft.idleDebounceMs} numeric disabled={disabled}
-            invalid={!isPositiveInt(draft.idleDebounceMs)} invalidLabel={t('invalidNumber')}
-            onEdit={(v) => edit('idleDebounceMs', v)} />
-          <TextField id="dne-maxchars" label={t('maxBodyChars')} hint={t('maxBodyCharsHint')}
-            value={draft.maxBodyChars} numeric disabled={disabled}
+          <TextField
+            id="dne-debounce"
+            label={t('idleDebounceMs')}
+            hint={t('idleDebounceMsHint')}
+            value={draft.idleDebounceMs}
+            numeric
+            disabled={disabled}
+            invalid={!isPositiveInt(draft.idleDebounceMs)}
+            invalidLabel={t('invalidNumber')}
+            onEdit={(v) => edit('idleDebounceMs', v)}
+          />
+          <TextField
+            id="dne-maxchars"
+            label={t('maxBodyChars')}
+            hint={t('maxBodyCharsHint')}
+            value={draft.maxBodyChars}
+            numeric
+            disabled={disabled}
             invalid={!isPositiveInt(draft.maxBodyChars) || Number(draft.maxBodyChars) < 200}
             invalidLabel={t('invalidNumber')}
-            onEdit={(v) => edit('maxBodyChars', v)} />
-          <CheckRow id="dne-dryrun" label={t('dryRun')} checked={draft.dryRun} disabled={disabled}
-            onEdit={(v) => edit('dryRun', v)} />
+            onEdit={(v) => edit('maxBodyChars', v)}
+          />
+          <CheckRow
+            id="dne-dryrun"
+            label={t('dryRun')}
+            checked={draft.dryRun}
+            disabled={disabled}
+            onEdit={(v) => edit('dryRun', v)}
+          />
           <div className="dne-footer">
             {status.kind !== 'idle' ? (
-              <p className={`dne-status${status.kind === 'error' ? ' dne-statusError' : ''}`} role="status">
+              <p
+                className={`dne-status${status.kind === 'error' ? ' dne-statusError' : ''}`}
+                role="status"
+              >
                 {status.text}
               </p>
             ) : null}
-            <button type="button" className="dne-btn dne-btnGhost" disabled={testing}
-              onClick={onTest}>
+            <button
+              type="button"
+              className="dne-btn dne-btnGhost"
+              disabled={testing}
+              onClick={onTest}
+            >
               {t(testing ? 'testing' : 'test')}
             </button>
-            <button type="button" className="dne-btn dne-btnGhost" disabled={!dirty || saving}
-              onClick={() => { setDraft(draftFromValue(value)); setStatus(IDLE_STATUS) }}>
+            <button
+              type="button"
+              className="dne-btn dne-btnGhost"
+              disabled={!dirty || saving}
+              onClick={() => {
+                setDraft(draftFromValue(value))
+                setStatus(IDLE_STATUS)
+              }}
+            >
               {t('discard')}
             </button>
-            <button type="button" className="dne-btn dne-btnPrimary" disabled={!dirty || invalid || saving || disabled}
-              onClick={onSave}>
+            <button
+              type="button"
+              className="dne-btn dne-btnPrimary"
+              disabled={!dirty || invalid || saving || disabled}
+              onClick={onSave}
+            >
               {t(saving ? 'saving' : 'save')}
             </button>
           </div>

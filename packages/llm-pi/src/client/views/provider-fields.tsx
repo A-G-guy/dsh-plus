@@ -7,7 +7,12 @@
 import type { ReactElement } from 'react'
 
 import {
-  BUDGET_KEYS, CACHE_RETENTION_OPTIONS, MODALITIES, PROTOCOL_IDS, THINKING_LEVELS, TRANSPORT_OPTIONS,
+  BUDGET_KEYS,
+  CACHE_RETENTION_OPTIONS,
+  MODALITIES,
+  PROTOCOL_IDS,
+  THINKING_LEVELS,
+  TRANSPORT_OPTIONS,
 } from '../constants.ts'
 import type { ProviderDraft } from '../draft.ts'
 import { CheckRow, SelectField, TextField } from '../fields.tsx'
@@ -129,7 +134,9 @@ export function ProviderScalarFields(props: ProviderScalarFieldsProps): ReactEle
               value={draft.thinkingBudgets[key]}
               disabled={props.disabled === true}
               onEdit={(value) =>
-                props.onPatch({ thinkingBudgets: { ...draft.thinkingBudgets, [key]: value } })
+                props.onPatch({
+                  thinkingBudgets: { ...draft.thinkingBudgets, [key]: value },
+                })
               }
             />
           ))}
@@ -151,7 +158,12 @@ export function ProviderSelectFields(props: ProviderScalarFieldsProps): ReactEle
         options={PROTOCOL_IDS}
         unsetLabel={t('compatUnset')}
         disabled={props.disabled === true}
-        onEdit={(value) => props.onPatch({ api: value, compat: pruneCompatForApi(draft.compat, value) })}
+        onEdit={(value) =>
+          props.onPatch({
+            api: value,
+            compat: pruneCompatForApi(draft.compat, value),
+          })
+        }
       />
       <SelectField
         id={`${props.id}-reasoning`}

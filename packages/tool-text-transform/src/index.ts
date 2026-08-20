@@ -6,7 +6,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
-import { isTransformOp, transformText, TRANSFORM_OPS } from '@dsh-plus/shared'
+import { isTransformOp, TRANSFORM_OPS, transformText } from '@dsh-plus/shared'
 
 export const name = 'dsh-plus-text-transform'
 
@@ -42,9 +42,7 @@ export function apply(ctx: Context): void {
             result: { type: 'string', required: true },
           },
         },
-        render: (_args, value: { result: string }) => [
-          { type: 'text', text: value.result },
-        ],
+        render: (_args, value: { result: string }) => [{ type: 'text', text: value.result }],
       },
       timeoutMs: 5_000,
       isConcurrencySafe: () => true,

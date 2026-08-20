@@ -14,18 +14,22 @@
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 
-import { inheritedCatalogEntries, builtinProviderBaseUrl, type ModelBase } from './catalog/builtin.ts'
+import {
+  builtinProviderBaseUrl,
+  inheritedCatalogEntries,
+  type ModelBase,
+} from './catalog/builtin.ts'
 import type { ModelsDevSource } from './catalog/models-dev.ts'
 import { mergeCompat, validateCompat } from './compat.ts'
 import {
   DEFAULT_CONTEXT_WINDOW,
-  DEFAULT_MAX_TOKENS,
   DEFAULT_MAX_REQUEST_IMAGE_BYTES,
+  DEFAULT_MAX_TOKENS,
   DEFAULT_STREAM_IDLE_TIMEOUT_MS,
   MAX_TIMER_DELAY_MS,
-  THINKING_LEVELS,
   type ModelEntryConfig,
   type ProviderProfileConfig,
+  THINKING_LEVELS,
 } from './config.ts'
 import { ExtendsError, resolveModelBase } from './inherit.ts'
 import type { DshKit } from './resolve-dsh.ts'
@@ -52,7 +56,9 @@ function invalid(provider: string, detail: string): never {
 }
 
 /** 条目的声明模态；缺省/空数组都视为"无答案"，交下一级（同官方 declaredInput）。 */
-function declaredInput(configured: readonly ('text' | 'image')[] | undefined): ('text' | 'image')[] | undefined {
+function declaredInput(
+  configured: readonly ('text' | 'image')[] | undefined,
+): ('text' | 'image')[] | undefined {
   return configured === undefined || configured.length === 0 ? undefined : [...configured]
 }
 
@@ -73,7 +79,9 @@ function resolveModelReasoning(
       reasoning: base.reasoning,
       ...(base.thinkingLevelMap === undefined
         ? {}
-        : { thinkingLevelMap: base.thinkingLevelMap as Record<string, string | null> }),
+        : {
+            thinkingLevelMap: base.thinkingLevelMap as Record<string, string | null>,
+          }),
     }
   }
   if (efforts === false) return { reasoning: false }
@@ -84,12 +92,15 @@ function resolveModelReasoning(
     const wire = (efforts as Record<string, string | null | undefined>)[level]
     if (wire === undefined) continue
     if (wire === null) {
-      if (level !== 'off') invalid(provider, `model "${entry.id}" reasoningEfforts.${level} 需要线值；仅 off 可留空`)
+      if (level !== 'off')
+        invalid(provider, `model "${entry.id}" reasoningEfforts.${level} 需要线值；仅 off 可留空`)
     } else if (wire.length === 0) {
       invalid(provider, `model "${entry.id}" reasoningEfforts.${level} 不能为空字符串`)
     }
   }
-  const declared = THINKING_LEVELS.filter((level) => (efforts as Record<string, unknown>)[level] !== undefined)
+  const declared = THINKING_LEVELS.filter(
+    (level) => (efforts as Record<string, unknown>)[level] !== undefined,
+  )
   if (!declared.some((level) => level !== 'off')) {
     invalid(provider, `model "${entry.id}" reasoningEfforts 只有 off；声明思考档位或置 false`)
   }
@@ -107,7 +118,10 @@ function harnessApiKeyAuth(name: string) {
   return {
     name,
     resolve: ({ credential }: { credential?: { key?: string } }) =>
-      Promise.resolve({ auth: credential?.key === undefined ? {} : { apiKey: credential.key }, source: name }),
+      Promise.resolve({
+        auth: credential?.key === undefined ? {} : { apiKey: credential.key },
+        source: name,
+      }),
   }
 }
 
@@ -142,7 +156,9 @@ function materializeModel(
   const api = profile.api ?? base.api ?? routeApi
   if (api === undefined) {
     if (deps.lenient) {
-      deps.warn?.(`llm-pi: provider "${route}" model "${entry.id}" 无法获得 api（继承源缺失），已跳过该模型`)
+      deps.warn?.(
+        `llm-pi: provider "${route}" model "${entry.id}" 无法获得 api（继承源缺失），已跳过该模型`,
+      )
       return null
     }
     invalid(route, `model "${entry.id}" 需要 api：继承源未提供，请在 route 上设置 api`)
@@ -150,16 +166,27 @@ function materializeModel(
   const baseUrl = profile.baseURL ?? base.baseUrl ?? providerBaseUrl
   if (baseUrl === undefined) {
     if (deps.lenient) {
-      deps.warn?.(`llm-pi: provider "${route}" model "${entry.id}" 无法获得 baseURL（继承源缺失），已跳过该模型`)
+      deps.warn?.(
+        `llm-pi: provider "${route}" model "${entry.id}" 无法获得 baseURL（继承源缺失），已跳过该模型`,
+      )
       return null
     }
     invalid(route, `model "${entry.id}" 需要 baseURL：继承源未提供，请在 route 上设置 baseURL`)
   }
-  const contextWindow = entry.contextWindow ?? base.contextWindow ?? profile.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW
-  const maxTokens = entry.maxTokens ?? base.maxTokens ?? profile.defaultMaxTokens ?? DEFAULT_MAX_TOKENS
+  const contextWindow =
+    entry.contextWindow ??
+    base.contextWindow ??
+    profile.defaultContextWindow ??
+    DEFAULT_CONTEXT_WINDOW
+  const maxTokens =
+    entry.maxTokens ?? base.maxTokens ?? profile.defaultMaxTokens ?? DEFAULT_MAX_TOKENS
   if (entry.maxTokens !== undefined) configuredMaxTokens.set(entry.id, entry.maxTokens)
   validateCompat(api, profile.compat as Record<string, unknown> | undefined, `provider "${route}"`)
-  validateCompat(api, entry.compat as Record<string, unknown> | undefined, `provider "${route}" model "${entry.id}"`)
+  validateCompat(
+    api,
+    entry.compat as Record<string, unknown> | undefined,
+    `provider "${route}" model "${entry.id}"`,
+  )
   const compat = mergeCompat(
     base.api === api ? base.compat : undefined,
     profile.compat as Record<string, unknown> | undefined,
@@ -188,7 +215,10 @@ function materializeRouteModels(
   profile: ProviderProfileConfig,
   deps: BuildDeps,
   defaultInput: ('text' | 'image')[],
-): { models: MaterializedModel[]; configuredMaxTokens: Map<string, number> } | null {
+): {
+  models: MaterializedModel[]
+  configuredMaxTokens: Map<string, number>
+} | null {
   const configuredMaxTokens = new Map<string, number>()
   const providerBaseUrl =
     profile.extends === undefined ? undefined : builtinProviderBaseUrl(deps.kit, profile.extends)
@@ -247,14 +277,19 @@ function materializeRouteModels(
     .filter((model): model is MaterializedModel => model !== null)
   if (models.length === 0) {
     if (deps.lenient) {
-      deps.warn?.(`llm-pi: provider "${route}" 当前没有可服务的模型（继承源漂移），已跳过该 route 的注册`)
+      deps.warn?.(
+        `llm-pi: provider "${route}" 当前没有可服务的模型（继承源漂移），已跳过该 route 的注册`,
+      )
       return null
     }
     invalid(route, 'route 内没有可服务的模型')
   }
   const finalApis = new Set(models.map((m) => m.api))
   if (finalApis.size > 1) {
-    invalid(route, `route 内模型协议不一致（${[...finalApis].join(', ')}）；一个 route 只能服务一种协议`)
+    invalid(
+      route,
+      `route 内模型协议不一致（${[...finalApis].join(', ')}）；一个 route 只能服务一种协议`,
+    )
   }
   return { models, configuredMaxTokens }
 }
@@ -274,8 +309,10 @@ export function buildProfiles(
     // 注意：不做"route 名与内置 provider 名重名"的静态校验——内置名 ≠ 已注册
     // route（如官方 llm-pi-ai 配置清空后 anthropic 名可用）。真实冲突只在注册期
     // 暴露（DUPLICATE_ADAPTER），由 service 层逐个 route 注册降级处理。
-    if (profile.baseURL !== undefined && profile.baseURL.length === 0) invalid(route, 'baseURL 为空')
-    if (profile.displayName !== undefined && profile.displayName.length === 0) invalid(route, 'displayName 为空')
+    if (profile.baseURL !== undefined && profile.baseURL.length === 0)
+      invalid(route, 'baseURL 为空')
+    if (profile.displayName !== undefined && profile.displayName.length === 0)
+      invalid(route, 'displayName 为空')
     const streamIdleTimeoutMs = profile.streamIdleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS
     if (
       !Number.isFinite(streamIdleTimeoutMs) ||
@@ -290,9 +327,15 @@ export function buildProfiles(
     const catalog = materializeRouteModels(route, profile, deps, defaultInput)
     if (catalog === null) continue // lenient 下 route 无模型可服务，跳过注册
     const api = catalog.models[0]?.api
-    const factory = api === undefined ? undefined : deps.kit.protocolFactories[api as keyof DshKit['protocolFactories']]
+    const factory =
+      api === undefined
+        ? undefined
+        : deps.kit.protocolFactories[api as keyof DshKit['protocolFactories']]
     if (factory === undefined) {
-      invalid(route, `api ${JSON.stringify(api)} 本插件无法服务（支持：openai-completions/openai-responses/anthropic-messages）`)
+      invalid(
+        route,
+        `api ${JSON.stringify(api)} 本插件无法服务（支持：openai-completions/openai-responses/anthropic-messages）`,
+      )
     }
     const piProvider = deps.kit.createProvider({
       id: route,
@@ -319,7 +362,9 @@ export function buildProfiles(
       ),
       ...(profile.headers === undefined ? {} : { headers: { ...profile.headers } }),
       ...(profile.reasoning === undefined ? {} : { reasoning: profile.reasoning }),
-      ...(profile.thinkingBudgets === undefined ? {} : { thinkingBudgets: { ...profile.thinkingBudgets } }),
+      ...(profile.thinkingBudgets === undefined
+        ? {}
+        : { thinkingBudgets: { ...profile.thinkingBudgets } }),
       ...(profile.cacheRetention === undefined ? {} : { cacheRetention: profile.cacheRetention }),
       ...(profile.transport === undefined ? {} : { transport: profile.transport }),
       ...(profile.timeoutMs === undefined ? {} : { timeoutMs: profile.timeoutMs }),

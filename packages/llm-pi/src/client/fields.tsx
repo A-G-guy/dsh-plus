@@ -3,7 +3,7 @@
  * 视觉对齐官方卡片字段（label + hint + 控件纵列），样式类前缀 lpc-。
  * @module llm-pi/client/fields
  */
-import { useEffect, useState, type ReactElement } from 'react'
+import { type ReactElement, useEffect, useState } from 'react'
 
 import type { HeaderPair } from './draft.ts'
 
@@ -170,6 +170,7 @@ export function KeyValueEditor(props: KeyValueEditorProps): ReactElement {
         </label>
       </div>
       {props.pairs.map((pair, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: 可编辑 KV 行无稳定 id，行序即身份（增删行经 onEdit 整体回写）
         <div className="lpc-kvRow" key={index}>
           <input
             id={index === 0 ? props.id : undefined}
@@ -239,6 +240,7 @@ export interface JsonFieldProps {
 
 export function JsonField(props: JsonFieldProps): ReactElement {
   const [text, setText] = useState(() => toJsonText(props.value))
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 仅在 epoch 递增（外部重置语义）时同步文本，避免编辑中被 value 回写打断
   useEffect(() => {
     setText(toJsonText(props.value))
   }, [props.epoch])

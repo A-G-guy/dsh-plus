@@ -4,7 +4,7 @@
  * （builtin / models-dev）与 provider 后拉取其 models 列表。
  * @module llm-pi/client/views/models
  */
-import { useEffect, useState, type ReactElement } from 'react'
+import { type ReactElement, useEffect, useState } from 'react'
 
 import { fetchCatalog, type WireModelsDevStatus } from '../api.ts'
 import { MODALITIES, THINKING_LEVELS } from '../constants.ts'
@@ -41,6 +41,7 @@ export function ModelsTable(props: ModelsTableProps): ReactElement {
   const [note, setNote] = useState('')
   const listId = `lpc-models-${props.route.replace(/[^a-zA-Z0-9_-]/g, '_')}`
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 目录拉取仅随 source 切换重跑；t/defaultProvider 取首帧值即可
   useEffect(() => {
     let alive = true
     setNote(t('catalogLoading'))
@@ -91,7 +92,9 @@ export function ModelsTable(props: ModelsTableProps): ReactElement {
         </button>
       </div>
       <div className="lpc-catalogBar">
-        <label className="lpc-catalogLabel" htmlFor={`${listId}-source`}>{t('catalogSource')}</label>
+        <label className="lpc-catalogLabel" htmlFor={`${listId}-source`}>
+          {t('catalogSource')}
+        </label>
         <select
           id={`${listId}-source`}
           className="lpc-input lpc-select lpc-catalogSelect"
@@ -102,7 +105,9 @@ export function ModelsTable(props: ModelsTableProps): ReactElement {
           <option value="builtin">builtin</option>
           <option value="models-dev">models-dev</option>
         </select>
-        <label className="lpc-catalogLabel" htmlFor={`${listId}-provider`}>{t('catalogProvider')}</label>
+        <label className="lpc-catalogLabel" htmlFor={`${listId}-provider`}>
+          {t('catalogProvider')}
+        </label>
         <select
           id={`${listId}-provider`}
           className="lpc-input lpc-select lpc-catalogSelect"
@@ -112,7 +117,9 @@ export function ModelsTable(props: ModelsTableProps): ReactElement {
         >
           <option value="">-</option>
           {providerIds.map((id) => (
-            <option key={id} value={id}>{id}</option>
+            <option key={id} value={id}>
+              {id}
+            </option>
           ))}
         </select>
       </div>
@@ -124,6 +131,7 @@ export function ModelsTable(props: ModelsTableProps): ReactElement {
       </datalist>
       {props.models.map((model, index) => (
         <ModelRow
+          // biome-ignore lint/suspicious/noArrayIndexKey: model.id 可重复（手填），index 前缀保证 key 唯一且随行序稳定
           key={`${index}:${model.id}`}
           index={index}
           model={model}
@@ -160,7 +168,9 @@ export function ModelRow(props: ModelRowProps): ReactElement {
   return (
     <div className="lpc-modelRow">
       <div className="lpc-modelHead">
-        <span className="lpc-modelTitle">{t('modelRow')} {props.index + 1}</span>
+        <span className="lpc-modelTitle">
+          {t('modelRow')} {props.index + 1}
+        </span>
         <button
           type="button"
           className="lpc-btn lpc-btnGhost lpc-btnSmall"
@@ -222,7 +232,11 @@ export function ModelRow(props: ModelRowProps): ReactElement {
               label={modality}
               checked={model.input[modality]}
               disabled={props.disabled === true}
-              onEdit={(checked) => props.onPatch({ input: { ...model.input, [modality]: checked } })}
+              onEdit={(checked) =>
+                props.onPatch({
+                  input: { ...model.input, [modality]: checked },
+                })
+              }
             />
           ))}
         </div>
@@ -282,7 +296,12 @@ export function ReasoningEditor(props: ReasoningEditorProps): ReactElement {
               label={level}
               value={value.levels[level] ?? ''}
               disabled={props.disabled === true}
-              onEdit={(text) => props.onEdit({ ...value, levels: { ...value.levels, [level]: text } })}
+              onEdit={(text) =>
+                props.onEdit({
+                  ...value,
+                  levels: { ...value.levels, [level]: text },
+                })
+              }
             />
           ))}
         </div>

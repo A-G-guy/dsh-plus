@@ -6,7 +6,11 @@
  */
 
 /** 协议枚举（来源：config.ts PROTOCOL_IDS）。 */
-export const PROTOCOL_IDS = ['openai-completions', 'openai-responses', 'anthropic-messages'] as const
+export const PROTOCOL_IDS = [
+  'openai-completions',
+  'openai-responses',
+  'anthropic-messages',
+] as const
 
 /** thinking 档位（来源：config.ts THINKING_LEVELS）。 */
 export const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const

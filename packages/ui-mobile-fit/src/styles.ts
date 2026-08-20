@@ -3,8 +3,8 @@
  * @module @dsh-plus/ui-mobile-fit/styles
  */
 import { baseCss } from './styles/base.ts'
-import { layoutCss } from './styles/layout.ts'
 import { conversationCss } from './styles/conversation.ts'
+import { layoutCss } from './styles/layout.ts'
 import { overlaysCss } from './styles/overlays.ts'
 
 export const mobileFitCss: string = [baseCss, layoutCss, conversationCss, overlaysCss].join('\n')

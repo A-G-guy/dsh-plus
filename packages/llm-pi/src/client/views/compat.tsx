@@ -11,7 +11,10 @@ import { COMPAT_FALLBACK_API, compatFieldSpec, compatFieldsOf } from '../constan
 import { CollapseSection, JsonField, SelectField } from '../fields.tsx'
 
 /** api 变更后裁剪 compat：只保留新渲染组的字段，避免保存时被后端拒绝。 */
-export function pruneCompatForApi(compat: Record<string, unknown>, api: string): Record<string, unknown> {
+export function pruneCompatForApi(
+  compat: Record<string, unknown>,
+  api: string,
+): Record<string, unknown> {
   const group = api !== '' && compatFieldsOf(api).length > 0 ? api : COMPAT_FALLBACK_API
   const fields = new Set(compatFieldsOf(group))
   const next: Record<string, unknown> = {}
@@ -33,7 +36,8 @@ export interface CompatEditorProps {
 }
 
 export function CompatEditor(props: CompatEditorProps): ReactElement {
-  const effective = props.api !== '' && compatFieldsOf(props.api).length > 0 ? props.api : COMPAT_FALLBACK_API
+  const effective =
+    props.api !== '' && compatFieldsOf(props.api).length > 0 ? props.api : COMPAT_FALLBACK_API
   const fields = compatFieldsOf(effective)
   const setField = (field: string, value: unknown): void => {
     const next = { ...props.compat }
@@ -43,61 +47,63 @@ export function CompatEditor(props: CompatEditorProps): ReactElement {
   }
   return (
     <div className={`lpc-field lpc-wide`}>
-      <CollapseSection id={`${props.idPrefix}-collapse`} title={props.t('compatGroup')} defaultOpen={false}>
-        <>
-          {props.api === '' ? <p className="lpc-hint">{props.t('compatApiHint')}</p> : null}
-          <div className="lpc-grid">
-            {fields.map((field) => {
-              const spec = compatFieldSpec(effective, field)
-              if (spec === 'boolean') {
-                return (
-                  <SelectField
-                    key={field}
-                    id={`${props.idPrefix}-${field}`}
-                    label={field}
-                    value={props.compat[field] === undefined ? '' : String(props.compat[field])}
-                    options={['true', 'false']}
-                    unsetLabel={props.t('compatUnset')}
-                    disabled={props.disabled === true}
-                    onEdit={(value) => {
-                      if (value === '') setField(field, undefined)
-                      else setField(field, value === 'true')
-                    }}
-                  />
-                )
-              }
-              if (spec === 'object') {
-                return (
-                  <JsonField
-                    key={field}
-                    id={`${props.idPrefix}-${field}`}
-                    label={field}
-                    value={props.compat[field]}
-                    epoch={props.epoch}
-                    disabled={props.disabled === true}
-                    invalidText={props.t('invalidJson')}
-                    onEdit={(value) => setField(field, value)}
-                  />
-                )
-              }
+      <CollapseSection
+        id={`${props.idPrefix}-collapse`}
+        title={props.t('compatGroup')}
+        defaultOpen={false}
+      >
+        {props.api === '' ? <p className="lpc-hint">{props.t('compatApiHint')}</p> : null}
+        <div className="lpc-grid">
+          {fields.map((field) => {
+            const spec = compatFieldSpec(effective, field)
+            if (spec === 'boolean') {
               return (
                 <SelectField
                   key={field}
                   id={`${props.idPrefix}-${field}`}
                   label={field}
                   value={props.compat[field] === undefined ? '' : String(props.compat[field])}
-                  options={spec}
+                  options={['true', 'false']}
                   unsetLabel={props.t('compatUnset')}
                   disabled={props.disabled === true}
                   onEdit={(value) => {
                     if (value === '') setField(field, undefined)
-                    else setField(field, value)
+                    else setField(field, value === 'true')
                   }}
                 />
               )
-            })}
-          </div>
-        </>
+            }
+            if (spec === 'object') {
+              return (
+                <JsonField
+                  key={field}
+                  id={`${props.idPrefix}-${field}`}
+                  label={field}
+                  value={props.compat[field]}
+                  epoch={props.epoch}
+                  disabled={props.disabled === true}
+                  invalidText={props.t('invalidJson')}
+                  onEdit={(value) => setField(field, value)}
+                />
+              )
+            }
+            return (
+              <SelectField
+                key={field}
+                id={`${props.idPrefix}-${field}`}
+                label={field}
+                value={props.compat[field] === undefined ? '' : String(props.compat[field])}
+                options={spec}
+                unsetLabel={props.t('compatUnset')}
+                disabled={props.disabled === true}
+                onEdit={(value) => {
+                  if (value === '') setField(field, undefined)
+                  else setField(field, value)
+                }}
+              />
+            )
+          })}
+        </div>
       </CollapseSection>
     </div>
   )

@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-
-import { Mailer } from '../src/mailer.ts'
 import { Config, type NotifyEmailConfig } from '../src/config.ts'
+import { Mailer } from '../src/mailer.ts'
 
 function cfgOf(overrides: Record<string, unknown>): NotifyEmailConfig {
   return Config({

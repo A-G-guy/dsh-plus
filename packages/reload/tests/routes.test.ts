@@ -38,7 +38,10 @@ function fakeRes(): { res: ServerResponse; done: Promise<Captured> } {
       status = code
     },
     end(payload?: string) {
-      resolveDone({ status, body: payload ? JSON.parse(payload) as Record<string, unknown> : {} })
+      resolveDone({
+        status,
+        body: payload ? (JSON.parse(payload) as Record<string, unknown>) : {},
+      })
     },
     headersSent: false,
   } as unknown as ServerResponse
@@ -70,7 +73,12 @@ function makeHandler(overrides: { runningAgents?: number; pidMismatch?: boolean 
   return { handler, scheduler, spawned }
 }
 
-async function call(handler: ReturnType<typeof createReloadHandler>, method: string, path: string, body?: unknown): Promise<Captured> {
+async function call(
+  handler: ReturnType<typeof createReloadHandler>,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<Captured> {
   const { res, done } = fakeRes()
   await handler(fakeReq(method, path, body), res)
   return done
@@ -105,7 +113,9 @@ test('given non-main-process pid, when POST prepare, then 409 with preflight rea
 test('given prepared token, when confirm, then 200 and restart spawns after grace', async () => {
   const { handler, spawned } = makeHandler()
   const prepare = await call(handler, 'POST', '/prepare')
-  const res = await call(handler, 'POST', '/confirm', { token: prepare.body.token })
+  const res = await call(handler, 'POST', '/confirm', {
+    token: prepare.body.token,
+  })
   assert.equal(res.status, 200)
   assert.equal(typeof res.body.etaMs, 'number')
   await sleep(30)
@@ -121,10 +131,15 @@ test('given bad token, when confirm, then 403', async () => {
 test('given running agents, when confirm without force, then 409 with count; with force then 200', async () => {
   const { handler, spawned } = makeHandler({ runningAgents: 1 })
   const prepare = await call(handler, 'POST', '/prepare')
-  const blocked = await call(handler, 'POST', '/confirm', { token: prepare.body.token })
+  const blocked = await call(handler, 'POST', '/confirm', {
+    token: prepare.body.token,
+  })
   assert.equal(blocked.status, 409)
   assert.equal(blocked.body.runningAgents, 1)
-  const forced = await call(handler, 'POST', '/confirm', { token: prepare.body.token, force: true })
+  const forced = await call(handler, 'POST', '/confirm', {
+    token: prepare.body.token,
+    force: true,
+  })
   assert.equal(forced.status, 200)
   await sleep(30)
   assert.equal(spawned.length, 1)
@@ -149,7 +164,9 @@ test('given scheduled restart, when cancel with token, then 200 and spawn never 
   const { handler, spawned } = makeHandler()
   const prepare = await call(handler, 'POST', '/prepare')
   await call(handler, 'POST', '/confirm', { token: prepare.body.token })
-  const res = await call(handler, 'POST', '/cancel', { token: prepare.body.token })
+  const res = await call(handler, 'POST', '/cancel', {
+    token: prepare.body.token,
+  })
   assert.equal(res.status, 200)
   await sleep(30)
   assert.equal(spawned.length, 0)

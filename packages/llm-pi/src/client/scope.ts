@@ -31,7 +31,26 @@ export interface Scope {
 
 /** connection api.settings 的 RPC 面（本插件用到的三个方法）。 */
 export interface SettingsApi {
-  describe(payload?: Record<string, never>): Promise<{ result: { ok: boolean; value?: { namespaces: Array<{ ns: string; secrets: Array<{ path: string[]; set: boolean }> }> }; error?: { message?: string } } }>
-  update(request: { ns: string; patch: Record<string, unknown>; expectedRevision?: number }): Promise<{ result: { ok: boolean; error?: { message?: string } } }>
-  replace(request: { ns: string; section: Record<string, unknown>; expectedRevision?: number }): Promise<{ result: { ok: boolean; error?: { message?: string } } }>
+  describe(payload?: Record<string, never>): Promise<{
+    result: {
+      ok: boolean
+      value?: {
+        namespaces: Array<{
+          ns: string
+          secrets: Array<{ path: string[]; set: boolean }>
+        }>
+      }
+      error?: { message?: string }
+    }
+  }>
+  update(request: {
+    ns: string
+    patch: Record<string, unknown>
+    expectedRevision?: number
+  }): Promise<{ result: { ok: boolean; error?: { message?: string } } }>
+  replace(request: {
+    ns: string
+    section: Record<string, unknown>
+    expectedRevision?: number
+  }): Promise<{ result: { ok: boolean; error?: { message?: string } } }>
 }

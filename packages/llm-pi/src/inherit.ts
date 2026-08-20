@@ -26,13 +26,18 @@ export interface BaseResolution {
 export class ExtendsError extends Error {}
 
 /** 解析 "provider/model" 或裸 "model" 引用。 */
-export function parseExtendsRef(raw: string): { provider?: string; model: string } {
+export function parseExtendsRef(raw: string): {
+  provider?: string
+  model: string
+} {
   const slash = raw.indexOf('/')
   if (slash < 0) return { model: raw }
   const provider = raw.slice(0, slash)
   const model = raw.slice(slash + 1)
   if (provider.length === 0 || model.length === 0 || model.includes('/')) {
-    throw new ExtendsError(`extends 引用 ${JSON.stringify(raw)} 非法：应为 "provider/model" 或 "model"`)
+    throw new ExtendsError(
+      `extends 引用 ${JSON.stringify(raw)} 非法：应为 "provider/model" 或 "model"`,
+    )
   }
   return { provider, model }
 }
@@ -65,7 +70,10 @@ export function resolveModelBase(
   if (entry.extends === undefined) {
     if (profile.extends === undefined) return { base: {}, source: 'none' }
     return (
-      lookup(kit, modelsDev, profile.extends, entry.id) ?? { base: {}, source: 'none' }
+      lookup(kit, modelsDev, profile.extends, entry.id) ?? {
+        base: {},
+        source: 'none',
+      }
     )
   }
   const ref = parseExtendsRef(entry.extends)

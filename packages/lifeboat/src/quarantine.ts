@@ -46,7 +46,10 @@ export function createQuarantine(ctx: Context, deps: QuarantineDeps): Quarantine
     inFlight.add(name)
     try {
       const written = await appendDisable(deps.patchFile, name)
-      deps.journal('quarantine', `${name}（来源 ${origin}，${written ? '已写入禁用' : '已存在禁用'}）`)
+      deps.journal(
+        'quarantine',
+        `${name}（来源 ${origin}，${written ? '已写入禁用' : '已存在禁用'}）`,
+      )
       const now = Date.now()
       const last = lastAlertAt.get(name) ?? 0
       if (now - last >= deps.alertCooldownMs) {
@@ -62,7 +65,10 @@ export function createQuarantine(ctx: Context, deps: QuarantineDeps): Quarantine
       const message = error instanceof Error ? error.message : String(error)
       logger.warn(`隔离 ${name} 失败: ${message}`)
       deps.journal('quarantine-error', `${name}: ${message}`)
-      deps.alert(`[DSH] 插件 ${name} 加载失败，自动隔离未果`, `隔离写入失败：${message}\n请手动在 patch 层禁用该插件。`)
+      deps.alert(
+        `[DSH] 插件 ${name} 加载失败，自动隔离未果`,
+        `隔离写入失败：${message}\n请手动在 patch 层禁用该插件。`,
+      )
     } finally {
       inFlight.delete(name)
     }

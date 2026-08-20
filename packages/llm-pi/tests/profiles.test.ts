@@ -5,9 +5,9 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 
 import { ModelsDevSource } from '../src/catalog/models-dev.ts'
-import { buildProfiles, type BuildDeps } from '../src/profiles.ts'
-import { loadVendoredKit } from '../src/resolve-dsh.ts'
 import type { ProviderProfileConfig } from '../src/config.ts'
+import { buildProfiles } from '../src/profiles.ts'
+import { loadVendoredKit } from '../src/resolve-dsh.ts'
 
 const kit = loadVendoredKit()
 const deps = { kit }
@@ -49,7 +49,12 @@ async function fixtureModelsDev(): Promise<ModelsDevSource> {
 /** 无数据源的 models.dev 实例（模拟拉取失败/漂移后的状态）。 */
 async function emptyModelsDev(): Promise<ModelsDevSource> {
   const dir = mkdtempSync(join(tmpdir(), 'llm-pi-profile-test-'))
-  const source = new ModelsDevSource(join(dir, 'models-dev.json'), 'http://127.0.0.1:1/unreachable', 0, () => {})
+  const source = new ModelsDevSource(
+    join(dir, 'models-dev.json'),
+    'http://127.0.0.1:1/unreachable',
+    0,
+    () => {},
+  )
   await source.ensureLoaded()
   return source
 }
@@ -65,9 +70,18 @@ test('迁移场景：chat route 继承官方内置 + 自定义覆盖', () => {
         {
           id: 'deepseek-v4-flash',
           extends: 'deepseek/deepseek-v4-flash',
-          reasoningEfforts: { low: 'low', high: 'high', xhigh: 'max', max: 'max' },
+          reasoningEfforts: {
+            low: 'low',
+            high: 'high',
+            xhigh: 'max',
+            max: 'max',
+          },
         },
-        { id: 'deepseek-v4-pro', extends: 'deepseek/deepseek-v4-pro', contextWindow: 400000 },
+        {
+          id: 'deepseek-v4-pro',
+          extends: 'deepseek/deepseek-v4-pro',
+          contextWindow: 400000,
+        },
       ],
     },
   }
@@ -84,7 +98,13 @@ test('迁移场景：chat route 继承官方内置 + 自定义覆盖', () => {
   assert.equal(flash.baseUrl, 'https://gateway.example/v1')
   // 覆盖：reasoningEfforts 全档位物化（未声明档位置 null，xhigh→max）
   assert.deepEqual(flash.thinkingLevelMap, {
-    off: null, minimal: null, low: 'low', medium: null, high: 'high', xhigh: 'max', max: 'max',
+    off: null,
+    minimal: null,
+    low: 'low',
+    medium: null,
+    high: 'high',
+    xhigh: 'max',
+    max: 'max',
   })
 
   const pro = models.find((m) => m.id === 'deepseek-v4-pro')
@@ -105,7 +125,10 @@ test('全量 compat：route 级 + 模型级逐字段合并并压过继承值', (
       baseURL: 'https://gateway.example/v1',
       compat: { maxTokensField: 'max_tokens', supportsStore: true },
       models: [
-        { id: 'deepseek-v4-flash', compat: { supportsStore: false, zaiToolStream: false } },
+        {
+          id: 'deepseek-v4-flash',
+          compat: { supportsStore: false, zaiToolStream: false },
+        },
       ],
     },
   }
@@ -126,7 +149,10 @@ test('compat 未知键在构建期拒绝（对比官方静默丢弃）', () => {
       models: [{ id: 'm', compat: { notARealField: true } }],
     },
   }
-  assert.throws(() => buildProfiles(providers, deps), /compat\.notARealField 不是 openai-completions 协议的合法字段/)
+  assert.throws(
+    () => buildProfiles(providers, deps),
+    /compat\.notARealField 不是 openai-completions 协议的合法字段/,
+  )
 })
 
 test('provider 级 extends 且不写 models：继承源全部模型', () => {
@@ -137,19 +163,23 @@ test('provider 级 extends 且不写 models：继承源全部模型', () => {
   const ids = models.map((m) => m.id)
   assert.ok(ids.includes('k3') && ids.includes('k3-256k'))
   const k3 = models.find((m) => m.id === 'k3')
+  const k3Compat = k3?.compat as Record<string, unknown> | undefined
   // anthropic 协议 compat 随继承保留
-  assert.equal((k3?.compat as Record<string, unknown>)['forceAdaptiveThinking'], true)
+  assert.equal(k3Compat?.['forceAdaptiveThinking'], true)
   assert.equal(k3?.api, 'anthropic-messages')
 })
 
 test('手写 route：无继承源时必填字段缺失即报错，给全则可服务', () => {
-  assert.throws(
-    () => buildProfiles({ g: { models: [{ id: 'm' }] } }, deps),
-    /需要 api/,
-  )
+  assert.throws(() => buildProfiles({ g: { models: [{ id: 'm' }] } }, deps), /需要 api/)
   const { models } = modelsOf(
     buildProfiles(
-      { g: { api: 'openai-completions', baseURL: 'https://g.example/v1', models: [{ id: 'm' }] } },
+      {
+        g: {
+          api: 'openai-completions',
+          baseURL: 'https://g.example/v1',
+          models: [{ id: 'm' }],
+        },
+      },
       deps,
     ),
     'g',
@@ -175,7 +205,13 @@ test('route 内协议不一致被拒绝', () => {
 test('rc8 兼容：maxRequestImageBytes 缺省取 20MiB，显式配置则透传', () => {
   const { profile } = modelsOf(
     buildProfiles(
-      { g: { api: 'openai-completions', baseURL: 'https://g.example/v1', models: [{ id: 'm' }] } },
+      {
+        g: {
+          api: 'openai-completions',
+          baseURL: 'https://g.example/v1',
+          models: [{ id: 'm' }],
+        },
+      },
       deps,
     ),
     'g',
@@ -199,13 +235,38 @@ test('rc8 兼容：maxRequestImageBytes 缺省取 20MiB，显式配置则透传'
 })
 
 test('enabled 之外的基本校验：空 baseURL / 空 defaultInput / 坏 idle timeout', () => {
-  assert.throws(() => buildProfiles({ g: { baseURL: '', models: [{ id: 'm' }] } }, deps), /baseURL 为空/)
   assert.throws(
-    () => buildProfiles({ g: { api: 'openai-completions', baseURL: 'https://g.example', defaultInput: [], models: [{ id: 'm' }] } }, deps),
+    () => buildProfiles({ g: { baseURL: '', models: [{ id: 'm' }] } }, deps),
+    /baseURL 为空/,
+  )
+  assert.throws(
+    () =>
+      buildProfiles(
+        {
+          g: {
+            api: 'openai-completions',
+            baseURL: 'https://g.example',
+            defaultInput: [],
+            models: [{ id: 'm' }],
+          },
+        },
+        deps,
+      ),
     /defaultInput 至少要声明一种模态/,
   )
   assert.throws(
-    () => buildProfiles({ g: { api: 'openai-completions', baseURL: 'https://g.example', streamIdleTimeoutMs: -1, models: [{ id: 'm' }] } }, deps),
+    () =>
+      buildProfiles(
+        {
+          g: {
+            api: 'openai-completions',
+            baseURL: 'https://g.example',
+            streamIdleTimeoutMs: -1,
+            models: [{ id: 'm' }],
+          },
+        },
+        deps,
+      ),
     /streamIdleTimeoutMs/,
   )
 })
@@ -225,15 +286,23 @@ test('lenient 模式：extends 引用失效（数据源漂移）时降级为手�
   assert.equal(hitModels[0]?.reasoning, true)
   // 数据源失效（模拟漂移）：严格模式（写时校验）拒绝
   const empty = await emptyModelsDev()
-  assert.throws(() => buildProfiles(providers, { kit, modelsDev: empty }), /extends 引用 "acme-lab\/acme-huge" 在内置目录与 models.dev 快照中都不存在/)
+  assert.throws(
+    () => buildProfiles(providers, { kit, modelsDev: empty }),
+    /extends 引用 "acme-lab\/acme-huge" 在内置目录与 models.dev 快照中都不存在/,
+  )
   // lenient 模式（运行期）：降级手写条目 + 告警，route 照常可服务
   const warnings: string[] = []
   const { models: degraded } = modelsOf(
-    buildProfiles(providers, { kit, modelsDev: empty, lenient: true, warn: (m) => warnings.push(m) }),
+    buildProfiles(providers, {
+      kit,
+      modelsDev: empty,
+      lenient: true,
+      warn: (m) => warnings.push(m),
+    }),
     'myroute',
   )
   assert.equal(warnings.length, 1)
-  assert.match(warnings[0]!, /已降级为手写条目/)
+  assert.match(warnings[0] ?? '', /已降级为手写条目/)
   // 降级后：字段退化（默认容量/text-only），route 级 api/baseURL 补足
   assert.equal(degraded[0]?.contextWindow, 262144)
   assert.deepEqual(degraded[0]?.input, ['text'])

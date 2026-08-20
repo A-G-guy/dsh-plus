@@ -5,11 +5,7 @@ import { ReloadScheduler } from '../src/scheduler.ts'
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
-function makeScheduler(overrides: {
-  ttlMs?: number
-  graceMs?: number
-  now?: () => number
-} = {}) {
+function makeScheduler(overrides: { ttlMs?: number; graceMs?: number; now?: () => number } = {}) {
   const spawned: string[] = []
   const scheduler = new ReloadScheduler({
     unitName: 'dsh-web',
@@ -91,7 +87,10 @@ test('given re-prepare, when old token confirmed, then invalidated', () => {
   const { scheduler } = makeScheduler()
   const first = scheduler.prepare()
   scheduler.prepare()
-  assert.equal(scheduler.confirm(first.token, { force: false, runningAgents: 0 }).kind, 'invalid-token')
+  assert.equal(
+    scheduler.confirm(first.token, { force: false, runningAgents: 0 }).kind,
+    'invalid-token',
+  )
 })
 
 test('given active flow, when abort from local command plane, then state resets without token', () => {

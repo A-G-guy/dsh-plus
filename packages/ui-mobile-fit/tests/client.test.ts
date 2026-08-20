@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-
-import { mobileFitCss } from '../src/styles.ts'
-import { apply, name } from '../src/client.ts'
 import { IME_ACTIVE_ATTR, installBehaviors } from '../src/behaviors.ts'
+import { apply, name } from '../src/client.ts'
+import { mobileFitCss } from '../src/styles.ts'
 
 test('given the styles module, when aggregating, then all layers and the mobile breakpoint are present', () => {
   assert.match(mobileFitCss, /@media \(max-width: 767px\)/)
@@ -32,7 +31,10 @@ test('given the conversation layer, when inspecting composer takeover cards, the
   assert.match(mobileFitCss, /\[data-plan-review-key\] \[class\*="_footer"\]/)
   assert.match(mobileFitCss, /\[data-question-key\] \[class\*="_footer"\]/)
   assert.match(mobileFitCss, /\[data-approval-key\] \[class\*="_actionRow"\]/)
-  assert.match(mobileFitCss, /\[data-question-key\] \[class\*="_footerActions"\][^{]*\{[^}]*flex-wrap: wrap/)
+  assert.match(
+    mobileFitCss,
+    /\[data-question-key\] \[class\*="_footerActions"\][^{]*\{[^}]*flex-wrap: wrap/,
+  )
 })
 
 test('given the client module, when inspecting exports, then loader metadata is present', () => {

@@ -18,10 +18,10 @@ import { deepEqualJson, installSettingsSection } from '@deepseek-ai/dsh-settings
 
 import { hasBuiltinProvider } from './catalog/builtin.ts'
 import { ModelsDevSource } from './catalog/models-dev.ts'
-import { Config, SETTINGS_NS, type LlmPiConfig } from './config.ts'
+import { Config, type LlmPiConfig, SETTINGS_NS } from './config.ts'
 import { discoverModels } from './discovery.ts'
 import { assertServiceable, buildProfiles } from './profiles.ts'
-import { resolveDshKit, type DshKit } from './resolve-dsh.ts'
+import { type DshKit, resolveDshKit } from './resolve-dsh.ts'
 
 export interface LlmPiRuntime {
   /** 当前生效配置（settings 用户层解析结果或 cordis 行级 config）。 */
@@ -46,7 +46,10 @@ function registrationFacts(profiles: ReadonlyMap<string, ResolvedPiAiProviderPro
 
 /** 凭据解析（逐行对齐官方 resolveApiKey）：凭据服务优先，缺失时启动环境兜底。 */
 function makeResolveApiKey(ctx: Context, kit: DshKit) {
-  return async (provider: string, profile: ResolvedPiAiProviderProfile): Promise<string | undefined> => {
+  return async (
+    provider: string,
+    profile: ResolvedPiAiProviderProfile,
+  ): Promise<string | undefined> => {
     const ref = profile.apiKeyEnv
     if (ref === undefined) return undefined
     const credentials = ctx.get('credentials')
@@ -54,7 +57,8 @@ function makeResolveApiKey(ctx: Context, kit: DshKit) {
       credentials !== undefined
         ? (await credentials.resolve(ref as CredentialRef))?.value
         : launchEnvironmentOf(ctx).get(ref as unknown as string)?.value
-    if (hit !== undefined && hit.length > 0) return kit.assertUsableApiKey(hit, 'llm-pi', ref as unknown as string)
+    if (hit !== undefined && hit.length > 0)
+      return kit.assertUsableApiKey(hit, 'llm-pi', ref as unknown as string)
     throw new kit.LlmError(
       `llm-pi: provider route "${provider}" 的凭据引用 ${String(ref)} 未解析到值——` +
         '请经凭据服务（web Models 页）存放或导出环境变量；仅当该 provider 应使用 pi-ai 自有环境发现时才移除 apiKeyEnv',
@@ -92,7 +96,11 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
     const raw = current()
     if (raw === lastRaw && memoized !== undefined) return memoized
     const next = raw.enabled
-      ? buildProfiles(raw.providers, { ...deps, lenient: true, warn: (message) => logger.warn(message) })
+      ? buildProfiles(raw.providers, {
+          ...deps,
+          lenient: true,
+          warn: (message) => logger.warn(message),
+        })
       : new Map()
     lastRaw = raw
     memoized = next
@@ -132,7 +140,10 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
   let registrations: RegistrationGroup[] | undefined
   let registeredFacts: unknown
 
-  const registerGroup = (routes: string[], fallback: (error: unknown) => void): RegistrationGroup[] => {
+  const registerGroup = (
+    routes: string[],
+    fallback: (error: unknown) => void,
+  ): RegistrationGroup[] => {
     try {
       const handle = ctx.llm.registerAdapter(routes, adapter as never)
       return [{ routes, handle }]
@@ -144,7 +155,9 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
           const handle = ctx.llm.registerAdapter([route], adapter as never)
           groups.push({ routes: [route], handle })
         } catch (routeError) {
-          logger.error(`llm-pi: route "${route}" 注册失败（可能与其他 adapter 重名），该 route 不可用`)
+          logger.error(
+            `llm-pi: route "${route}" 注册失败（可能与其他 adapter 重名），该 route 不可用`,
+          )
           logger.error(routeError)
         }
       }
@@ -168,9 +181,11 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
       })
     } else {
       try {
-        registrations[0]!.handle.replace(routes)
-        for (let i = 1; i < registrations.length; i += 1) registrations[i]!.handle.replace([])
-        registrations = [{ routes, handle: registrations[0]!.handle }]
+        const [first, ...rest] = registrations
+        if (first === undefined) throw new Error('registrations 为空（此前整批注册全部失败）')
+        first.handle.replace(routes)
+        for (const group of rest) group.handle.replace([])
+        registrations = [{ routes, handle: first.handle }]
       } catch (error) {
         // 原子 replace 被拒（含冲突）：保留此前注册（官方同款护栏）
         logger.error('llm-pi: 更新被拒，保留此前注册的 route')
@@ -204,11 +219,9 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
   ensureRegistration()
   ensureDirectory()
 
-  let settingsBound = false
   installSettingsSection(ctx, SETTINGS_NS, Config, config, {
     validate: (cfg: LlmPiConfig) => assertServiceable(cfg, deps),
     setSource: (source: () => LlmPiConfig) => {
-      settingsBound = true
       current = source
     },
     onChange: () => {

@@ -16,18 +16,16 @@
 import { existsSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-
-import type { PiAiAdapter as PiAiAdapterType } from '@deepseek-ai/dsh-llm-pi-ai'
 import type * as DshLlm from '@deepseek-ai/dsh-llm'
+import * as vendoredLlm from '@deepseek-ai/dsh-llm'
+import type { PiAiAdapter as PiAiAdapterType } from '@deepseek-ai/dsh-llm-pi-ai'
+import * as vendoredPiAiAdapter from '@deepseek-ai/dsh-llm-pi-ai'
 import type * as PiAi from '@earendil-works/pi-ai'
-
 import * as vendoredPiAi from '@earendil-works/pi-ai'
-import * as vendoredCatalog from '@earendil-works/pi-ai/providers/all'
 import { anthropicMessagesApi as vendoredAnthropic } from '@earendil-works/pi-ai/api/anthropic-messages.lazy'
 import { openAICompletionsApi as vendoredCompletions } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 import { openAIResponsesApi as vendoredResponses } from '@earendil-works/pi-ai/api/openai-responses.lazy'
-import * as vendoredLlm from '@deepseek-ai/dsh-llm'
-import * as vendoredPiAiAdapter from '@deepseek-ai/dsh-llm-pi-ai'
+import * as vendoredCatalog from '@earendil-works/pi-ai/providers/all'
 
 import type { ProtocolId } from './config.ts'
 
@@ -55,7 +53,13 @@ function assertKitShape(kit: DshKit, origin: string): void {
   const problems: string[] = []
   if (typeof kit.PiAiAdapter !== 'function') problems.push('PiAiAdapter 不是类')
   else {
-    for (const method of ['current', 'stream', 'listModels', 'resolveModel', 'providerInfo'] as const) {
+    for (const method of [
+      'current',
+      'stream',
+      'listModels',
+      'resolveModel',
+      'providerInfo',
+    ] as const) {
       if (typeof (kit.PiAiAdapter.prototype as Record<string, unknown>)[method] !== 'function') {
         problems.push(`PiAiAdapter.prototype.${method} 缺失`)
       }
@@ -182,7 +186,10 @@ function dshTreeAnchor(): string | undefined {
  * 两者都过不了形状自检时抛错（调用方应记日志并放弃注册 route）。
  * 返回的 diagnostics 记录回退原因，供配置卡片与日志展示。
  */
-export async function resolveDshKit(): Promise<{ kit: DshKit; diagnostics: string[] }> {
+export async function resolveDshKit(): Promise<{
+  kit: DshKit
+  diagnostics: string[]
+}> {
   const diagnostics: string[] = []
   const anchor = dshTreeAnchor()
   if (anchor !== undefined) {

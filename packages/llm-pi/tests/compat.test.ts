@@ -5,7 +5,11 @@ import { compatFieldsOf, mergeCompat, validateCompat } from '../src/compat.ts'
 
 test('validateCompat 接受本协议合法字段', () => {
   validateCompat('openai-completions', { thinkingFormat: 'deepseek', supportsStore: false }, 'test')
-  validateCompat('anthropic-messages', { forceAdaptiveThinking: true, allowEmptySignature: true }, 'test')
+  validateCompat(
+    'anthropic-messages',
+    { forceAdaptiveThinking: true, allowEmptySignature: true },
+    'test',
+  )
   validateCompat('openai-responses', { supportsToolSearch: true }, 'test')
   // undefined 视为未设置，跳过
   validateCompat('openai-completions', { supportsStore: undefined }, 'test')
@@ -19,11 +23,17 @@ test('validateCompat 拒绝未知键并列出合法字段（对比官方静默�
     /compat\.nonExistentSwitch 不是 openai-completions 协议的合法字段/,
   )
   // anthropic 字段不能用在 completions 协议上
-  assert.throws(() => validateCompat('openai-completions', { forceAdaptiveThinking: true }, 'test'), /合法字段/)
+  assert.throws(
+    () => validateCompat('openai-completions', { forceAdaptiveThinking: true }, 'test'),
+    /合法字段/,
+  )
 })
 
 test('validateCompat 拒绝错误值类型/枚举', () => {
-  assert.throws(() => validateCompat('openai-completions', { supportsStore: 'yes' }, 'test'), /必须是布尔值/)
+  assert.throws(
+    () => validateCompat('openai-completions', { supportsStore: 'yes' }, 'test'),
+    /必须是布尔值/,
+  )
   assert.throws(
     () => validateCompat('openai-completions', { maxTokensField: 'tokens_max' }, 'test'),
     /max_completion_tokens/,

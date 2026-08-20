@@ -15,11 +15,18 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 
-import { Config, JournalSchema, SETTINGS_NS, type FallbackStateT, type JournalDoc, type LifeboatConfig } from './config.ts'
+import {
+  Config,
+  type FallbackStateT,
+  type JournalDoc,
+  JournalSchema,
+  type LifeboatConfig,
+  SETTINGS_NS,
+} from './config.ts'
+import { installLlmFallback } from './fallback-llm.ts'
 import { installAlerter } from './notify.ts'
 import { createQuarantine, installHostWatch } from './quarantine.ts'
 import { registerQuarantineApi } from './quarantine-api.ts'
-import { installLlmFallback } from './fallback-llm.ts'
 
 export const name = 'dsh-plus-lifeboat'
 
@@ -42,11 +49,16 @@ export function apply(ctx: Context, config: LifeboatConfig): void {
     doc = scope.get()
     persist = (patch) => scope.update(patch)
   } catch (error) {
-    logger.warn(`journal 命名空间注册失败，降级为内存态: ${error instanceof Error ? error.message : String(error)}`)
+    logger.warn(
+      `journal 命名空间注册失败，降级为内存态: ${error instanceof Error ? error.message : String(error)}`,
+    )
   }
 
   const journal = (kind: string, detail: string): void => {
-    doc = { ...doc, journal: [...doc.journal, { at: new Date().toISOString(), kind, detail }].slice(-JOURNAL_CAP) }
+    doc = {
+      ...doc,
+      journal: [...doc.journal, { at: new Date().toISOString(), kind, detail }].slice(-JOURNAL_CAP),
+    }
     void persist?.({ journal: doc.journal }).catch((error: unknown) => {
       logger.warn(`journal 持久化失败: ${error instanceof Error ? error.message : String(error)}`)
     })
@@ -55,9 +67,10 @@ export function apply(ctx: Context, config: LifeboatConfig): void {
   const alert = installAlerter(ctx, journal)
 
   if (config.enabled) {
-    const patchFile = config.patchFile.length > 0
-      ? config.patchFile
-      : dshHomePath('profiles', 'web', 'cordis.patch.yml')
+    const patchFile =
+      config.patchFile.length > 0
+        ? config.patchFile
+        : dshHomePath('profiles', 'web', 'cordis.patch.yml')
     const quarantine = createQuarantine(ctx, {
       patchFile,
       alertCooldownMs: config.alertCooldownMs,

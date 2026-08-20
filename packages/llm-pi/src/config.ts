@@ -8,8 +8,9 @@
  * - provider/model 均支持 extends 继承（见 inherit.ts）。
  * @module llm-pi/config
  */
-import z from '@deepseek-ai/schemastery'
+
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
+import z from '@deepseek-ai/schemastery'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
@@ -17,7 +18,11 @@ import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 export const SETTINGS_NS = settingsNamespace(NS_LITERAL)
 
 /** 本插件可为手写 route 提供的协议实现（与官方 PROTOCOLS 表一致）。 */
-export const PROTOCOL_IDS = ['openai-completions', 'openai-responses', 'anthropic-messages'] as const
+export const PROTOCOL_IDS = [
+  'openai-completions',
+  'openai-responses',
+  'anthropic-messages',
+] as const
 export type ProtocolId = (typeof PROTOCOL_IDS)[number]
 
 /** pi-ai 思考档位，升级序。 */
@@ -66,7 +71,12 @@ export interface ProviderProfileConfig {
   defaultMaxTokens?: number
   defaultInput?: Modality[]
   reasoning?: ThinkingLevel
-  thinkingBudgets?: { minimal: number; low: number; medium: number; high: number }
+  thinkingBudgets?: {
+    minimal: number
+    low: number
+    medium: number
+    high: number
+  }
   cacheRetention?: 'none' | 'short' | 'long'
   transport?: 'sse' | 'websocket' | 'websocket-cached' | 'auto'
   timeoutMs?: number
@@ -104,11 +114,19 @@ const modelEntry = z.object({
   id: z.string().required().description('模型 id（发送给 provider 的标识）'),
   extends: z
     .string()
-    .description('继承源："provider/model" 或裸 model id（随 provider 级 extends 源）；缺省先查内置目录同名模型'),
+    .description(
+      '继承源："provider/model" 或裸 model id（随 provider 级 extends 源）；缺省先查内置目录同名模型',
+    ),
   name: z.string().description('选择器显示名；缺省继承内置目录名，再退化为 id'),
   contextWindow: z.number().step(1).min(1).description('上下文容量（覆盖继承值）'),
-  maxTokens: z.number().step(1).min(1).description('输出能力上限；显式配置同时成为无 cap 请求的默认 cap'),
-  input: z.array(z.union(MODALITIES)).description('请求模态；缺省继承内置目录，再退化 route defaultInput'),
+  maxTokens: z
+    .number()
+    .step(1)
+    .min(1)
+    .description('输出能力上限；显式配置同时成为无 cap 请求的默认 cap'),
+  input: z
+    .array(z.union(MODALITIES))
+    .description('请求模态；缺省继承内置目录，再退化 route defaultInput'),
   reasoningEfforts: z
     .union([z.const(false), reasoningEfforts])
     .description('可选 reasoning 档位：false=非推理模型；dict=档位→线值映射；缺省继承内置目录能力'),
@@ -118,14 +136,22 @@ const modelEntry = z.object({
 const providerProfile = z.object({
   extends: z
     .string()
-    .description('provider 级继承：内置 provider id，提供 api/baseURL 默认值与模型 extends 的缺省查找源'),
+    .description(
+      'provider 级继承：内置 provider id，提供 api/baseURL 默认值与模型 extends 的缺省查找源',
+    ),
   displayName: z.string().description('选择器显示名；缺省为 route 键'),
-  api: z.union(PROTOCOL_IDS).description('线协议；缺省逐模型取继承值的 api，全部一致时作为 route 协议'),
+  api: z
+    .union(PROTOCOL_IDS)
+    .description('线协议；缺省逐模型取继承值的 api，全部一致时作为 route 协议'),
   baseURL: z.string().description('端点；缺省继承 extends 源 provider 的端点'),
   apiKeyEnv: z.string().role('credential-ref').description('凭据引用名（凭据服务/环境变量）'),
   headers: z.dict(z.string()).description('provider 请求头（Harness 署名头保留名优先）'),
   compat: compatDict.description('route 级 compat 默认（逐模型按字段生效）'),
-  defaultContextWindow: z.number().step(1).min(1).description('模型与继承源都未标注时的上下文容量兜底'),
+  defaultContextWindow: z
+    .number()
+    .step(1)
+    .min(1)
+    .description('模型与继承源都未标注时的上下文容量兜底'),
   defaultMaxTokens: z.number().step(1).min(1).description('模型与继承源都未标注时的输出能力兜底'),
   defaultInput: z
     .array(z.union(MODALITIES))
@@ -146,12 +172,17 @@ const providerProfile = z.object({
     .natural()
     .description('单请求 base64 图片载荷上限字节；缺省 20MiB（rc8 起生效，旧配置免改）'),
   retryPolicy: z.any().description('provider 重试策略（dsh-llm RetryPolicy 形状，构建期校验）'),
-  models: z.array(modelEntry).description('本 route 的模型目录；缺省且 provider 有 extends 时继承该源全部模型'),
+  models: z
+    .array(modelEntry)
+    .description('本 route 的模型目录；缺省且 provider 有 extends 时继承该源全部模型'),
 })
 
 export const Config: z<LlmPiConfig> = z.object({
   enabled: z.boolean().description('总开关（关闭则不注册任何 route）').default(true),
-  catalogUrl: z.string().description('models.dev 目录数据端点').default('https://models.dev/api.json'),
+  catalogUrl: z
+    .string()
+    .description('models.dev 目录数据端点')
+    .default('https://models.dev/api.json'),
   catalogRefreshHours: z
     .number()
     .description('models.dev 自动拉取间隔小时数；0 = 不自动拉取（可手动拉取或读已有缓存）')

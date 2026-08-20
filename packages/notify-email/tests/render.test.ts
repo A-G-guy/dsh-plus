@@ -4,7 +4,10 @@ import { test } from 'node:test'
 import { Config } from '../src/config.ts'
 import { createDecisionTrigger, createTurnEndTrigger } from '../src/triggers/builtin.ts'
 import {
-  renderCompletionNotice, renderErrorNotice, renderPlanNotice, renderQuestionNotice,
+  renderCompletionNotice,
+  renderErrorNotice,
+  renderPlanNotice,
+  renderQuestionNotice,
 } from '../src/triggers/render.ts'
 import type { DecisionCall, TurnEndInfo } from '../src/triggers/types.ts'
 
@@ -24,10 +27,7 @@ test('given ask_user_question args, when rendered, then question text and option
           id: 'q1',
           header: '选择方式',
           question: '用哪种方案部署？',
-          options: [
-            { label: '方案 A（推荐）', description: '改动最小' },
-            { label: '方案 B' },
-          ],
+          options: [{ label: '方案 A（推荐）', description: '改动最小' }, { label: '方案 B' }],
         },
       ],
     }),
@@ -41,14 +41,20 @@ test('given ask_user_question args, when rendered, then question text and option
 })
 
 test('given exit_plan_mode args, when rendered, then plan content is included', () => {
-  const notice = renderPlanNotice(decisionCall('exit_plan_mode', { plan: '# 计划\n1. 第一步' }), 4000)
+  const notice = renderPlanNotice(
+    decisionCall('exit_plan_mode', { plan: '# 计划\n1. 第一步' }),
+    4000,
+  )
   assert.match(notice.subject, /Plan 待审批/)
   assert.match(notice.text, /等待审批/)
   assert.match(notice.text, /# 计划\n1\. 第一步/)
 })
 
 test('given completed turn, when rendered, then last delivery message is the body', () => {
-  const notice = renderCompletionNotice(turnEnd('completed', { lastDelivery: '已完成部署。' }), 4000)
+  const notice = renderCompletionNotice(
+    turnEnd('completed', { lastDelivery: '已完成部署。' }),
+    4000,
+  )
   assert.match(notice.subject, /任务执行完毕/)
   assert.match(notice.text, /已完成部署。/)
 })
@@ -69,7 +75,10 @@ test('given errored turn, when rendered, then error message is the body', () => 
 test('given toggles off, when built-in decision trigger fires, then skipped', () => {
   const cfg = Config({ triggers: { onQuestion: false } })
   const trigger = createDecisionTrigger(() => cfg)
-  assert.equal(trigger.onDecision?.(decisionCall('ask_user_question', { questions: [] })), undefined)
+  assert.equal(
+    trigger.onDecision?.(decisionCall('ask_user_question', { questions: [] })),
+    undefined,
+  )
 })
 
 test('given unrelated tool, when built-in decision trigger fires, then skipped', () => {

@@ -102,7 +102,8 @@ export const en: Record<string, string> = {
   catalogUrl: 'models.dev catalog endpoint',
   catalogUrlHint: 'Snapshot data source; usually no change needed.',
   catalogRefreshHours: 'Catalog refresh (hours)',
-  catalogRefreshHoursHint: '0 = no auto refresh (manual refresh or existing cache); >0 = refresh every N hours.',
+  catalogRefreshHoursHint:
+    '0 = no auto refresh (manual refresh or existing cache); >0 = refresh every N hours.',
   catalogProxy: 'Fetch proxy',
   catalogProxyHint: 'HTTP proxy (e.g. http://127.0.0.1:7890); leave empty for direct.',
   kitSource: 'Module source',
@@ -151,7 +152,8 @@ export const en: Record<string, string> = {
   retryPolicyHint: 'dsh-llm RetryPolicy shape; invalid JSON is not submitted.',
   invalidJson: 'Invalid JSON (this field will not be submitted).',
   compatGroup: 'Compat overrides',
-  compatApiHint: 'When api is unset, fields render per openai-completions; the backend validates per the effective protocol.',
+  compatApiHint:
+    'When api is unset, fields render per openai-completions; the backend validates per the effective protocol.',
   compatUnset: 'Unset',
   modelsGroup: 'Model catalog',
   addModel: 'Add model',

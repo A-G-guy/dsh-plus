@@ -28,7 +28,10 @@ export const systemRunner: Runner = (cmd, args) =>
         reject(new Error(`无法执行 ${cmd}: ${error.message}`))
         return
       }
-      resolve({ code: typeof error?.code === 'number' ? error.code : 0, stdout: String(stdout) })
+      resolve({
+        code: typeof error?.code === 'number' ? error.code : 0,
+        stdout: String(stdout),
+      })
     })
   })
 
@@ -44,7 +47,9 @@ export async function runPreflight(
   try {
     const main = await runner('systemctl', ['show', '-p', 'MainPID', '--value', unitName])
     if (Number(main.stdout.trim()) !== pid) {
-      reasons.push(`本进程不是 systemd 单元 ${unitName} 的主进程（MainPID 不匹配），重启后不会自动拉起；请改用人工重启（如 dshctl restart-prod）`)
+      reasons.push(
+        `本进程不是 systemd 单元 ${unitName} 的主进程（MainPID 不匹配），重启后不会自动拉起；请改用人工重启（如 dshctl restart-prod）`,
+      )
     }
   } catch (error) {
     reasons.push(error instanceof Error ? error.message : String(error))
@@ -53,7 +58,9 @@ export async function runPreflight(
   try {
     const active = await runner('systemctl', ['is-active', unitName])
     if (active.stdout.trim() !== 'active') {
-      reasons.push(`systemd 单元 ${unitName} 非 active（is-active: ${active.stdout.trim() || `exit ${active.code}`}）`)
+      reasons.push(
+        `systemd 单元 ${unitName} 非 active（is-active: ${active.stdout.trim() || `exit ${active.code}`}）`,
+      )
     }
   } catch (error) {
     reasons.push(error instanceof Error ? error.message : String(error))

@@ -5,8 +5,8 @@
  */
 import nodemailer from 'nodemailer'
 
-import { buildAuditRecord, type AuditSink } from './audit.ts'
-import { isDeliverable, type NotifyEmailConfig } from './config.ts'
+import { type AuditSink, buildAuditRecord } from './audit.ts'
+import type { NotifyEmailConfig } from './config.ts'
 
 /** 一封待发邮件（触发器产物的最小契约）。 */
 export interface MailMessage {

@@ -14,8 +14,9 @@
  * 显式声明输入/输出接口并注解 schema（输出为规范型，输入为可空宽松型）。
  * @module subagent-model/config
  */
-import z from '@deepseek-ai/schemastery'
+
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
+import z from '@deepseek-ai/schemastery'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
@@ -44,20 +45,26 @@ export interface SubagentModelConfig {
 /** 配置的宽松输入形态（schema 校验前的用户数据）。 */
 export interface SubagentModelConfigInput {
   enabled?: boolean | null
-  entries?: Record<string, {
-    enabled?: boolean | null
-    provider?: string | null
-    model?: string | null
-    reasoningEffort?: string | null
-  }> | null
+  entries?: Record<
+    string,
+    {
+      enabled?: boolean | null
+      provider?: string | null
+      model?: string | null
+      reasoningEffort?: string | null
+    }
+  > | null
 }
 
 const EntrySchema = z.object({
   enabled: z.boolean().description('该子代理 provider 行的开关').default(false),
   provider: z.string().description('LLM 提供商 id；留空 = 继承主代理').default(''),
   model: z.string().description('模型 id；留空 = 继承主代理').default(''),
-  reasoningEffort: z.string()
-    .description(`思考程度：${EFFORT_INHERIT}（继承主代理）/ ${EFFORT_DEFAULT}（跟随模型默认）/ 提供商目录档位 id`)
+  reasoningEffort: z
+    .string()
+    .description(
+      `思考程度：${EFFORT_INHERIT}（继承主代理）/ ${EFFORT_DEFAULT}（跟随模型默认）/ 提供商目录档位 id`,
+    )
     .default(EFFORT_INHERIT),
 })
 

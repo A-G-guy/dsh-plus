@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/tool-text-transform",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "dsh tool plugin: pure text-transform demo tool (no network, no side effects)",
   "type": "module",
   "main": "lib/index.js",
