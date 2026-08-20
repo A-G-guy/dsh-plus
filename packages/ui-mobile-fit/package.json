@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/ui-mobile-fit",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "dsh-plus ui plugin: 纯 CSS 覆盖的移动端窄屏响应式适配（不注册替代组件，跟随上游）",
   "type": "module",
   "main": "lib/index.js",
@@ -32,6 +32,9 @@
   },
   "dependencies": {
     "@dsh-plus/shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1"

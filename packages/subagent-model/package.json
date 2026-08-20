@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/subagent-model",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "dsh-plus service+ui plugin: 为 subagent/subagent_fork 等子代理按提供商配置模型与思考程度（或继承主代理）",
   "type": "module",
   "main": "lib/index.js",
@@ -35,10 +35,11 @@
       "platform": "web"
     }
   },
-  "dependencies": {
-    "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/dsh-settings": "0.1.0-rc.8",
-    "@deepseek-ai/schemastery": "3.18.1"
+  "dependencies": {},
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-settings": "^0.1.0-rc.8",
+    "@deepseek-ai/schemastery": "^3.18.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
@@ -47,7 +48,9 @@
     "@deepseek-ai/dsh-host-webserver": "0.1.0-rc.8",
     "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
     "@deepseek-ai/dsh-session": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-settings": "0.1.0-rc.8",
     "@deepseek-ai/dsh-subagent": "0.1.0-rc.8",
+    "@deepseek-ai/schemastery": "3.18.1",
     "@types/react": "~18.3.1",
     "react": "^18.2.0"
   },

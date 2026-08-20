@@ -45,10 +45,17 @@ importers:
 
   packages/lifeboat:
     dependencies:
+      yaml:
+        specifier: ^2.6.0
+        version: 2.9.0
+    devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
         version: 4.0.1
       '@deepseek-ai/dsh-home-paths':
+        specifier: 0.1.0-rc.8
+        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
+      '@deepseek-ai/dsh-host-webserver':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
       '@deepseek-ai/dsh-llm':
@@ -60,16 +67,13 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: 3.18.1
         version: 3.18.1
-      yaml:
-        specifier: ^2.6.0
-        version: 2.9.0
-    devDependencies:
-      '@deepseek-ai/dsh-host-webserver':
-        specifier: 0.1.0-rc.8
-        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
 
   packages/llm-pi:
     dependencies:
+      https-proxy-agent:
+        specifier: ^7.0.6
+        version: 7.0.6
+    devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
         version: 4.0.1
@@ -77,6 +81,9 @@ importers:
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
       '@deepseek-ai/dsh-home-paths':
+        specifier: 0.1.0-rc.8
+        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
+      '@deepseek-ai/dsh-host-webserver':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
       '@deepseek-ai/dsh-launch-environment':
@@ -97,13 +104,6 @@ importers:
       '@earendil-works/pi-ai':
         specifier: 0.82.1
         version: 0.82.1(ws@8.21.3)(zod@4.4.3)
-      https-proxy-agent:
-        specifier: ^7.0.6
-        version: 7.0.6
-    devDependencies:
-      '@deepseek-ai/dsh-host-webserver':
-        specifier: 0.1.0-rc.8
-        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
@@ -113,25 +113,19 @@ importers:
 
   packages/notify-email:
     dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1
-      '@deepseek-ai/dsh-home-paths':
-        specifier: 0.1.0-rc.8
-        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
-      '@deepseek-ai/dsh-settings':
-        specifier: 0.1.0-rc.8
-        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1)
-      '@deepseek-ai/schemastery':
-        specifier: 3.18.1
-        version: 3.18.1
       nodemailer:
         specifier: 9.0.5
         version: 9.0.5
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1
       '@deepseek-ai/dsh-agent':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(3ece06c7ed080b74c999d93210c39aa2)
+      '@deepseek-ai/dsh-home-paths':
+        specifier: 0.1.0-rc.8
+        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
       '@deepseek-ai/dsh-host-webserver':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
@@ -141,9 +135,15 @@ importers:
       '@deepseek-ai/dsh-session':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(2304804305fe7d3ca8837887fdebfd06)
+      '@deepseek-ai/dsh-settings':
+        specifier: 0.1.0-rc.8
+        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1)
       '@deepseek-ai/dsh-tools':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(b464c41662417cb012c0512066a0b5ae)
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.1
+        version: 3.18.1
       '@types/nodemailer':
         specifier: 8.0.1
         version: 8.0.1
@@ -155,14 +155,10 @@ importers:
         version: 18.3.1
 
   packages/reload:
-    dependencies:
+    devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
         version: 4.0.1
-      '@deepseek-ai/schemastery':
-        specifier: 3.18.1
-        version: 3.18.1
-    devDependencies:
       '@deepseek-ai/dsh-agent':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(3ece06c7ed080b74c999d93210c39aa2)
@@ -172,6 +168,9 @@ importers:
       '@deepseek-ai/dsh-host-webserver':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.1
+        version: 3.18.1
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
@@ -182,16 +181,6 @@ importers:
   packages/shared: {}
 
   packages/skill-manual:
-    dependencies:
-      '@deepseek-ai/dsh-home-paths':
-        specifier: 0.1.0-rc.8
-        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
-      '@deepseek-ai/dsh-skill-filesystem':
-        specifier: 0.1.0-rc.8
-        version: 0.1.0-rc.8(afbf84d77b4c577cf572ccf5af66e0f3)
-      '@deepseek-ai/schemastery':
-        specifier: 3.18.1
-        version: 3.18.1
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -199,22 +188,24 @@ importers:
       '@deepseek-ai/dsh-fs':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(708be7f1926cbba157a0801c9a19ba8a)
+      '@deepseek-ai/dsh-home-paths':
+        specifier: 0.1.0-rc.8
+        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))
       '@deepseek-ai/dsh-skill':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/dsh-llm@0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-attachment@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-brand@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/dsh-timeout@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))))(@deepseek-ai/dsh-scope@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)))
-
-  packages/subagent-model:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1
-      '@deepseek-ai/dsh-settings':
+      '@deepseek-ai/dsh-skill-filesystem':
         specifier: 0.1.0-rc.8
-        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1)
+        version: 0.1.0-rc.8(afbf84d77b4c577cf572ccf5af66e0f3)
       '@deepseek-ai/schemastery':
         specifier: 3.18.1
         version: 3.18.1
+
+  packages/subagent-model:
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1
       '@deepseek-ai/cosmokit':
         specifier: 1.8.2
         version: 1.8.2
@@ -230,9 +221,15 @@ importers:
       '@deepseek-ai/dsh-session':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(2304804305fe7d3ca8837887fdebfd06)
+      '@deepseek-ai/dsh-settings':
+        specifier: 0.1.0-rc.8
+        version: 0.1.0-rc.8(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.7(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1)
       '@deepseek-ai/dsh-subagent':
         specifier: 0.1.0-rc.8
         version: 0.1.0-rc.8(a76155011c0446cfbfef674427400746)
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.1
+        version: 3.18.1
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
@@ -242,9 +239,6 @@ importers:
 
   packages/tool-text-transform:
     dependencies:
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.0-rc.8
-        version: 0.1.0-rc.8(b464c41662417cb012c0512066a0b5ae)
       '@dsh-plus/shared':
         specifier: workspace:*
         version: link:../shared
@@ -252,6 +246,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
         version: 4.0.1
+      '@deepseek-ai/dsh-tools':
+        specifier: 0.1.0-rc.8
+        version: 0.1.0-rc.8(b464c41662417cb012c0512066a0b5ae)
 
   packages/ui-mobile-fit:
     dependencies:

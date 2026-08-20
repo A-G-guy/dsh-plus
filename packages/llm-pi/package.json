@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/llm-pi",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "dsh-plus service+ui plugin: 基于 PiAiAdapter 的自定义 LLM 路由（全量 compat、模型继承、models.dev 目录兜底）",
   "type": "module",
   "main": "lib/index.js",
@@ -36,6 +36,20 @@
     }
   },
   "dependencies": {
+    "https-proxy-agent": "^7.0.6"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/schemastery": "^3.18.1",
+    "@deepseek-ai/dsh-settings": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-llm": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-credentials": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-launch-environment": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-llm-pi-ai": "^0.1.0-rc.8",
+    "@earendil-works/pi-ai": "^0.82.1"
+  },
+  "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
     "@deepseek-ai/schemastery": "3.18.1",
     "@deepseek-ai/dsh-settings": "0.1.0-rc.8",
@@ -44,11 +58,8 @@
     "@deepseek-ai/dsh-home-paths": "0.1.0-rc.8",
     "@deepseek-ai/dsh-launch-environment": "0.1.0-rc.8",
     "@deepseek-ai/dsh-llm-pi-ai": "0.1.0-rc.8",
-    "@earendil-works/pi-ai": "0.82.1",
-    "https-proxy-agent": "^7.0.6"
-  },
-  "devDependencies": {
     "@deepseek-ai/dsh-host-webserver": "0.1.0-rc.8",
+    "@earendil-works/pi-ai": "0.82.1",
     "@types/react": "~18.3.1",
     "react": "^18.2.0"
   },

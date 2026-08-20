@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/lifeboat",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus service plugin: 故障救生艇——兄弟插件崩溃时自动隔离（写用户 patch 层禁用），llm-pi 缺席时把其配置临时翻译为官方 llm-pi-ai 路由，恢复后自动还原",
   "type": "module",
   "main": "lib/index.js",
@@ -31,15 +31,22 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/dsh-home-paths": "0.1.0-rc.8",
-    "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
-    "@deepseek-ai/dsh-settings": "0.1.0-rc.8",
-    "@deepseek-ai/schemastery": "3.18.1",
     "yaml": "^2.6.0"
   },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-llm": "^0.1.0-rc.8",
+    "@deepseek-ai/dsh-settings": "^0.1.0-rc.8",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
   "devDependencies": {
-    "@deepseek-ai/dsh-host-webserver": "0.1.0-rc.8"
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-home-paths": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-host-webserver": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
+    "@deepseek-ai/dsh-settings": "0.1.0-rc.8",
+    "@deepseek-ai/schemastery": "3.18.1"
   },
   "publishConfig": {
     "access": "public"

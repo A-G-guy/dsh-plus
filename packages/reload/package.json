@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/reload",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus service+ui plugin: 设置页「重新加载」按钮与 /reload 命令——两段确认+倒计时后重启 systemd 托管的 dsh-web，恢复后浏览器自动刷新",
   "type": "module",
   "main": "lib/index.js",
@@ -33,14 +33,17 @@
       "platform": "web"
     }
   },
-  "dependencies": {
-    "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/schemastery": "3.18.1"
+  "dependencies": {},
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/schemastery": "^3.18.1"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
     "@deepseek-ai/dsh-agent": "0.1.0-rc.8",
     "@deepseek-ai/dsh-commands": "0.1.0-rc.8",
     "@deepseek-ai/dsh-host-webserver": "0.1.0-rc.8",
+    "@deepseek-ai/schemastery": "3.18.1",
     "@types/react": "~18.3.1",
     "react": "^18.2.0"
   },
