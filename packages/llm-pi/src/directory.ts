@@ -26,6 +26,7 @@ export function buildDirectoryEntries(
   settingsNs: string,
   piProfiles: Map<string, { displayName: string }>,
   deepseekRoutes: Map<string, ResolvedDeepseekRoute>,
+  drafts: ReadonlyArray<{ route: string; displayName: string }>,
 ): DirectoryEntry[] {
   const piEntries = [...piProfiles.entries()].map(([provider, profile]) => ({
     provider,
@@ -41,7 +42,15 @@ export function buildDirectoryEntries(
     settingsPath: ['providers', built.route],
     declared: true,
   }))
-  return [...piEntries, ...deepseekEntries]
+  // 草稿路由不进 adapter，但要在目录里可见（Models 页/配置卡片入口）
+  const draftEntries = drafts.map(({ route, displayName }) => ({
+    provider: route,
+    displayName,
+    settingsNs,
+    settingsPath: ['providers', route],
+    declared: true,
+  }))
+  return [...piEntries, ...deepseekEntries, ...draftEntries]
 }
 
 /**

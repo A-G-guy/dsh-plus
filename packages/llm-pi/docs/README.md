@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-22 03:10"
+last_modified: "2026-08-22 03:21"
 ---
 
 # @dsh-plus/llm-pi 文档索引
@@ -77,7 +77,7 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
 | `reasoning` / `thinkingBudgets` / `cacheRetention` / `transport` | 同官方语义 |
 | `timeoutMs` / `websocketConnectTimeoutMs` / `streamIdleTimeoutMs` / `retryPolicy` | 同官方语义 |
 | `maxRequestImageBytes` | 单请求 base64 图片载荷上限（字节）；缺省 20MiB（rc8 起官方 profile 必需字段，旧配置免改自动生效） |
-| `models` | 模型条目数组；**缺省且 provider 有 extends 时继承该源全部模型** |
+| `models` | 模型条目数组；**缺省且 provider 有 extends 时继承该源全部模型**；两者皆无即"草稿路由"——不注册进 adapter（无模型可服务），但仍出现在可配置 provider 目录里，便于先占位后补模型 |
 
 ### 模型级
 

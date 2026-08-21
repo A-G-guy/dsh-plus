@@ -296,9 +296,23 @@ function materializeRouteModels(
 }
 
 /**
+ * 草稿路由：adapter pi、无 models 且无 provider 级 extends——占位待补
+ * （用户先建路由、后填模型的工作流）。草稿不注册进 adapter（无模型可服务），
+ * 但仍出现在可配置 provider 目录里（Models 页/配置卡片可见可编辑）。
+ */
+export function isDraftRoute(profile: ProviderProfileConfig): boolean {
+  return (
+    (profile.adapter ?? 'pi') === 'pi' &&
+    (profile.models === undefined || profile.models.length === 0) &&
+    profile.extends === undefined
+  )
+}
+
+/**
  * 校验并物化全部 route。任一 route 不可服务即整体抛错——
  * settings 写入校验与运行期 profiles 回调共用本函数，
  * 保证"写入时被拒"与"运行期不可能拿到坏配置"互为表里。
+ * 草稿路由（isDraftRoute）跳过物化，不参与 adapter 注册。
  */
 export function buildProfiles(
   providers: Record<string, ProviderProfileConfig> | undefined,
@@ -308,6 +322,7 @@ export function buildProfiles(
   for (const [route, profile] of Object.entries(providers ?? {})) {
     // adapter: deepseek 的 route 由 profiles-deepseek.ts 物化（官方 DeepSeekAdapter 链路）
     if ((profile.adapter ?? 'pi') === 'deepseek') continue
+    if (isDraftRoute(profile)) continue // 草稿路由：占位待补，不进 adapter
     if (route.length === 0) throw new Error('llm-pi: provider 名不能为空')
     // 注意：不做"route 名与内置 provider 名重名"的静态校验——内置名 ≠ 已注册
     // route（如官方 llm-pi-ai 配置清空后 anthropic 名可用）。真实冲突只在注册期

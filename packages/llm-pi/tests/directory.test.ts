@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { commitDirectory, type DirectoryEntry } from '../src/directory.ts'
+import { ModelsDevSource } from '../src/catalog/models-dev.ts'
+import { buildDirectoryEntries, commitDirectory, type DirectoryEntry } from '../src/directory.ts'
+import { assertServiceable, buildProfiles } from '../src/profiles.ts'
+import { loadVendoredKit } from '../src/resolve-dsh.ts'
 
 function entry(provider: string): DirectoryEntry {
   return {
@@ -59,4 +62,45 @@ test('冲突消息匹配但剔除无效（防死循环护栏）时上抛原错�
     throw new Error('configurable provider "ghost" is already declared')
   }
   assert.throws(() => commitDirectory(register, [entry('chat')], () => {}), /already declared/)
+})
+
+test('草稿路由（无 models 无 extends）进目录条目，displayName 缺省回退路由名', () => {
+  const kit = loadVendoredKit()
+  const entries = buildDirectoryEntries(kit, 'dsh-plus-llm-pi', new Map(), new Map(), [
+    { route: 'newapi-chat', displayName: 'newapi(chat)' },
+    { route: 'bare-draft', displayName: 'bare-draft' },
+  ])
+  assert.deepEqual(
+    entries.map((e) => [e.provider, e.displayName, e.declared]),
+    [
+      ['newapi-chat', 'newapi(chat)', true],
+      ['bare-draft', 'bare-draft', true],
+    ],
+  )
+})
+
+test('草稿路由被 buildProfiles 跳过（不进 adapter），写时校验不拒绝', () => {
+  const kit = loadVendoredKit()
+  const modelsDev = new ModelsDevSource(
+    '/tmp/nonexistent-draft-test.json',
+    'http://127.0.0.1:1/x',
+    0,
+    () => {},
+  )
+  const providers = {
+    'newapi-chat': { displayName: 'newapi(chat)' },
+    'newapi-response': {
+      displayName: 'newapi(response)',
+      api: 'openai-completions',
+      baseURL: 'http://127.0.0.1:1/v1',
+      apiKeyEnv: 'K',
+      models: [{ id: 'gpt-5.6-sol' }],
+    },
+  }
+  const profiles = buildProfiles(providers, { kit, modelsDev })
+  // Given 草稿 + 正常路由 —— When 物化 —— Then 草稿跳过、正常路由照常
+  assert.equal(profiles.has('newapi-chat'), false)
+  assert.ok(profiles.has('newapi-response'))
+  // 严格写时校验同样放行草稿
+  assertServiceable(providers, { kit, modelsDev })
 })

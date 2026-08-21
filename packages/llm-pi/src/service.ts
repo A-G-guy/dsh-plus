@@ -21,7 +21,7 @@ import { Config, type LlmPiConfig, SETTINGS_NS } from './config.ts'
 import { DeepseekRouteRegistrar } from './deepseek-routes.ts'
 import { buildDirectoryEntries, commitDirectory, type DirectoryEntry } from './directory.ts'
 import { discoverModels } from './discovery.ts'
-import { assertServiceable, buildProfiles } from './profiles.ts'
+import { assertServiceable, buildProfiles, isDraftRoute } from './profiles.ts'
 import { buildDeepseekRoutes, type ResolvedDeepseekRoute } from './profiles-deepseek.ts'
 import { type DshKit, resolveDshKit } from './resolve-dsh.ts'
 
@@ -212,8 +212,21 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
 
   let directory: { replace: (entries: unknown[]) => void } | undefined
   let directoryFacts: unknown
+  /** 草稿路由（无模型占位）从原始配置直读——它们不进 adapter profiles。 */
+  const draftRoutes = (): { route: string; displayName: string }[] => {
+    const providers = current().providers ?? {}
+    return Object.entries(providers)
+      .filter(([, profile]) => isDraftRoute(profile))
+      .map(([route, profile]) => ({ route, displayName: profile.displayName ?? route }))
+  }
   const ensureDirectory = (): void => {
-    const entries = buildDirectoryEntries(kit, SETTINGS_NS, profiles(), deepseekRoutes())
+    const entries = buildDirectoryEntries(
+      kit,
+      SETTINGS_NS,
+      profiles(),
+      deepseekRoutes(),
+      draftRoutes(),
+    )
     // 备忘键为目标全集（含被冲突跳过的条目）：目标不变不重复尝试/告警
     if (deepEqualJson(entries, directoryFacts)) return
     if (entries.length === 0) {
