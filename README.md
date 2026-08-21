@@ -23,6 +23,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | 包 | 版本 | 类型 | 说明 | 文档 |
 |---|---|---|---|---|
 | [`@dsh-plus/ui-mobile-fit`](packages/ui-mobile-fit) | 0.1.3 | UI | 纯 CSS 覆盖的移动端窄屏响应式适配，不 fork 上游、跟随升级 | [docs](packages/ui-mobile-fit/docs/README.md) |
+| [`@dsh-plus/remote-settings`](packages/remote-settings) | 0.1.0 | UI | 修复非 loopback 访问（loopback-rewrite 反代）下设置→模型目录报错与插件配置卡片不渲染 | [docs](packages/remote-settings/docs/README.md) |
 | [`@dsh-plus/notify-email`](packages/notify-email) | 0.1.0 | service + UI | 任务完成 / 等待决策 / 出错停止时向指定邮箱发送邮件通知 | [docs](packages/notify-email/docs/README.md) |
 | [`@dsh-plus/subagent-model`](packages/subagent-model) | 0.1.0 | service + UI | 为 `subagent` / `subagent_fork` 等子代理单独配置模型与思考程度 | [docs](packages/subagent-model/docs/README.md) |
 | [`@dsh-plus/llm-pi`](packages/llm-pi) | 0.1.0 | service + UI | 基于 pi-ai 的自定义 LLM 路由：三协议 route、官方目录继承、全量 compat、models.dev 兜底 | [docs](packages/llm-pi/docs/README.md) |

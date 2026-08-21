@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/bundle-main",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "dsh-plus aggregate bundle: ordered cordis patch layer wiring all dsh-plus plugins",
   "type": "module",
   "main": "lib/index.js",
@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@dsh-plus/ui-mobile-fit": "workspace:*",
+    "@dsh-plus/remote-settings": "workspace:*",
     "@dsh-plus/notify-email": "workspace:*",
     "@dsh-plus/subagent-model": "workspace:*",
     "@dsh-plus/llm-pi": "workspace:*",

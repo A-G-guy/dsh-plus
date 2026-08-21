@@ -9,6 +9,8 @@
       name: '@dsh-plus/lifeboat'
     - id: dsh-plus-ui-mobile-fit
       name: '@dsh-plus/ui-mobile-fit'
+    - id: dsh-plus-remote-settings
+      name: '@dsh-plus/remote-settings'
     - id: dsh-plus-notify-email
       name: '@dsh-plus/notify-email'
     - id: dsh-plus-subagent-model
