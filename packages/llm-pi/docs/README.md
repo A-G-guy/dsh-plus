@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-22 01:13"
+last_modified: "2026-08-22 03:10"
 ---
 
 # @dsh-plus/llm-pi 文档索引
@@ -122,7 +122,9 @@ anthropic 9 个字段，见 `src/compat.ts`）。
   不再抛错弄挂整个 route；写时校验（settings 写入）保持严格，非法引用在写入处拒绝。
 - **注册冲突降级**：整批 `registerAdapter` 遇 `DUPLICATE_ADAPTER`（route 名与其他
   adapter 冲突）时降级为逐个 route 注册，跳过冲突者并告警——启动不再 fail-loud；
-  热更新原子 replace 被拒时保留旧注册。
+  热更新原子 replace 被拒时保留旧注册。可配置 provider 目录同理：官方目录注册
+  是原子语义（任一条目撞既有声明整批不落盘），撞名（如 route 叫 `anthropic`
+  撞上官方内置目录条目）时逐个剔除冲突条目重试并告警，其余条目照常生效。
 - 配置读写走官方 settingsScope 传输（浏览器半 `settingsScope.bind` +
   `connection.api.settings`；rc7 起第三方命名空间对 settings RPC 全量开放），
   保存为 `settings.replace` 整段覆盖（providers dict 删除语义）；写入经既有
