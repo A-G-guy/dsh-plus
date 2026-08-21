@@ -285,7 +285,7 @@ function providerToWire(provider: ProviderDraft): WireProvider {
       compat: provider.compat,
       defaultContextWindow: toNum(provider.defaultContextWindow),
       defaultMaxTokens: toNum(provider.defaultMaxTokens),
-      input: inputToWire(provider.input),
+      defaultInput: inputToWire(provider.input),
       reasoning: provider.reasoning,
       thinkingBudgets: budgetToWire(provider.thinkingBudgets),
       cacheRetention: provider.cacheRetention,

@@ -16,10 +16,10 @@ import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import { deepEqualJson, installSettingsSection } from '@deepseek-ai/dsh-settings'
 
-import { hasBuiltinProvider } from './catalog/builtin.ts'
 import { ModelsDevSource } from './catalog/models-dev.ts'
 import { Config, type LlmPiConfig, SETTINGS_NS } from './config.ts'
 import { DeepseekRouteRegistrar } from './deepseek-routes.ts'
+import { buildDirectoryEntries, commitDirectory, type DirectoryEntry } from './directory.ts'
 import { discoverModels } from './discovery.ts'
 import { assertServiceable, buildProfiles } from './profiles.ts'
 import { buildDeepseekRoutes, type ResolvedDeepseekRoute } from './profiles-deepseek.ts'
@@ -213,29 +213,23 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
   let directory: { replace: (entries: unknown[]) => void } | undefined
   let directoryFacts: unknown
   const ensureDirectory = (): void => {
-    const piEntries = [...profiles().entries()].map(([provider, profile]) => ({
-      provider,
-      displayName: profile.displayName,
-      settingsNs: SETTINGS_NS,
-      settingsPath: ['providers', provider],
-      declared: !hasBuiltinProvider(kit, provider),
-    }))
-    const deepseekEntries = [...deepseekRoutes().values()].map((built) => ({
-      provider: built.route,
-      displayName: built.displayName,
-      settingsNs: SETTINGS_NS,
-      settingsPath: ['providers', built.route],
-      declared: true,
-    }))
-    const entries = [...piEntries, ...deepseekEntries]
+    const entries = buildDirectoryEntries(kit, SETTINGS_NS, profiles(), deepseekRoutes())
+    // 备忘键为目标全集（含被冲突跳过的条目）：目标不变不重复尝试/告警
     if (deepEqualJson(entries, directoryFacts)) return
     if (entries.length === 0) {
       // 空目录不可注册（INVALID_DIRECTORY）；等 settings 用户层供数后在 onChange 注册
       directoryFacts = entries
       return
     }
-    if (directory === undefined) directory = ctx.llm.registerConfigurableProviders(entries as never)
-    else directory.replace(entries)
+    commitDirectory(
+      (batch: DirectoryEntry[]) => {
+        if (directory === undefined)
+          directory = ctx.llm.registerConfigurableProviders(batch as never)
+        else directory.replace(batch)
+      },
+      entries,
+      (message) => logger.warn(message),
+    )
     directoryFacts = entries
   }
 
