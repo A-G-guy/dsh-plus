@@ -38,6 +38,8 @@ export interface ModelDraft {
   input: InputDraft
   reasoningEfforts: ReasoningDraft
   compat: Record<string, unknown>
+  /** 卡片未认识的字段原样往返（如 adapter: deepseek 的 imagePixelBudget 等）。 */
+  extra: Record<string, unknown>
 }
 
 export interface ProviderDraft {
@@ -61,6 +63,8 @@ export interface ProviderDraft {
   maxRequestImageBytes: string
   retryPolicy: unknown
   models: ModelDraft[]
+  /** 卡片未认识的字段原样往返（如 adapter/thinking/filesApiTimeoutMs 等）。 */
+  extra: Record<string, unknown>
 }
 
 export interface Draft {
@@ -167,6 +171,50 @@ function omitEmpty(obj: Record<string, unknown>): Record<string, unknown> {
   return out
 }
 
+/** 卡片已认识的 wire 字段（其余进 extra 原样往返）。 */
+const KNOWN_MODEL_KEYS = new Set([
+  'id',
+  'extends',
+  'name',
+  'contextWindow',
+  'maxTokens',
+  'input',
+  'reasoningEfforts',
+  'compat',
+])
+
+const KNOWN_PROVIDER_KEYS = new Set([
+  'extends',
+  'displayName',
+  'api',
+  'baseURL',
+  'apiKeyEnv',
+  'headers',
+  'compat',
+  'defaultContextWindow',
+  'defaultMaxTokens',
+  'defaultInput',
+  'reasoning',
+  'thinkingBudgets',
+  'cacheRetention',
+  'transport',
+  'timeoutMs',
+  'websocketConnectTimeoutMs',
+  'streamIdleTimeoutMs',
+  'maxRequestImageBytes',
+  'retryPolicy',
+  'models',
+])
+
+/** 摘出 wire 对象里卡片未认识的字段（undefined 值不保留）。 */
+function extraOf(wire: Record<string, unknown>, known: Set<string>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(wire)) {
+    if (!known.has(key) && value !== undefined) out[key] = value
+  }
+  return out
+}
+
 function modelDraftFromWire(model: WireModel): ModelDraft {
   return {
     id: model.id,
@@ -177,21 +225,25 @@ function modelDraftFromWire(model: WireModel): ModelDraft {
     input: inputFromWire(model.input),
     reasoningEfforts: reasoningFromWire(model.reasoningEfforts),
     compat: { ...(model.compat ?? {}) },
+    extra: extraOf(model as Record<string, unknown>, KNOWN_MODEL_KEYS),
   }
 }
 
 function modelToWire(model: ModelDraft): WireModel {
   const reasoningEfforts = reasoningToWire(model.reasoningEfforts)
-  return omitEmpty({
-    id: model.id.trim(),
-    extends: model.extends.trim(),
-    name: model.name.trim(),
-    contextWindow: toNum(model.contextWindow),
-    maxTokens: toNum(model.maxTokens),
-    input: inputToWire(model.input),
-    ...(reasoningEfforts === undefined ? {} : { reasoningEfforts }),
-    compat: model.compat,
-  }) as WireModel
+  return {
+    ...model.extra,
+    ...(omitEmpty({
+      id: model.id.trim(),
+      extends: model.extends.trim(),
+      name: model.name.trim(),
+      contextWindow: toNum(model.contextWindow),
+      maxTokens: toNum(model.maxTokens),
+      input: inputToWire(model.input),
+      ...(reasoningEfforts === undefined ? {} : { reasoningEfforts }),
+      compat: model.compat,
+    }) as Record<string, unknown>),
+  } as unknown as WireModel
 }
 
 function providerDraftFromWire(provider: WireProvider): ProviderDraft {
@@ -216,32 +268,36 @@ function providerDraftFromWire(provider: WireProvider): ProviderDraft {
     maxRequestImageBytes: numToText(provider.maxRequestImageBytes),
     retryPolicy: provider.retryPolicy,
     models: (provider.models ?? []).map(modelDraftFromWire),
+    extra: extraOf(provider as Record<string, unknown>, KNOWN_PROVIDER_KEYS),
   }
 }
 
 function providerToWire(provider: ProviderDraft): WireProvider {
-  return omitEmpty({
-    extends: provider.extends.trim(),
-    displayName: provider.displayName.trim(),
-    api: provider.api,
-    baseURL: provider.baseURL.trim(),
-    apiKeyEnv: provider.apiKeyEnv.trim(),
-    headers: pairsToHeaders(provider.headers),
-    compat: provider.compat,
-    defaultContextWindow: toNum(provider.defaultContextWindow),
-    defaultMaxTokens: toNum(provider.defaultMaxTokens),
-    input: inputToWire(provider.input),
-    reasoning: provider.reasoning,
-    thinkingBudgets: budgetToWire(provider.thinkingBudgets),
-    cacheRetention: provider.cacheRetention,
-    transport: provider.transport,
-    timeoutMs: toNum(provider.timeoutMs),
-    websocketConnectTimeoutMs: toNum(provider.websocketConnectTimeoutMs),
-    streamIdleTimeoutMs: toNum(provider.streamIdleTimeoutMs),
-    maxRequestImageBytes: toNum(provider.maxRequestImageBytes),
-    retryPolicy: provider.retryPolicy,
-    models: provider.models.map(modelToWire),
-  }) as WireProvider
+  return {
+    ...provider.extra,
+    ...(omitEmpty({
+      extends: provider.extends.trim(),
+      displayName: provider.displayName.trim(),
+      api: provider.api,
+      baseURL: provider.baseURL.trim(),
+      apiKeyEnv: provider.apiKeyEnv.trim(),
+      headers: pairsToHeaders(provider.headers),
+      compat: provider.compat,
+      defaultContextWindow: toNum(provider.defaultContextWindow),
+      defaultMaxTokens: toNum(provider.defaultMaxTokens),
+      input: inputToWire(provider.input),
+      reasoning: provider.reasoning,
+      thinkingBudgets: budgetToWire(provider.thinkingBudgets),
+      cacheRetention: provider.cacheRetention,
+      transport: provider.transport,
+      timeoutMs: toNum(provider.timeoutMs),
+      websocketConnectTimeoutMs: toNum(provider.websocketConnectTimeoutMs),
+      streamIdleTimeoutMs: toNum(provider.streamIdleTimeoutMs),
+      maxRequestImageBytes: toNum(provider.maxRequestImageBytes),
+      retryPolicy: provider.retryPolicy,
+      models: provider.models.map(modelToWire),
+    }) as Record<string, unknown>),
+  } as unknown as WireProvider
 }
 
 export function emptyProviderDraft(): ProviderDraft {
@@ -266,6 +322,7 @@ export function emptyProviderDraft(): ProviderDraft {
     maxRequestImageBytes: '',
     retryPolicy: undefined,
     models: [],
+    extra: {},
   }
 }
 
@@ -279,6 +336,7 @@ export function emptyModelDraft(): ModelDraft {
     input: { text: false, image: false },
     reasoningEfforts: { nonReasoning: false, levels: {} },
     compat: {},
+    extra: {},
   }
 }
 

@@ -22,12 +22,14 @@ export default defineConfig([
   {
     entry: 'src/index.ts',
     format: 'esm',
+    fixedExtension: false,
     dts: true,
     outDir: 'lib',
   },
   {
     entry: 'src/client/client.ts',
     format: 'cjs',
+    fixedExtension: false,
     dts: true,
     outDir: 'lib',
     outputOptions: {

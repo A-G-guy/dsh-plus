@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-18 18:54"
+last_modified: "2026-08-22 01:13"
 ---
 
 # @dsh-plus/lifeboat 文档索引
@@ -13,7 +13,9 @@ last_modified: "2026-08-18 18:54"
   `POST /dsh-plus/lifeboat/quarantine` 回报），向 profile 用户 patch 层
   （默认 `$DSH_HOME/profiles/web/cordis.patch.yml`，行级 config `patchFile` 可覆盖）
   追加 `{id, disabled: true}`。只处理 `dsh-plus-` 前缀，排除自身与 bundle-main。
-  写入幂等、先备份（`.lifeboat.bak`）、原子落盘。
+  写入幂等、先备份（`.lifeboat.bak`）、原子落盘。隔离时摘录 fiber 的失败原因
+  （`fiber._error`，截断 500 字符）进 journal 与告警正文——dsh 的插件 logger
+  不落 stdout，无此摘录则故障根因不可见。
 - **LLM 应急翻译**（`src/fallback-llm.ts`）：默认模型 provider 无已注册 adapter 时，
   读 settings.yaml 的 `dsh-plus-llm-pi` 段（只读），翻译为官方 `llm-pi-ai`
   原生格式（键加 `-fb` 后缀防 DUPLICATE_ADAPTER），切换 `agent-default-model`；

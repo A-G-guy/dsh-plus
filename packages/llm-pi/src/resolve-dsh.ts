@@ -16,8 +16,15 @@
 import { existsSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import type { getOrCreateAnonymousUserId as getAnonIdType } from '@deepseek-ai/dsh-anonymous-user-id'
+import * as vendoredAnonId from '@deepseek-ai/dsh-anonymous-user-id'
 import type * as DshLlm from '@deepseek-ai/dsh-llm'
 import * as vendoredLlm from '@deepseek-ai/dsh-llm'
+import type {
+  DeepSeekAdapter as DeepSeekAdapterType,
+  resolveAdapterOptions as resolveDeepSeekOptionsType,
+} from '@deepseek-ai/dsh-llm-deepseek'
+import * as vendoredDeepseek from '@deepseek-ai/dsh-llm-deepseek'
 import type { PiAiAdapter as PiAiAdapterType } from '@deepseek-ai/dsh-llm-pi-ai'
 import * as vendoredPiAiAdapter from '@deepseek-ai/dsh-llm-pi-ai'
 import type * as PiAi from '@earendil-works/pi-ai'
@@ -28,6 +35,18 @@ import { openAIResponsesApi as vendoredResponses } from '@earendil-works/pi-ai/a
 import * as vendoredCatalog from '@earendil-works/pi-ai/providers/all'
 
 import type { ProtocolId } from './config.ts'
+
+/**
+ * deepseek 适配器模块表面（可选）：dsh-llm-deepseek 的官方 DeepSeekAdapter
+ * 与目录解析器 + 匿名用户 id。缺失（旧版 dsh 树或形状漂移）不拖垮核心
+ * 套件——deepseek 类 route 在构建期以明确错误拒绝，pi 路由不受影响。
+ * 与核心套件强制同源（杜绝跨源模块混用：brand/LlmError 恒等性敏感）。
+ */
+export interface DeepSeekKit {
+  DeepSeekAdapter: typeof DeepSeekAdapterType
+  resolveAdapterOptions: typeof resolveDeepSeekOptionsType
+  getOrCreateAnonymousUserId: typeof getAnonIdType
+}
 
 /** 插件运行期所需的全部上游模块表面（单一来源，内部一致）。 */
 export interface DshKit {
@@ -46,6 +65,8 @@ export interface DshKit {
   getBuiltinModels: typeof vendoredCatalog.getBuiltinModels
   /** 三协议的 pi-ai api 实现工厂（与官方 PROTOCOLS 表同来源）。 */
   protocolFactories: Record<ProtocolId, () => unknown>
+  /** deepseek 文件通道路由所需模块；同源自检失败时为 undefined（见 diagnostics）。 */
+  deepseek?: DeepSeekKit
 }
 
 /** kit 必备形状清单：缺失即视为上游不兼容。 */
@@ -76,6 +97,22 @@ function assertKitShape(kit: DshKit, origin: string): void {
   if (problems.length > 0) {
     throw new Error(`llm-pi: ${origin} 来源的运行时套件形状不兼容：${problems.join('；')}`)
   }
+}
+
+/** deepseek 模块形状自检；返回问题清单（空 = 可用），由调用方决定降级。 */
+function checkDeepseekShape(kit: DeepSeekKit): string[] {
+  const problems: string[] = []
+  if (typeof kit.DeepSeekAdapter !== 'function') problems.push('DeepSeekAdapter 不是类')
+  else if (
+    typeof (kit.DeepSeekAdapter.prototype as Record<string, unknown>)['stream'] !== 'function'
+  ) {
+    problems.push('DeepSeekAdapter.prototype.stream 缺失')
+  }
+  if (typeof kit.resolveAdapterOptions !== 'function') problems.push('resolveAdapterOptions 缺失')
+  if (typeof kit.getOrCreateAnonymousUserId !== 'function') {
+    problems.push('getOrCreateAnonymousUserId 缺失')
+  }
+  return problems
 }
 
 /** 从 startDir 向上找同时含有 dsh-llm-pi-ai 与 pi-ai 的安装树根。 */
@@ -123,6 +160,33 @@ async function importTreeModules(root: string): Promise<TreeModules> {
   return { piAiAdapter, llm, piAi, catalog, completions, responses, anthropic }
 }
 
+/** 从同一 dsh 安装树加载 deepseek 适配器模块（失败返回 undefined，不拖垮核心套件）。 */
+async function importTreeDeepseek(root: string): Promise<{ kit?: DeepSeekKit; problem?: string }> {
+  const nm = join(root, 'node_modules')
+  const load = (absPath: string): Promise<Record<string, unknown>> =>
+    import(pathToFileURL(absPath).href) as Promise<Record<string, unknown>>
+  try {
+    const [deepseek, anonId] = await Promise.all([
+      load(join(nm, '@deepseek-ai', 'dsh-llm-deepseek', 'lib', 'index.js')),
+      load(join(nm, '@deepseek-ai', 'dsh-anonymous-user-id', 'lib', 'index.js')),
+    ])
+    const kit: DeepSeekKit = {
+      DeepSeekAdapter: deepseek['DeepSeekAdapter'] as DeepSeekKit['DeepSeekAdapter'],
+      resolveAdapterOptions: deepseek[
+        'resolveAdapterOptions'
+      ] as DeepSeekKit['resolveAdapterOptions'],
+      getOrCreateAnonymousUserId: anonId[
+        'getOrCreateAnonymousUserId'
+      ] as DeepSeekKit['getOrCreateAnonymousUserId'],
+    }
+    const problems = checkDeepseekShape(kit)
+    if (problems.length > 0) return { problem: `形状不兼容：${problems.join('；')}` }
+    return { kit }
+  } catch (error) {
+    return { problem: error instanceof Error ? error.message : String(error) }
+  }
+}
+
 function kitFromTree(mods: TreeModules): DshKit {
   return {
     source: 'dsh-tree',
@@ -145,8 +209,19 @@ function kitFromTree(mods: TreeModules): DshKit {
   }
 }
 
+/** vendored 兜底副本的 deepseek 模块（形状自检不过时返回 undefined）。 */
+function loadVendoredDeepseek(): DeepSeekKit | undefined {
+  const kit: DeepSeekKit = {
+    DeepSeekAdapter: vendoredDeepseek.DeepSeekAdapter,
+    resolveAdapterOptions: vendoredDeepseek.resolveAdapterOptions,
+    getOrCreateAnonymousUserId: vendoredAnonId.getOrCreateAnonymousUserId,
+  }
+  return checkDeepseekShape(kit).length === 0 ? kit : undefined
+}
+
 /** vendored 兜底副本套件（导出供单测直接使用，免走 dsh 树解析）。 */
 export function loadVendoredKit(): DshKit {
+  const deepseek = loadVendoredDeepseek()
   const kit: DshKit = {
     source: 'vendored',
     PiAiAdapter: vendoredPiAiAdapter.PiAiAdapter,
@@ -165,6 +240,7 @@ export function loadVendoredKit(): DshKit {
       'openai-responses': vendoredResponses,
       'anthropic-messages': vendoredAnthropic,
     },
+    ...(deepseek === undefined ? {} : { deepseek }),
   }
   assertKitShape(kit, 'vendored')
   return kit
@@ -196,6 +272,14 @@ export async function resolveDshKit(): Promise<{
     try {
       const kit = kitFromTree(await importTreeModules(anchor))
       assertKitShape(kit, 'dsh-tree')
+      const tree = await importTreeDeepseek(anchor)
+      if (tree.kit !== undefined) {
+        return { kit: { ...kit, deepseek: tree.kit }, diagnostics }
+      }
+      diagnostics.push(
+        `dsh 安装树的 dsh-llm-deepseek 不可用（${tree.problem ?? '未知原因'}）；` +
+          'adapter: deepseek 的 route 不可用，pi 路由不受影响',
+      )
       return { kit, diagnostics }
     } catch (error) {
       diagnostics.push(
@@ -206,5 +290,10 @@ export async function resolveDshKit(): Promise<{
     diagnostics.push('未能从 process.argv[1] 定位 dsh 安装树；回退 vendored 副本')
   }
   const kit = loadVendoredKit()
+  if (kit.deepseek === undefined) {
+    diagnostics.push(
+      'vendored 副本的 dsh-llm-deepseek 形状不兼容；adapter: deepseek 的 route 不可用',
+    )
+  }
   return { kit, diagnostics }
 }

@@ -32,6 +32,7 @@ import {
   THINKING_LEVELS,
 } from './config.ts'
 import { ExtendsError, resolveModelBase } from './inherit.ts'
+import { buildDeepseekRoutes } from './profiles-deepseek.ts'
 import type { DshKit } from './resolve-dsh.ts'
 
 /** 内置目录未描述时的零价目（harness 不消费 cost 元数据，同官方 NO_COST）。 */
@@ -305,6 +306,8 @@ export function buildProfiles(
 ): Map<string, ResolvedPiAiProviderProfile> {
   const resolved = new Map<string, ResolvedPiAiProviderProfile>()
   for (const [route, profile] of Object.entries(providers ?? {})) {
+    // adapter: deepseek 的 route 由 profiles-deepseek.ts 物化（官方 DeepSeekAdapter 链路）
+    if ((profile.adapter ?? 'pi') === 'deepseek') continue
     if (route.length === 0) throw new Error('llm-pi: provider 名不能为空')
     // 注意：不做"route 名与内置 provider 名重名"的静态校验——内置名 ≠ 已注册
     // route（如官方 llm-pi-ai 配置清空后 anthropic 名可用）。真实冲突只在注册期
@@ -384,4 +387,6 @@ export function assertServiceable(
   deps: BuildDeps,
 ): void {
   buildProfiles(config.providers, deps)
+  // deepseek 路由同样整体验证（严格模式）：写入处拒绝非法配置
+  buildDeepseekRoutes(config.providers, deps)
 }

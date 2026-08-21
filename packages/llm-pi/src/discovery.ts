@@ -7,6 +7,7 @@
  * @module llm-pi/discovery
  */
 import { builtinModelIds, hasBuiltinProvider } from './catalog/builtin.ts'
+import { officialModelIds } from './catalog/official.ts'
 import type { ProviderProfileConfig } from './config.ts'
 import type { DshKit } from './resolve-dsh.ts'
 
@@ -102,6 +103,32 @@ function readListing(kit: DshKit, body: unknown): DiscoveryEntry[] {
   return models
 }
 
+/** deepseek 路由直答：extends 'deepseek' 给官方目录全量；否则给 route 自配模型。 */
+function deepseekCatalogAnswer(kit: DshKit, route: ProviderProfileConfig): DiscoveryEntry[] {
+  if (kit.deepseek === undefined) {
+    throw new kit.LlmError(
+      '当前运行时套件不含 dsh-llm-deepseek，无法读取官方目录',
+      'DISCOVERY_FAILED',
+    )
+  }
+  if (route.extends === 'deepseek') {
+    return officialModelIds(kit).map((id) => ({ id }))
+  }
+  const models = (route.models ?? []).map((entry) => ({
+    id: entry.id,
+    ...(entry.name === undefined ? {} : { name: entry.name }),
+    ...(entry.contextWindow === undefined ? {} : { contextWindow: entry.contextWindow }),
+    ...(entry.maxTokens === undefined ? {} : { maxTokens: entry.maxTokens }),
+  }))
+  if (models.length === 0) {
+    throw new kit.LlmError(
+      '该 route 未配置 models 且未 extends deepseek；请手工录入模型',
+      'DISCOVERY_FAILED',
+    )
+  }
+  return models
+}
+
 /** 内置目录直答（route 配了 provider 级 extends 时）。 */
 function catalogAnswer(kit: DshKit, source: string): DiscoveryEntry[] {
   return builtinModelIds(kit, source).map((id) => {
@@ -117,8 +144,9 @@ function catalogAnswer(kit: DshKit, source: string): DiscoveryEntry[] {
 }
 
 /**
- * 回答"该 provider 可服务哪些模型"：extends 内置源零网络直答；
- * 否则仅 openai 系协议走 GET {baseURL}/models；其余协议明确不支持。
+ * 回答"该 provider 可服务哪些模型"：deepseek 路由读官方目录/自有配置直答；
+ * extends 内置源零网络直答；否则仅 openai 系协议走 GET {baseURL}/models；
+ * 其余协议明确不支持。
  */
 export async function discoverModels(
   request: DiscoveryRequest,
@@ -127,6 +155,9 @@ export async function discoverModels(
   const { kit } = deps
   const route: ProviderProfileConfig | undefined =
     request.provider === undefined ? undefined : deps.configProviders()[request.provider]
+  if ((route?.adapter ?? 'pi') === 'deepseek') {
+    return deepseekCatalogAnswer(kit, route)
+  }
   if (route?.extends !== undefined && hasBuiltinProvider(kit, route.extends)) {
     return catalogAnswer(kit, route.extends)
   }

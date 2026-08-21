@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/shared",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus workspace shared pure helpers (not a dsh plugin)",
   "type": "module",
   "main": "lib/index.js",
@@ -18,7 +18,7 @@
     "src"
   ],
   "scripts": {
-    "build": "tsdown src/index.ts -d lib --format esm --dts"
+    "build": "tsdown src/index.ts -d lib --format esm --dts --no-fixed-extension"
   },
   "publishConfig": {
     "access": "public"

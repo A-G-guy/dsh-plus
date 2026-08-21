@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/remote-settings",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh-plus ui plugin: 修复非 loopback 访问（loopback-rewrite 反代）下官方设置平面不可用——设置→模型目录报错、插件配置卡片不渲染",
   "type": "module",
   "main": "lib/index.js",

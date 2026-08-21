@@ -1,5 +1,10 @@
 packages:
   - packages/*
 allowBuilds:
-  '@google/genai': false
+  "@google/genai": false
   protobufjs: false
+# dsh rc.2 发布当天即需在 dev/vendored 依赖中使用；
+# minimumReleaseAgeExclude 对 prerelease range 的 peer 解析存在已知缺陷
+#（renovate#40610 同源），故对受信任的第一方 scope 整体豁免。
+minimumReleaseAgeExclude:
+  - "@deepseek-ai/*"

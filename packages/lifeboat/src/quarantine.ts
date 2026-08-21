@@ -31,7 +31,17 @@ export interface QuarantineDeps {
 
 export interface Quarantine {
   /** 隔离指定插件（幂等；冷却期内重复触发只计 journal 不写文件）。 */
-  quarantine(name: string, origin: 'host' | 'client'): Promise<void>
+  quarantine(name: string, origin: 'host' | 'client', reason?: unknown): Promise<void>
+}
+
+/** 告警/journal 里的失败原因摘录上限，防长堆栈淹没通知渠道。 */
+const REASON_CAP = 500
+
+/** 提取 fiber 失败原因的短文本（无则空串）；cordis 把错误挂在 fiber._error。 */
+function reasonText(reason: unknown): string {
+  if (reason === undefined || reason === null) return ''
+  const text = reason instanceof Error ? (reason.stack ?? reason.message) : String(reason)
+  return text.length > REASON_CAP ? `${text.slice(0, REASON_CAP)}…` : text
 }
 
 /** 装配隔离执行器（纯逻辑，可测）。 */
@@ -40,15 +50,21 @@ export function createQuarantine(ctx: Context, deps: QuarantineDeps): Quarantine
   const lastAlertAt = new Map<string, number>()
   const inFlight = new Set<string>()
 
-  async function quarantine(name: string, origin: 'host' | 'client'): Promise<void> {
+  async function quarantine(
+    name: string,
+    origin: 'host' | 'client',
+    reason?: unknown,
+  ): Promise<void> {
     if (!isGuardedPlugin(name)) return
     if (inFlight.has(name)) return
     inFlight.add(name)
+    const reasonBlock = reasonText(reason)
+    const reasonSuffix = reasonBlock === '' ? '' : `\n失败原因：\n${reasonBlock}`
     try {
       const written = await appendDisable(deps.patchFile, name)
       deps.journal(
         'quarantine',
-        `${name}（来源 ${origin}，${written ? '已写入禁用' : '已存在禁用'}）`,
+        `${name}（来源 ${origin}，${written ? '已写入禁用' : '已存在禁用'}）${reasonSuffix}`,
       )
       const now = Date.now()
       const last = lastAlertAt.get(name) ?? 0
@@ -58,7 +74,7 @@ export function createQuarantine(ctx: Context, deps: QuarantineDeps): Quarantine
           `[DSH] 插件 ${name} 加载失败，已自动隔离`,
           `检测到插件 ${name} 的 fiber 进入 FAILED（来源：${origin}）。\n` +
             `已向 ${deps.patchFile} 写入 disabled 覆盖，重启/刷新后该插件不再加载，其余插件不受影响。\n` +
-            `修复后删除该条覆盖即可恢复。`,
+            `修复后删除该条覆盖即可恢复。${reasonSuffix}`,
         )
       }
     } catch (error) {
@@ -82,9 +98,9 @@ export function createQuarantine(ctx: Context, deps: QuarantineDeps): Quarantine
  * fiber.name 对 loader 条目即插件 display name（模块导出的 name 字段）。
  */
 export function installHostWatch(ctx: Context, q: Quarantine): void {
-  ctx.root.on('internal/status', (fiber: { state: number; name: string }) => {
+  ctx.root.on('internal/status', (fiber: { state: number; name: string; _error?: unknown }) => {
     if (fiber.state !== FIBER_FAILED) return
     if (!isGuardedPlugin(fiber.name)) return
-    void q.quarantine(fiber.name, 'host')
+    void q.quarantine(fiber.name, 'host', fiber._error)
   })
 }

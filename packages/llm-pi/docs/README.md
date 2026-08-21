@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-20 00:39"
+last_modified: "2026-08-22 01:13"
 ---
 
 # @dsh-plus/llm-pi 文档索引
@@ -7,6 +7,8 @@ last_modified: "2026-08-20 00:39"
 自定义 LLM 路由插件：在官方 `llm-pi-ai` 之外，以**自动跟随 dsh 上游**的方式提供
 pi-ai 全量能力——三协议自定义 route、官方内置 provider/model 继承 + 字段级覆盖、
 全量 compat（官方配置路径会静默丢弃大部分 compat 字段）、models.dev 目录兜底。
+另支持 `adapter: deepseek` 路由：直接复用官方 `DeepSeekAdapter`（视觉模型图片走
+Files API 文件通道、失败自动降级 base64），模型继承官方内置目录而非 pi-ai 目录。
 配置 UI 位于 webui「设置 → 插件 → 插件配置」，持久化到 `$DSH_HOME/settings.yaml`
 （namespace `dsh-plus-llm-pi`）并热生效。
 
@@ -23,6 +25,34 @@ pi-ai 全量能力——三协议自定义 route、官方内置 provider/model �
 - **继承而非复制**：`PiAiAdapter` 构造 seam（`profiles` / `resolveApiKey` /
   `resolveAttachments` 回调）是官方给出的插件自有解析钩子；schema 校验完全在
   adapter 之外，本插件自行实现配置层。
+
+## adapter: deepseek 路由（文件通道）
+
+provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapter`
+（`@deepseek-ai/dsh-llm-deepseek`，同树同实例）服务，而不是 PiAiAdapter：
+
+- **文件通道免费获得**：视觉模型的图片输入先经 Files API 上传为 file_id 引用
+  （配额清理、过期刷新、`file_id` 被拒后失效重传），上传失败自动降级 base64 内联——
+  全套策略在官方适配器内部，本插件只喂配置。
+- **继承官方内置目录**：模型条目只写 `id` 即继承同名官方模型的模态/像素预算等
+  能力（如 `deepseek-v4-flash-vision-exp` 自动获得 image 模态）；route 级
+  `extends: deepseek` 全量继承官方目录，模型级 `extends: 'deepseek/<id>'` 可起别名。
+  官方目录取自 `resolveAdapterOptions({}, undefined)`，随 dsh 树升级自动更新。
+- **与官方 `deepseek-official` 渠道隔离**：路由名独立；文件索引作用域为
+  sha256(baseURL + apiKey)（官方实现），中转与官方分池互不串扰；实例/重试策略独立。
+- **配置子集**：共享字段（`displayName`/`baseURL`/`apiKeyEnv`/`defaultContextWindow`/
+  `defaultMaxTokens`/`streamIdleTimeoutMs`/`retryPolicy`/`models`）语义不变；
+  deepseek 专有字段 `thinking`/`reasoningEffort`/文件与图片限额组
+  （`maxRequestFilesBytes`/`maxInlineRequestImageBytes`/`maxImagesPerRequest` 及三个
+  offload quantum）/`filesApiTimeoutMs`/`fileExpiresAfterSeconds`/`fileRefreshMarginSeconds`
+  原样透传官方 `resolveAdapterOptions` 校验；pi 专有字段（`api`/`compat`/`headers`/
+  `transport`/`reasoning` 等）在 deepseek 路由上**写时拒绝**（防误以为生效）。
+  `apiKeyEnv` 必填（DeepSeekAdapter 无环境自发现）；`baseURL` 必填，除非
+  `extends: deepseek`（继承官方端点）。
+- **运行时依赖**：需要 dsh ≥ 0.1.1-rc.2（树内含 `dsh-llm-deepseek`）；旧版 dsh 树下
+  deepseek 路由在写入/启动时以明确错误拒绝，pi 路由不受影响（kit 诊断有日志）。
+- 配置卡片暂未提供 deepseek 专有字段的编辑控件，但未知字段会**原样往返保留**
+  （卡片编辑不会丢 `adapter` 等手写字段）；deepseek 路由建议直接编辑 settings.yaml。
 
 ## 配置项（settings namespace `dsh-plus-llm-pi`）
 
@@ -113,6 +143,13 @@ anthropic 9 个字段，见 `src/compat.ts`）。
 - schemastery 陷阱（已踩过）：array 字段缺省物化为 `[]`（`defaultInput` 必须给
   schema 默认值）；settings 层 deepFreeze 的解析值不能再过带键约束 dict 的 schema
   二次校验——`setSource` 收到的是 thunk，保存引用而非立即求值包装。
+- schemastery 物化噪声（已踩过）：**dict 字段无 default 也会物化为 `{}`**
+  （`compat`/`headers`/`thinkingBudgets`），`defaultInput` 物化为 `['text']`、
+  模型 `input` 物化为 `[]`。凡"用户是否配置了该字段"的判定（如 adapter: deepseek
+  对 pi 专有字段的写时拒绝）必须按语义判空——空 dict/物化默认值视为未配置，
+  否则 settings 投递路径（解析值过 validate 钩子）会把合法配置误判拒绝，
+  fiber 在启动期 FAILED（lifeboat 会隔离插件）；单测若只喂原始对象则覆盖不到，
+  须先过 `Config['~standard'].validate` 再构建（见 tests/profiles-deepseek.test.ts）。
 
 ## 开发
 

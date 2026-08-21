@@ -19,8 +19,10 @@ import { deepEqualJson, installSettingsSection } from '@deepseek-ai/dsh-settings
 import { hasBuiltinProvider } from './catalog/builtin.ts'
 import { ModelsDevSource } from './catalog/models-dev.ts'
 import { Config, type LlmPiConfig, SETTINGS_NS } from './config.ts'
+import { DeepseekRouteRegistrar } from './deepseek-routes.ts'
 import { discoverModels } from './discovery.ts'
 import { assertServiceable, buildProfiles } from './profiles.ts'
+import { buildDeepseekRoutes, type ResolvedDeepseekRoute } from './profiles-deepseek.ts'
 import { type DshKit, resolveDshKit } from './resolve-dsh.ts'
 
 export interface LlmPiRuntime {
@@ -89,6 +91,7 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
   let current: () => LlmPiConfig = () => config
   let lastRaw: LlmPiConfig | undefined
   let memoized: Map<string, ResolvedPiAiProviderProfile> | undefined
+  let memoizedDeepseek: Map<string, ResolvedDeepseekRoute> | undefined
   const deps = { kit, modelsDev }
   /** 当前已解析 profiles，按原始 config identity 备忘（官方同款模式）。
    *  运行期走 lenient：数据源漂移时降级/跳过并告警，而非抛错弄挂整个 route。 */
@@ -102,9 +105,21 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
           warn: (message) => logger.warn(message),
         })
       : new Map()
+    memoizedDeepseek = raw.enabled
+      ? buildDeepseekRoutes(raw.providers, {
+          kit,
+          lenient: true,
+          warn: (message) => logger.warn(message),
+        })
+      : new Map()
     lastRaw = raw
     memoized = next
     return next
+  }
+  /** deepseek 路由物化表（与 profiles 同一次备忘窗口）。 */
+  const deepseekRoutes = (): Map<string, ResolvedDeepseekRoute> => {
+    profiles()
+    return memoizedDeepseek ?? new Map()
   }
   profiles() // 行级 config 不可服务则启动即失败（官方同款 fail-fast）
 
@@ -198,13 +213,21 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
   let directory: { replace: (entries: unknown[]) => void } | undefined
   let directoryFacts: unknown
   const ensureDirectory = (): void => {
-    const entries = [...profiles().entries()].map(([provider, profile]) => ({
+    const piEntries = [...profiles().entries()].map(([provider, profile]) => ({
       provider,
       displayName: profile.displayName,
       settingsNs: SETTINGS_NS,
       settingsPath: ['providers', provider],
       declared: !hasBuiltinProvider(kit, provider),
     }))
+    const deepseekEntries = [...deepseekRoutes().values()].map((built) => ({
+      provider: built.route,
+      displayName: built.displayName,
+      settingsNs: SETTINGS_NS,
+      settingsPath: ['providers', built.route],
+      declared: true,
+    }))
+    const entries = [...piEntries, ...deepseekEntries]
     if (deepEqualJson(entries, directoryFacts)) return
     if (entries.length === 0) {
       // 空目录不可注册（INVALID_DIRECTORY）；等 settings 用户层供数后在 onChange 注册
@@ -216,7 +239,16 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
     directoryFacts = entries
   }
 
+  const deepseekRegistrar = new DeepseekRouteRegistrar({
+    ctx,
+    kit,
+    logger: { warn: (m) => logger.warn(m), error: (m) => logger.error(m) },
+    routes: deepseekRoutes,
+  })
+  const ensureDeepseek = (): void => deepseekRegistrar.sync(deepseekRoutes())
+
   ensureRegistration()
+  ensureDeepseek()
   ensureDirectory()
 
   installSettingsSection(ctx, SETTINGS_NS, Config, config, {
@@ -229,6 +261,12 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
         ensureRegistration()
       } catch (error) {
         logger.error('llm-pi: 更新被拒，保留此前注册的 route')
+        logger.error(error)
+      }
+      try {
+        ensureDeepseek()
+      } catch (error) {
+        logger.error('llm-pi: deepseek route 更新失败，保留此前注册')
         logger.error(error)
       }
       try {
