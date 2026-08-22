@@ -25,6 +25,8 @@ interface RouteRegistration {
   handle: AdapterRegistrationHandle
   /** 注册期捕获的重试策略（变化才 replace）。 */
   retryPolicy: unknown
+  /** 注册期捕获的展示名（providerInfo 是注册期捕获事实，变化才 replace）。 */
+  displayName: string
 }
 
 export interface DeepseekRegistrarDeps {
@@ -80,25 +82,28 @@ export class DeepseekRouteRegistrar {
     for (const [route, built] of target) {
       const existing = this.registrations.get(route)
       if (existing !== undefined) {
-        this.refreshPolicy(route, built, existing)
+        this.refreshRegistration(route, built, existing)
         continue
       }
       this.register(route, built)
     }
   }
 
-  private refreshPolicy(
+  /** retryPolicy 或 displayName 变化时原地 replace（两者均为注册期捕获事实）。 */
+  private refreshRegistration(
     route: string,
     built: ResolvedDeepseekRoute,
     registration: RouteRegistration,
   ): void {
-    const policy = built.connection.retryPolicy
-    if (deepEqualJson(policy, registration.retryPolicy)) return
+    const policyUnchanged = deepEqualJson(built.connection.retryPolicy, registration.retryPolicy)
+    const nameUnchanged = built.displayName === registration.displayName
+    if (policyUnchanged && nameUnchanged) return
     try {
       registration.handle.replace([route])
-      registration.retryPolicy = policy
+      registration.retryPolicy = built.connection.retryPolicy
+      registration.displayName = built.displayName
     } catch (error) {
-      this.deps.logger.error(`llm-pi: deepseek route "${route}" 重试策略更新被拒，保留此前注册`)
+      this.deps.logger.error(`llm-pi: deepseek route "${route}" 注册事实更新被拒，保留此前注册`)
       this.deps.logger.error(error)
     }
   }
@@ -126,9 +131,20 @@ export class DeepseekRouteRegistrar {
       resolveUserId: () => this.resolveUserId() as never,
       resolveAttachments: () => ctx.get('attachments') as never,
     })
+    // 官方 providerInfo 硬编码 name: "DeepSeek"——覆盖为按路由动态读取的
+    // displayName，否则自定义 deepseek 路由在模型选择器里与 deepseek-official
+    // 撞名（两个 "DeepSeek" 分组，无法区分）。
+    adapter.providerInfo = (provider: string) => ({
+      id: provider,
+      name: routes().get(route)?.displayName ?? built.displayName,
+    })
     try {
       const handle = ctx.llm.registerAdapter([route], adapter as never)
-      this.registrations.set(route, { handle, retryPolicy: built.connection.retryPolicy })
+      this.registrations.set(route, {
+        handle,
+        retryPolicy: built.connection.retryPolicy,
+        displayName: built.displayName,
+      })
     } catch (error) {
       logger.error(
         `llm-pi: deepseek route "${route}" 注册失败（可能与其他 adapter 重名），该 route 不可用`,
