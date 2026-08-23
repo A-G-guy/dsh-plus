@@ -76,6 +76,11 @@ export function FilePanel({ files, t }: FilePanelProps) {
   const [conflictAck, setConflictAck] = useState(false)
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const [saving, setSaving] = useState(false)
+  /** 目录浏览历史：stack + 当前游标；后退/前进只移动游标不重复入栈。 */
+  const [history, setHistory] = useState<{ stack: string[]; index: number }>({
+    stack: [],
+    index: -1,
+  })
   const toastSeq = useRef(0)
   const docGetter = useRef<(() => string) | null>(null)
 
@@ -85,11 +90,19 @@ export function FilePanel({ files, t }: FilePanelProps) {
   }, [])
 
   const navigate = useCallback(
-    async (path?: string, hidden?: boolean) => {
+    async (path?: string, hidden?: boolean, record = true) => {
       setLoading(true)
       setListError(null)
       try {
-        setListing(await api.list({ path, showHidden: hidden ?? showHidden }))
+        const list = await api.list({ path, showHidden: hidden ?? showHidden })
+        setListing(list)
+        if (record) {
+          setHistory((current) => {
+            if (current.stack[current.index] === list.path) return current
+            const stack = [...current.stack.slice(0, current.index + 1), list.path]
+            return { stack, index: stack.length - 1 }
+          })
+        }
       } catch (error) {
         setListError(error instanceof Error ? error.message : String(error))
       } finally {
@@ -134,6 +147,26 @@ export function FilePanel({ files, t }: FilePanelProps) {
   const refresh = useCallback(async () => {
     await navigate(listing?.path)
   }, [navigate, listing?.path])
+
+  const goBack = useCallback(() => {
+    if (history.index <= 0) return
+    const index = history.index - 1
+    setHistory({ ...history, index })
+    void navigate(history.stack[index], undefined, false)
+  }, [history, navigate])
+
+  const goForward = useCallback(() => {
+    if (history.index >= history.stack.length - 1) return
+    const index = history.index + 1
+    setHistory({ ...history, index })
+    void navigate(history.stack[index], undefined, false)
+  }, [history, navigate])
+
+  const goHome = useCallback(async () => {
+    setFile(null)
+    setFileError(null)
+    await navigate()
+  }, [navigate])
 
   const save = useCallback(
     async (doc: string, force: boolean) => {
@@ -272,8 +305,13 @@ export function FilePanel({ files, t }: FilePanelProps) {
                 error={listError}
                 showHidden={showHidden}
                 selectedPath={file?.entry.path ?? null}
+                canBack={history.index > 0}
+                canForward={history.index < history.stack.length - 1}
                 t={t}
                 onNavigate={(path) => void navigate(path)}
+                onBack={goBack}
+                onForward={goForward}
+                onHome={() => void goHome()}
                 onRefresh={() => void refresh()}
                 onToggleHidden={() => {
                   const next = !showHidden

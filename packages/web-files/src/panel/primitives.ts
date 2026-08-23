@@ -6,6 +6,7 @@
 export {
   Button,
   IconCheckOutline16,
+  IconChevronLeftOutline14,
   IconChevronRightOutline14,
   IconCloseOutline16,
   IconCodeOutline16,
@@ -17,7 +18,6 @@ export {
   IconFolderOpenOutline16,
   IconPlusOutline16,
   IconRefreshOutline16,
-  IconRightUpOutline16,
   IconTrashOutline16,
   IconWarningOutline16,
   Input,

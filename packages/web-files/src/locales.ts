@@ -8,15 +8,17 @@
 export const NS = 'dsh-plus-web-files'
 
 export const zh = {
-  'entry.tooltip': '浏览与编辑服务器文件',
+  'entry.label': '文件',
   'panel.title': '文件',
   'panel.close': '关闭',
+  'toolbar.back': '后退',
+  'toolbar.forward': '前进',
+  'toolbar.home': '主目录',
   'toolbar.refresh': '刷新',
   'toolbar.newFolder': '新建文件夹',
   'toolbar.upload': '上传',
   'toolbar.showHidden': '显示隐藏文件',
   'toolbar.hideHidden': '隐藏隐藏文件',
-  'toolbar.pathPlaceholder': '输入绝对路径跳转…',
   'list.name': '名称',
   'list.size': '大小',
   'list.modified': '修改时间',
@@ -59,15 +61,17 @@ export const zh = {
 }
 
 export const en = {
-  'entry.tooltip': 'Browse and edit server files',
+  'entry.label': 'Files',
   'panel.title': 'Files',
   'panel.close': 'Close',
+  'toolbar.back': 'Back',
+  'toolbar.forward': 'Forward',
+  'toolbar.home': 'Home',
   'toolbar.refresh': 'Refresh',
   'toolbar.newFolder': 'New folder',
   'toolbar.upload': 'Upload',
   'toolbar.showHidden': 'Show hidden files',
   'toolbar.hideHidden': 'Hide hidden files',
-  'toolbar.pathPlaceholder': 'Type an absolute path to jump…',
   'list.name': 'Name',
   'list.size': 'Size',
   'list.modified': 'Modified',

@@ -5,8 +5,10 @@
  */
 import { type ReactNode, useRef, useState } from 'react'
 import type { FsEntryDto, ListResponse } from '../protocol.ts'
+import { IconHome16, IconUpload16 } from './icons.tsx'
 import {
   Button,
+  IconChevronLeftOutline14,
   IconChevronRightOutline14,
   IconCodeOutline16,
   IconDownloadOutline16,
@@ -15,9 +17,7 @@ import {
   IconFolderClose16,
   IconPlusOutline16,
   IconRefreshOutline16,
-  IconRightUpOutline16,
   IconTrashOutline16,
-  Input,
   Menu,
   Tooltip,
 } from './primitives.ts'
@@ -25,6 +25,9 @@ import type { Translate } from './types.ts'
 
 export interface BrowserActions {
   onNavigate: (path: string) => void
+  onBack: () => void
+  onForward: () => void
+  onHome: () => void
   onRefresh: () => void
   onToggleHidden: () => void
   onNewFolder: () => void
@@ -41,6 +44,8 @@ export interface BrowserProps extends BrowserActions {
   error: string | null
   showHidden: boolean
   selectedPath: string | null
+  canBack: boolean
+  canForward: boolean
   t: Translate
 }
 
@@ -142,18 +147,42 @@ function RowMenu({ entry, t, onRename, onDelete, onDownload }: RowMenuProps) {
 export function Browser(props: BrowserProps) {
   const { listing, loading, error, showHidden, selectedPath, t } = props
   const uploadRef = useRef<HTMLInputElement>(null)
-  const [pathDraft, setPathDraft] = useState('')
-  const [pathEditing, setPathEditing] = useState(false)
-
-  const jumpToDraft = () => {
-    const path = pathDraft.trim()
-    setPathEditing(false)
-    if (path.startsWith('/')) props.onNavigate(path)
-  }
 
   return (
     <div className="wf-browser">
       <div className="wf-toolbar">
+        <Tooltip label={t('toolbar.back')} side="bottom">
+          <button
+            type="button"
+            className="wf-icon-button"
+            onClick={props.onBack}
+            disabled={!props.canBack}
+            aria-label={t('toolbar.back')}
+          >
+            <IconChevronLeftOutline14 size={16} />
+          </button>
+        </Tooltip>
+        <Tooltip label={t('toolbar.forward')} side="bottom">
+          <button
+            type="button"
+            className="wf-icon-button"
+            onClick={props.onForward}
+            disabled={!props.canForward}
+            aria-label={t('toolbar.forward')}
+          >
+            <IconChevronRightOutline14 size={16} />
+          </button>
+        </Tooltip>
+        <Tooltip label={t('toolbar.home')} side="bottom">
+          <button
+            type="button"
+            className="wf-icon-button"
+            onClick={props.onHome}
+            aria-label={t('toolbar.home')}
+          >
+            <IconHome16 />
+          </button>
+        </Tooltip>
         <Tooltip label={t('toolbar.refresh')} side="bottom">
           <button
             type="button"
@@ -181,12 +210,14 @@ export function Browser(props: BrowserProps) {
             onClick={() => uploadRef.current?.click()}
             aria-label={t('toolbar.upload')}
           >
-            <IconRightUpOutline16 />
+            <IconUpload16 />
           </button>
         </Tooltip>
-        <Button variant="toolbar" size="sm" onClick={props.onToggleHidden}>
-          {showHidden ? t('toolbar.hideHidden') : t('toolbar.showHidden')}
-        </Button>
+        <span className="wf-toolbar-end">
+          <Button variant="toolbar" size="sm" onClick={props.onToggleHidden}>
+            {showHidden ? t('toolbar.hideHidden') : t('toolbar.showHidden')}
+          </Button>
+        </span>
         <input
           ref={uploadRef}
           type="file"
@@ -199,32 +230,10 @@ export function Browser(props: BrowserProps) {
           }}
         />
       </div>
-      {pathEditing ? (
-        <Input
-          className="wf-path-input"
-          value={pathDraft}
-          placeholder={t('toolbar.pathPlaceholder')}
-          autoFocus
-          onChange={(event) => setPathDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') jumpToDraft()
-            if (event.key === 'Escape') setPathEditing(false)
-          }}
-          onBlur={() => setPathEditing(false)}
-        />
-      ) : (
-        listing !== null && (
-          <button
-            type="button"
-            className="wf-crumbs-button"
-            onClick={() => {
-              setPathDraft(listing.path)
-              setPathEditing(true)
-            }}
-          >
-            <Crumbs listing={listing} onNavigate={props.onNavigate} />
-          </button>
-        )
+      {listing !== null && (
+        <div className="wf-crumbs-row">
+          <Crumbs listing={listing} onNavigate={props.onNavigate} />
+        </div>
       )}
       <div className="wf-list">
         {error !== null && <div className="wf-list-note">{error}</div>}

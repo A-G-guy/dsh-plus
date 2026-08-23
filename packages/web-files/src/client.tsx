@@ -16,7 +16,7 @@ import { useSyncExternalStore } from 'react'
 
 import { en, NS, zh } from './locales.ts'
 import { FilePanel } from './panel/panel.tsx'
-import { IconFolderOpenOutline16, Tooltip } from './panel/primitives.ts'
+import { IconFolderOpenOutline16 } from './panel/primitives.ts'
 import { createPanelController, type PanelController, type Translate } from './panel/types.ts'
 import { webFilesCss } from './styles.ts'
 
@@ -44,22 +44,29 @@ function injectStyle(): HTMLStyleElement | null {
 interface EntryProps {
   files: PanelController
   t: Translate
+  /** 侧边栏展开态（slot owner 传入）；折叠（rail）时仅渲染圆形图标。 */
+  wide?: boolean
 }
 
-/** 侧边栏 footer 入口：文件夹图标按钮，点击开合面板。 */
-function FilesEntryButton({ files, t }: EntryProps) {
-  useSyncExternalStore(files.subscribe, files.getSnapshot)
+/**
+ * 侧边栏 footer 入口：与原生「设置」入口同款（整行图标 + 文案；
+ * rail 折叠态退化为居中圆形图标按钮）。
+ */
+function FilesEntryButton({ files, t, wide }: EntryProps) {
+  const { open } = useSyncExternalStore(files.subscribe, files.getSnapshot)
+  const rail = wide === false
   return (
-    <Tooltip label={t('entry.tooltip')} side="bottom">
-      <button
-        type="button"
-        className="wf-entry-button"
-        aria-label={t('entry.tooltip')}
-        onClick={() => files.toggle()}
-      >
-        <IconFolderOpenOutline16 />
-      </button>
-    </Tooltip>
+    <button
+      type="button"
+      className={rail ? 'wf-entry wf-entry-rail' : 'wf-entry'}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-label={t('entry.label')}
+      onClick={() => files.toggle()}
+    >
+      <IconFolderOpenOutline16 size={rail ? 18 : 16} />
+      {!rail && <span className="wf-entry-label">{t('entry.label')}</span>}
+    </button>
   )
 }
 

@@ -6,23 +6,42 @@
  */
 
 export const webFilesCss = `
-/* ── 侧边栏入口按钮 ── */
-.wf-entry-button {
-  display: inline-flex;
+/* ── 侧边栏入口（与原生「设置」入口同款：整行图标+文案 / rail 圆形图标）── */
+.wf-entry {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
+  gap: 8px;
+  width: 100%;
+  height: 42px;
+  margin: 4px 0;
+  padding: 0 10px 0 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   background: transparent;
-  color: var(--dsw-alias-label-secondary, #57606a);
-  cursor: pointer;
-  padding: 0;
-}
-.wf-entry-button:hover {
-  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
   color: var(--dsw-alias-label-primary, #1f2328);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.wf-entry:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
+}
+.wf-entry-rail {
+  width: 36px;
+  height: 36px;
+  margin: 8px 0 10px;
+  padding: 0;
+  border-radius: 50%;
+  justify-content: center;
+  gap: 0;
+}
+.wf-entry-label {
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 /* ── 模态卡（覆盖 primitives Modal 默认尺寸）── */
@@ -61,7 +80,7 @@ export const webFilesCss = `
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 8px;
+  border-radius: 50%;
   background: transparent;
   color: var(--dsw-alias-label-secondary, #57606a);
   cursor: pointer;
@@ -70,6 +89,14 @@ export const webFilesCss = `
 .wf-icon-button:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
   color: var(--dsw-alias-label-primary, #1f2328);
+}
+.wf-icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.wf-icon-button:disabled:hover {
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #57606a);
 }
 
 /* ── 双栏主体 ── */
@@ -114,17 +141,14 @@ export const webFilesCss = `
   white-space: nowrap;
   flex: none;
 }
-.wf-toolbar > button:last-child {
+.wf-toolbar-end {
   margin-left: auto;
+  flex: none;
+  display: inline-flex;
 }
-.wf-crumbs-button {
-  display: block;
-  width: 100%;
-  border: none;
-  background: transparent;
+.wf-crumbs-row {
   padding: 0 10px 8px;
-  cursor: text;
-  text-align: left;
+  flex: none;
 }
 .wf-crumbs {
   display: flex;
@@ -146,15 +170,12 @@ export const webFilesCss = `
   color: inherit;
   cursor: pointer;
   padding: 2px 4px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 12px;
 }
 .wf-crumb-button:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
   color: var(--dsw-alias-label-primary, #1f2328);
-}
-.wf-path-input {
-  margin: 0 10px 8px;
 }
 .wf-list {
   flex: 1;
@@ -170,7 +191,7 @@ export const webFilesCss = `
 .wf-row {
   display: flex;
   align-items: center;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 .wf-row:hover {
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.04));
@@ -223,7 +244,7 @@ export const webFilesCss = `
   height: 26px;
   margin-right: 4px;
   border: none;
-  border-radius: 6px;
+  border-radius: 50%;
   background: transparent;
   color: var(--dsw-alias-label-tertiary, #8b949e);
   cursor: pointer;
@@ -326,11 +347,17 @@ export const webFilesCss = `
   overflow: auto;
 }
 
-/* ── 移动端（≤767px，与 ui-mobile-fit 断点对齐）：全屏抽屉 + 单栏切换 ── */
+/* ── 移动端（≤767px，与 ui-mobile-fit 断点对齐）：全屏 + 单栏切换 ── */
 @media (max-width: 767px) {
   .wf-modal {
+    position: fixed;
+    inset: 0;
+    margin: 0;
     width: 100% !important;
+    max-width: none !important;
     height: 100%;
+    max-height: none;
+    border: none;
     border-radius: 0 !important;
   }
   .wf-pane-list {

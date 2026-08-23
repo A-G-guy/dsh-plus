@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-24 01:27"
+last_modified: "2026-08-24 02:21"
 ---
 
 # @dsh-plus/web-files
@@ -14,16 +14,25 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
   `/dsh-plus/web-files` 前缀路由（`src/files-api.ts`），文件语义在
   `src/fs-core.ts`（纯 node:fs/promises，可脱离 HTTP 单测）。
 - 浏览器半 `src/client.tsx`：`dsh.client` 声明装载，注册
-  `sidebar.footer.action` 入口按钮与 `shell.overlay` 常驻面板；
+  `sidebar.footer.action` 入口（与原生「设置」入口同款：展开态整行
+  图标+文案，rail 折叠态居中圆形图标）与 `shell.overlay` 常驻面板；
   react / primitives / slots 为构建期 external（平台模块表供给），
   CodeMirror 及精选语言包静态内联（宿主只服务 client.js 单文件，
   禁止动态分包，见 tsdown.config.ts）。
 - 样式 `src/styles.ts`：构建期内联字符串 + `data-plugin` /
   `data-plugin-css` style 标签约定（HMR 可卸载）；全部颜色引用
-  `--dsw-*` 设计令牌，深浅色主题零成本跟随；断点 767px 与
-  ui-mobile-fit 对齐，移动端为全屏抽屉 + 列表/编辑单栏切换。
+  `--dsw-*` 设计令牌，深浅色主题零成本跟随；圆角对齐官方扁平风格
+  （面板 r24、行/入口 r12、图标按钮圆形、按钮胶囊）；断点 767px 与
+  ui-mobile-fit 对齐，移动端 `position:fixed; inset:0` 真全屏 +
+  列表/编辑单栏切换。
+- 浏览导航（`src/panel/panel.tsx`）：目录历史栈支持后退/前进
+  （重复路径去重、刷新不入栈）；面包屑每段点击直接跳转对应目录
+  （不提供路径手输编辑，有意收窄交互面）；主页按钮一键回家目录
+  （/list 缺省 path 即 home）。
 - i18n：命名空间 `dsh-plus-web-files` 合并进 LocaleNamespaceMap
   （`src/panel/types.ts`），zh/en 字典在 `src/locales.ts`。
+- 图标：primitives 图标集缺失的 upload / home 由
+  `src/panel/icons.tsx` 本地补齐（16 视窗、currentColor，视觉对齐官方）。
 
 ## HTTP 端点（`src/protocol.ts` 为线协议单一事实源）
 
