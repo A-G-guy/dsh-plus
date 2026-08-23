@@ -21,3 +21,5 @@
       name: '@dsh-plus/skill-manual'
     - id: dsh-plus-reload
       name: '@dsh-plus/reload'
+    - id: dsh-plus-web-files
+      name: '@dsh-plus/web-files'
