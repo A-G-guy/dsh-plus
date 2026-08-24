@@ -35,6 +35,12 @@ export const layoutCss = /* css */ `
     visibility: visible;
   }
 
+  /* Tooltip 气泡内联渲染在 _root 内（非 portal），需同样逃逸 rail 隐藏，
+     否则收起态点按外移按钮时 "打开侧边栏" 提示全程不可见 */
+  [class*="_frame"][data-sidebar-collapsed] [class*="_sidebarCol"] span[class*="_bubble"][data-side] {
+    visibility: visible;
+  }
+
   [class*="_frame"][data-sidebar-collapsed] [class*="_sidebarCol"] [class*="_toggle"] {
     visibility: visible;
     position: fixed;

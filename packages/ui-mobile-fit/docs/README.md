@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-20 00:39"
+last_modified: "2026-08-24 14:33"
 ---
 
 # @dsh-plus/ui-mobile-fit
@@ -25,7 +25,7 @@ last_modified: "2026-08-20 00:39"
 | 基础 | `base.ts` | 防横向整页滚动（overflow-x: clip）、长串折行（代码块例外）、输入框 ≥16px 防 iOS 缩放 |
 | 布局 | `layout.ts` | 收起态 rail 全隐+展开按钮外移 header、展开态侧栏/详情 drawer 化且内容满宽、composer 随 --dsh-ime-inset 上浮（仅 `html[data-dsh-ime]` 期间挂 transform）、触屏隐藏拖拽手柄 |
 | 会话 | `conversation.ts` | markdown 图片/表格/代码块容器内滚动、工具卡片防溢出、composer 全宽换行、接管卡片（计划待审/提问/审批）footer 换行防按钮裁剪 |
-| 覆盖层 | `overlays.ts` | 对话框/菜单视口内收编、设置面板 nav+content 纵向堆叠（nav 横向滚动） |
+| 覆盖层 | `overlays.ts` | 对话框/菜单视口内收编、设置面板 nav+content 纵向堆叠（nav 横向滚动）、触屏 Tooltip 气泡自动隐藏 |
 
 ### 两个非显而易见的坑（修复记录）
 
@@ -38,6 +38,13 @@ last_modified: "2026-08-20 00:39"
    卡片 `overflow:hidden` 会把主操作按钮（确认执行/提交）裁掉。选择器锚定上游稳定
    data 钩子（`data-plan-review-key` / `data-question-key` / `data-approval-key`），
    footer 允许换行、操作组可收缩右对齐。
+3. **触屏 Tooltip 常驻遮挡**：上游 primitives Tooltip 靠 mouseenter/focus 显示、
+   mouseleave/blur 隐藏；触屏点按只有前半段（还会带 500ms delay），气泡永不消失
+   遮挡内容（侧栏"收起侧边栏"、会话"视图选项"等）。修复为纯 CSS：coarse 媒体内给
+   `span[class*="_bubble"][data-side]`（上游全包唯一标识 Tooltip 气泡）挂 1.6s
+   自动淡出动画，终态 `visibility:hidden` 由 forwards 保持；React 每次展示重挂
+   span 使动画重启，桌面 hover 路径不受影响。对同用 primitives Tooltip 的
+   dsh-plus 自家面板（web-files）一并生效。
 
 ## 行为胶水（`src/behaviors.ts`，均限窄屏生效）
 

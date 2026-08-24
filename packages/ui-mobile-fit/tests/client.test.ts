@@ -37,6 +37,23 @@ test('given the conversation layer, when inspecting composer takeover cards, the
   )
 })
 
+test('given the overlays layer, when inspecting tooltip handling, then coarse-pointer bubbles auto-hide', () => {
+  // 触屏点按触发 Tooltip 的 mouseenter/focus 后无 mouseleave/blur 收尾，
+  // 气泡常驻遮挡；修复 = coarse 媒体内给 _bubble[data-side] 挂自动淡出动画，
+  // 终态 opacity:0 由 forwards 保持（勿用 visibility:hidden，Chrome 会在整个
+  // 动画期间提前生效导致全程不可见）
+  assert.match(
+    mobileFitCss,
+    /@media \(pointer: coarse\)[^{]*\{[^@]*span\[class\*="_bubble"\]\[data-side\]/,
+  )
+  assert.match(mobileFitCss, /@keyframes dsh-mobile-tooltip-autohide/)
+  assert.match(
+    mobileFitCss,
+    /span\[class\*="_bubble"\]\[data-side\][^{]*\{[^}]*animation:[^}]*forwards/,
+  )
+  assert.doesNotMatch(mobileFitCss, /dsh-mobile-tooltip-autohide[\s\S]*visibility/)
+})
+
 test('given the client module, when inspecting exports, then loader metadata is present', () => {
   assert.equal(name, 'dsh-plus-ui-mobile-fit')
   assert.equal(typeof apply, 'function')
@@ -101,6 +118,7 @@ test('given a DOM, when apply runs, then style injected, viewport meta patched, 
     // 行为监听已注册
     assert.ok(listeners.has('focusin'))
     assert.ok(listeners.has('click'))
+    assert.ok(listeners.has('pointerup'))
     disposers[0]()
     assert.equal(tag.removed, true)
     assert.equal(listeners.size, 0)

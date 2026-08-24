@@ -3,8 +3,11 @@
  * 1. IME 适配——meta viewport 追加 interactive-widget=resizes-content（Android），
  *    visualViewport 监听计算 --dsh-ime-inset 供 CSS 上浮 composer（iOS 兜底）；
  * 2. 屏蔽程序化自动聚焦——切换会话时不再弹出输入法，真实点按/键盘不受影响；
- * 3. 侧栏展开时点按中列（空白处）自动收起，首次点按被吞掉不穿透到下层内容。
- * 全部仅在窄屏（max-width: 767px）生效，自动聚焦/IME 额外要求 pointer: coarse。
+ * 3. 侧栏展开时点按中列（空白处）自动收起，首次点按被吞掉不穿透到下层内容；
+ * 4. 触屏 Tooltip 复位——点按 2.2s 后补发合成 mouseout/blur，使提示气泡
+ *    真正移除且下次点按可重新短暂提示（配合 overlays.ts 的淡出动画）。
+ * 全部仅在窄屏（max-width: 767px）生效，自动聚焦/IME/Tooltip 复位额外要求
+ * pointer: coarse（Tooltip 复位不限窄屏，宽屏触屏同样有驻留问题）。
  * @module @dsh-plus/ui-mobile-fit/behaviors
  */
 
@@ -116,10 +119,47 @@ function installTapOutsideClose(): Dispose {
   return () => document.removeEventListener('click', onClick, true)
 }
 
+/** 触屏 Tooltip 复位：点按后 React 侧 hover/focus 标志常驻（触屏无
+ *  mouseleave/blur 收尾），overlays.ts 的淡出动画只能让气泡消失一次——
+ *  气泡 span 不重挂，再次点按同一按钮时提示不再出现。点按 2.2s 后若气泡
+ *  仍存在，补发合成 mouseout + blur 使 Tooltip 状态归零（同时真正移除
+ *  气泡 DOM），下次点按可重新短暂提示。仅 coarse 指针生效。 */
+const TOOLTIP_RESET_MS = 2200
+const TOOLTIP_BUBBLE_SELECTOR = 'span[class*="_bubble"][data-side]'
+
+function installTooltipReset(): Dispose {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const onPointerUp = (e: PointerEvent): void => {
+    if (!isCoarse() || e.pointerType !== 'touch') return
+    const target = e.target
+    if (!(target instanceof Element)) return
+    if (timer !== null) clearTimeout(timer)
+    timer = setTimeout(() => {
+      timer = null
+      if (document.querySelector(TOOLTIP_BUBBLE_SELECTOR) === null) return
+      target.dispatchEvent(
+        new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.documentElement }),
+      )
+      const active = document.activeElement
+      if (active instanceof HTMLElement && !isTextField(active)) active.blur()
+    }, TOOLTIP_RESET_MS)
+  }
+  document.addEventListener('pointerup', onPointerUp, true)
+  return () => {
+    if (timer !== null) clearTimeout(timer)
+    document.removeEventListener('pointerup', onPointerUp, true)
+  }
+}
+
 /** 安装全部行为，返回统一清理函数。 */
 export function installBehaviors(): Dispose {
   installViewportMeta()
-  const disposes = [installImeInset(), installAutofocusGuard(), installTapOutsideClose()]
+  const disposes = [
+    installImeInset(),
+    installAutofocusGuard(),
+    installTapOutsideClose(),
+    installTooltipReset(),
+  ]
   return () => {
     for (const dispose of disposes) dispose()
   }
