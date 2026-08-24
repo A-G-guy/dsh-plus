@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/notify-email",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "dsh-plus service+ui plugin: 任务结束/等待决策/出错时向指定邮箱发送邮件通知",
   "type": "module",
   "main": "lib/index.js",

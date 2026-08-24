@@ -11,6 +11,14 @@ import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore }
 
 import { SETTINGS_NS } from '../ns.ts'
 import { type CatalogProvider, fetchCatalog, type ModelCatalog } from './api.ts'
+import {
+  type ConfigValue,
+  type Draft,
+  type DraftRow,
+  draftFrom,
+  EMPTY_ROW,
+  toPatch,
+} from './draft.ts'
 import { CheckRow, SelectField, type SelectOption } from './fields.tsx'
 import type { Scope, SettingsApi } from './scope.ts'
 
@@ -20,69 +28,14 @@ export interface CardProps {
   api: SettingsApi
 }
 
-/** settings 命名空间的解析值（无 secret 字段）。 */
-export interface ConfigValue {
-  enabled: boolean
-  entries: Record<string, WireEntry>
-}
-
-export interface WireEntry {
-  enabled: boolean
-  provider: string
-  model: string
-  reasoningEffort: string
-}
-
-interface DraftRow {
-  enabled: boolean
-  provider: string
-  model: string
-  reasoningEffort: string
-}
-
-interface Draft {
-  enabled: boolean
-  rows: Record<string, DraftRow>
-}
-
 interface Status {
   kind: 'idle' | 'ok' | 'error'
   text: string
 }
 
 const IDLE_STATUS: Status = { kind: 'idle', text: '' }
-const EMPTY_ROW: DraftRow = {
-  enabled: false,
-  provider: '',
-  model: '',
-  reasoningEffort: 'inherit',
-}
 const EFFORT_INHERIT = 'inherit'
 const EFFORT_DEFAULT = 'default'
-
-function draftFrom(value: ConfigValue, catalog: ModelCatalog | null): Draft {
-  const rows: Record<string, DraftRow> = {}
-  const names = new Set<string>()
-  for (const name of catalog?.subagentProviders ?? []) names.add(name)
-  for (const name of Object.keys(value.entries).sort()) names.add(name)
-  for (const name of names) {
-    const entry = value.entries[name]
-    rows[name] =
-      entry === undefined
-        ? { ...EMPTY_ROW }
-        : {
-            enabled: entry.enabled,
-            provider: entry.provider,
-            model: entry.model,
-            reasoningEffort: entry.reasoningEffort,
-          }
-  }
-  return { enabled: value.enabled, rows }
-}
-
-function toPatch(draft: Draft): Record<string, unknown> {
-  return { enabled: draft.enabled, entries: draft.rows }
-}
 
 function unknownOption(value: string, label: string): SelectOption {
   return { value, label: `${value}（${label}）` }

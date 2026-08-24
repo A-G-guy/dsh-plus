@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -281,5 +281,23 @@ test('given a missing path, when statting, then not-found is raised', async () =
       assert.equal(error.code, 'not-found')
       return true
     })
+  })
+})
+
+test('given an unreadable file, when reading, then errno maps to FilesError instead of raw 500', async () => {
+  await withTempDir(async (dir) => {
+    const path = join(dir, 'secret.txt')
+    await writeFile(path, 'data')
+    await chmod(path, 0o200) // 写-only：父目录可 lstat，open('r') 必然 EACCES
+    try {
+      await assert.rejects(readFileText(path), (error: unknown) => {
+        assert.ok(error instanceof FilesError, 'open 失败必须映射为 FilesError 而非裸 errno')
+        assert.equal(error.code, 'access-denied')
+        assert.equal(error.status, 403)
+        return true
+      })
+    } finally {
+      await chmod(path, 0o600)
+    }
   })
 })

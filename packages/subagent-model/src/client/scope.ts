@@ -35,8 +35,11 @@ export interface SettingsApi {
     result: {
       ok: boolean
       value?: {
+        writable: boolean
         namespaces: Array<{
           ns: string
+          value: unknown
+          revision: number
           secrets: Array<{ path: string[]; set: boolean }>
         }>
       }

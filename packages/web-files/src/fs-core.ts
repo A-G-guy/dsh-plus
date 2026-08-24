@@ -5,6 +5,7 @@
  */
 import { createWriteStream } from 'node:fs'
 import {
+  type FileHandle,
   lstat,
   mkdir,
   open,
@@ -170,14 +171,21 @@ export async function readFileText(path: string): Promise<ReadResponse> {
     throw new FilesError(`${target} is not a regular file`, 'not-a-file')
   }
   const truncated = info.size > READ_MAX_BYTES
-  const handle = await open(target, 'r')
+  let handle: FileHandle
+  try {
+    handle = await open(target, 'r')
+  } catch (error) {
+    throw toFilesError(error, target)
+  }
   let buffer: Buffer
   try {
     const length = truncated ? READ_TRUNCATE_BYTES : info.size
     buffer = Buffer.alloc(length)
     await handle.read(buffer, 0, length, 0)
+  } catch (error) {
+    throw toFilesError(error, target)
   } finally {
-    await handle.close()
+    await handle.close().catch(() => {})
   }
   const sniff = buffer.subarray(0, Math.min(buffer.length, BINARY_SNIFF_BYTES))
   if (sniff.includes(0)) {

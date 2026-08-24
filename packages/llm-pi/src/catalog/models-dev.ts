@@ -82,6 +82,12 @@ function fetchJson(url: string, proxy: string, timeoutMs: number): Promise<JsonR
       (response) => {
         const chunks: Buffer[] = []
         let size = 0
+        let settled = false
+        const fail = (error: Error): void => {
+          if (settled) return
+          settled = true
+          reject(error)
+        }
         response.on('data', (chunk: Buffer) => {
           size += chunk.length
           if (size > MAX_RESPONSE_BYTES) {
@@ -91,11 +97,16 @@ function fetchJson(url: string, proxy: string, timeoutMs: number): Promise<JsonR
           chunks.push(chunk)
         })
         response.on('end', () => {
+          if (settled) return
+          settled = true
           resolve({
             status: response.statusCode ?? 0,
             body: Buffer.concat(chunks).toString('utf8'),
           })
         })
+        // 响应流自身出错（中途截断的 aborted 等）不经请求转发：缺此监听时
+        // Promise 永不 settle（req timeout 只覆盖建连/空闲等待），refresh 永久挂起。
+        response.on('error', fail)
       },
     )
     req.on('timeout', () => req.destroy(new Error(`请求超时（${timeoutMs}ms）`)))

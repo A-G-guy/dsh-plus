@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-18 14:11"
+last_modified: "2026-08-24 16:17"
 ---
 
 # @dsh-plus/notify-email
@@ -25,7 +25,8 @@ last_modified: "2026-08-18 14:11"
   待处理消息则跳过。按 `session:turn:kind` 去重。
 - `blocked` / `max-tokens` / `interrupted`（crash 恢复标记）不通知。
 - 决策类观察是 `tools/pre-execute` waterfall 的纯旁观（原样 `next()`），按
-  `callId` 去重；发送异步进行，绝不拖慢工具闸门。
+  `callId` 去重（按 sessionId 分桶，会话销毁即释放桶，长时间运行无累积）；
+  发送异步进行，绝不拖慢工具闸门。
 - 发送失败只记日志与审计，永不影响 agent 循环。
 
 ## 配置

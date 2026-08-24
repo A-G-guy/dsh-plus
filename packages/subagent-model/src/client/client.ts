@@ -20,7 +20,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { SETTINGS_NS } from '../ns.ts'
 import { SubagentModelCard } from './card.tsx'
 import { en, NS, zh } from './i18n.ts'
-import type { Scope, SettingsApi } from './scope.ts'
+import type { Scope, ScopeSnapshot, SettingsApi } from './scope.ts'
 import { injectStyle } from './styles.ts'
 
 export const name = 'dsh-plus-subagent-model'
