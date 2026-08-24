@@ -27,6 +27,8 @@ export interface ToggleState {
   pendingRestart: boolean
   journal: Array<{ at: string; kind: string; detail: string }>
   quarantined: string[]
+  /** 官方结构漂移告警（目录对拍）。 */
+  drift: Array<{ kind: string; subject: string; detail: string }>
 }
 
 const ROUTE = '/dsh-plus/feature-toggle'

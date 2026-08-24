@@ -78,6 +78,21 @@ export async function readPresetFile(file: string): Promise<PresetFileState> {
 }
 
 /**
+ * 读取预设文件全部行 id（扁平化，含嵌套组行与组内子行；漂移对拍用，
+ * 不限于目录行集合）。
+ */
+export async function readPresetRowsFlat(file: string): Promise<Set<string>> {
+  const doc = parseDocument(await readFile(file, 'utf-8'))
+  const contents = doc.contents
+  if (!isSeq(contents)) throw new Error(`预设文件顶层不是条目列表: ${file}`)
+  const rows = new Set<string>()
+  walkRows(doc, contents, (_node, id) => {
+    rows.add(id)
+  })
+  return rows
+}
+
+/**
  * 使目录 preset 行的 disabled 态与期望一致。
  * - 期望禁用且行存在 → 确保有 `disabled: true` 标量（已有则幂等跳过）；
  * - 期望启用且行存在且 disabled 为标量 true → 删除该键（**!!js 表达式键绝不删**，

@@ -239,6 +239,16 @@ export function FeatureToggleCard(props: CardProps): ReactElement | null {
               {t('bannerQuarantined')} {quarantined.join(', ')}
             </p>
           ) : null}
+          {(state?.drift ?? []).length > 0 ? (
+            <div className="dft-banner dft-bannerWarn" role="alert">
+              <p className="dft-driftTitle">{t('bannerDrift')}</p>
+              <ul className="dft-driftList">
+                {(state?.drift ?? []).map((finding) => (
+                  <li key={`${finding.kind}-${finding.subject}`}>{finding.detail}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {preset !== undefined && !preset.exists ? (
             <p className="dft-banner dft-bannerWarn">{t('presetMissing')}</p>

@@ -56,6 +56,7 @@ export const zh: Record<string, string> = {
   bannerPendingRestart:
     '有待重启才生效的变更：请重启 dsh-web（sudo systemctl restart dsh-web，或使用设置页「重新加载」按钮）。',
   bannerQuarantined: '以下插件已被 lifeboat 自动隔离（加载失败），启用请求被拒绝：',
+  bannerDrift: '官方结构漂移告警（dsh 升级后行结构变化，请核对功能目录）：',
   presetTitle: '托管预设',
   presetMissing:
     'agentPresets 服务缺席——预设类开关不可用，host 平面开关不受影响。通常意味着组合树缺少 dsh-agent-presets 行。',
@@ -129,6 +130,8 @@ export const en: Record<string, string> = {
     'Changes pending a restart: restart dsh-web (sudo systemctl restart dsh-web, or the Reload button in Settings).',
   bannerQuarantined:
     'These plugins were auto-quarantined by lifeboat (load failure); enable requests are refused:',
+  bannerDrift:
+    'Official structure drift detected (row structure changed after a dsh upgrade; review the feature catalog):',
   presetTitle: 'Managed preset',
   presetMissing:
     'agentPresets service unavailable — preset toggles are inactive; host-plane toggles are unaffected.',

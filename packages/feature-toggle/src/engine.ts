@@ -24,13 +24,15 @@ import z from '@deepseek-ai/schemastery'
 
 import { findFeature, invalidFeatureKeys } from './catalog.ts'
 import { type FeatureToggleConfig, SETTINGS_NS } from './config.ts'
+import { type DriftFinding, detectDrift } from './drift.ts'
 import { Journal } from './journal.ts'
 import { readQuarantined } from './lifeboat-bridge.ts'
+import { type LoaderEntryView, verifyLoaderState } from './loader-check.ts'
 import { MANAGED_PRESET_ID } from './ns.ts'
 import type { PatchClassification } from './patch-file.ts'
 import { backupPath, classifyPatchFile, syncManagedEntries } from './patch-file.ts'
 import type { PresetFileState } from './preset-file.ts'
-import { readPresetFile, syncPresetRows } from './preset-file.ts'
+import { readPresetFile, readPresetRowsFlat, syncPresetRows } from './preset-file.ts'
 import { desiredRows, needsManagedPreset, plan } from './reconcile.ts'
 
 /** Runtime mirror: FiberState.FAILED（cordis 跨包 const enum，官方 inventory 同款做法）。 */
@@ -47,6 +49,11 @@ interface AgentPresetsLike {
   copy(from: string, id: string, name?: string): Promise<void>
   remove(id: string): Promise<void>
   defaultId: string
+}
+
+/** pluginInventory 服务最小面（官方 dsh-host-plugin-inventory 的窄投影）。 */
+interface InventoryLike {
+  list(): Promise<{ entries?: Array<{ entryId: string; enabled: boolean }> }>
 }
 
 /** settings 服务最小面。 */
@@ -105,6 +112,8 @@ export interface EngineState {
   journal: ReadonlyArray<{ at: string; kind: string; detail: string }>
   /** lifeboat 当前隔离集合（诊断显示）。 */
   quarantined: string[]
+  /** 官方结构漂移告警（目录对拍，卡片黄条聚合显示）。 */
+  drift: Array<{ kind: string; subject: string; detail: string }>
 }
 
 /** 引擎可注入依赖（测试替身用）。 */
@@ -129,6 +138,10 @@ export class FeatureToggleEngine extends Service {
   private healthWatcherOff: (() => void) | undefined
   /** agentPresets 服务（可选注入：缺席时 preset 平面降级）。 */
   private presetsService: AgentPresetsLike | undefined
+  /** pluginInventory 服务（可选注入：缺席时 loader 闭环验证降级跳过）。 */
+  private inventoryService: InventoryLike | undefined
+  /** 最近一轮目录对拍告警。 */
+  private driftFindings: DriftFinding[] = []
 
   constructor(ctx: Context, config: FeatureToggleConfig, deps: EngineDeps = {}) {
     super(ctx, 'featureToggle')
@@ -146,6 +159,16 @@ export class FeatureToggleEngine extends Service {
       ).agentPresets
       return () => {
         this.presetsService = undefined
+      }
+    })
+    // pluginInventory 可选注入：缺席时 loader 闭环验证降级（热生效退化为
+    // 信任 watchUserPatches，与增强前行为一致）。
+    this.ctx.inject(['pluginInventory' as never], (inventoryCtx) => {
+      this.inventoryService = (
+        inventoryCtx as unknown as { pluginInventory: InventoryLike }
+      ).pluginInventory
+      return () => {
+        this.inventoryService = undefined
       }
     })
     const settings = this.settings()
@@ -270,6 +293,7 @@ export class FeatureToggleEngine extends Service {
       pendingRestart: this.pendingRestartFlag,
       journal: [...this.journal.recent()],
       quarantined: [...readQuarantined(this.ctx)],
+      drift: this.driftFindings.map((finding) => ({ ...finding })),
     }
   }
 
@@ -383,14 +407,19 @@ export class FeatureToggleEngine extends Service {
         } else if (action.kind === 'teardown-managed-preset') {
           await this.teardownManagedPreset()
         } else if (action.kind === 'patch-write') {
-          await this.withRollback(patchFile, 'patch', async () => {
-            const written = await syncManagedEntries(patchFile, action.disabledIds)
-            if (written)
-              this.journal.record(
-                'apply',
-                `patch 管理条目已更新（禁用 ${action.disabledIds.size} 行）`,
-              )
-          })
+          await this.withRollback(
+            patchFile,
+            'patch',
+            async () => {
+              const written = await syncManagedEntries(patchFile, action.disabledIds)
+              if (written)
+                this.journal.record(
+                  'apply',
+                  `patch 管理条目已更新（禁用 ${action.disabledIds.size} 行）`,
+                )
+            },
+            { verifyRows: action.disabledIds },
+          )
         } else if (action.kind === 'preset-write') {
           await this.withRollback(this.presetFile(), 'preset', async () => {
             const written = await syncPresetRows(this.presetFile(), action.disabledIds)
@@ -424,6 +453,31 @@ export class FeatureToggleEngine extends Service {
     // 验证：预设非 broken + default 指针正确
     if (needsManagedPreset(this.desired)) {
       await this.verifyPreset()
+    }
+
+    // 目录对拍（漂移检测）：托管预设行清单 vs catalog——官方结构变化的显性告警。
+    await this.checkDrift()
+  }
+
+  /** 目录对拍：托管预设（存在时）或源预设文件的实际行 vs catalog 行集合。 */
+  private async checkDrift(): Promise<void> {
+    try {
+      const rows = await readPresetRowsFlat(this.presetFile())
+      const findings = detectDrift(rows, 'preset')
+      // 告警只在发现集变化时记 journal（防每轮调和刷屏）
+      const signature = findings.map((f) => `${f.kind}:${f.subject}`).join('|')
+      const prevSignature = this.driftFindings.map((f) => `${f.kind}:${f.subject}`).join('|')
+      if (signature !== prevSignature) {
+        for (const finding of findings) {
+          this.journal.record('drift', finding.detail)
+        }
+        if (findings.length === 0 && this.driftFindings.length > 0) {
+          this.journal.record('drift', '官方结构对拍恢复正常（无缺行/新增告警）')
+        }
+      }
+      this.driftFindings = findings
+    } catch {
+      // 预设文件不可读（未创建等）——无对拍基准，跳过
     }
   }
 
@@ -559,17 +613,24 @@ export class FeatureToggleEngine extends Service {
   /**
    * 写入包装：写前清健康失败集，写后开健康监视窗口；窗口内出现非目标行
    * FAILED 或验证异常 → 恢复备份（热回滚，watchUserPatches 会热应用回滚）。
+   *
+   * patch 类写入（verifyRows 提供时）在窗口结束追加 loader 闭环验证：经
+   * pluginInventory 核对目标行实际 enablement，未生效 → 置 pendingRestart
+   * （提示重启路径）而不是静默无效果。注意此处**不回滚**：写入本身正确，
+   * 未生效的是热应用通道，回滚会与期望态对抗；重启后自然生效。
    */
   private async withRollback(
     file: string,
     kind: 'patch' | 'preset',
     write: () => Promise<void>,
+    options?: { verifyRows?: ReadonlySet<string> },
   ): Promise<void> {
     this.healthFailures.clear()
     await write()
     const windowMs = this.config.healthWindowMs
     if (windowMs <= 0) return
     const startedAt = this.deps.now?.() ?? Date.now()
+    const verifyRows = options?.verifyRows
     const check = (): void => {
       if (this.disposed) return
       const elapsed = (this.deps.now?.() ?? Date.now()) - startedAt
@@ -581,9 +642,39 @@ export class FeatureToggleEngine extends Service {
         const failed = [...this.healthFailures].join(', ')
         this.journal.record('rollback', `健康监视窗口发现失败行 ${failed}，回滚 ${kind} 文件`)
         void this.restoreBackup(file)
+        return
+      }
+      if (kind === 'patch' && verifyRows !== undefined && verifyRows.size > 0) {
+        void this.verifyLoaderClosedLoop(verifyRows)
       }
     }
     setTimeout(check, Math.min(500, windowMs))
+  }
+
+  /** loader 闭环验证：目标行实际态 vs 期望禁用集；未生效 → pendingRestart。 */
+  private async verifyLoaderClosedLoop(expectDisabled: ReadonlySet<string>): Promise<void> {
+    const inventory = this.inventoryService
+    if (inventory === undefined) return // 服务缺席：降级为信任热应用（增强前行为）
+    let entries: LoaderEntryView[]
+    try {
+      const result = await inventory.list()
+      entries = result.entries ?? []
+    } catch {
+      return // 读取失败不误报
+    }
+    const outcome = verifyLoaderState(expectDisabled, expectDisabled, entries)
+    if (outcome.ok) {
+      if (this.pendingRestartFlag) {
+        this.pendingRestartFlag = false
+        this.journal.record('verify', 'loader 闭环验证通过，热应用已生效（清除重启提示）')
+      }
+      return
+    }
+    this.pendingRestartFlag = true
+    this.journal.record(
+      'verify',
+      `loader 闭环验证未生效（行 ${outcome.mismatched.join(', ')} 实际态与期望不符），已置待重启提示——热应用通道可能未生效，重启后自然恢复`,
+    )
   }
 
   /** 恢复备份文件（备份存在时；热应用由 dsh 自身的 watchUserPatches 完成）。 */

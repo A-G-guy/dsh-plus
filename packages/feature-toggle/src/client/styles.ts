@@ -23,6 +23,9 @@ export const cardCss = `
 .dft-banner{color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-module-platform);border-radius:8px;margin:12px 0 0;padding:8px 12px;font-size:12px;line-height:1.6}
 .dft-bannerWarn{color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-label-dimmed)}
 .dft-bannerError{color:var(--dsw-alias-label-error);border:1px solid var(--dsw-alias-label-error)}
+.dft-driftTitle{margin:0;font-weight:600}
+.dft-driftList{margin:4px 0 0;padding-left:18px}
+.dft-driftList li{margin:2px 0}
 .dft-groupLabel{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600;padding:12px 0 2px;margin:0}
 .dft-row{align-items:center;gap:12px;padding:10px 0;display:flex;border-top:1px solid var(--dsw-alias-border-l2)}
 .dft-row:first-of-type{border-top:0}
