@@ -68,6 +68,11 @@ export interface CheckRowProps {
   onEdit(checked: boolean): void
 }
 
+/**
+ * 勾选行：自绘圆角扁平开关（switch），对齐官方 WebUI 无原生 checkbox 的
+ * 设计语言（官方选择类控件全走胶囊/菜单，见 cardCss 的 -switch 规则）。
+ * 语义保持 checkbox（无障碍树与表单语义不变），视觉自绘。
+ */
 export function CheckRow(props: CheckRowProps & { prefix?: string }): ReactElement {
   const p = props.prefix ?? 'dshp'
   return (
@@ -75,6 +80,8 @@ export function CheckRow(props: CheckRowProps & { prefix?: string }): ReactEleme
       <input
         id={props.id}
         type="checkbox"
+        role="switch"
+        aria-checked={props.checked}
         checked={props.checked}
         disabled={props.disabled === true}
         onChange={(event) => props.onEdit(event.target.checked)}

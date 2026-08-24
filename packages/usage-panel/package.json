@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/usage-panel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh-plus service+ui plugin: 全量会话 token 用量聚合面板——实时+历史扫描双通道，按日/模型报表，可选价目估算费用",
   "type": "module",
   "main": "lib/index.js",

@@ -28,8 +28,11 @@ const sectionCss = `
 .dup-cardMeta{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:1.5}
 .dup-groupTitle{color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:600;margin:12px 0 0}
 .dup-chart{display:flex;align-items:flex-end;gap:3px;height:120px;border-bottom:1px solid var(--dsw-alias-border-l2);padding:8px 0 0;overflow-x:auto}
-.dup-barCol{flex:1;min-width:14px;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
-.dup-bar{width:70%;max-width:26px;background:var(--dsw-alias-brand-primary);border-radius:3px 3px 0 0;min-height:0}
+.dup-barCol{appearance:none;font:inherit;background:0 0;border:0;padding:0;flex:1;min-width:14px;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;cursor:pointer}
+.dup-barCol:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px;border-radius:4px}
+.dup-bar{width:70%;max-width:26px;background:var(--dsw-alias-brand-primary);border-radius:3px 3px 0 0;min-height:0;opacity:.55;transition:opacity .15s}
+.dup-barCol:hover .dup-bar{opacity:.8}
+.dup-barActive .dup-bar{opacity:1}
 .dup-barLabel{color:var(--dsw-alias-label-tertiary);font-size:10px;line-height:1.2;white-space:nowrap;min-height:12px}
 .dup-table{border:1px solid var(--dsw-alias-border-l2);border-radius:10px;overflow:hidden}
 .dup-tr{display:grid;grid-template-columns:minmax(160px,2fr) repeat(5,minmax(64px,1fr));gap:0}
@@ -45,6 +48,12 @@ const sectionCss = `
 .dup-progressText{color:var(--dsw-alias-label-secondary);font-size:12px;white-space:nowrap}
 .dup-progressBar{flex:1;height:6px;background:var(--dsw-alias-bg-module-platform);border-radius:999px;overflow:hidden}
 .dup-progressFill{height:100%;background:var(--dsw-alias-brand-primary);border-radius:999px;transition:width .3s}
+/* 单日明细（点击柱状图某天展开） */
+.dup-dayDetail{border:1px solid var(--dsw-alias-border-l2);border-radius:10px;margin-top:10px;padding:10px 12px;background:var(--dsw-alias-bg-layer-3);display:flex;flex-direction:column;gap:8px}
+.dup-dayHead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.dup-dayDate{color:var(--dsw-alias-label-primary);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.dup-dayMeta{color:var(--dsw-alias-label-tertiary);font-size:12px}
+.dup-dayTable .dup-td{padding:6px 10px}
 .dup-btn{appearance:none;font:inherit;cursor:pointer;border:1px solid #0000;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5;flex:none}
 .dup-btnGhost{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:0 0}
 .dup-btnGhost:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed)}
@@ -79,18 +88,17 @@ const sectionCss = `
 `
 
 const cardExtra = `
+/* 价目卡片：字段视觉经 .dup-input（与套件 -input 同款圆角扁平）完全一致 */
 .dup-priceRow{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);border-radius:10px;margin:12px 0 0;padding:10px 12px}
 .dup-priceHead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .dup-priceTitle{color:var(--dsw-alias-label-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dup-priceGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .dup-mini{display:flex;flex-direction:column;gap:4px;min-width:0}
 .dup-mini span{color:var(--dsw-alias-label-tertiary);font-size:11px}
-.dup-input{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);height:34px;font:inherit;color:var(--dsw-alias-label-primary);border-radius:8px;padding:0 10px;font-size:13px;width:100%;box-sizing:border-box}
-.dup-input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}
-.dup-input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}
+.dup-in{width:100%;box-sizing:border-box;height:30px;padding:0 10px;font-size:12px}
 @media (max-width:767px){
 .dup-priceGrid{grid-template-columns:1fr}
-.dup-input{font-size:16px;height:40px}
+.dup-in{font-size:16px;height:40px}
 }
 `
 

@@ -45,6 +45,7 @@ export function UsageSection(props: SectionProps): ReactElement {
   const [failed, setFailed] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [range, setRange] = useState<RangeKey>('7d')
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
   const load = (): void => {
     fetchUsageData()
@@ -193,7 +194,15 @@ export function UsageSection(props: SectionProps): ReactElement {
           </div>
 
           <h3 className="dup-groupTitle">{t('byDay')}</h3>
-          <DayChart days={scoped?.days ?? []} />
+          <DayChart days={scoped?.days ?? []} selected={selectedDay} onSelect={setSelectedDay} />
+          {selectedDay !== null && scoped !== null ? (
+            <DayDetail
+              date={selectedDay}
+              rows={scoped.rows.filter((r) => r.date === selectedDay)}
+              currency={data.currency}
+              t={t}
+            />
+          ) : null}
 
           <h3 className="dup-groupTitle">{t('byModel')}</h3>
           <ModelTable rows={scoped?.rows ?? []} currency={data.currency} t={t} />
@@ -211,6 +220,8 @@ function DayChart(props: {
     cacheReadTokens: number
     cacheWriteTokens: number
   }>
+  selected: string | null
+  onSelect(date: string | null): void
 }): ReactElement {
   const days = props.days
   const max = Math.max(
@@ -224,16 +235,76 @@ function DayChart(props: {
       {days.map((day, index) => {
         const total =
           day.inputTokens + day.outputTokens + day.cacheReadTokens + day.cacheWriteTokens
+        const active = props.selected === day.date
         return (
-          <div key={day.date} className="dup-barCol" title={`${day.date}：${fmtTokens(total)}`}>
+          <button
+            key={day.date}
+            type="button"
+            className={`dup-barCol${active ? ' dup-barActive' : ''}`}
+            title={`${day.date}：${fmtTokens(total)}`}
+            aria-pressed={active}
+            onClick={() => props.onSelect(active ? null : day.date)}
+          >
             <div
               className="dup-bar"
               style={{ height: `${Math.max(total > 0 ? 3 : 0, Math.round((total / max) * 100))}%` }}
             />
             <span className="dup-barLabel">{index % labelStep === 0 ? day.date.slice(5) : ''}</span>
-          </div>
+          </button>
         )
       })}
+    </div>
+  )
+}
+
+/** 单日明细：该日按模型分布（tokens / 调用 / 费用）。 */
+function DayDetail(props: {
+  date: string
+  rows: UsageWireRow[]
+  currency: string
+  t(key: string): string
+}): ReactElement {
+  const { date, rows, currency, t } = props
+  const merged = totalsByModel(rows)
+  const dayTotal = rows.reduce(
+    (sum, r) => sum + r.inputTokens + r.outputTokens + r.cacheReadTokens + r.cacheWriteTokens,
+    0,
+  )
+  const dayCost = rows.reduce((sum, r) => (r.cost === null ? sum : sum + r.cost), 0)
+  const hasAnyCost = rows.some((r) => r.cost !== null)
+  const costByKey = new Map(rows.map((r) => [`${r.provider}\u0000${r.model}`, r.cost] as const))
+  return (
+    <div className="dup-dayDetail">
+      <div className="dup-dayHead">
+        <span className="dup-dayDate">{date}</span>
+        <span className="dup-dayMeta">
+          {t('total')} {fmtTokens(dayTotal)} · {t('calls')}{' '}
+          {rows.reduce((sum, r) => sum + r.calls, 0)}
+          {hasAnyCost ? ` · ${fmtCost(dayCost, currency)}` : ''}
+        </span>
+      </div>
+      {merged.length === 0 ? (
+        <p className="dup-empty">{t('noData')}</p>
+      ) : (
+        <div className="dup-table dup-dayTable">
+          {merged.map((m) => {
+            const cost = costByKey.get(`${m.provider}\u0000${m.model}`) ?? null
+            return (
+              <div className="dup-tr" key={`${m.provider}/${m.model}`}>
+                <span className="dup-td dup-tdModel">
+                  <span className="dup-provider">{m.provider}</span>
+                  <span className="dup-model">{m.model}</span>
+                </span>
+                <span className="dup-td">{fmtTokens(m.inputTokens)}</span>
+                <span className="dup-td">{fmtTokens(m.outputTokens)}</span>
+                <span className="dup-td">{fmtTokens(m.cacheReadTokens)}</span>
+                <span className="dup-td">{m.calls}</span>
+                <span className="dup-td">{cost !== null ? fmtCost(cost, currency) : '—'}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

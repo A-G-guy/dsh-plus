@@ -239,7 +239,7 @@ export function UsagePriceCard(props: CardProps): ReactElement | null {
             <label className="dup-mini">
               <span>{t('provider')}</span>
               <input
-                className="dup-input"
+                className="dup-input dup-in"
                 value={price.provider}
                 disabled={disabled}
                 onChange={(e) => editPrice(index, { provider: e.target.value })}
@@ -248,7 +248,7 @@ export function UsagePriceCard(props: CardProps): ReactElement | null {
             <label className="dup-mini">
               <span>{t('model')}</span>
               <input
-                className="dup-input"
+                className="dup-input dup-in"
                 value={price.model}
                 disabled={disabled}
                 onChange={(e) => editPrice(index, { model: e.target.value })}
@@ -257,7 +257,7 @@ export function UsagePriceCard(props: CardProps): ReactElement | null {
             <label className="dup-mini">
               <span>{t('inputPrice')}</span>
               <input
-                className="dup-input"
+                className="dup-input dup-in"
                 inputMode="decimal"
                 value={String(price.inputPerMtok)}
                 disabled={disabled}
@@ -267,7 +267,7 @@ export function UsagePriceCard(props: CardProps): ReactElement | null {
             <label className="dup-mini">
               <span>{t('outputPrice')}</span>
               <input
-                className="dup-input"
+                className="dup-input dup-in"
                 inputMode="decimal"
                 value={String(price.outputPerMtok)}
                 disabled={disabled}
@@ -277,7 +277,7 @@ export function UsagePriceCard(props: CardProps): ReactElement | null {
             <label className="dup-mini">
               <span>{t('cacheReadPrice')}</span>
               <input
-                className="dup-input"
+                className="dup-input dup-in"
                 inputMode="decimal"
                 value={String(price.cacheReadPerMtok)}
                 disabled={disabled}
@@ -287,7 +287,7 @@ export function UsagePriceCard(props: CardProps): ReactElement | null {
             <label className="dup-mini">
               <span>{t('cacheWritePrice')}</span>
               <input
-                className="dup-input"
+                className="dup-input dup-in"
                 inputMode="decimal"
                 value={String(price.cacheWritePerMtok)}
                 disabled={disabled}

@@ -34,16 +34,24 @@ export function cardCss(prefix: string, extra = ''): string {
 .${prefix}-badge{white-space:nowrap;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}
 .${prefix}-badgeSet{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary)}
 .${prefix}-badgeUnset{color:var(--dsw-alias-label-tertiary)}
-.${prefix}-input{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);height:34px;font:inherit;color:var(--dsw-alias-label-primary);border-radius:8px;padding:0 12px;font-size:13px}
+.${prefix}-input{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);height:34px;font:inherit;color:var(--dsw-alias-label-primary);border-radius:8px;padding:0 12px;font-size:13px;transition:border-color .18s,background .18s}
+.${prefix}-input:hover:not(:disabled):not(:focus-visible){border-color:var(--dsw-alias-label-dimmed)}
 .${prefix}-input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}
 .${prefix}-input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}
 .${prefix}-inputInvalid{border-color:var(--dsw-alias-label-error)}
-.${prefix}-select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--dsw-alias-label-tertiary) 50%),linear-gradient(135deg,var(--dsw-alias-label-tertiary) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:28px}
+.${prefix}-select{appearance:none;background:var(--dsw-alias-bg-module-platform);border:none;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--dsw-alias-label-secondary) 50%),linear-gradient(135deg,var(--dsw-alias-label-secondary) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px;color:var(--dsw-alias-label-primary)}
+.${prefix}-select:hover:not(:disabled){background-color:var(--dsw-alias-interactive-bg-hover)}
 .${prefix}-hint{color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px;line-height:1.5}
 .${prefix}-invalid{color:var(--dsw-alias-label-error);margin:0;font-size:12px;line-height:1.5}
-.${prefix}-checkRow{align-items:center;gap:8px;display:flex;padding:6px 0}
-.${prefix}-checkRow input{accent-color:var(--dsw-alias-brand-primary)}
-.${prefix}-checkRow label{color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.5;cursor:pointer}
+.${prefix}-checkRow{align-items:center;gap:10px;display:flex;padding:6px 0}
+.${prefix}-checkRow label{color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.5;cursor:pointer;flex:1;min-width:0}
+/* 自绘圆角扁平开关（官方 UI 无可见原生 checkbox，选择类全走胶囊/菜单） */
+.${prefix}-checkRow input{appearance:none;-webkit-appearance:none;position:relative;box-sizing:border-box;background:var(--dsw-alias-bg-module-platform);border:none;border-radius:999px;width:34px;height:20px;flex:none;cursor:pointer;transition:background .18s;margin:0}
+.${prefix}-checkRow input::after{content:"";position:absolute;top:2px;left:2px;background:var(--dsw-alias-label-primary);border-radius:999px;width:16px;height:16px;transition:left .18s cubic-bezier(.4,0,.2,1)}
+.${prefix}-checkRow input:checked{background:var(--dsw-alias-brand-primary)}
+.${prefix}-checkRow input:checked::after{left:16px;background:var(--dsw-alias-bg-base)}
+.${prefix}-checkRow input:disabled{opacity:.4;cursor:default}
+.${prefix}-checkRow input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
 .${prefix}-groupLabel{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600;padding:12px 0 2px;margin:0}
 .${prefix}-readOnly{color:var(--dsw-alias-label-tertiary);margin:12px 0 0;font-size:12px;line-height:1.5}
 .${prefix}-warn{color:var(--dsw-alias-label-error);margin:12px 0 0;font-size:12px;line-height:1.5}
@@ -61,7 +69,6 @@ export function cardCss(prefix: string, extra = ''): string {
 .${prefix}-header{padding:12px 12px}
 .${prefix}-input,.${prefix}-select{font-size:16px;height:40px}
 .${prefix}-checkRow{min-height:44px;padding:8px 0}
-.${prefix}-checkRow input{width:18px;height:18px;flex:none}
 .${prefix}-footer{position:sticky;bottom:0;background:var(--dsw-alias-bg-layer-2);margin:0 -10px;padding:10px 10px 6px;border-top:1px solid var(--dsw-alias-border-l2);border-bottom-left-radius:12px;border-bottom-right-radius:12px}
 .${prefix}-status{flex-basis:100%;flex:none}
 .${prefix}-btn{min-height:44px;flex:1;min-width:96px}
