@@ -4,9 +4,13 @@
 # 注意：示例/演示插件（如 tool-text-transform）不入此层——它们只经 dev profile 的
 # 用户补丁层注入，避免随 bundle 进入生产、无效占用模型上下文。
 # lifeboat 必须排首位：它是故障救生艇，需先于兄弟插件就绪才能观察它们的失败。
+# feature-toggle 紧随其后：功能开关管理器需在多数被管理插件之前就绪，
+# 且自身 fiber 失败时也在 lifeboat 守护范围内（自动隔离止损）。
 - insert:
     - id: dsh-plus-lifeboat
       name: '@dsh-plus/lifeboat'
+    - id: dsh-plus-feature-toggle
+      name: '@dsh-plus/feature-toggle'
     - id: dsh-plus-ui-mobile-fit
       name: '@dsh-plus/ui-mobile-fit'
     - id: dsh-plus-remote-settings

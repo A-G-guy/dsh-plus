@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/bundle-main",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "dsh-plus aggregate bundle: ordered cordis patch layer wiring all dsh-plus plugins",
   "type": "module",
   "main": "lib/index.js",
@@ -30,6 +30,7 @@
     "@dsh-plus/llm-pi": "workspace:*",
     "@dsh-plus/skill-manual": "workspace:*",
     "@dsh-plus/lifeboat": "workspace:*",
+    "@dsh-plus/feature-toggle": "workspace:*",
     "@dsh-plus/reload": "workspace:*",
     "@dsh-plus/web-files": "workspace:*"
   },
