@@ -30,6 +30,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | [`@dsh-plus/skill-manual`](packages/skill-manual) | 0.1.0 | skill provider | 手动触发技能独立目录（`$DSH_HOME/skills-manual`）：不进模型 catalog，斜杠发现 + `/name` 注入 | [docs](packages/skill-manual/docs/README.md) |
 | [`@dsh-plus/lifeboat`](packages/lifeboat) | 0.1.0 | service | 故障救生艇：兄弟插件崩溃自动隔离（写 patch 层禁用）+ LLM 应急翻译 + 邮件告警 | [docs](packages/lifeboat/docs/README.md) |
 | [`@dsh-plus/reload`](packages/reload) | 0.1.0 | service + UI | 设置页「重新加载」按钮与 `/reload` 命令：两段确认+倒计时后重启 dsh-web，恢复后自动刷新 | [docs](packages/reload/docs/README.md) |
+| [`@dsh-plus/access-gate`](packages/access-gate) | 0.1.0 | service + UI | Web 访问围栏：本机直连放行；远程按白名单 IP（XFF 还原，v4/v6 CIDR）或令牌（登录页+cookie）放行，其余 403/登录页 | [docs](packages/access-gate/docs/README.md) |
 | [`@dsh-plus/tool-text-transform`](packages/tool-text-transform) | 0.1.0 | tool | 纯函数演示工具（uppercase / lowercase / reverse / length），插件链路参考实现 | [docs](packages/tool-text-transform/docs/README.md) |
 | [`@dsh-plus/bundle-main`](packages/bundle-main) | 0.1.0 | bundle | 聚合编排层：按序 insert 正式插件行，单插件脱离 bundle 亦可独立安装 | — |
 | [`@dsh-plus/shared`](packages/shared) | 0.1.0 | library | 工作区共享纯函数库（非插件） | — |
@@ -81,6 +82,8 @@ packages/
   skill-manual/         手动触发技能目录
   lifeboat/             故障救生艇（隔离/应急翻译/告警）
   reload/               设置按钮 + /reload 命令重启 dsh-web
+  access-gate/          Web 访问围栏（白名单 IP / token）
+  web-files/            Web 内嵌类 SFTP 文件浏览与编辑
   tool-text-transform/  演示工具（dev-only，不进生产 bundle）
   bundle-main/          聚合编排层
   shared/               共享纯函数库

@@ -1,0 +1,53 @@
+/**
+ * 浏览器半 settingsScope/connection 的最小本地接口声明（notify-email 同款）。
+ * 只声明本插件用到的窄面，避免为构建期类型引入整条官方 client 依赖树；
+ * 运行时契约以官方 dsh-client-connection 的 settings RPC 面为准。
+ * @module access-gate/client/scope
+ */
+
+/** settings 命名空间 scope 的快照（官方 SettingsScopeSnapshot 的最小投影）。 */
+export interface ScopeSnapshot {
+  status: 'loading' | 'ready' | 'unavailable'
+  /** schema 解析后的配置值（secret 字段已脱敏剥除）。 */
+  value: unknown
+  /** 命名空间 revision，写操作 fencing 用；首次 Host 应答前为 undefined。 */
+  revision: number | undefined
+  /** Host 文档是否可写。 */
+  writable: boolean
+}
+
+/** settingsScope.bind({namespace}) 返回的控制器面（本插件由 api 直连实现）。 */
+export interface Scope {
+  getSnapshot(): ScopeSnapshot
+  subscribe(listener: () => void): () => void
+  load(): Promise<void>
+}
+
+/** connection api.settings 的 RPC 面（本插件用到的三个方法）。 */
+export interface SettingsApi {
+  describe(payload?: Record<string, never>): Promise<{
+    result: {
+      ok: boolean
+      value?: {
+        writable: boolean
+        namespaces: Array<{
+          ns: string
+          value: unknown
+          revision: number
+          secrets: Array<{ path: string[]; set: boolean }>
+        }>
+      }
+      error?: { message?: string }
+    }
+  }>
+  update(request: {
+    ns: string
+    patch: Record<string, unknown>
+    expectedRevision?: number
+  }): Promise<{ result: { ok: boolean; error?: { message?: string } } }>
+  replace(request: {
+    ns: string
+    section: Record<string, unknown>
+    expectedRevision?: number
+  }): Promise<{ result: { ok: boolean; error?: { message?: string } } }>
+}
