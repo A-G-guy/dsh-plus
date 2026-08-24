@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/access-gate",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh-plus service+ui plugin: dsh web 全量访问围栏——本机直连永久放行，远程按白名单 IP（XFF 还原）或 token（登录页 + cookie）放行",
   "type": "module",
   "main": "lib/index.js",
