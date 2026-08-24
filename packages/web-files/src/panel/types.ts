@@ -17,9 +17,11 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** slot locale 座位注入的翻译函数（键域 = 本插件字典 + common 词汇）。 */
 export type Translate = TranslateNS<typeof NS>
 
-/** 面板开合状态。 */
+/** 面板开合状态 + 外部打开请求（会话内文件链接等）。 */
 export interface PanelState {
   open: boolean
+  /** 外部请求打开的路径；seq 单调递增供面板去重消费。 */
+  request: { path: string; seq: number } | null
 }
 
 /** footer 按钮与 shell.overlay 面板之间共享的开合控制器。 */
@@ -28,11 +30,14 @@ export interface PanelController {
   getSnapshot: () => PanelState
   setOpen: (open: boolean) => void
   toggle: () => void
+  /** 外部来源（如会话消息文件链接）请求在面板中打开路径。 */
+  requestOpen: (path: string) => void
 }
 
 /** 创建一个模块级控制器（apply 内调用一次，inject 给两个 slot 入口）。 */
 export function createPanelController(): PanelController {
-  let state: PanelState = { open: false }
+  let state: PanelState = { open: false, request: null }
+  let seq = 0
   const listeners = new Set<() => void>()
   const publish = () => {
     for (const listener of [...listeners]) listener()
@@ -45,11 +50,16 @@ export function createPanelController(): PanelController {
     getSnapshot: () => state,
     setOpen: (open) => {
       if (state.open === open) return
-      state = { open }
+      state = { ...state, open }
       publish()
     },
     toggle: () => {
-      state = { open: !state.open }
+      state = { ...state, open: !state.open }
+      publish()
+    },
+    requestOpen: (path) => {
+      seq += 1
+      state = { open: true, request: { path, seq } }
       publish()
     },
   }

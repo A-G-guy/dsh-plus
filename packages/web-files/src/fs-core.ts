@@ -237,6 +237,23 @@ export async function makeDirectory(parent: string, name: string): Promise<{ pat
   return { path: dir }
 }
 
+/** 新建空文件：tmp+rename 原子落盘，重名拒绝（409），返回条目 DTO。 */
+export async function createFile(parent: string, name: string): Promise<FsEntryDto> {
+  const target = join(requireAbsolute(parent), requireEntryName(name))
+  if (await exists(target)) {
+    throw new FilesError(`${target} already exists`, 'entry-exists', 409)
+  }
+  const tmp = `${target}.web-files-${String(process.pid)}-${String(Date.now())}.tmp`
+  try {
+    await writeFile(tmp, '', 'utf8')
+    await rename(tmp, target)
+  } catch (error) {
+    await unlink(tmp).catch(() => {})
+    throw toFilesError(error, target)
+  }
+  return statEntry(target)
+}
+
 /** 同目录改名/移动（新名为单段条目名）。 */
 export async function renameEntry(path: string, newName: string): Promise<{ path: string }> {
   const source = requireAbsolute(path)
@@ -319,6 +336,23 @@ export async function statDownload(path: string): Promise<{ path: string; size: 
   })
   if (info.kind !== 'file') throw new FilesError(`${target} is not a regular file`, 'not-a-file')
   return { path: target, size: info.size }
+}
+
+/** 单条目探测：返回与列表行一致的 DTO（外部打开请求的落点判定）。 */
+export async function statEntry(path: string): Promise<FsEntryDto> {
+  const target = requireAbsolute(path)
+  const info = await classify(target).catch((error: unknown) => {
+    throw toFilesError(error, target)
+  })
+  const name = target.split(sep).pop() ?? target
+  return {
+    name,
+    path: target,
+    kind: info.kind,
+    hidden: isHidden(name),
+    size: info.size,
+    mtimeMs: info.mtimeMs,
+  }
 }
 
 async function exists(path: string): Promise<boolean> {

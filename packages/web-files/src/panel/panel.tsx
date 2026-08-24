@@ -26,7 +26,14 @@ import {
   Tooltip,
   writeClipboard,
 } from './primitives.ts'
+import type { SortDir, SortKey } from './sort.ts'
 import type { PanelController, Translate } from './types.ts'
+
+/** POSIX 父目录路径（外部打开文件前先定位其所在目录）。 */
+function parentPath(path: string): string {
+  const index = path.lastIndexOf('/')
+  return index <= 0 ? '/' : path.slice(0, index)
+}
 
 export interface FilePanelProps {
   files: PanelController
@@ -43,9 +50,9 @@ interface OpenFile {
   dirty: boolean
 }
 
-/** 名称输入对话框（新建文件夹/重命名共用）。 */
+/** 名称输入对话框（新建文件/新建文件夹/重命名共用）。 */
 interface NameDialog {
-  mode: 'mkdir' | 'rename'
+  mode: 'mkdir' | 'mkfile' | 'rename'
   entry?: FsEntryDto
 }
 
@@ -57,11 +64,13 @@ interface ToastItem {
 }
 
 export function FilePanel({ files, t }: FilePanelProps) {
-  const { open } = useSyncExternalStore(files.subscribe, files.getSnapshot)
+  const { open, request } = useSyncExternalStore(files.subscribe, files.getSnapshot)
   const [listing, setListing] = useState<ListResponse | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showHidden, setShowHidden] = useState(false)
+  const [sortKey, setSortKey] = useState<SortKey>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [file, setFile] = useState<OpenFile | null>(null)
   const [fileError, setFileError] = useState<{
     path: string
@@ -168,6 +177,42 @@ export function FilePanel({ files, t }: FilePanelProps) {
     await navigate()
   }, [navigate])
 
+  /** 外部打开（会话内文件链接）：目录直接导航；文件先定位父目录再打开。 */
+  const openExternal = useCallback(
+    async (path: string) => {
+      try {
+        const { entry } = await api.stat({ path })
+        if (entry.kind === 'dir') {
+          setFile(null)
+          setFileError(null)
+          await navigate(entry.path)
+          return
+        }
+        await navigate(parentPath(entry.path))
+        if (entry.kind === 'file') {
+          await openEntry(entry)
+          return
+        }
+        setFile(null)
+        setFileError({ path: entry.path, name: entry.name, code: undefined })
+      } catch (error) {
+        toast(
+          `${t('error.generic')}: ${error instanceof Error ? error.message : String(error)}`,
+          true,
+        )
+      }
+    },
+    [navigate, openEntry, t, toast],
+  )
+
+  // 消费外部打开请求（seq 去重；面板常驻挂载，重复消费只发生在严格模式双调用）
+  const handledRequestSeq = useRef(0)
+  useEffect(() => {
+    if (request === null || request.seq === handledRequestSeq.current) return
+    handledRequestSeq.current = request.seq
+    void openExternal(request.path)
+  }, [request, openExternal])
+
   const save = useCallback(
     async (doc: string, force: boolean) => {
       if (file === null || saving) return
@@ -209,6 +254,13 @@ export function FilePanel({ files, t }: FilePanelProps) {
       if (nameDialog.mode === 'mkdir') {
         await api.mkdir(listing.path, name)
         toast(t('toast.created'))
+      } else if (nameDialog.mode === 'mkfile') {
+        const { entry } = await api.mkfile(listing.path, name)
+        toast(t('toast.created'))
+        setNameDialog(null)
+        await refresh()
+        await openEntry(entry)
+        return
       } else if (nameDialog.entry !== undefined) {
         const renamed = await api.rename(nameDialog.entry.path, name)
         toast(t('toast.renamed'))
@@ -307,6 +359,12 @@ export function FilePanel({ files, t }: FilePanelProps) {
                 selectedPath={file?.entry.path ?? null}
                 canBack={history.index > 0}
                 canForward={history.index < history.stack.length - 1}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onSortChange={(key, dir) => {
+                  setSortKey(key)
+                  setSortDir(dir)
+                }}
                 t={t}
                 onNavigate={(path) => void navigate(path)}
                 onBack={goBack}
@@ -321,6 +379,10 @@ export function FilePanel({ files, t }: FilePanelProps) {
                 onNewFolder={() => {
                   setNameDraft('')
                   setNameDialog({ mode: 'mkdir' })
+                }}
+                onNewFile={() => {
+                  setNameDraft('')
+                  setNameDialog({ mode: 'mkfile' })
                 }}
                 onUpload={(fileList) => void uploadFiles(fileList)}
                 onOpenEntry={(entry) => void openEntry(entry)}
@@ -383,7 +445,13 @@ export function FilePanel({ files, t }: FilePanelProps) {
       <Modal
         open={nameDialog !== null}
         onClose={() => setNameDialog(null)}
-        title={nameDialog?.mode === 'mkdir' ? t('dialog.mkdir.title') : t('dialog.rename.title')}
+        title={
+          nameDialog?.mode === 'mkdir'
+            ? t('dialog.mkdir.title')
+            : nameDialog?.mode === 'mkfile'
+              ? t('dialog.mkfile.title')
+              : t('dialog.rename.title')
+        }
         closeLabel={t('dialog.cancel')}
         footer={
           <>

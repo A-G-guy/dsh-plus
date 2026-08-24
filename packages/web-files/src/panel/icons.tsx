@@ -54,3 +54,23 @@ export function IconHome16({ size = 16, className }: LocalIconProps) {
     </svg>
   )
 }
+
+/** 排序：双向竖箭头。 */
+export function IconSort16({ size = 16, className }: LocalIconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      width={size}
+      height={size}
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M5 2.2L7.4 5.9H5.7V13.8H4.3V5.9H2.6L5 2.2ZM11 13.8L8.6 10.1H10.3V2.2H11.7V10.1H13.4L11 13.8Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}

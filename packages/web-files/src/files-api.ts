@@ -14,6 +14,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 
 import {
+  createFile,
   deleteEntry,
   FilesError,
   listDirectory,
@@ -22,6 +23,7 @@ import {
   renameEntry,
   saveUpload,
   statDownload,
+  statEntry,
   writeFileText,
 } from './fs-core.ts'
 import type {
@@ -29,8 +31,10 @@ import type {
   DeleteRequest,
   ListRequest,
   MkdirRequest,
+  MkfileRequest,
   ReadRequest,
   RenameRequest,
+  StatRequest,
   WriteRequest,
 } from './protocol.ts'
 import { ROUTE_PREFIX } from './protocol.ts'
@@ -116,6 +120,10 @@ function buildHandlers(ctx: Context): Record<string, Handler> {
       const body = await readJsonBody<ReadRequest>(req)
       sendJson(res, 200, await readFileText(body.path))
     }),
+    '/stat': wrap(ctx, '/stat', 'POST', async (req, res) => {
+      const body = await readJsonBody<StatRequest>(req)
+      sendJson(res, 200, { entry: await statEntry(body.path) })
+    }),
     '/write': wrap(ctx, '/write', 'POST', async (req, res) => {
       const body = await readJsonBody<WriteRequest>(req)
       sendJson(res, 200, await writeFileText(body.path, body.content, body.baseMtimeMs))
@@ -123,6 +131,10 @@ function buildHandlers(ctx: Context): Record<string, Handler> {
     '/mkdir': wrap(ctx, '/mkdir', 'POST', async (req, res) => {
       const body = await readJsonBody<MkdirRequest>(req)
       sendJson(res, 200, await makeDirectory(body.parent, body.name))
+    }),
+    '/mkfile': wrap(ctx, '/mkfile', 'POST', async (req, res) => {
+      const body = await readJsonBody<MkfileRequest>(req)
+      sendJson(res, 200, { entry: await createFile(body.parent, body.name) })
     }),
     '/rename': wrap(ctx, '/rename', 'POST', async (req, res) => {
       const body = await readJsonBody<RenameRequest>(req)

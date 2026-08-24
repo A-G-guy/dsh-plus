@@ -22,8 +22,8 @@ import { webFilesCss } from './styles.ts'
 
 export const name = 'dsh-plus-web-files'
 
-/** 客户端 cordis 服务依赖（slots 注册 + locale 字典）。 */
-export const inject = ['slots', 'locale'] as const
+/** 客户端 cordis 服务依赖（slots/locale 字典 + workspaces 的 openPath 接管）。 */
+export const inject = ['slots', 'locale', 'workspaces'] as const
 
 const PLUGIN_ID = '@dsh-plus/web-files'
 const STYLE_TAG_ID = `${PLUGIN_ID}/styles.css`
@@ -75,9 +75,35 @@ function FilesOverlayEntry({ files, t }: EntryProps) {
   return <FilePanel files={files} t={t} />
 }
 
+/**
+ * 接管 `workspaces.openPath`：GUI 内全部「打开文件」手势（会话消息文件
+ * 引用、附件等）不再走宿主 xdg-open（无桌面环境必然失败），改为在
+ * 本插件面板中打开；非绝对路径（无法定位）回退原实现。
+ * 原方法在原型上，恢复时 delete 自身属性即可还原。
+ */
+function takeOverOpenPath(ctx: Context, controller: PanelController): void {
+  const workspaces = ctx.workspaces
+  const original = workspaces.openPath.bind(workspaces)
+  const holder = workspaces as { openPath?: (path: string) => Promise<void> }
+  holder.openPath = async (path: string) => {
+    if (!path.startsWith('/')) {
+      await original(path)
+      return
+    }
+    controller.requestOpen(path)
+  }
+  ctx.effect(
+    () => () => {
+      delete holder.openPath
+    },
+    'web-files: openPath takeover cleanup',
+  )
+}
+
 export function apply(ctx: Context): void {
   const tag = injectStyle()
   const controller = createPanelController()
+  takeOverOpenPath(ctx, controller)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'web-files: dictionaries')
   ctx.effect(
     () =>

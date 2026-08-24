@@ -8,8 +8,11 @@ import type {
   FilesErrorCode,
   ListRequest,
   ListResponse,
+  MkfileResponse,
   ReadRequest,
   ReadResponse,
+  StatRequest,
+  StatResponse,
   WriteRequest,
   WriteResponse,
 } from '../protocol.ts'
@@ -61,12 +64,20 @@ export function read(req: ReadRequest): Promise<ReadResponse> {
   return post<ReadRequest, ReadResponse>('/read', req)
 }
 
+export function stat(req: StatRequest): Promise<StatResponse> {
+  return post<StatRequest, StatResponse>('/stat', req)
+}
+
 export function write(req: WriteRequest): Promise<WriteResponse> {
   return post<WriteRequest, WriteResponse>('/write', req)
 }
 
 export function mkdir(parent: string, name: string): Promise<{ path: string }> {
   return post('/mkdir', { parent, name })
+}
+
+export function mkfile(parent: string, name: string): Promise<MkfileResponse> {
+  return post('/mkfile', { parent, name })
 }
 
 export function rename(path: string, newName: string): Promise<{ path: string }> {

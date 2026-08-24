@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-24 02:21"
+last_modified: "2026-08-24 15:26"
 ---
 
 # @dsh-plus/web-files
@@ -29,9 +29,19 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
   （重复路径去重、刷新不入栈）；面包屑每段点击直接跳转对应目录
   （不提供路径手输编辑，有意收窄交互面）；主页按钮一键回家目录
   （/list 缺省 path 即 home）。
+- GUI 内文件链接接管（`src/client.tsx`）：包裹 `workspaces.openPath`
+  （inject workspaces），会话消息/附件的「打开文件」手势不再走宿主
+  xdg-open（无桌面环境必然失败），改为 /stat 判定落点后在面板内打开
+  （目录直接导航、文件先定位父目录再打开）；非绝对路径回退原实现，
+  卸载时 delete 自身属性还原原型方法。
+- 列表排序（`src/panel/sort.ts` 纯函数 + 单测）：名称/大小/修改时间
+  × 升/降序，目录恒优先，平手回退名称升序；工具栏下拉选择
+  （`src/panel/toolbar-menus.tsx`，与新建菜单同处）。
+- 新建：加号下拉支持新建文件（/mkfile 空文件原子落盘，返回条目 DTO
+  直接打开进入预览）与新建文件夹。
 - i18n：命名空间 `dsh-plus-web-files` 合并进 LocaleNamespaceMap
   （`src/panel/types.ts`），zh/en 字典在 `src/locales.ts`。
-- 图标：primitives 图标集缺失的 upload / home 由
+- 图标：primitives 图标集缺失的 upload / home / sort 由
   `src/panel/icons.tsx` 本地补齐（16 视窗、currentColor，视觉对齐官方）。
 
 ## HTTP 端点（`src/protocol.ts` 为线协议单一事实源）
@@ -40,8 +50,9 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
 |---|---|---|
 | `/list` | POST | 单层列举：目录优先排序、hidden 标记、crumbs、超 2000 截断 |
 | `/read` | POST | UTF-8 文本；NUL 嗅探拒二进制（415）；>2MB 截断为前 256KB |
+| `/stat` | POST | 单条目探测（外部打开请求的落点判定），返回 FsEntryDto |
 | `/write` | POST | 原子写（tmp+rename）；`baseMtimeMs` 乐观锁，失配 409 |
-| `/mkdir` / `/rename` | POST | 单段名称校验（禁分隔符） |
+| `/mkdir` / `/mkfile` / `/rename` | POST | 单段名称校验（禁分隔符）；mkfile 空文件、重名 409 |
 | `/delete` | POST | **仅单文件或空目录**，非空目录拒绝（不递归，数据安全底线） |
 | `/upload` | POST raw | 流式落盘，上限 50MB |
 | `/download` | GET | attachment 流式下载，RFC 5987 文件名编码 |

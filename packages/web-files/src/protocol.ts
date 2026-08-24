@@ -62,6 +62,15 @@ export interface ReadRequest {
   path: string
 }
 
+export interface StatRequest {
+  path: string
+}
+
+/** 单条目探测：会话内文件链接等外部打开请求的落点判定（dir/file/other）。 */
+export interface StatResponse {
+  entry: FsEntryDto
+}
+
 export interface ReadResponse {
   content: string
   size: number
@@ -85,6 +94,16 @@ export interface WriteResponse {
 export interface MkdirRequest {
   parent: string
   name: string
+}
+
+export interface MkfileRequest {
+  parent: string
+  name: string
+}
+
+/** 新建空文件：返回完整条目 DTO（客户端可直接打开进入编辑）。 */
+export interface MkfileResponse {
+  entry: FsEntryDto
 }
 
 export interface RenameRequest {

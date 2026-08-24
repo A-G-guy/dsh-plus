@@ -6,12 +6,14 @@ import { test } from 'node:test'
 
 import {
   buildCrumbs,
+  createFile,
   deleteEntry,
   FilesError,
   listDirectory,
   makeDirectory,
   readFileText,
   renameEntry,
+  statEntry,
   writeFileText,
 } from '../src/fs-core.ts'
 import { LIST_MAX_ENTRIES, READ_MAX_BYTES, READ_TRUNCATE_BYTES } from '../src/protocol.ts'
@@ -233,4 +235,51 @@ test('buildCrumbs yields root-first jump targets', () => {
     { name: 'user', path: '/home/user' },
     { name: 'proj', path: '/home/user/proj' },
   ])
+})
+
+test('given an empty parent, when creating a file, then an empty regular file is returned and readable', async () => {
+  await withTempDir(async (dir) => {
+    const result = await createFile(dir, 'note.md')
+    assert.equal(result.kind, 'file')
+    assert.equal(result.name, 'note.md')
+    assert.equal(result.size, 0)
+    assert.equal(await readFile(join(dir, 'note.md'), 'utf8'), '')
+    const read = await readFileText(join(dir, 'note.md'))
+    assert.equal(read.content, '')
+  })
+})
+
+test('given an existing entry, when creating a file with the same name, then entry-exists is raised', async () => {
+  await withTempDir(async (dir) => {
+    await writeFile(join(dir, 'a.txt'), 'a')
+    await assert.rejects(createFile(dir, 'a.txt'), (error: unknown) => {
+      assert.ok(error instanceof FilesError)
+      assert.equal(error.code, 'entry-exists')
+      return true
+    })
+  })
+})
+
+test('given a path, when statting, then kind and metadata match the entry', async () => {
+  await withTempDir(async (dir) => {
+    await mkdir(join(dir, 'sub'))
+    await writeFile(join(dir, 'f.txt'), 'hello')
+    const dirEntry = await statEntry(join(dir, 'sub'))
+    assert.equal(dirEntry.kind, 'dir')
+    assert.equal(dirEntry.name, 'sub')
+    const fileEntry = await statEntry(join(dir, 'f.txt'))
+    assert.equal(fileEntry.kind, 'file')
+    assert.equal(fileEntry.size, 5)
+    assert.equal(fileEntry.name, 'f.txt')
+  })
+})
+
+test('given a missing path, when statting, then not-found is raised', async () => {
+  await withTempDir(async (dir) => {
+    await assert.rejects(statEntry(join(dir, 'nope')), (error: unknown) => {
+      assert.ok(error instanceof FilesError)
+      assert.equal(error.code, 'not-found')
+      return true
+    })
+  })
 })

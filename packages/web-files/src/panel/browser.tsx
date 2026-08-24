@@ -3,7 +3,7 @@
  * 纯展示组件，数据与动作经 props 注入。
  * @module @dsh-plus/web-files/panel/browser
  */
-import { type ReactNode, useRef, useState } from 'react'
+import { type ReactNode, useMemo, useRef, useState } from 'react'
 import type { FsEntryDto, ListResponse } from '../protocol.ts'
 import { IconHome16, IconUpload16 } from './icons.tsx'
 import {
@@ -15,12 +15,13 @@ import {
   IconEditOutline16,
   IconEllipsisOutline16,
   IconFolderClose16,
-  IconPlusOutline16,
   IconRefreshOutline16,
   IconTrashOutline16,
   Menu,
   Tooltip,
 } from './primitives.ts'
+import { type SortDir, type SortKey, sortEntries } from './sort.ts'
+import { NewMenu, SortControl } from './toolbar-menus.tsx'
 import type { Translate } from './types.ts'
 
 export interface BrowserActions {
@@ -31,6 +32,7 @@ export interface BrowserActions {
   onRefresh: () => void
   onToggleHidden: () => void
   onNewFolder: () => void
+  onNewFile: () => void
   onUpload: (files: FileList) => void
   onOpenEntry: (entry: FsEntryDto) => void
   onRename: (entry: FsEntryDto) => void
@@ -46,6 +48,9 @@ export interface BrowserProps extends BrowserActions {
   selectedPath: string | null
   canBack: boolean
   canForward: boolean
+  sortKey: SortKey
+  sortDir: SortDir
+  onSortChange: (key: SortKey, dir: SortDir) => void
   t: Translate
 }
 
@@ -147,6 +152,10 @@ function RowMenu({ entry, t, onRename, onDelete, onDownload }: RowMenuProps) {
 export function Browser(props: BrowserProps) {
   const { listing, loading, error, showHidden, selectedPath, t } = props
   const uploadRef = useRef<HTMLInputElement>(null)
+  const entries = useMemo(
+    () => (listing === null ? [] : sortEntries(listing.entries, props.sortKey, props.sortDir)),
+    [listing, props.sortKey, props.sortDir],
+  )
 
   return (
     <div className="wf-browser">
@@ -193,16 +202,13 @@ export function Browser(props: BrowserProps) {
             <IconRefreshOutline16 />
           </button>
         </Tooltip>
-        <Tooltip label={t('toolbar.newFolder')} side="bottom">
-          <button
-            type="button"
-            className="wf-icon-button"
-            onClick={props.onNewFolder}
-            aria-label={t('toolbar.newFolder')}
-          >
-            <IconPlusOutline16 />
-          </button>
-        </Tooltip>
+        <SortControl
+          sortKey={props.sortKey}
+          sortDir={props.sortDir}
+          onChange={props.onSortChange}
+          t={t}
+        />
+        <NewMenu onNewFile={props.onNewFile} onNewFolder={props.onNewFolder} t={t} />
         <Tooltip label={t('toolbar.upload')} side="bottom">
           <button
             type="button"
@@ -238,11 +244,11 @@ export function Browser(props: BrowserProps) {
       <div className="wf-list">
         {error !== null && <div className="wf-list-note">{error}</div>}
         {loading && <div className="wf-list-note">{t('view.loading')}</div>}
-        {!loading && error === null && listing !== null && listing.entries.length === 0 && (
+        {!loading && error === null && listing !== null && entries.length === 0 && (
           <div className="wf-list-note">{t('list.empty')}</div>
         )}
         {!loading &&
-          listing?.entries.map((entry) => (
+          entries.map((entry) => (
             <EntryRow
               key={entry.path}
               entry={entry}
