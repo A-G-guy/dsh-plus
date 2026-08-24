@@ -1,11 +1,13 @@
 /**
  * 配置卡片文案（zh/en）。经 ctx.locale.register 注册、bind 取用，与官方卡片同机制。
+ * 公共键（save/discard/unsaved 等）来自 shared 的 common 字典，本文件只维护业务键。
  * @module llm-pi/client/i18n
  */
+import { commonEn, commonZh, mergeDict } from '@dsh-plus/shared/client'
 
 export const NS = 'dsh-plus-llm-pi'
 
-export const zh: Record<string, string> = {
+const ownZh: Record<string, string> = {
   title: 'LLM 路由（llm-pi）',
   description: '自定义 LLM 路由：协议、compat、模型目录与 models.dev 目录兜底。',
   enabled: '启用插件',
@@ -82,20 +84,11 @@ export const zh: Record<string, string> = {
   catalogProvider: '候选 provider',
   catalogLoading: '目录加载中…',
   catalogFailed: '目录加载失败。',
-  save: '保存',
-  saving: '保存中…',
-  discard: '放弃',
-  unsaved: '未保存',
   saveOk: '已保存。',
   saveFailed: '保存失败：',
-  loading: '加载中…',
-  readOnly: '当前部署无 settings provider，配置为只读；请编辑 settings.yaml。',
-  expand: '展开',
-  collapse: '收起',
-  invalidNumber: '请输入有效数字',
 }
 
-export const en: Record<string, string> = {
+const ownEn: Record<string, string> = {
   title: 'LLM routes (llm-pi)',
   description: 'Custom LLM routes: protocol, compat, model catalog and models.dev fallback.',
   enabled: 'Enable plugin',
@@ -174,15 +167,9 @@ export const en: Record<string, string> = {
   catalogProvider: 'Candidate provider',
   catalogLoading: 'Loading catalog…',
   catalogFailed: 'Failed to load catalog.',
-  save: 'Save',
-  saving: 'Saving…',
-  discard: 'Discard',
-  unsaved: 'Unsaved',
   saveOk: 'Saved.',
   saveFailed: 'Save failed: ',
-  loading: 'Loading…',
-  readOnly: 'No settings provider in this deployment; edit settings.yaml instead.',
-  expand: 'Expand',
-  collapse: 'Collapse',
-  invalidNumber: 'Enter a valid number',
 }
+
+export const zh: Record<string, string> = mergeDict(commonZh, ownZh)
+export const en: Record<string, string> = mergeDict(commonEn, ownEn)

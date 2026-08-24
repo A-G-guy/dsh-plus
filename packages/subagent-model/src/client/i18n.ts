@@ -1,11 +1,13 @@
 /**
  * 配置卡片文案（zh/en）。经 ctx.locale.register 注册、bind 取用，与官方卡片同机制。
+ * 公共键（save/discard/unsaved 等）来自 shared 的 common 字典，本文件只维护业务键。
  * @module subagent-model/client/i18n
  */
+import { commonEn, commonZh, mergeDict } from '@dsh-plus/shared/client'
 
 export const NS = 'dsh-plus-subagent-model'
 
-export const zh: Record<string, string> = {
+const ownZh = {
   title: '子代理模型配置',
   description: '为 subagent / subagent_fork 等子代理单独指定提供商、模型与思考程度，或继承主代理。',
   enabled: '启用插件',
@@ -28,20 +30,10 @@ export const zh: Record<string, string> = {
   catalogRetry: '重试',
   catalogLoading: '目录加载中…',
   unknownValue: '目录外',
-  save: '保存',
-  saving: '保存中…',
-  discard: '放弃',
-  unsaved: '未保存',
-  saveFailed: '保存失败：',
-  loading: '加载中…',
-  unavailable: '配置服务不可用。',
-  readOnly: '当前部署无 settings provider，配置为只读；请编辑 settings.yaml。',
-  expand: '展开',
-  collapse: '收起',
   invalidModel: '模型不能脱离提供商单独配置。',
 }
 
-export const en: Record<string, string> = {
+const ownEn = {
   title: 'Subagent model config',
   description:
     'Pick a provider, model, and thinking effort for subagent / subagent_fork children, or inherit from the main agent.',
@@ -66,15 +58,8 @@ export const en: Record<string, string> = {
   catalogRetry: 'Retry',
   catalogLoading: 'Loading catalog\u2026',
   unknownValue: 'outside catalog',
-  save: 'Save',
-  saving: 'Saving\u2026',
-  discard: 'Discard',
-  unsaved: 'Unsaved',
-  saveFailed: 'Save failed: ',
-  loading: 'Loading\u2026',
-  unavailable: 'Configuration service unavailable.',
-  readOnly: 'No settings provider in this deployment; edit settings.yaml instead.',
-  expand: 'Expand',
-  collapse: 'Collapse',
   invalidModel: 'Model cannot be set without a provider.',
 }
+
+export const zh: Record<string, string> = mergeDict(commonZh, ownZh)
+export const en: Record<string, string> = mergeDict(commonEn, ownEn)

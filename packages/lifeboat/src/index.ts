@@ -24,6 +24,7 @@ import {
   SETTINGS_NS,
 } from './config.ts'
 import { installLlmFallback } from './fallback-llm.ts'
+import { registerHealthApi } from './health-api.ts'
 import { installAlerter } from './notify.ts'
 import { createQuarantine, installHostWatch } from './quarantine.ts'
 import { registerQuarantineApi } from './quarantine-api.ts'
@@ -80,6 +81,13 @@ export function apply(ctx: Context, config: LifeboatConfig): void {
     installHostWatch(ctx, quarantine)
     ctx.inject(['webServer'], (webCtx) => {
       registerQuarantineApi(webCtx, quarantine)
+      registerHealthApi(webCtx, {
+        patchFile,
+        journal,
+        alert,
+        readJournal: () => doc.journal,
+        readFallback: () => doc.llmFallback,
+      })
     })
   }
 

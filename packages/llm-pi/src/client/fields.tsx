@@ -1,6 +1,7 @@
 /**
- * 配置卡片基础控件：文本/数字输入、勾选行、下拉、键值对编辑、JSON 文本框。
- * 视觉对齐官方卡片字段（label + hint + 控件纵列），样式类前缀 lpc-。
+ * llm-pi 特有卡片控件：可折叠小节、键值对编辑、JSON 文本框、带 datalist 的
+ * 文本字段。通用控件（TextField/CheckRow）走 @dsh-plus/shared/client；
+ * 本文件的 SelectField 是 llm-pi 的窄变体（readonly string[] 选项 + 未设置项）。
  * @module llm-pi/client/fields
  */
 import { type ReactElement, useEffect, useState } from 'react'
@@ -81,29 +82,6 @@ export function TextField(props: TextFieldProps): ReactElement {
   )
 }
 
-export interface CheckRowProps {
-  id: string
-  label: string
-  checked: boolean
-  disabled?: boolean
-  onEdit(checked: boolean): void
-}
-
-export function CheckRow(props: CheckRowProps): ReactElement {
-  return (
-    <div className="lpc-checkRow">
-      <input
-        id={props.id}
-        type="checkbox"
-        checked={props.checked}
-        disabled={props.disabled === true}
-        onChange={(event) => props.onEdit(event.target.checked)}
-      />
-      <label htmlFor={props.id}>{props.label}</label>
-    </div>
-  )
-}
-
 export interface SelectFieldProps {
   id: string
   label: string
@@ -156,14 +134,8 @@ export interface KeyValueEditorProps {
 }
 
 export function KeyValueEditor(props: KeyValueEditorProps): ReactElement {
-  const update = (index: number, patch: Partial<HeaderPair>): void => {
-    props.onEdit(props.pairs.map((pair, i) => (i === index ? { ...pair, ...patch } : pair)))
-  }
-  const remove = (index: number): void => {
-    props.onEdit(props.pairs.filter((_, i) => i !== index))
-  }
   return (
-    <div className="lpc-field lpc-wide">
+    <div className="lpc-field">
       <div className="lpc-head">
         <label className="lpc-label" htmlFor={props.id}>
           {props.label}
@@ -171,29 +143,39 @@ export function KeyValueEditor(props: KeyValueEditorProps): ReactElement {
       </div>
       {props.pairs.map((pair, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: 可编辑 KV 行无稳定 id，行序即身份（增删行经 onEdit 整体回写）
-        <div className="lpc-kvRow" key={index}>
+        <div className="lpc-kvRow" key={`${props.id}-${index}`}>
           <input
-            id={index === 0 ? props.id : undefined}
-            className="lpc-input"
-            value={pair.key}
             placeholder={props.keyPlaceholder}
+            className="lpc-input lpc-kvKey"
+            type="text"
+            value={pair.key}
             disabled={props.disabled === true}
-            onChange={(event) => update(index, { key: event.target.value })}
+            onChange={(event) => {
+              const next = [...props.pairs]
+              next[index] = { ...pair, key: event.target.value }
+              props.onEdit(next)
+            }}
           />
           <input
-            className="lpc-input"
-            value={pair.value}
             placeholder={props.valuePlaceholder}
+            className="lpc-input lpc-kvValue"
+            type="text"
+            value={pair.value}
             disabled={props.disabled === true}
-            onChange={(event) => update(index, { value: event.target.value })}
+            onChange={(event) => {
+              const next = [...props.pairs]
+              next[index] = { ...pair, value: event.target.value }
+              props.onEdit(next)
+            }}
           />
           <button
             type="button"
             className="lpc-btn lpc-btnGhost lpc-btnSmall"
             disabled={props.disabled === true}
-            onClick={() => remove(index)}
+            aria-label={props.removeLabel}
+            onClick={() => props.onEdit(props.pairs.filter((_, i) => i !== index))}
           >
-            {props.removeLabel}
+            ✕
           </button>
         </div>
       ))}

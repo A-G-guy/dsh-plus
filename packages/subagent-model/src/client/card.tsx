@@ -1,14 +1,24 @@
 /**
  * 「子代理模型配置」配置卡片：注册进 settings.plugin.item 插槽（官方插件配置页）。
- * 交互对齐官方卡片：折叠/展开、staged draft、未保存标记、保存/放弃。
- * 配置读写走官方 settingsScope 传输（scope.ts）：value 为 schema 解析后的
- * 命名空间值（enabled + entries），行集合 = 目录返回的已注册子代理 provider
+ * 外壳与基础控件走 @dsh-plus/shared/client 套件（CardChrome/CheckRow/SelectField）。
+ * 配置读写走官方 settingsScope 传输：value 为 schema 解析后的命名空间值
+ * （enabled + entries），行集合 = 目录返回的已注册子代理 provider
  * ∪ 已配置条目，保存时全量写回 entries（未配置的新 provider 行以默认空值
  * 落盘，自文档化）；「模型目录」为唯一保留的自定义端点。
  * @module subagent-model/client/card
  */
-import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
+import {
+  CardChrome,
+  type CardStatusState,
+  CheckRow,
+  IDLE_STATUS,
+  type Scope,
+  SelectField,
+  type SelectOption,
+  type SettingsApi,
+} from '@dsh-plus/shared/client'
+import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { SETTINGS_NS } from '../ns.ts'
 import { type CatalogProvider, fetchCatalog, type ModelCatalog } from './api.ts'
 import {
@@ -19,8 +29,6 @@ import {
   EMPTY_ROW,
   toPatch,
 } from './draft.ts'
-import { CheckRow, SelectField, type SelectOption } from './fields.tsx'
-import type { Scope, SettingsApi } from './scope.ts'
 
 export interface CardProps {
   t(key: string): string
@@ -28,12 +36,6 @@ export interface CardProps {
   api: SettingsApi
 }
 
-interface Status {
-  kind: 'idle' | 'ok' | 'error'
-  text: string
-}
-
-const IDLE_STATUS: Status = { kind: 'idle', text: '' }
 const EFFORT_INHERIT = 'inherit'
 const EFFORT_DEFAULT = 'default'
 
@@ -105,6 +107,7 @@ function RowBlock(props: RowBlockProps): ReactElement {
       <div className="dsm-rowHead">
         <span className="dsm-rowName">{name}</span>
         <CheckRow
+          prefix="dsm"
           id={`dsm-row-${name}`}
           label={t('rowEnabled')}
           checked={row.enabled}
@@ -114,6 +117,7 @@ function RowBlock(props: RowBlockProps): ReactElement {
       </div>
       <p className="dsm-rowHint">{t('rowHint')}</p>
       <SelectField
+        prefix="dsm"
         id={`dsm-provider-${name}`}
         label={t('provider')}
         hint={t('providerHint')}
@@ -123,6 +127,7 @@ function RowBlock(props: RowBlockProps): ReactElement {
         onEdit={(v) => onEdit({ ...row, provider: v })}
       />
       <SelectField
+        prefix="dsm"
         id={`dsm-model-${name}`}
         label={t('model')}
         hint={t('modelHint')}
@@ -134,6 +139,7 @@ function RowBlock(props: RowBlockProps): ReactElement {
         onEdit={(v) => onEdit({ ...row, model: v })}
       />
       <SelectField
+        prefix="dsm"
         id={`dsm-effort-${name}`}
         label={t('effort')}
         hint={t('effortHint')}
@@ -158,7 +164,7 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null)
   const [catalogFailed, setCatalogFailed] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [status, setStatus] = useState<Status>(IDLE_STATUS)
+  const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
 
   // 播种草稿（行集 = 已配置条目）；catalog 到达后只补缺失的 provider 空行，
   // 不覆盖在途编辑；后续 Host 更新同样不覆盖。
@@ -259,97 +265,75 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
   const rowNames = Object.keys(draft.rows).sort()
   const providerCount = (catalog?.providers ?? []).length
   return (
-    <li className={`dsm-card${open ? ' dsm-cardOpen' : ''}`}>
-      <button
-        type="button"
-        className="dsm-header"
-        aria-expanded={open}
-        aria-label={`${t(open ? 'collapse' : 'expand')}: ${t('title')}`}
-        onClick={() => setOpen(!open)}
-      >
-        <span className="dsm-headText">
-          <span className="dsm-name">{t('title')}</span>
-          <span className="dsm-description">{t('description')}</span>
-        </span>
-        {dirty ? <span className="dsm-pending">{t('unsaved')}</span> : null}
-        <span className={`dsm-chevron${open ? ' dsm-chevronOpen' : ''}`}>▾</span>
-      </button>
-      {open ? (
-        <div className="dsm-body">
-          {disabled ? (
-            <p className="dsm-empty" role="status">
-              {t('readOnly')}
-            </p>
-          ) : null}
-          <CheckRow
-            id="dsm-enabled"
-            label={t('enabled')}
-            checked={draft.enabled}
-            disabled={disabled}
-            onEdit={(v) => edit('enabled', v)}
-          />
-          {catalogFailed ? (
-            <div className="dsm-banner" role="status">
-              <span>{t('catalogError')}</span>
-              <button type="button" className="dsm-bannerRetry" onClick={onRetryCatalog}>
-                {t('catalogRetry')}
-              </button>
-            </div>
-          ) : null}
-          {catalog === null && !catalogFailed ? (
-            <p className="dsm-empty" role="status">
-              {t('catalogLoading')}
-            </p>
-          ) : null}
-          {rowNames.length === 0 ? (
-            <p className="dsm-empty" role="status">
-              {t('noRows')}
-            </p>
-          ) : null}
-          {rowNames.map((name) => (
-            <RowBlock
-              key={name}
-              name={name}
-              row={draft.rows[name] ?? { ...EMPTY_ROW }}
-              catalog={catalog}
-              disabled={disabled}
-              t={t}
-              onEdit={(row) => editRow(name, row)}
-            />
-          ))}
-          <p className="dsm-hint dsm-rowHint">{providerCount > 0 ? t('rowDesc') : ''}</p>
-          <div className="dsm-footer">
-            {status.kind !== 'idle' ? (
-              <p
-                className={`dsm-status${status.kind === 'error' ? ' dsm-statusError' : ''}`}
-                role="status"
-              >
-                {status.text}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              className="dsm-btn dsm-btnGhost"
-              disabled={!dirty || saving}
-              onClick={() => {
-                setDraft(draftFrom(value, catalog))
-                setStatus(IDLE_STATUS)
-              }}
-            >
-              {t('discard')}
-            </button>
-            <button
-              type="button"
-              className="dsm-btn dsm-btnPrimary"
-              disabled={!dirty || invalid || saving || disabled}
-              onClick={onSave}
-            >
-              {t(saving ? 'saving' : 'save')}
-            </button>
-          </div>
+    <CardChrome
+      prefix="dsm"
+      title={t('title')}
+      description={t('description')}
+      open={open}
+      onToggle={setOpen}
+      statusBadge={{ text: t(draft.enabled ? 'enabledOn' : 'enabledOff'), on: draft.enabled }}
+      dirty={dirty}
+      dirtyLabel={t('unsaved')}
+      readOnlyNotice={disabled ? t('readOnly') : undefined}
+      status={status}
+      actions={[
+        {
+          key: 'discard',
+          label: t('discard'),
+          disabled: !dirty || saving,
+          onClick: () => {
+            setDraft(draftFrom(value, catalog))
+            setStatus(IDLE_STATUS)
+          },
+        },
+        {
+          key: 'save',
+          label: t(saving ? 'saving' : 'save'),
+          variant: 'primary',
+          disabled: !dirty || invalid || saving || disabled,
+          onClick: onSave,
+        },
+      ]}
+    >
+      <CheckRow
+        prefix="dsm"
+        id="dsm-enabled"
+        label={t('enabled')}
+        checked={draft.enabled}
+        disabled={disabled}
+        onEdit={(v) => edit('enabled', v)}
+      />
+      {catalogFailed ? (
+        <div className="dsm-banner" role="status">
+          <span>{t('catalogError')}</span>
+          <button type="button" className="dsm-bannerRetry" onClick={onRetryCatalog}>
+            {t('catalogRetry')}
+          </button>
         </div>
       ) : null}
-    </li>
+      {catalog === null && !catalogFailed ? (
+        <p className="dsm-empty" role="status">
+          {t('catalogLoading')}
+        </p>
+      ) : null}
+      {rowNames.length === 0 ? (
+        <p className="dsm-empty" role="status">
+          {t('noRows')}
+        </p>
+      ) : null}
+      {rowNames.map((name) => (
+        <RowBlock
+          key={name}
+          name={name}
+          row={draft.rows[name] ?? { ...EMPTY_ROW }}
+          catalog={catalog}
+          disabled={disabled}
+          t={t}
+          onEdit={(row) => editRow(name, row)}
+        />
+      ))}
+      <p className="dsm-hint dsm-rowHint">{providerCount > 0 ? t('rowDesc') : ''}</p>
+    </CardChrome>
   )
 }
 

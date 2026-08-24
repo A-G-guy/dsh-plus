@@ -4,8 +4,9 @@
  * retryPolicy 与模型目录在 views/providers.tsx 的 route 小节内另行渲染。
  * @module llm-pi/client/views/provider-fields
  */
-import type { ReactElement } from 'react'
 
+import { CheckRow } from '@dsh-plus/shared/client'
+import type { ReactElement } from 'react'
 import {
   BUDGET_KEYS,
   CACHE_RETENTION_OPTIONS,
@@ -15,7 +16,7 @@ import {
   TRANSPORT_OPTIONS,
 } from '../constants.ts'
 import type { ProviderDraft } from '../draft.ts'
-import { CheckRow, SelectField, TextField } from '../fields.tsx'
+import { SelectField, TextField } from '../fields.tsx'
 import { pruneCompatForApi } from './compat.tsx'
 
 export interface ProviderScalarFieldsProps {
@@ -113,6 +114,7 @@ export function ProviderScalarFields(props: ProviderScalarFieldsProps): ReactEle
         <span className="lpc-label">{t('defaultInput')}</span>
         {MODALITIES.map((modality) => (
           <CheckRow
+            prefix="lpc"
             key={modality}
             id={`${props.id}-input-${modality}`}
             label={modality}

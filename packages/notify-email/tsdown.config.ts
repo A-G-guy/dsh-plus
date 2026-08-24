@@ -36,7 +36,14 @@ export default defineConfig([
     fixedExtension: false,
     dts: true,
     outDir: 'lib',
-    external: ['react', 'react/jsx-runtime'],
+    // react 由外壳 ModuleLoader 提供（seed）；@dsh-plus/shared 按源码级打苞进
+    // 本插件 bundle（shared 无 client bundle row，不能作为动态 external）。
+    // tsdown deps：neverBundle 只留 react 系；alwaysBundle 需通配子路径
+    // （picomatch 裸包名不匹配 `pkg/subpath`）。
+    deps: {
+      neverBundle: ['react', 'react/jsx-runtime'],
+      alwaysBundle: ['@dsh-plus/shared/**'],
+    },
     outputOptions: {
       entryFileNames: 'client.js',
       banner: CLIENT_BANNER,

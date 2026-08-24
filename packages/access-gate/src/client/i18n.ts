@@ -1,11 +1,13 @@
 /**
  * 配置卡片文案（zh/en）。经 ctx.locale.register 注册、bind 取用，与官方卡片同机制。
+ * 公共键（save/discard/unsaved 等）来自 shared 的 common 字典，本文件只维护业务键。
  * @module access-gate/client/i18n
  */
+import { commonEn, commonZh, mergeDict } from '@dsh-plus/shared/client'
 
 export const NS = 'dsh-plus-access-gate'
 
-export const zh: Record<string, string> = {
+const ownZh = {
   title: '访问控制',
   description: 'Web 访问围栏：本机直连放行；远程按白名单 IP 或访问令牌放行，其余拦截到登录页。',
   enabled: '启用访问围栏',
@@ -39,20 +41,9 @@ export const zh: Record<string, string> = {
   diagOff: '围栏未启用',
   diagInvalid: '白名单存在无法解析的条目：',
   warnFailClosed: '警告：已启用但令牌与白名单均为空——所有远程访问将被拒绝（含本页之外的设备）。',
-  save: '保存',
-  saving: '保存中…',
-  discard: '放弃',
-  unsaved: '未保存',
-  saveFailed: '保存失败，请检查填写内容。',
-  loading: '加载中…',
-  unavailable: '配置服务不可用。',
-  readOnly: '当前部署无 settings provider，配置为只读；请编辑 settings.yaml。',
-  expand: '展开',
-  collapse: '收起',
-  invalidNumber: '请输入有效数字',
 }
 
-export const en: Record<string, string> = {
+const ownEn = {
   title: 'Access Control',
   description:
     'Web access gate: loopback passes; remote traffic needs an allowlisted IP or the token, others hit the login page.',
@@ -89,15 +80,7 @@ export const en: Record<string, string> = {
   diagInvalid: 'Allowlist entries that failed to parse:',
   warnFailClosed:
     'Warning: enabled with no token and an empty allowlist — all remote access will be refused.',
-  save: 'Save',
-  saving: 'Saving…',
-  discard: 'Discard',
-  unsaved: 'Unsaved',
-  saveFailed: 'Save failed; please check the inputs.',
-  loading: 'Loading…',
-  unavailable: 'Settings service unavailable.',
-  readOnly: 'No settings provider in this deployment; read-only. Edit settings.yaml instead.',
-  expand: 'Expand',
-  collapse: 'Collapse',
-  invalidNumber: 'Enter a valid number',
 }
+
+export const zh: Record<string, string> = mergeDict(commonZh, ownZh)
+export const en: Record<string, string> = mergeDict(commonEn, ownEn)

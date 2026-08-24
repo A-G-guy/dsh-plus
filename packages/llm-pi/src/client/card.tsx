@@ -3,12 +3,20 @@
  * 顶部：enabled / catalogUrl / catalogRefreshHours / 只读状态行（kitSource、
  * modelsDevStatus，来自模型目录端点）+ 保存（settings.replace 全量）与
  * 错误/成功提示；下方为 providers 路由列表（新增/删除/字段编辑/compat/模型
- * 目录，见 views/）。配置读写走官方 settingsScope 传输（scope.ts）。
- * 交互对齐官方卡片与 notify-email：折叠/展开、staged draft、未保存标记。
+ * 目录，见 views/）。外壳与基础控件走 @dsh-plus/shared/client 套件。
  * @module llm-pi/client/card
  */
-import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
+import {
+  CardChrome,
+  type CardStatusState,
+  CheckRow,
+  IDLE_STATUS,
+  type Scope,
+  type SettingsApi,
+  TextField,
+} from '@dsh-plus/shared/client'
+import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { SETTINGS_NS } from '../ns.ts'
 import { type ConfigValue, fetchCatalog, refreshCatalog, type WireModelsDevStatus } from './api.ts'
 import {
@@ -19,8 +27,6 @@ import {
   type ProviderDraft,
   toPatch,
 } from './draft.ts'
-import { CheckRow, TextField } from './fields.tsx'
-import type { Scope, SettingsApi } from './scope.ts'
 import { ProvidersSection } from './views/providers.tsx'
 
 export interface CardProps {
@@ -28,13 +34,6 @@ export interface CardProps {
   scope: Scope
   api: SettingsApi
 }
-
-interface Status {
-  kind: 'idle' | 'ok' | 'error'
-  text: string
-}
-
-const IDLE_STATUS: Status = { kind: 'idle', text: '' }
 
 function modelsDevText(status: WireModelsDevStatus | null, t: (key: string) => string): string {
   if (status === null) return t('modelsDevEmpty')
@@ -57,7 +56,7 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
   const [modelsDevStatus, setModelsDevStatus] = useState<WireModelsDevStatus | null>(null)
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [status, setStatus] = useState<Status>(IDLE_STATUS)
+  const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
 
   // 首次拿到解析值后播种草稿；后续 Host 更新不覆盖在途编辑（与官方 staged 表单一致）。
   useEffect(() => {
@@ -172,127 +171,106 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
 
   const disabled = !snapshot.writable
   return (
-    <li className={`lpc-card${open ? ' lpc-cardOpen' : ''}`}>
-      <button
-        type="button"
-        className="lpc-header"
-        aria-expanded={open}
-        aria-label={`${t(open ? 'collapse' : 'expand')}: ${t('title')}`}
-        onClick={() => setOpen(!open)}
-      >
-        <span className="lpc-headText">
-          <span className="lpc-name">{t('title')}</span>
-          <span className="lpc-description">{t('description')}</span>
+    <CardChrome
+      prefix="lpc"
+      title={t('title')}
+      description={t('description')}
+      open={open}
+      onToggle={setOpen}
+      statusBadge={{ text: t(draft.enabled ? 'enabledOn' : 'enabledOff'), on: draft.enabled }}
+      dirty={dirty}
+      dirtyLabel={t('unsaved')}
+      readOnlyNotice={disabled ? t('readOnly') : undefined}
+      status={status}
+      actions={[
+        {
+          key: 'refresh',
+          label: t(refreshing ? 'refreshingCatalog' : 'refreshCatalog'),
+          disabled: disabled || refreshing,
+          onClick: onRefreshCatalog,
+        },
+        {
+          key: 'discard',
+          label: t('discard'),
+          disabled: !dirty || saving,
+          onClick: onDiscard,
+        },
+        {
+          key: 'save',
+          label: t(saving ? 'saving' : 'save'),
+          variant: 'primary',
+          disabled: !dirty || invalid || saving || disabled,
+          onClick: onSave,
+        },
+      ]}
+    >
+      <CheckRow
+        prefix="lpc"
+        id="lpc-enabled"
+        label={t('enabled')}
+        checked={draft.enabled}
+        disabled={disabled}
+        onEdit={(value) => {
+          setDraft({ ...draft, enabled: value })
+          setStatus(IDLE_STATUS)
+        }}
+      />
+      <TextField
+        prefix="lpc"
+        id="lpc-catalogUrl"
+        label={t('catalogUrl')}
+        hint={t('catalogUrlHint')}
+        value={draft.catalogUrl}
+        disabled={disabled}
+        onEdit={(value) => {
+          setDraft({ ...draft, catalogUrl: value })
+          setStatus(IDLE_STATUS)
+        }}
+      />
+      <TextField
+        prefix="lpc"
+        id="lpc-catalogRefresh"
+        label={t('catalogRefreshHours')}
+        hint={t('catalogRefreshHoursHint')}
+        value={draft.catalogRefreshHours}
+        numeric
+        disabled={disabled}
+        invalid={!numTextOk(draft.catalogRefreshHours)}
+        invalidLabel={t('invalidNumber')}
+        onEdit={(value) => {
+          setDraft({ ...draft, catalogRefreshHours: value })
+          setStatus(IDLE_STATUS)
+        }}
+      />
+      <TextField
+        prefix="lpc"
+        id="lpc-catalogProxy"
+        label={t('catalogProxy')}
+        hint={t('catalogProxyHint')}
+        value={draft.catalogProxy}
+        disabled={disabled}
+        onEdit={(value) => {
+          setDraft({ ...draft, catalogProxy: value })
+          setStatus(IDLE_STATUS)
+        }}
+      />
+      <p className="lpc-statusRow">
+        {t('kitSource')}：{kitSource ?? ''}
+      </p>
+      <div className="lpc-statusRow">
+        <span>
+          {t('modelsDevStatus')}：{modelsDevText(modelsDevStatus, t)}
         </span>
-        {dirty ? <span className="lpc-pending">{t('unsaved')}</span> : null}
-        <span className={`lpc-chevron${open ? ' lpc-chevronOpen' : ''}`}>▾</span>
-      </button>
-      {open ? (
-        <div className="lpc-body">
-          {disabled ? (
-            <p className="lpc-readOnly" role="status">
-              {t('readOnly')}
-            </p>
-          ) : null}
-          <CheckRow
-            id="lpc-enabled"
-            label={t('enabled')}
-            checked={draft.enabled}
-            disabled={disabled}
-            onEdit={(value) => {
-              setDraft({ ...draft, enabled: value })
-              setStatus(IDLE_STATUS)
-            }}
-          />
-          <TextField
-            id="lpc-catalogUrl"
-            label={t('catalogUrl')}
-            hint={t('catalogUrlHint')}
-            value={draft.catalogUrl}
-            disabled={disabled}
-            onEdit={(value) => {
-              setDraft({ ...draft, catalogUrl: value })
-              setStatus(IDLE_STATUS)
-            }}
-          />
-          <TextField
-            id="lpc-catalogRefresh"
-            label={t('catalogRefreshHours')}
-            hint={t('catalogRefreshHoursHint')}
-            value={draft.catalogRefreshHours}
-            numeric
-            disabled={disabled}
-            invalid={!numTextOk(draft.catalogRefreshHours)}
-            invalidLabel={t('invalidNumber')}
-            onEdit={(value) => {
-              setDraft({ ...draft, catalogRefreshHours: value })
-              setStatus(IDLE_STATUS)
-            }}
-          />
-          <TextField
-            id="lpc-catalogProxy"
-            label={t('catalogProxy')}
-            hint={t('catalogProxyHint')}
-            value={draft.catalogProxy}
-            disabled={disabled}
-            onEdit={(value) => {
-              setDraft({ ...draft, catalogProxy: value })
-              setStatus(IDLE_STATUS)
-            }}
-          />
-          <p className="lpc-statusRow">
-            {t('kitSource')}：{kitSource ?? ''}
-          </p>
-          <div className="lpc-statusRow">
-            <span>
-              {t('modelsDevStatus')}：{modelsDevText(modelsDevStatus, t)}
-            </span>
-            <button
-              type="button"
-              className="lpc-btn lpc-btnGhost lpc-btnSmall lpc-refreshBtn"
-              disabled={disabled || refreshing}
-              onClick={onRefreshCatalog}
-            >
-              {t(refreshing ? 'refreshingCatalog' : 'refreshCatalog')}
-            </button>
-          </div>
-          <ProvidersSection
-            providers={draft.providers}
-            epoch={epoch}
-            disabled={disabled}
-            t={t}
-            onAddRoute={onAddRoute}
-            onRemoveRoute={onRemoveRoute}
-            onPatchProvider={setProvider}
-          />
-          <div className="lpc-footer">
-            {status.kind !== 'idle' ? (
-              <p
-                className={`lpc-status${status.kind === 'error' ? ' lpc-statusError' : ''}`}
-                role="status"
-              >
-                {status.text}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              className="lpc-btn lpc-btnGhost"
-              disabled={!dirty || saving}
-              onClick={onDiscard}
-            >
-              {t('discard')}
-            </button>
-            <button
-              type="button"
-              className="lpc-btn lpc-btnPrimary"
-              disabled={!dirty || invalid || saving || disabled}
-              onClick={onSave}
-            >
-              {t(saving ? 'saving' : 'save')}
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </li>
+      </div>
+      <ProvidersSection
+        providers={draft.providers}
+        epoch={epoch}
+        disabled={disabled}
+        t={t}
+        onAddRoute={onAddRoute}
+        onRemoveRoute={onRemoveRoute}
+        onPatchProvider={setProvider}
+      />
+    </CardChrome>
   )
 }

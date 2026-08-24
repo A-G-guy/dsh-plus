@@ -4,8 +4,8 @@
  * （包装见 tsdown.config.ts）；样式沿用官方 data-plugin-css 约定，HMR 据此卸载。
  *
  * 类型说明：浏览器半只用到 slots/locale/connection/remote 的很窄一面，
- * 此处以最小本地接口声明（见 ./scope.ts），避免为构建期类型引入整条官方
- * client 依赖树；运行时契约以官方 dsh-client-ui-settings-plugins 的
+ * scope 与基础控件走 @dsh-plus/shared/client 套件（收编自本插件原实现）；
+ * 运行时契约以官方 dsh-client-ui-settings-plugins 的
  * settings.plugin.item 插槽与 dsh-client-connection 的 settings RPC 面为准。
  * rc7 起该插槽为 keyed 槽位：key 必须是卡片编辑的 settings 命名空间
  * （即服务端 settingsNamespace() 注册的同一字面量，见 ../ns.ts），
@@ -17,11 +17,10 @@
  * @module @dsh-plus/llm-pi/client
  */
 import type { Context } from '@deepseek-ai/cordis'
-
+import { createApiScope } from '@dsh-plus/shared/client'
 import { SETTINGS_NS } from '../ns.ts'
 import { LlmPiCard } from './card.tsx'
 import { en, NS, zh } from './i18n.ts'
-import type { Scope, ScopeSnapshot, SettingsApi } from './scope.ts'
 import { injectStyle } from './styles.ts'
 
 export const name = 'dsh-plus-llm-pi'
@@ -44,7 +43,7 @@ interface RemoteLike {
 }
 
 interface ConnectionLike {
-  api: { settings: SettingsApi }
+  api: { settings: Parameters<typeof createApiScope>[0] }
 }
 
 interface ClientContext {
@@ -54,82 +53,6 @@ interface ClientContext {
   get(key: 'remote'): RemoteLike
   on(event: string, listener: () => void): () => void
   effect(execute: () => () => void, label?: string): unknown
-}
-
-/**
- * api 直连实现的命名空间 scope（官方配置页 tab 同款模式）。
- * 读：describe 取命名空间视图（脱敏 value/revision + 顶层 writable）；
- * 刷新：remote `settings/document-updated`（按命名空间过滤）与
- * `connection/reset`；generation 防旧读覆盖新发布。任何页面 origin
- * （loopback 或 tailnet 信任域名）下行为一致。
- */
-function createApiScope(api: SettingsApi, ns: string, c: ClientContext): Scope {
-  let state: ScopeSnapshot = {
-    status: 'loading',
-    value: undefined,
-    revision: undefined,
-    writable: false,
-  }
-  const listeners = new Set<() => void>()
-  let generation = 0
-  const publish = (next: ScopeSnapshot): void => {
-    state = next
-    for (const listener of [...listeners]) listener()
-  }
-  const load = async (): Promise<void> => {
-    const gen = ++generation
-    let response: Awaited<ReturnType<SettingsApi['describe']>>
-    try {
-      response = await api.describe({})
-    } catch {
-      return
-    }
-    if (gen !== generation || !response.result.ok) return
-    const writable = response.result.value?.writable ?? false
-    const view = response.result.value?.namespaces.find((candidate) => candidate.ns === ns)
-    if (view === undefined) {
-      publish({
-        status: 'unavailable',
-        value: undefined,
-        revision: undefined,
-        writable,
-      })
-      return
-    }
-    publish({
-      status: 'ready',
-      value: view.value,
-      revision: view.revision,
-      writable,
-    })
-  }
-  const refresh = (namespace?: unknown): void => {
-    if (namespace !== undefined && namespace !== ns) return
-    void load()
-  }
-  const disposers = [
-    c.get('remote').$on('settings/document-updated', refresh),
-    c.on('connection/reset', () => {
-      void load()
-    }),
-  ]
-  c.effect(
-    () => () => {
-      for (const dispose of disposers) dispose()
-    },
-    'llm-pi: settings scope',
-  )
-  void load()
-  return {
-    getSnapshot: () => state,
-    subscribe: (listener: () => void) => {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
-    load,
-  }
 }
 
 export function apply(ctx: Context): void {
@@ -143,7 +66,7 @@ export function apply(ctx: Context): void {
   )
   c.effect(() => c.locale.register(NS, { zh, en }), 'llm-pi: locale')
   const api = c.get('connection').api.settings
-  const scope = createApiScope(api, SETTINGS_NS, c)
+  const scope = createApiScope(api, SETTINGS_NS, c, 'llm-pi: settings scope')
   c.slots.inject('settings.plugin.item', () =>
     c.slots.register(
       {

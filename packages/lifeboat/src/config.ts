@@ -34,7 +34,8 @@ export const Config = z.object({
 export type LifeboatConfig = Schemastery.TypeT<typeof Config>
 
 /** journal 单条记录。 */
-const JournalEntry = z.object({
+// biome-ignore lint/suspicious/noExplicitAny: dts 可移植性——嵌套 schema 精确类型经消费方断开 cosmokit 推断链
+const JournalEntry: any = z.object({
   at: z.string(),
   kind: z.string(),
   detail: z.string(),
@@ -51,7 +52,8 @@ const FallbackState = z.object({
 })
 
 /** 命名空间 schema：宽松承载 journal 与翻译状态，上限截断防膨胀。 */
-export const JournalSchema = z.object({
+// biome-ignore lint/suspicious/noExplicitAny: dts 可移植性（同 JournalEntry；上次成功构建未触发是因旧 lockfile，现同 usage-panel 口径）
+export const JournalSchema: any = z.object({
   journal: z.array(JournalEntry).description('救生艇操作日志（最新在尾，封顶 50 条）').default([]),
   llmFallback: z
     .union([FallbackState, z.const(null)])

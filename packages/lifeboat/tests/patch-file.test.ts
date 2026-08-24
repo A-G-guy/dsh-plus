@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { appendDisable, hasDisable } from '../src/patch-file.ts'
+import { appendDisable, hasDisable, listDisabled, removeDisable } from '../src/patch-file.ts'
 
 async function withPatchFile(initial: string, fn: (file: string) => Promise<void>): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), 'lifeboat-test-'))
@@ -50,4 +50,43 @@ test('given non-array patch file, when appending, then throws and leaves file in
     await assert.rejects(() => appendDisable(file, 'dsh-plus-x'), /顶层不是数组/)
     assert.equal(await readFile(file, 'utf-8'), initial)
   })
+})
+
+test('removeDisable 移除既有禁用覆盖，保留其余条目与注释', async () => {
+  await withPatchFile(
+    `# 用户 patch：lifeboat 测试
+- id: dsh-plus-demo
+  disabled: true
+- id: tool-subagent
+  config:
+    provider: spawn
+`,
+    async (file) => {
+      const written = await removeDisable(file, 'dsh-plus-demo')
+      assert.equal(written, true)
+      const text = await readFile(file, 'utf-8')
+      assert.ok(!text.includes('disabled'), '禁用覆盖应被移除')
+      assert.ok(text.includes('tool-subagent'), '其余条目应保留')
+      assert.ok(text.includes('# 用户 patch'), '注释应保留')
+    },
+  )
+})
+
+test('removeDisable 无覆盖时幂等返回 false', async () => {
+  await withPatchFile('- id: other\n  disabled: true\n', async (file) => {
+    const written = await removeDisable(file, 'dsh-plus-demo')
+    assert.equal(written, false)
+    const text = await readFile(file, 'utf-8')
+    assert.ok(text.includes('other'), '无关条目不应被动')
+  })
+})
+
+test('listDisabled 列出顶层已禁用 id（忽略 insert 子列表）', () => {
+  const ids = listDisabled([
+    { id: 'a', disabled: true },
+    { id: 'b', disabled: false },
+    { id: 'c' },
+    { insert: [{ id: 'd', disabled: true }] },
+  ])
+  assert.deepEqual(ids, ['a'])
 })

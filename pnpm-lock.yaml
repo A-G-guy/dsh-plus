@@ -19,6 +19,10 @@ importers:
         version: 5.9.2
 
   packages/access-gate:
+    dependencies:
+      '@dsh-plus/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -71,6 +75,9 @@ importers:
       '@dsh-plus/ui-mobile-fit':
         specifier: workspace:*
         version: link:../ui-mobile-fit
+      '@dsh-plus/usage-panel':
+        specifier: workspace:*
+        version: link:../usage-panel
       '@dsh-plus/web-files':
         specifier: workspace:*
         version: link:../web-files
@@ -81,6 +88,9 @@ importers:
 
   packages/lifeboat:
     dependencies:
+      '@dsh-plus/shared':
+        specifier: workspace:*
+        version: link:../shared
       yaml:
         specifier: ^2.6.0
         version: 2.9.0
@@ -103,9 +113,21 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: 3.18.1
         version: 3.18.1
+      '@types/node':
+        specifier: 26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
 
   packages/llm-pi:
     dependencies:
+      '@dsh-plus/shared':
+        specifier: workspace:*
+        version: link:../shared
       https-proxy-agent:
         specifier: ^7.0.6
         version: 7.0.6
@@ -155,6 +177,9 @@ importers:
 
   packages/notify-email:
     dependencies:
+      '@dsh-plus/shared':
+        specifier: workspace:*
+        version: link:../shared
       nodemailer:
         specifier: 9.0.5
         version: 9.0.5
@@ -226,7 +251,14 @@ importers:
         specifier: 4.0.1
         version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.6)(@deepseek-ai/cordis-plugin-loader@1.0.2)
 
-  packages/shared: {}
+  packages/shared:
+    devDependencies:
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
 
   packages/skill-manual:
     devDependencies:
@@ -250,6 +282,10 @@ importers:
         version: 3.18.1
 
   packages/subagent-model:
+    dependencies:
+      '@dsh-plus/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -307,6 +343,40 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
         version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.6)(@deepseek-ai/cordis-plugin-loader@1.0.2)
+
+  packages/usage-panel:
+    dependencies:
+      '@dsh-plus/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.6)(@deepseek-ai/cordis-plugin-loader@1.0.2)
+      '@deepseek-ai/dsh-home-paths':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1))
+      '@deepseek-ai/dsh-host-webserver':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1))
+      '@deepseek-ai/dsh-session':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(a4e4bb24a1f3580ac25e11cfa3c6b8cc)
+      '@deepseek-ai/dsh-settings':
+        specifier: 0.1.1-rc.2
+        version: 0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1)
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.1
+        version: 3.18.1
+      '@types/node':
+        specifier: 26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
 
   packages/web-files:
     devDependencies:
@@ -3036,8 +3106,8 @@ snapshots:
       micromark-util-sanitize-uri: 2.0.1
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.2
-      react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react: 18.3.1
+      react-dom: 18.2.0(react@18.3.1)
       shiki: 4.4.3
     transitivePeerDependencies:
       - supports-color
@@ -4576,10 +4646,10 @@ snapshots:
 
   quansync@1.0.0: {}
 
-  react-dom@18.2.0(react@18.2.0):
+  react-dom@18.2.0(react@18.3.1):
     dependencies:
       loose-envify: 1.4.0
-      react: 18.2.0
+      react: 18.3.1
       scheduler: 0.23.0
 
   react@18.2.0:

@@ -1,11 +1,13 @@
 /**
  * 配置卡片文案（zh/en）。经 ctx.locale.register 注册、bind 取用，与官方卡片同机制。
+ * 公共键（save/discard/unsaved 等）来自 shared 的 common 字典，本文件只维护业务键。
  * @module notify-email/client/i18n
  */
+import { commonEn, commonZh, mergeDict } from '@dsh-plus/shared/client'
 
 export const NS = 'dsh-plus-notify-email'
 
-export const zh: Record<string, string> = {
+const ownZh = {
   title: '邮件通知',
   description: '任务结束、等待决策或出错时向指定邮箱发送邮件。',
   enabled: '启用通知',
@@ -35,26 +37,15 @@ export const zh: Record<string, string> = {
   maxBodyChars: '正文截断长度',
   maxBodyCharsHint: '邮件正文内容超过该长度时截断。',
   dryRun: '仅记录日志（不真实发送）',
-  save: '保存',
-  saving: '保存中…',
-  discard: '放弃',
-  unsaved: '未保存',
   test: '发送测试邮件',
   testing: '发送中…',
   testOk: '测试邮件已发送。',
   testDryRun: '已按 dry-run 记录日志（未真实发送）。',
   testFailed: '测试发送失败：',
-  saveFailed: '保存失败，请检查填写内容。',
-  loading: '加载中…',
-  unavailable: '配置服务不可用。',
-  readOnly: '当前部署无 settings provider，配置为只读；请编辑 settings.yaml。',
-  expand: '展开',
-  collapse: '收起',
-  invalidNumber: '请输入有效数字',
   incomplete: 'SMTP 配置不完整（服务器/发件地址/收件人必填）。',
 }
 
-export const en: Record<string, string> = {
+const ownEn = {
   title: 'Email notifications',
   description: 'Email a mailbox when a task finishes, awaits a decision, or fails.',
   enabled: 'Enable notifications',
@@ -77,28 +68,20 @@ export const en: Record<string, string> = {
   onComplete: 'Task completed',
   onError: 'Task failed',
   onAborted: 'Cancelled by user',
-  onQuestion: 'Waiting for an answer',
-  onPlanReview: 'Plan pending approval',
-  idleDebounceMs: 'Idle confirmation (ms)',
-  idleDebounceMsHint: 'Wait this long after completion to confirm no follow-up work.',
-  maxBodyChars: 'Body truncation',
-  maxBodyCharsHint: 'Truncate mail body content beyond this length.',
-  dryRun: 'Log only (do not send)',
-  save: 'Save',
-  saving: 'Saving…',
-  discard: 'Discard',
-  unsaved: 'Unsaved',
+  onQuestion: 'Question awaiting answer',
+  onPlanReview: 'Plan awaiting review',
+  idleDebounceMs: 'Idle debounce (ms)',
+  idleDebounceMsHint: 'After completion, wait this long to confirm no follow-up before sending.',
+  maxBodyChars: 'Body truncation length',
+  maxBodyCharsHint: 'Truncate the email body beyond this length.',
+  dryRun: 'Log only (do not actually send)',
   test: 'Send test email',
   testing: 'Sending…',
   testOk: 'Test email sent.',
-  testDryRun: 'Recorded as dry-run (not actually sent).',
-  testFailed: 'Test failed: ',
-  saveFailed: 'Save failed; please check the fields.',
-  loading: 'Loading…',
-  unavailable: 'Configuration service unavailable.',
-  readOnly: 'No settings provider in this deployment; edit settings.yaml instead.',
-  expand: 'Expand',
-  collapse: 'Collapse',
-  invalidNumber: 'Enter a valid number',
+  testDryRun: 'Logged in dry-run mode (not sent).',
+  testFailed: 'Test send failed: ',
   incomplete: 'SMTP config incomplete (host/from/recipients required).',
 }
+
+export const zh: Record<string, string> = mergeDict(commonZh, ownZh)
+export const en: Record<string, string> = mergeDict(commonEn, ownEn)

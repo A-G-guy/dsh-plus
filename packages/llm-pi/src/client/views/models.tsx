@@ -4,12 +4,13 @@
  * （builtin / models-dev）与 provider 后拉取其 models 列表。
  * @module llm-pi/client/views/models
  */
-import { type ReactElement, useEffect, useState } from 'react'
 
+import { CheckRow } from '@dsh-plus/shared/client'
+import { type ReactElement, useEffect, useState } from 'react'
 import { fetchCatalog, type WireModelsDevStatus } from '../api.ts'
 import { MODALITIES, THINKING_LEVELS } from '../constants.ts'
 import { emptyModelDraft, type ModelDraft, type ReasoningDraft } from '../draft.ts'
-import { CheckRow, TextField } from '../fields.tsx'
+import { TextField } from '../fields.tsx'
 import { CompatEditor } from './compat.tsx'
 
 type CatalogSource = 'builtin' | 'models-dev'
@@ -227,6 +228,7 @@ export function ModelRow(props: ModelRowProps): ReactElement {
           <span className="lpc-label">{t('input')}</span>
           {MODALITIES.map((modality) => (
             <CheckRow
+              prefix="lpc"
               key={modality}
               id={`${id}-input-${modality}`}
               label={modality}
