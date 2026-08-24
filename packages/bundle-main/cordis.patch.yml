@@ -6,11 +6,16 @@
 # lifeboat 必须排首位：它是故障救生艇，需先于兄弟插件就绪才能观察它们的失败。
 # feature-toggle 紧随其后：功能开关管理器需在多数被管理插件之前就绪，
 # 且自身 fiber 失败时也在 lifeboat 守护范围内（自动隔离止损）。
+# access-gate 排第三：访问围栏需在 webserver 路由/升级注册稳定后包装拦截，
+# 且在 web-files 等兄弟插件之前就绪（包装与注册时序无关，但早注册自有
+# 豁免路由更稳）；自身失败由 lifeboat 隔离止损。
 - insert:
     - id: dsh-plus-lifeboat
       name: '@dsh-plus/lifeboat'
     - id: dsh-plus-feature-toggle
       name: '@dsh-plus/feature-toggle'
+    - id: dsh-plus-access-gate
+      name: '@dsh-plus/access-gate'
     - id: dsh-plus-ui-mobile-fit
       name: '@dsh-plus/ui-mobile-fit'
     - id: dsh-plus-remote-settings

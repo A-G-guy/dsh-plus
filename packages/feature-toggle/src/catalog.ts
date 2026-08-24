@@ -127,6 +127,14 @@ export const CATALOG: readonly FeatureDef[] = [
     needsBrowserRefresh: true,
   },
   {
+    id: 'dsh-plus-access-gate',
+    titleKey: 'feature.dsh-plus-access-gate',
+    descriptionKey: 'feature.dsh-plus-access-gate.desc',
+    rows: { host: ['dsh-plus-access-gate'], preset: [] },
+    effect: 'immediate',
+    needsBrowserRefresh: true,
+  },
+  {
     id: 'dsh-plus-web-files',
     titleKey: 'feature.dsh-plus-web-files',
     descriptionKey: 'feature.dsh-plus-web-files.desc',

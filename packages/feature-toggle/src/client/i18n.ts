@@ -38,6 +38,8 @@ export const zh: Record<string, string> = {
   'feature.dsh-plus-skill-manual.desc': 'skills-manual 独立目录的手动触发技能。',
   'feature.dsh-plus-reload': '重新加载按钮',
   'feature.dsh-plus-reload.desc': '设置页「重新加载」按钮与 /reload 命令。',
+  'feature.dsh-plus-access-gate': '访问控制围栏',
+  'feature.dsh-plus-access-gate.desc': 'Web 访问围栏：本机直连放行，远程按白名单 IP 或令牌放行。',
   'feature.dsh-plus-web-files': '文件浏览与编辑',
   'feature.dsh-plus-web-files.desc': 'Web 内嵌类 SFTP 文件浏览与编辑面板。',
   'feature.dsh-plus-ui-mobile-fit': '移动端适配',
@@ -106,6 +108,9 @@ export const en: Record<string, string> = {
   'feature.dsh-plus-skill-manual.desc': 'Manual-trigger skill directory (skills-manual).',
   'feature.dsh-plus-reload': 'Reload Button',
   'feature.dsh-plus-reload.desc': 'The settings reload button and /reload command.',
+  'feature.dsh-plus-access-gate': 'Access Gate',
+  'feature.dsh-plus-access-gate.desc':
+    'Web access gate: loopback passes; remote needs allowlisted IP or token.',
   'feature.dsh-plus-web-files': 'File Browser',
   'feature.dsh-plus-web-files.desc': 'In-browser SFTP-like file browsing and editing.',
   'feature.dsh-plus-ui-mobile-fit': 'Mobile Fit',
