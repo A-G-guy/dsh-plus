@@ -7,10 +7,13 @@
 
 export const webFilesCss = `
 /* ── 侧边栏入口（与原生「设置」入口同款：整行图标+文案 / rail 圆形图标）── */
+/* flex: 1 1 0 + min-width: 0：footer 横排容纳多个插件入口（终端/文件）时
+   等分宽度不溢出；单入口时等同整行。 */
 .wf-entry {
   box-sizing: border-box;
   display: flex;
-  flex: none;
+  flex: 1 1 0;
+  min-width: 0;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -31,6 +34,7 @@ export const webFilesCss = `
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
 }
 .wf-entry-rail {
+  flex: none;
   width: 36px;
   height: 36px;
   margin: 8px 0 10px;

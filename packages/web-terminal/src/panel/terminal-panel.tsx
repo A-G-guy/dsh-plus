@@ -1,6 +1,7 @@
 /**
  * 终端工作台面板根组件：标签条（多会话/多窗口）+ 分屏树渲染 + 分割条拖拽。
- * 桌面多标签多分屏；移动端（≤767px）单叶显示 + 叶切换（CSS 驱动）。
+ * 桌面多标签多分屏；移动端（≤767px）单叶显示 + 叶切换（CSS 驱动），
+ * 不支持分屏，底部浮动辅助键盘（Esc/Tab/Ctrl/Alt/Shift/方向键）。
  * @module web-terminal/panel/terminal-panel
  */
 import {
@@ -23,6 +24,7 @@ import {
   IconSplitVOutline16,
   IconTerminalOutline16,
 } from './icons.tsx'
+import { MobileKeybar } from './keybar.tsx'
 import {
   type LayoutNode,
   newTab,
@@ -33,6 +35,7 @@ import {
   splitPane,
   type TabState,
 } from './layout.ts'
+import { ModifierStore } from './modifiers.ts'
 import {
   Button,
   IconCloseOutline16,
@@ -40,7 +43,6 @@ import {
   IconPlusOutline16,
   Menu,
   Modal,
-  RiskConfirmation,
 } from './primitives.ts'
 import type { PanelController, Translate } from './types.ts'
 import { XtermView } from './xterm-view.tsx'
@@ -68,10 +70,15 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
   const [tabs, setTabs] = useState<TabState[]>([])
   const [activeTab, setActiveTab] = useState<string | null>(null)
   const [closeTarget, setCloseTarget] = useState<{ tab: TabState; session: string } | null>(null)
-  const [closeAck, setCloseAck] = useState(false)
   const [renaming, setRenaming] = useState<{ tabId: string; value: string } | null>(null)
   const dragRef = useRef<DragState | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  /** 移动端修饰键（keybar 与 xterm 输入共享，sticky-once）。 */
+  const modifiers = useMemo(() => new ModifierStore(), [])
+  /** 面板由闭转开只引导一次：关闭全部标签后不再自动复活会话。 */
+  const bootstrappedRef = useRef(false)
+  /** 已请求 kill、等待服务端 exit 确认的会话（引导接管须跳过）。 */
+  const pendingKillRef = useRef(new Set<string>())
 
   useEffect(() => {
     if (open) connection.start()
@@ -85,6 +92,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
       .filter((session) => !session.running)
       .map((session) => session.id)
     if (exited.length === 0) return
+    for (const id of exited) pendingKillRef.current.delete(id)
     setTabs((current) => {
       let next = current
       for (const id of exited) {
@@ -106,6 +114,8 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
 
   const createSessionInTab = useCallback(
     async (tabId: string | null, dir?: 'row' | 'col', targetSession?: string) => {
+      // 移动端不支持分屏（按钮已隐藏，此为逻辑兜底）。
+      if (dir !== undefined && isMobileViewport()) return
       if (snapshot.sessions.filter((s) => s.running).length >= snapshot.maxSessions) return
       try {
         const session = await connection.createSession()
@@ -141,12 +151,18 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
     [connection, snapshot.maxSessions, snapshot.sessions],
   )
 
-  // 初始：面板打开且无标签 → 优先接管最近活动的存活会话（面板重开/页面刷新
-  // 后恢复既有终端，类 tmux attach）；无可用会话才新建。
+  // 引导：仅在面板由闭转开后执行一次——优先接管最近活动的存活会话
+  // （面板重开/页面刷新后恢复既有终端，类 tmux attach）；无可用会话才新建。
+  // 关闭全部标签后不再自动复活（曾导致「全部关闭又冒出一个/多个」）。
   useEffect(() => {
-    if (!open || snapshot.state !== 'open') return
+    if (!open) {
+      bootstrappedRef.current = false
+      return
+    }
+    if (snapshot.state !== 'open' || bootstrappedRef.current) return
+    bootstrappedRef.current = true
     if (tabs.length > 0) return
-    const running = snapshot.sessions.filter((s) => s.running)
+    const running = snapshot.sessions.filter((s) => s.running && !pendingKillRef.current.has(s.id))
     const reuse = [...running].sort((a, b) => b.lastActivityMs - a.lastActivityMs)[0]
     if (reuse !== undefined) {
       const tab = newTab(reuse.name, reuse.id)
@@ -167,7 +183,10 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
   const closeTab = useCallback(
     (tab: TabState) => {
       const panes = paneIds(tab.tree)
-      for (const id of panes) void connection.killSession(id)
+      for (const id of panes) {
+        pendingKillRef.current.add(id)
+        void connection.killSession(id)
+      }
       setTabs((current) => current.filter((item) => item.id !== tab.id))
       setActiveTab((current) => (current === tab.id ? null : current))
     },
@@ -274,6 +293,15 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
           >
             <IconPlusOutline16 />
           </Button>
+          {/* 退出按钮：headless Modal 无头部关闭钮，移动端全屏时这是唯一出口 */}
+          <Button
+            variant="ghost"
+            onClick={() => terminal.setOpen(false)}
+            aria-label={t('panel.exit')}
+            title={t('panel.exit')}
+          >
+            <IconCloseOutline16 />
+          </Button>
         </div>
 
         {currentTab === null ? (
@@ -283,6 +311,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
             <div className="wt-toolbar">
               <Button
                 variant="ghost"
+                className="wt-desktop-only"
                 title={t('toolbar.splitH')}
                 aria-label={t('toolbar.splitH')}
                 onClick={() => createSessionInTab(currentTab.id, 'row', currentTab.focus)}
@@ -291,6 +320,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
               </Button>
               <Button
                 variant="ghost"
+                className="wt-desktop-only"
                 title={t('toolbar.splitV')}
                 aria-label={t('toolbar.splitV')}
                 onClick={() => createSessionInTab(currentTab.id, 'col', currentTab.focus)}
@@ -299,6 +329,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
               </Button>
               <Button
                 variant="ghost"
+                className="wt-desktop-only"
                 title={t('toolbar.focusOnly')}
                 aria-label={t('toolbar.focusOnly')}
                 onClick={() =>
@@ -352,24 +383,37 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
             </div>
           </div>
         )}
+        {currentTab !== null && (
+          <MobileKeybar
+            modifiers={modifiers}
+            onSend={(data) => connection.input(currentTab.focus, modifiers.consume(data))}
+            t={t}
+          />
+        )}
       </div>
 
       {closeTarget !== null && (
-        <RiskConfirmation
+        <Modal
           open
           title={t('tab.closeConfirm.title')}
           description={t('tab.closeConfirm.description')}
-          acknowledgeLabel={t('tab.closeConfirm.acknowledge')}
-          confirmLabel={t('tab.close')}
-          cancelLabel={t('panel.close')}
-          acknowledged={closeAck}
-          onAcknowledgedChange={setCloseAck}
-          onConfirm={() => {
-            closeTab(closeTarget.tab)
-            setCloseTarget(null)
-            setCloseAck(false)
-          }}
-          onCancel={() => setCloseTarget(null)}
+          onClose={() => setCloseTarget(null)}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setCloseTarget(null)}>
+                {t('tab.closeConfirm.cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  closeTab(closeTarget.tab)
+                  setCloseTarget(null)
+                }}
+              >
+                {t('tab.close')}
+              </Button>
+            </>
+          }
         />
       )}
       {renaming !== null && (
@@ -423,6 +467,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
             running={session?.running ?? true}
             connection={connection}
             focused={focus === node.sessionId}
+            modifiers={modifiers}
             t={t}
           />
         </div>
@@ -466,6 +511,11 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
       </div>
     )
   }
+}
+
+/** 窄屏判定（与样式断点 767px 对齐）：移动端禁用分屏。 */
+function isMobileViewport(): boolean {
+  return window.matchMedia('(max-width: 767px)').matches
 }
 
 /** 找到含 sessionId 的叶（该叶存在即返回 sessionId 本身）。 */

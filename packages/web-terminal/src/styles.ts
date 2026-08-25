@@ -9,10 +9,13 @@ import { xtermCss } from './xterm-css.ts'
 
 export const webTerminalCss = `
 /* ── 侧边栏入口（与原生「设置」入口同款）── */
+/* flex: 1 1 0 + min-width: 0：footer 横排容纳多个插件入口（终端/文件）时
+   等分宽度不溢出；单入口时等同整行。 */
 .wt-entry {
   box-sizing: border-box;
   display: flex;
-  flex: none;
+  flex: 1 1 0;
+  min-width: 0;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -33,6 +36,7 @@ export const webTerminalCss = `
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
 }
 .wt-entry-rail {
+  flex: none;
   width: 36px;
   height: 36px;
   margin: 8px 0 10px;
@@ -61,6 +65,7 @@ export const webTerminalCss = `
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  position: relative;
   color: var(--dsw-alias-label-primary, #1f2328);
 }
 
@@ -229,7 +234,9 @@ export const webTerminalCss = `
   min-width: 0;
   min-height: 0;
   position: relative;
-  background: var(--dsw-alias-bg-canvas, #ffffff);
+  /* --dsw-alias-bg-base 随深浅色切换（旧名 bg-canvas 上游不存在，曾导致
+     深色下回退为纯白底） */
+  background: var(--dsw-alias-bg-base, #ffffff);
 }
 .wt-term-host {
   position: absolute;
@@ -245,7 +252,7 @@ export const webTerminalCss = `
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--dsw-alias-bg-canvas, #fff) 80%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-bg-base, #fff) 80%, transparent);
   color: var(--dsw-alias-label-tertiary, #8b949e);
   font-size: 12px;
   pointer-events: none;
@@ -274,6 +281,11 @@ export const webTerminalCss = `
   border-color: var(--dsw-alias-brand-primary, #4d6bfe);
 }
 
+/* ── 移动端浮动辅助键盘（默认隐藏，≤767px 见下方媒体查询）── */
+.wt-keybar {
+  display: none;
+}
+
 /* ── 移动端（≤767px）：全屏 + 隐藏分割（单叶显示）── */
 @media (max-width: 767px) {
   .wt-modal {
@@ -286,6 +298,10 @@ export const webTerminalCss = `
     max-height: none;
     border: none;
     border-radius: 0 !important;
+  }
+  /* 移动端不支持分屏：分割/单屏按钮隐藏（逻辑侧另有守卫）。 */
+  .wt-desktop-only {
+    display: none !important;
   }
   .wt-gutter {
     display: none;
@@ -302,6 +318,53 @@ export const webTerminalCss = `
   }
   .wt-tab-name {
     max-width: 90px;
+  }
+  /* 给底部浮动工具栏让位（48px 键区 + 安全区）。 */
+  .wt-panel {
+    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  }
+  /* 浮动工具栏：钉在面板底部；输入法弹出时组件内联 bottom 上浮。
+     absolute（相对 .wt-panel）而非 fixed：逃逸模态卡动画 transform
+     造成的固定定位包含块问题。 */
+  .wt-keybar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(48px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    background: var(--dsw-alias-bg-layer-1, #f6f8fa);
+    border-top: 1px solid var(--dsw-alias-border-l1, #e5e7eb);
+    overflow-x: auto;
+    scrollbar-width: none;
+    z-index: 5;
+  }
+  .wt-keybar-key {
+    flex: none;
+    min-width: 42px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--dsw-alias-border-l2, #d0d7de);
+    border-radius: 8px;
+    background: var(--dsw-alias-button-elevated-fill, #ffffff);
+    color: var(--dsw-alias-label-primary, #1f2328);
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .wt-keybar-key:active {
+    background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.08));
+  }
+  .wt-keybar-key-active,
+  .wt-keybar-key-active:active {
+    background: var(--dsw-alias-brand-primary, #4d6bfe);
+    border-color: transparent;
+    color: var(--dsw-alias-label-primary-inverted, #ffffff);
   }
 }
 `

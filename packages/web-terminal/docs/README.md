@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-25 11:28"
+last_modified: "2026-08-26 04:44"
 ---
 
 # @dsh-plus/web-terminal
@@ -45,11 +45,26 @@ dshctl 的平台包运行时依赖守卫不受影响——node-pty/ws 不在
   配置卡片（key = settings ns `dsh-plus-web-terminal`，经官方 settings RPC）。
 - 分屏布局 `src/panel/layout.ts` 纯函数（tab 内二叉分割树；单测覆盖）；
   拖拽调宽的兄弟配对语义见 tests（sessionId 所在叶 vs 相邻 siblingIndex）。
-- xterm 主题从 `--dsw-*` 令牌读取（`getComputedStyle`），监听 `html` 元素
-  属性变化随深浅色切换热更新；xterm 基础结构样式冻结于 `src/xterm-css.ts`
-  （宿主只服务 client.js 单文件，不能依赖独立 style.css 产物）。
-- 响应式：断点 767px（与 ui-mobile-fit 对齐），移动端 Modal 全屏、隐藏
-  分割条、仅焦点叶可见（点击叶切换焦点）。
+- xterm 主题从 `--dsw-*` 令牌读取（官方深浅色经 `body[data-ds-dark-theme]`
+  切换、令牌只挂在 body，故读 body 计算样式并监听 body/html 属性 +
+  `prefers-color-scheme` 媒体查询热更新）；背景令牌用 `--dsw-alias-bg-base`
+  （`bg-canvas` 上游不存在，深色下会回退纯白）；ANSI 16 色按背景亮度选
+  浅/深两套调色板；xterm 基础结构样式冻结于 `src/xterm-css.ts`（宿主只
+  服务 client.js 单文件，不能依赖独立 style.css 产物）。
+- 响应式：断点 767px（与 ui-mobile-fit 对齐），移动端 Modal 全屏、**不支持
+  分屏**（分割按钮隐藏 + 逻辑守卫）、仅焦点叶可见（点击叶切换焦点）。
+- 移动端辅助键盘 `src/panel/keybar.tsx`：类 Termux extra-keys，钉在面板
+  底部（absolute 相对 .wt-panel，逃逸模态卡 transform 包含块），输入法
+  弹出时经 visualViewport 计算缺口上浮；Ctrl/Alt/Shift 为 sticky-once
+  修饰键，变换逻辑在 `src/panel/modifiers.ts` 纯模块（单测覆盖），
+  keybar 按键与 xterm onData 统一经 `ModifierStore.consume` 出口。
+- 引导语义：面板由闭转开只引导一次（接管最近活动存活会话或新建），
+  关闭全部标签**不再自动复活**；kill 在途会话记入 pendingKill 集合并被
+  引导跳过（exit 确认后移除）。
+- 关闭会话为纯二次确认（Modal + 确认/取消），无勾选门槛；headless 面板
+  在标签条右端提供显式退出按钮（移动端全屏唯一出口）。
+- 侧边栏入口 `.wt-entry` 用 `flex: 1 1 0; min-width: 0`：footer 横排容纳
+  多个插件入口（终端/文件）时等分宽度不溢出（rail 态保持 flex: none）。
 
 ## HTTP / WS 端点（`src/protocol.ts` 为线协议单一事实源）
 
@@ -113,7 +128,8 @@ WS 消息（JSON 文本帧）：
 
 `tests/scrollback.test.ts`（双上限淘汰/整行边界/残行缝合）、
 `tests/layout.test.ts`（分割/塌缩/焦点环绕/钳制）、`tests/registry.test.ts`
-（FakePty：创建/上限/扇出/空闲清扫/kill 阶梯/disposal）。
+（FakePty：创建/上限/扇出/空闲清扫/kill 阶梯/disposal）、
+`tests/modifiers.test.ts`（Ctrl/Alt/Shift 变换与 sticky-once 复位）。
 禁网络、零 API 费用。
 
 ## 已知限制
