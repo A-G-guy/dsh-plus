@@ -94,14 +94,14 @@ const cardExtra = `
 export const sectionCssAll = sectionCss
 export const cardCssAll = cardCss('dup', cardExtra)
 
-/** 幂等注入样式标签（section 与卡片同一插件标签，id 不同）。 */
+/** 幂等注入样式标签（section 与卡片各一只标签，tagId 必须不同，否则后注者被幂等检查吞掉）。 */
 export function injectSectionStyle(): HTMLStyleElement | null {
   return injectCardStyle(PLUGIN_ID, sectionCssAll)
 }
 
 export function injectCardStyles(): HTMLStyleElement | null {
   if (typeof document === 'undefined') return null
-  const tagId = `${PLUGIN_ID}/card.css`
+  const tagId = `${PLUGIN_ID}/price-card.css`
   if (document.querySelector(`style[data-plugin-css=${JSON.stringify(tagId)}]`) !== null) {
     return null
   }
