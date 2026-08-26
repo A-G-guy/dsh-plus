@@ -3,12 +3,10 @@
  * 目录永远优先于文件；键相同回退名称升序保证确定性。
  * @module @dsh-plus/web-files/panel/sort
  */
-import type { FsEntryDto } from '../protocol.ts'
+import type { FsEntryDto, SortDir, SortKey } from '../protocol.ts'
 
-export type SortKey = 'name' | 'size' | 'mtime'
-export type SortDir = 'asc' | 'desc'
-
-export const SORT_KEYS: readonly SortKey[] = ['name', 'size', 'mtime']
+export type { SortDir, SortKey } from '../protocol.ts'
+export { SORT_KEYS } from '../protocol.ts'
 
 /** 排序一层条目：目录优先，组内按键与方向排序，平手回退名称升序。 */
 export function sortEntries(

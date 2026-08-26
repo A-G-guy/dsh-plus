@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
-import type { FsEntryDto, ListResponse, ReadResponse } from '../protocol.ts'
+import type { DirSortPreference, FsEntryDto, ListResponse, ReadResponse } from '../protocol.ts'
 import * as api from './api.ts'
 import { FilesApiError } from './api.ts'
 import { Browser } from './browser.tsx'
@@ -28,6 +28,12 @@ import {
 } from './primitives.ts'
 import type { SortDir, SortKey } from './sort.ts'
 import type { PanelController, Translate } from './types.ts'
+
+/** 偏好读写失败仅降级为会话内行为，但必须留下上下文日志。 */
+function warnPrefs(action: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error)
+  console.warn(`[web-files] prefs ${action} failed: ${message}`)
+}
 
 /** POSIX 父目录路径（外部打开文件前先定位其所在目录）。 */
 function parentPath(path: string): string {
@@ -69,8 +75,14 @@ export function FilePanel({ files, t }: FilePanelProps) {
   const [listError, setListError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showHidden, setShowHidden] = useState(false)
-  const [sortKey, setSortKey] = useState<SortKey>('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  /** 按目录记忆的排序偏好（路径 → 键/方向）；服务端落盘，跨设备共享。 */
+  const [sortByDir, setSortByDir] = useState<Record<string, DirSortPreference>>({})
+  /** 偏好是否已从服务端加载（首次列目录前必须就绪，保证 showHidden 正确）。 */
+  const [prefsReady, setPrefsReady] = useState(false)
+  /** 用户在新偏好加载完成前改过 showHidden 时，以本地新值为准。 */
+  const hiddenTouchedRef = useRef(false)
+  /** 偏好只拉一次（加载期间 showHidden 变化引起的 effect 重跑不重复请求）。 */
+  const prefsRequestedRef = useRef(false)
   const [file, setFile] = useState<OpenFile | null>(null)
   const [fileError, setFileError] = useState<{
     path: string
@@ -92,6 +104,13 @@ export function FilePanel({ files, t }: FilePanelProps) {
   })
   const toastSeq = useRef(0)
   const docGetter = useRef<(() => string) | null>(null)
+  /** loadPrefs 完成后判定是否需要按新 showHidden 重列（外部打开竞态）。 */
+  const listingRef = useRef<ListResponse | null>(null)
+  const showHiddenRef = useRef(showHidden)
+  useEffect(() => {
+    listingRef.current = listing
+    showHiddenRef.current = showHidden
+  }, [listing, showHidden])
 
   const toast = useCallback((text: string, error = false) => {
     const id = ++toastSeq.current
@@ -121,10 +140,37 @@ export function FilePanel({ files, t }: FilePanelProps) {
     [showHidden],
   )
 
-  // 面板每次打开时若尚无目录则列 home；关闭时保留现场
+  /** 加载跨设备偏好：服务端旧值打底、本地新值覆盖（加载间隙的改动优先）。 */
+  const loadPrefs = useCallback(async () => {
+    try {
+      const { prefs } = await api.getPrefs()
+      setSortByDir((local) => ({ ...prefs.sortByDir, ...local }))
+      if (hiddenTouchedRef.current) return
+      setShowHidden(prefs.showHidden)
+      // 外部打开（文件链接）可能抢先按默认 showHidden 列过目录：偏好不同时重列
+      const current = listingRef.current
+      if (current !== null && showHiddenRef.current !== prefs.showHidden) {
+        await navigate(current.path, prefs.showHidden)
+      }
+    } catch (error) {
+      warnPrefs('load', error)
+    } finally {
+      setPrefsReady(true)
+    }
+  }, [navigate])
+
+  // 面板每次打开时先确保偏好就绪，尚无目录则列 home；关闭时保留现场
   useEffect(() => {
-    if (open && listing === null) void navigate()
-  }, [open, listing, navigate])
+    if (!open) return
+    if (!prefsReady) {
+      if (!prefsRequestedRef.current) {
+        prefsRequestedRef.current = true
+        void loadPrefs()
+      }
+      return
+    }
+    if (listing === null) void navigate()
+  }, [open, prefsReady, listing, navigate, loadPrefs])
 
   const closePanel = useCallback(() => files.setOpen(false), [files])
 
@@ -323,6 +369,34 @@ export function FilePanel({ files, t }: FilePanelProps) {
     setFileError(null)
   }, [])
 
+  /** 当前目录的排序偏好；未记忆的目录回退默认（名称升序）。 */
+  const currentSort: DirSortPreference = (listing !== null
+    ? sortByDir[listing.path]
+    : undefined) ?? { key: 'name', dir: 'asc' }
+
+  const changeSort = useCallback(
+    (key: SortKey, dir: SortDir) => {
+      const path = listing?.path
+      if (path === undefined) return
+      const value: DirSortPreference = { key, dir }
+      setSortByDir((current) => ({ ...current, [path]: value }))
+      api.patchPrefs({ sortFor: { path, value } }).catch((error: unknown) => {
+        warnPrefs('save sort', error)
+      })
+    },
+    [listing?.path],
+  )
+
+  const toggleHidden = useCallback(() => {
+    const next = !showHidden
+    hiddenTouchedRef.current = true
+    setShowHidden(next)
+    void navigate(listing?.path, next)
+    api.patchPrefs({ showHidden: next }).catch((error: unknown) => {
+      warnPrefs('save showHidden', error)
+    })
+  }, [showHidden, listing?.path, navigate])
+
   return (
     <>
       <Modal
@@ -359,23 +433,16 @@ export function FilePanel({ files, t }: FilePanelProps) {
                 selectedPath={file?.entry.path ?? null}
                 canBack={history.index > 0}
                 canForward={history.index < history.stack.length - 1}
-                sortKey={sortKey}
-                sortDir={sortDir}
-                onSortChange={(key, dir) => {
-                  setSortKey(key)
-                  setSortDir(dir)
-                }}
+                sortKey={currentSort.key}
+                sortDir={currentSort.dir}
+                onSortChange={changeSort}
                 t={t}
                 onNavigate={(path) => void navigate(path)}
                 onBack={goBack}
                 onForward={goForward}
                 onHome={() => void goHome()}
                 onRefresh={() => void refresh()}
-                onToggleHidden={() => {
-                  const next = !showHidden
-                  setShowHidden(next)
-                  void navigate(listing?.path, next)
-                }}
+                onToggleHidden={toggleHidden}
                 onNewFolder={() => {
                   setNameDraft('')
                   setNameDialog({ mode: 'mkdir' })

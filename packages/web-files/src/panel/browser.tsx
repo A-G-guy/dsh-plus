@@ -229,6 +229,9 @@ export function Browser(props: BrowserProps) {
           type="file"
           multiple
           hidden
+          // 移动端缺省 accept 会被部分浏览器/WebView 收窄为相册（仅照片）；
+          // 显式 */* 触发系统级文件选择器，任意类型可传。
+          accept="*/*"
           onChange={(event) => {
             const files = event.target.files
             if (files !== null && files.length > 0) props.onUpload(files)

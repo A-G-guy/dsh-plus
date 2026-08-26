@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-24 15:26"
+last_modified: "2026-08-26 18:59"
 ---
 
 # @dsh-plus/web-files
@@ -36,7 +36,18 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
   卸载时 delete 自身属性还原原型方法。
 - 列表排序（`src/panel/sort.ts` 纯函数 + 单测）：名称/大小/修改时间
   × 升/降序，目录恒优先，平手回退名称升序；工具栏下拉选择
-  （`src/panel/toolbar-menus.tsx`，与新建菜单同处）。
+  （`src/panel/toolbar-menus.tsx`，与新建菜单同处）。排序按目录
+  单独记忆（`src/prefs.ts` 服务端落盘 `~/.dsh/web-files/prefs.json`，
+  跨设备共享），未记忆的目录回退默认名称升序。
+- 面板偏好跨设备记忆（`src/prefs.ts` + `/prefs/get` `/prefs/set`）：
+  showHidden 与按目录排序服务端持久化，读改写内存队列串行化 +
+  tmp+rename 原子落盘，损坏回退默认；排序表上限 500 目录，
+  超限逐出最久未更新项。面板打开时先拉取偏好再首次列目录，
+  保证 showHidden 首列即正确；补丁为合并语义（仅出现的字段更新），
+  服务端旧值打底、加载间隙的本地改动优先。
+- 上传（`src/panel/browser.tsx`）：`<input type="file">` 显式
+  `accept="*/*"`——移动端缺省 accept 会被部分浏览器/WebView 收窄为
+  相册（仅照片），显式任意类型触发系统级文件选择器。
 - 新建：加号下拉支持新建文件（/mkfile 空文件原子落盘，返回条目 DTO
   直接打开进入预览）与新建文件夹。
 - i18n：命名空间 `dsh-plus-web-files` 合并进 LocaleNamespaceMap
@@ -56,6 +67,8 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
 | `/delete` | POST | **仅单文件或空目录**，非空目录拒绝（不递归，数据安全底线） |
 | `/upload` | POST raw | 流式落盘，上限 50MB |
 | `/download` | GET | attachment 流式下载，RFC 5987 文件名编码 |
+| `/prefs/get` | POST | 读取跨设备面板偏好（showHidden + 按目录排序） |
+| `/prefs/set` | POST | 合并偏好补丁（仅出现的字段更新），返回合并后完整偏好 |
 
 ## 安全接缝
 

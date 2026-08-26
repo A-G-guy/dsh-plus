@@ -19,6 +19,39 @@ export const BINARY_SNIFF_BYTES = 8 * 1024
 export const WRITE_MAX_BYTES = 4 * 1024 * 1024
 /** 上传上限（50MB）。 */
 export const UPLOAD_MAX_BYTES = 50 * 1024 * 1024
+/** 按目录记忆排序的最大目录数；超出按最久未更新逐出（防偏好文件无界增长）。 */
+export const PREFS_SORT_MAX_DIRS = 500
+
+/** 列表排序键。 */
+export const SORT_KEYS = ['name', 'size', 'mtime'] as const
+export type SortKey = (typeof SORT_KEYS)[number]
+export type SortDir = 'asc' | 'desc'
+
+/** 单个目录的排序偏好（按目录单独记忆）。 */
+export interface DirSortPreference {
+  key: SortKey
+  dir: SortDir
+}
+
+/**
+ * 跨设备记忆的面板偏好（服务端落盘，浏览器侧零本地存储）。
+ * sortByDir 以目录绝对路径为键。
+ */
+export interface WebFilesPrefsDto {
+  showHidden: boolean
+  sortByDir: Record<string, DirSortPreference>
+}
+
+export interface PrefsGetResponse {
+  prefs: WebFilesPrefsDto
+}
+
+/** 偏好合并补丁：仅出现的字段被更新（服务端 merge，不整覆写）。 */
+export interface PrefsPatchRequest {
+  showHidden?: boolean
+  /** 记下单个目录的排序偏好。 */
+  sortFor?: { path: string; value: DirSortPreference }
+}
 
 /** 一行目录条目（文件或目录）。 */
 export interface FsEntryDto {

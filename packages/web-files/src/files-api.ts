@@ -1,6 +1,6 @@
 /**
  * HTTP 路由层：`/dsh-plus/web-files` 前缀下的 JSON/流式端点。
- * 只做方法/载荷解析与错误映射，文件语义全部在 fs-core。
+ * 只做方法/载荷解析与错误映射，文件语义在 fs-core、偏好语义在 prefs。
  *
  * 安全接缝：`web-files/access` 事件（serial）在每个请求进入处理器前发出，
  * 任何监听器抛错即 403。本插件不做鉴权，统一围栏留给后续安全插件。
@@ -26,6 +26,7 @@ import {
   statEntry,
   writeFileText,
 } from './fs-core.ts'
+import { PrefsStore, requirePrefsPatch } from './prefs.ts'
 import type {
   ApiErrorBody,
   DeleteRequest,
@@ -111,7 +112,15 @@ function contentDisposition(filename: string): string {
 
 /** 端点表：路径段 → 处理器。 */
 function buildHandlers(ctx: Context): Record<string, Handler> {
+  const prefs = new PrefsStore()
   return {
+    '/prefs/get': wrap(ctx, '/prefs/get', 'POST', async (_req, res) => {
+      sendJson(res, 200, { prefs: await prefs.read() })
+    }),
+    '/prefs/set': wrap(ctx, '/prefs/set', 'POST', async (req, res) => {
+      const body = await readJsonBody<unknown>(req)
+      sendJson(res, 200, { prefs: await prefs.patch(requirePrefsPatch(body)) })
+    }),
     '/list': wrap(ctx, '/list', 'POST', async (req, res) => {
       const body = await readJsonBody<ListRequest>(req)
       sendJson(res, 200, await listDirectory(body.path, body.showHidden === true))

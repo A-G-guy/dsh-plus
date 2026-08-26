@@ -9,6 +9,8 @@ import type {
   ListRequest,
   ListResponse,
   MkfileResponse,
+  PrefsGetResponse,
+  PrefsPatchRequest,
   ReadRequest,
   ReadResponse,
   StatRequest,
@@ -86,6 +88,16 @@ export function rename(path: string, newName: string): Promise<{ path: string }>
 
 export function remove(path: string): Promise<{ deleted: true }> {
   return post('/delete', { path })
+}
+
+/** 读取跨设备记忆的面板偏好（服务端落盘）。 */
+export function getPrefs(): Promise<PrefsGetResponse> {
+  return post<Record<string, never>, PrefsGetResponse>('/prefs/get', {})
+}
+
+/** 合并偏好补丁（仅出现的字段被更新），返回合并后的完整偏好。 */
+export function patchPrefs(patch: PrefsPatchRequest): Promise<PrefsGetResponse> {
+  return post<PrefsPatchRequest, PrefsGetResponse>('/prefs/set', patch)
 }
 
 /** 上传：raw body 流（query 携带目录与文件名）。 */
