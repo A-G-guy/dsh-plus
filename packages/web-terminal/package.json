@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/web-terminal",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus ui plugin: Web 内嵌持久化终端工作台（多会话/桌面分屏/scrollback 回放，dsh 运行期间保活）",
   "type": "module",
   "main": "lib/index.js",
