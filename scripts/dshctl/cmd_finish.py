@@ -164,8 +164,9 @@ def install_targets(targets: list[Path], published: list[Path]) -> list[Path]:
     return ordered
 
 
-def _git(args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
-    return run(["git", *args], cwd=REPO_ROOT, check=check)
+def _git(args: list[str], check: bool = True,
+         fail_banner: bool = True) -> subprocess.CompletedProcess[str]:
+    return run(["git", *args], cwd=REPO_ROOT, check=check, fail_banner=fail_banner)
 
 
 def _is_published(name: str, version: str) -> bool:
@@ -221,7 +222,8 @@ def _step_bump(args, targets: list[Path]) -> list[tuple[str, str, str]]:
 
 def _step_commit(args, plan: list[tuple[str, str, str]]) -> None:
     _git(["add", "-A"])
-    if _git(["diff", "--cached", "--quiet"], check=False).returncode == 0:
+    if _git(["diff", "--cached", "--quiet"], check=False,
+            fail_banner=False).returncode == 0:
         print("[finish] 工作区无改动，跳过提交")
         return
     message = _resolve_message(args.message)

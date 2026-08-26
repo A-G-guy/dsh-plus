@@ -93,6 +93,14 @@ class TestRunLogged(unittest.TestCase):
         self.assertIn("error: boom", text)  # 报错行原文呈现
         self.assertIn("完整日志", text)
 
+    def test_probe_nonzero_without_banner(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            proc = run_logged(["python3", "-c", "import sys; sys.exit(1)"],
+                              check=False, fail_banner=False)
+        self.assertEqual(proc.returncode, 1)
+        self.assertNotIn("✖", err.getvalue())  # 探测语义不打印失败横幅
+
     def test_warnings_shown_on_success(self):
         err = io.StringIO()
         with contextlib.redirect_stderr(err):

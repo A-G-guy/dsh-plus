@@ -91,8 +91,13 @@ def _print_section(title: str, lines: list[str]) -> None:
 
 
 def run_logged(cmd: list[str], *, env: dict[str, str] | None = None,
-               cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
-    """执行命令并整理输出；check=True 失败时返回（由调用方决定 fail）。"""
+               cwd: Path | None = None, check: bool = True,
+               fail_banner: bool = True) -> subprocess.CompletedProcess[str]:
+    """执行命令并整理输出；check=True 失败时返回（由调用方决定 fail）。
+
+    fail_banner=False：非零退出是探测语义（如 git diff --quiet），不打失败横幅，
+    照常归类警告/报错并返回结果。
+    """
     if verbose():
         print(f"+ {' '.join(cmd)}", file=sys.stderr)
     merged_env = dict(env) if env is not None else dict(os.environ)
@@ -111,6 +116,10 @@ def run_logged(cmd: list[str], *, env: dict[str, str] | None = None,
     log: Path | None = None
     if proc.returncode != 0:
         log = _write_log(cmd, combined)
+        if not fail_banner:
+            print(f"✔ {_slug(cmd)} (exit {proc.returncode}，{elapsed:.1f}s)",
+                  file=sys.stderr)
+            return proc
         print(f"✖ {_slug(cmd)} 失败（exit {proc.returncode}，{elapsed:.1f}s）", file=sys.stderr)
         _print_section("报错", errors)
         tail = combined.splitlines()[-TAIL_ON_FAILURE:]

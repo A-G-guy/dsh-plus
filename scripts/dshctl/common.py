@@ -123,10 +123,12 @@ def find_platform_shadows(home: Path, profile: str = "web") -> list[str]:
 
 
 def run(cmd: list[str], *, env: dict[str, str] | None = None,
-        cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+        cwd: Path | None = None, check: bool = True,
+        fail_banner: bool = True) -> subprocess.CompletedProcess[str]:
     """统一执行入口：输出经 output.run_logged 摘要（成功一行，警告/报错原文汇总）。
 
     check=True 且命令失败时，报错原文与日志路径已打印，此处转为干净退出。
+    fail_banner=False 用于非零退出属正常探测语义的命令（如 git diff --quiet）。
     """
     from .output import run_logged
     env = dict(env) if env is not None else dict(os.environ)
@@ -135,7 +137,8 @@ def run(cmd: list[str], *, env: dict[str, str] | None = None,
         if npm_bin not in env.get("PATH", ""):
             env["PATH"] = npm_bin + os.pathsep + env.get("PATH", "")
     try:
-        return run_logged(cmd, env=env, cwd=cwd, check=check)
+        return run_logged(cmd, env=env, cwd=cwd, check=check,
+                          fail_banner=fail_banner)
     except subprocess.CalledProcessError as exc:
         if check:
             fail(f"命令失败（exit {exc.returncode}），详见上方报错与日志")
