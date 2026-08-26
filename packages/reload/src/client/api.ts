@@ -48,7 +48,14 @@ async function parse<T>(res: Response): Promise<T> {
   return body
 }
 
-export async function fetchHealth(): Promise<{ ok: boolean; bootId: string }> {
+export interface HealthInfo {
+  ok: boolean
+  bootId: string
+  /** 被动重启检测的轮询间隔毫秒数（0 = 关闭）；旧版 host 无此字段。 */
+  watchdogIntervalMs?: number
+}
+
+export async function fetchHealth(): Promise<HealthInfo> {
   return parse(await fetch(`${ROUTE}/health`, { credentials: 'same-origin' }))
 }
 

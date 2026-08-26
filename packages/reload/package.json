@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/reload",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "dsh-plus service+ui plugin: 设置页「重新加载」按钮与 /reload 命令——两段确认+倒计时后重启 systemd 托管的 dsh-web，恢复后浏览器自动刷新",
   "type": "module",
   "main": "lib/index.js",

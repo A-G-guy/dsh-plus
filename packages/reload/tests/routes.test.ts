@@ -90,6 +90,7 @@ test('given any state, when GET health, then 200 with bootId', async () => {
   assert.equal(res.status, 200)
   assert.equal(res.body.ok, true)
   assert.equal(res.body.bootId, scheduler.bootId)
+  assert.equal(res.body.watchdogIntervalMs, 30_000)
 })
 
 test('given healthy preflight, when POST prepare, then token and metadata returned', async () => {

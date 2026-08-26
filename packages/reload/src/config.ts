@@ -31,6 +31,10 @@ export const Config = z.object({
     .natural()
     .description('客户端等待服务恢复并自动刷新的超时毫秒数（客户端 UI 采用）')
     .default(30000),
+  watchdogIntervalSeconds: z
+    .natural()
+    .description('客户端被动重启检测的轮询间隔秒数（0 = 关闭；覆盖任何来源的重启）')
+    .default(30),
 })
 
 export type ReloadConfig = Schemastery.TypeT<typeof Config>

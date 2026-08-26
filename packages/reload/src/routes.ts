@@ -72,7 +72,11 @@ export function createReloadHandler(
   const runningAgents = deps.runningAgents ?? (() => 0)
 
   const handleHealth = (res: ServerResponse): void => {
-    sendJson(res, 200, { ok: true, bootId: scheduler.bootId })
+    sendJson(res, 200, {
+      ok: true,
+      bootId: scheduler.bootId,
+      watchdogIntervalMs: config.watchdogIntervalSeconds * 1000,
+    })
   }
 
   const handlePrepare = async (res: ServerResponse): Promise<void> => {

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-19 17:23"
+last_modified: "2026-08-26 15:53"
 ---
 
 # @dsh-plus/reload 文档
@@ -34,6 +34,13 @@ last_modified: "2026-08-19 17:23"
   「仍然重启」）→ confirm → 轮询 health 直至 bootId 变化 → `location.reload()`；
   超时（默认 30s）给出人工排查指引。多标签页经 localStorage 标记联动，
   其他标签页自动接力轮询刷新。
+- **被动重启检测**（`src/client/watchdog.ts`）：主动流程只覆盖本插件发起、
+  且在同一浏览器内的重启。watchdog 在页面加载后经 health 建立 bootId 基线，
+  随后低频轮询（间隔由 health 下发，见 `watchdogIntervalSeconds`）与
+  `visibilitychange` 可见性恢复时比对；bootId 变化即服务已被**任何来源**
+  （systemctl / 其他设备 / 直接 kill）重启 → `location.reload()` 拉取新
+  bundle（官方 `?rev=` 内容哈希保证拿到新包）。health 失败保持基线等下轮；
+  间隔 0 关闭该检测。
 
 ## 配置（行级，`dsh` 组合层可覆盖）
 
@@ -45,6 +52,7 @@ last_modified: "2026-08-19 17:23"
 | `confirmTokenTtlMs` | `60000` | 一次性 token 有效期 |
 | `serverGraceMs` | `800` | confirm 后到执行重启的缓冲（响应落盘/取消窗口） |
 | `clientPollTimeoutMs` | `30000` | 客户端等待服务恢复的轮询超时 |
+| `watchdogIntervalSeconds` | `30` | 被动重启检测轮询间隔秒数（0 = 关闭） |
 
 ## 边界
 
