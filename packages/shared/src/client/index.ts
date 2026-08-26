@@ -16,6 +16,7 @@ export {
 export { getJson, postJson } from './fetch.ts'
 export { CheckRow, SelectField, type SelectOption, TextField } from './fields.tsx'
 export { commonEn, commonZh, type Dict, mergeDict } from './i18n.ts'
+export { ChevronDownIcon, type IconProps } from './icons.tsx'
 export {
   createApiScope,
   type Scope,

@@ -12,7 +12,7 @@ export const PLUGIN_ID = '@dsh-plus/llm-pi'
 
 const extraCss = `
 .lpc-input{width:100%;box-sizing:border-box}
-.lpc-select{appearance:none}
+.lpc-select{appearance:none;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--dsw-alias-label-secondary) 50%),linear-gradient(135deg,var(--dsw-alias-label-secondary) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px}
 .lpc-textarea{height:auto;min-height:72px;padding:8px 12px;line-height:1.5;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;resize:vertical}
 .lpc-checkRow{padding:3px 0}
 .lpc-statusRow{color:var(--dsw-alias-label-tertiary);margin:6px 0 0;font-size:12px;line-height:1.6;word-break:break-all}

@@ -168,10 +168,10 @@ export function UsageSection(props: SectionProps): ReactElement {
             ))}
           </div>
 
-          <div className="dup-cards">
-            <div className="dup-card">
-              <span className="dup-cardLabel">{t('total')}</span>
-              <span className="dup-cardValue">
+          <div className="dup-stats">
+            <div className="dup-stat">
+              <span className="dup-statLabel">{t('total')}</span>
+              <span className="dup-statValue">
                 {fmtTokens(
                   scoped?.rows.reduce(
                     (sum, r) =>
@@ -180,14 +180,14 @@ export function UsageSection(props: SectionProps): ReactElement {
                   ) ?? 0,
                 )}
               </span>
-              <span className="dup-cardMeta">
+              <span className="dup-statMeta">
                 {t('calls')}：{scoped?.rows.reduce((sum, r) => sum + r.calls, 0) ?? 0}
               </span>
             </div>
-            <div className="dup-card">
-              <span className="dup-cardLabel">{t('cost')}</span>
-              <span className="dup-cardValue">{fmtCost(rangeCost, data.currency)}</span>
-              <span className="dup-cardMeta">
+            <div className="dup-stat">
+              <span className="dup-statLabel">{t('cost')}</span>
+              <span className="dup-statValue">{fmtCost(rangeCost, data.currency)}</span>
+              <span className="dup-statMeta">
                 {data.pricedCount > 0 ? t('estimated') : t('priceHint')}
               </span>
             </div>

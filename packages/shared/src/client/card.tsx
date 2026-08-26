@@ -8,6 +8,8 @@
  */
 import type { ReactNode } from 'react'
 
+import { ChevronDownIcon } from './icons.tsx'
+
 export interface CardStatusState {
   kind: 'idle' | 'ok' | 'error'
   text: string
@@ -63,7 +65,7 @@ export function CardChrome(props: CardChromeProps): ReactNode {
           </span>
         ) : null}
         {props.dirty ? <span className={`${p}-pending`}>{props.dirtyLabel}</span> : null}
-        <span className={`${p}-chevron${props.open ? ` ${p}-chevronOpen` : ''}`}>▾</span>
+        <ChevronDownIcon className={`${p}-chevron${props.open ? ` ${p}-chevronOpen` : ''}`} />
       </button>
       {props.open ? (
         <div className={`${p}-body`}>

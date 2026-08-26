@@ -20,7 +20,7 @@ export function cardCss(prefix: string, extra = ''): string {
 .${prefix}-headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}
 .${prefix}-name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}
 .${prefix}-description{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1.5}
-.${prefix}-chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s;font-size:12px}
+.${prefix}-chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s;display:inline-flex}
 .${prefix}-chevronOpen{transform:rotate(180deg)}
 .${prefix}-pending{white-space:nowrap;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);border-radius:999px;flex:none;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}
 .${prefix}-statusBadge{white-space:nowrap;border-radius:999px;flex:none;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}
@@ -39,7 +39,7 @@ export function cardCss(prefix: string, extra = ''): string {
 .${prefix}-input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}
 .${prefix}-input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}
 .${prefix}-inputInvalid{border-color:var(--dsw-alias-label-error)}
-.${prefix}-select{appearance:none;background:var(--dsw-alias-bg-module-platform);border:none;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--dsw-alias-label-secondary) 50%),linear-gradient(135deg,var(--dsw-alias-label-secondary) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px;color:var(--dsw-alias-label-primary)}
+.${prefix}-select{appearance:none;background:var(--dsw-alias-bg-module-platform);border:none;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--dsw-alias-label-secondary) 50%),linear-gradient(135deg,var(--dsw-alias-label-secondary) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;height:34px;box-sizing:border-box;border-radius:8px;padding:0 30px 0 12px;transition:background-color .18s}
 .${prefix}-select:hover:not(:disabled){background-color:var(--dsw-alias-interactive-bg-hover)}
 .${prefix}-hint{color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px;line-height:1.5}
 .${prefix}-invalid{color:var(--dsw-alias-label-error);margin:0;font-size:12px;line-height:1.5}

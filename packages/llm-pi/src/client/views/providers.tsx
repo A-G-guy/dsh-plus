@@ -4,6 +4,8 @@
  * 支持新增 route（输入键名）与删除 route。
  * @module llm-pi/client/views/providers
  */
+
+import { ChevronDownIcon } from '@dsh-plus/shared/client'
 import { type ReactElement, useState } from 'react'
 
 import type { ProviderDraft } from '../draft.ts'
@@ -111,7 +113,7 @@ export function ProviderSection(props: ProviderSectionProps): ReactElement {
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
-          <span className={`lpc-chevron${open ? ' lpc-chevronOpen' : ''}`}>▾</span>
+          <ChevronDownIcon className={`lpc-chevron${open ? ' lpc-chevronOpen' : ''}`} />
           <span className="lpc-routeKey">{route}</span>
           {summary !== '' ? <span className="lpc-routeApi">{summary}</span> : null}
         </button>

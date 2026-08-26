@@ -82,7 +82,7 @@ export function UsagePriceCard(props: CardProps): ReactElement | null {
   if (value === undefined || draft === null) {
     return (
       <li className="dup-card">
-        <p className="dup-readOnly">{t('loading')}</p>
+        <p className="dup-loading">{t('loading')}</p>
       </li>
     )
   }

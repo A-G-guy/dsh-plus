@@ -4,6 +4,8 @@
  * 本文件的 SelectField 是 llm-pi 的窄变体（readonly string[] 选项 + 未设置项）。
  * @module llm-pi/client/fields
  */
+
+import { ChevronDownIcon } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useState } from 'react'
 
 import type { HeaderPair } from './draft.ts'
@@ -32,7 +34,7 @@ export function CollapseSection(props: CollapseSectionProps): ReactElement {
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        <span className={`lpc-chevron${open ? ' lpc-chevronOpen' : ''}`}>▾</span>
+        <ChevronDownIcon className={`lpc-chevron${open ? ' lpc-chevronOpen' : ''}`} />
         <span className="lpc-collapseTitle">{props.title}</span>
       </button>
       {open ? <div className="lpc-collapseBody">{props.children}</div> : null}

@@ -21,11 +21,11 @@ const sectionCss = `
 .dup-rangeBtn{appearance:none;font:inherit;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);background:0 0;color:var(--dsw-alias-label-secondary);border-radius:8px;padding:5px 12px;font-size:12px;line-height:1.5}
 .dup-rangeBtn:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed)}
 .dup-rangeActive{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3);border-color:transparent}
-.dup-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-.dup-card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;list-style:none}
-.dup-cardLabel{color:var(--dsw-alias-label-tertiary);font-size:12px}
-.dup-cardValue{color:var(--dsw-alias-label-primary);font-size:22px;font-weight:600;line-height:1.3}
-.dup-cardMeta{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:1.5}
+.dup-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.dup-stat{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.dup-statLabel{color:var(--dsw-alias-label-tertiary);font-size:12px}
+.dup-statValue{color:var(--dsw-alias-label-primary);font-size:22px;font-weight:600;line-height:1.3}
+.dup-statMeta{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:1.5}
 .dup-groupTitle{color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:600;margin:12px 0 0}
 .dup-chart{display:flex;align-items:flex-end;gap:3px;height:120px;border-bottom:1px solid var(--dsw-alias-border-l2);padding:8px 0 0;overflow-x:auto}
 .dup-barCol{appearance:none;font:inherit;background:0 0;border:0;padding:0;flex:1;min-width:14px;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;cursor:pointer}
@@ -58,17 +58,6 @@ const sectionCss = `
 .dup-btnGhost{border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary);background:0 0}
 .dup-btnGhost:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed)}
 .dup-btn:disabled{opacity:.4;cursor:default}
-.dup-btnSmall{padding:2px 10px;font-size:12px}
-.dup-readOnly{color:var(--dsw-alias-label-tertiary);margin:12px 0 0;font-size:12px;line-height:1.5}
-.dup-priceRow{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);border-radius:10px;margin:12px 0 0;padding:10px 12px}
-.dup-priceHead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.dup-priceTitle{color:var(--dsw-alias-label-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dup-priceGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.dup-mini{display:flex;flex-direction:column;gap:4px;min-width:0}
-.dup-mini span{color:var(--dsw-alias-label-tertiary);font-size:11px}
-.dup-input{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);height:34px;font:inherit;color:var(--dsw-alias-label-primary);border-radius:8px;padding:0 10px;font-size:13px;width:100%;box-sizing:border-box}
-.dup-input:focus-visible{border-color:var(--dsw-alias-brand-primary);outline:none}
-.dup-input:disabled{color:var(--dsw-alias-label-tertiary);cursor:default}
 @media (max-width:767px){
 .dup-headActions{width:100%;justify-content:space-between}
 .dup-rangeBtn{min-height:44px;flex:1}
@@ -80,15 +69,15 @@ const sectionCss = `
 .dup-tr .dup-td::before{content:attr(data-label);color:var(--dsw-alias-label-tertiary);font-size:11px;flex:none;margin-right:12px}
 .dup-tdModel{flex-direction:row;align-items:center;padding-top:10px}
 .dup-model{overflow:hidden;text-overflow:ellipsis}
-.dup-priceGrid{grid-template-columns:1fr}
-.dup-input{font-size:16px;height:40px}
 .dup-btn{min-height:44px}
-.dup-cardValue{font-size:19px}
+.dup-statValue{font-size:19px}
 }
 `
 
 const cardExtra = `
 /* 价目卡片：字段视觉经 .dup-input（与套件 -input 同款圆角扁平）完全一致 */
+.dup-loading{color:var(--dsw-alias-label-tertiary);margin:0;padding:14px 16px;font-size:13px;line-height:1.5}
+.dup-btnSmall{padding:2px 10px;font-size:12px}
 .dup-priceRow{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);border-radius:10px;margin:12px 0 0;padding:10px 12px}
 .dup-priceHead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .dup-priceTitle{color:var(--dsw-alias-label-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
