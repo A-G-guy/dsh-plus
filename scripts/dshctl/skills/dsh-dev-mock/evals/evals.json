@@ -1,0 +1,23 @@
+{
+  "skill_name": "dsh-dev-mock",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我在 dev 实例的 mock-workspace 工作区开个新会话，发一句'你好，验证链路'，等它跑完，然后在浏览器里帮我定位到这个会话。",
+      "expected_output": "使用 dshctl dev up（幂等）确保实例在跑，然后用 chat -w <路径> -m ... --wait --open 一条命令完成，或通过 session new/send/open 分步完成；全程不经 GUI 手工点击，不产生真实 API 费用。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我要调试会话里 todo 面板的渲染，往 dev 里某个会话注入一个包含三项任务的 todo，再加一条工具调用和最终回复，最后截图给我看效果。",
+      "expected_output": "使用 mock run --todo/--tool/--then 组合（或 spec 文件）向指定会话注入内容，mock 护栏校验通过，marker 校验成功；然后用 pw run -- screenshot 截图并展示产物。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "模拟模型先思考再回答的场景：思考内容是'用户在测试思考块展示'，终答是'思考块验证完毕'，注入到 dev 的测试会话里。",
+      "expected_output": "使用 mock run --thinking ... --reply ...，mock LLM 以 reasoning_content 下发，GUI 渲染 Think 块；命令带 --title 给会话取可读名字。",
+      "files": []
+    }
+  ]
+}

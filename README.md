@@ -91,7 +91,23 @@ packages/
   tool-text-transform/  演示工具（dev-only，不进生产 bundle）
   bundle-main/          聚合编排层
   shared/               共享纯函数库
+scripts/
+  dshctl.py             开发/分发入口（测试、mock 调试、dev 实例、npm 发版）
+  dshctl/               dshctl 实现与 dsh-dev-mock 技能
+  mock_llm.py           本机 mock LLM（开发零真实 API 费用）
+  tests/                dshctl 单元测试
 ```
+
+## 开发
+
+```bash
+python3 scripts/dshctl.py --help        # 全部子命令与用法
+python3 scripts/dshctl.py test          # 静态检查 + 构建 + 单测
+python3 scripts/dshctl.py dev up        # 起 dev 实例（mock LLM，零费用）
+```
+
+本机差异经环境变量配置（`DSHCTL_DSH_BIN` / `DSHCTL_TS_HOOK_REPO` /
+`DSHCTL_TOKEN_FILES`），或写入 `scripts/dshctl/local_config.py`（不入库）。
 
 ## 许可证
 

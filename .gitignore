@@ -13,6 +13,6 @@ output/
 # 本机专属，不进入公开仓库（文件保留在本地磁盘）
 AGENTS.md
 /docs/
-/scripts/
 /deploy/
 /.md-doc-timestamp.json
+scripts/dshctl/local_config.py
