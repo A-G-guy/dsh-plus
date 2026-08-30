@@ -18,12 +18,8 @@
       name: '@dsh-plus/remote-settings'
     - id: dsh-plus-notify-email
       name: '@dsh-plus/notify-email'
-    - id: dsh-plus-subagent-model
-      name: '@dsh-plus/subagent-model'
     - id: dsh-plus-llm-pi
       name: '@dsh-plus/llm-pi'
-    - id: dsh-plus-skill-manual
-      name: '@dsh-plus/skill-manual'
     - id: dsh-plus-reload
       name: '@dsh-plus/reload'
     - id: dsh-plus-web-files

@@ -1,8 +1,9 @@
 /**
  * 「网页终端」配置卡片：settings.plugin.item 槽位（官方插件配置页）。
  * 外壳与基础控件走 @dsh-plus/shared/client 套件；本文件只保留业务字段。
- * env 为 dict → 卡片内以 KEY=VALUE 多行文本编辑；保存经 settings.update
- * 深合并 + revision 乐观锁（对齐 notify-email 卡片模式）。
+ * env 为 dict → 卡片内以 KEY=VALUE 多行文本编辑；保存经
+ * NamespaceSettingsApi.update 深合并 + revision 乐观锁（对齐 access-gate
+ * 卡片模式；失败直接 throw，error.message 即官方错误文本）。
  * @module web-terminal/client/config-card
  */
 import {
@@ -10,8 +11,8 @@ import {
   type CardStatusState,
   CheckRow,
   IDLE_STATUS,
+  type NamespaceSettingsApi,
   type Scope,
-  type SettingsApi,
   TextField,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useState, useSyncExternalStore } from 'react'
@@ -19,7 +20,7 @@ import { type ReactElement, useEffect, useState, useSyncExternalStore } from 're
 export interface CardProps {
   t(key: string): string
   scope: Scope
-  api: SettingsApi
+  api: NamespaceSettingsApi
 }
 
 /** settings 命名空间的解析值（schemastery 默认值齐全）。 */
@@ -125,13 +126,8 @@ export function ConfigCard(props: CardProps): ReactElement {
     setSaving(true)
     const revision = scope.getSnapshot().revision
     api
-      .update({
-        ns: 'dsh-plus-web-terminal',
-        patch: toPatch(draft),
-        ...(revision !== undefined ? { expectedRevision: revision } : {}),
-      })
-      .then(async (response) => {
-        if (!response.result.ok) throw new Error(response.result.error?.message ?? 'save failed')
+      .update(toPatch(draft), revision)
+      .then(async () => {
         await scope.load()
         const next = scope.getSnapshot().value as ConfigValue | undefined
         if (next !== undefined) setDraft(draftFromValue(next))

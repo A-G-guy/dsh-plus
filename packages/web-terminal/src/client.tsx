@@ -3,12 +3,23 @@
  * settings.plugin.item 配置卡片（key = settings 命名空间字面量）。
  * 模式与 web-files/notify-email 一致：CJS factory 产物、data-plugin-css
  * 样式约定、任一环节失配时静默降级。
+ *
+ * 类型说明：浏览器半只用到 slots/locale/remote 的很窄一面，手写窄面
+ * ClientContext（0.1.2-alpha.1 起 dsh-client-runtime 已删除，类型按包
+ * 拆分）；配置读写经 ctx.remote.settings 直连（connection.api.settings
+ * 已移除；不复用 settingsScope 服务——非 loopback 页面固定 memory 模式
+ * 无数据，见 @dsh-plus/shared/client/scope）。
  * @module @dsh-plus/web-terminal/client
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-runtime/client'
-import { cardCss, createApiScope, injectCardStyle } from '@dsh-plus/shared/client'
+import {
+  cardCss,
+  createNamespaceApi,
+  createSettingsScope,
+  injectCardStyle,
+  type ScopeHostContext,
+} from '@dsh-plus/shared/client'
 import { useSyncExternalStore } from 'react'
 
 import { en, NS, zh } from './locales.ts'
@@ -20,8 +31,8 @@ import { webTerminalAllCss } from './styles.ts'
 
 export const name = 'dsh-plus-web-terminal'
 
-/** 客户端 cordis 服务依赖。 */
-export const inject = ['slots', 'locale', 'connection'] as const
+/** 客户端 cordis 服务依赖（slots/locale 字典 + remote.settings 配置直连）。 */
+export const inject = ['slots', 'locale', 'remote', 'remote.settings'] as const
 
 const PLUGIN_ID = '@dsh-plus/web-terminal'
 const STYLE_TAG_ID = `${PLUGIN_ID}/styles.css`
@@ -36,13 +47,10 @@ interface LocaleLike {
   bind(ns: string): (key: string) => string
 }
 
-interface ClientContext {
+/** createSettingsScope 要求的宿主窄面 + 本插件用到的 slots/locale 服务。 */
+interface ClientContext extends ScopeHostContext {
   slots: SlotsLike
   locale: LocaleLike
-  get(key: 'connection'): { api: { settings: Parameters<typeof createApiScope>[0] } }
-  get(key: 'remote'): { $on(event: string, listener: (payload?: unknown) => void): () => void }
-  on(event: string, listener: () => void): () => void
-  effect(execute: () => () => void, label?: string): unknown
 }
 
 function injectStyle(): HTMLStyleElement | null {
@@ -126,13 +134,13 @@ export function apply(ctx: Context): void {
       ),
     'web-terminal: overlay slot',
   )
-  const api = c.get('connection').api.settings
-  const scope = createApiScope(api, 'dsh-plus-web-terminal', c, 'web-terminal: settings scope')
+  const scope = createSettingsScope(c, NS, 'web-terminal: settings scope')
+  const api = createNamespaceApi(c.get('remote').settings, NS)
   c.slots.inject('settings.plugin.item', () =>
     c.slots.register(
       {
         name: 'settings.plugin.item',
-        key: 'dsh-plus-web-terminal',
+        key: NS,
         locale: NS,
         inject: () => ({ t: c.locale.bind(NS), scope, api }),
       },

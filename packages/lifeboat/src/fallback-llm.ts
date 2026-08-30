@@ -35,6 +35,17 @@ export const FALLBACK_SUFFIX = '-fb'
 /** 官方配置路径物化的 compat 子集（其余字段降级期丢弃）。 */
 const COMPAT_WHITELIST = ['thinkingFormat', 'supportsReasoningEffort'] as const
 
+/**
+ * master 官方 llm-pi-ai 的 COMPAT_GATES（llm-pi-ai/src/catalog.ts）：每个 compat
+ * 字段按协议门控，写时经 assertOfferedCompatFields 拒绝不适配字段——thinkingFormat /
+ * supportsReasoningEffort 仅 openai-completions 提供。翻译按推断 api 过滤，避免
+ * 整段 compat 写入被官方校验拒绝。
+ */
+const COMPAT_OFFER_APIS: Readonly<Record<string, ReadonlySet<string>>> = {
+  thinkingFormat: new Set(['openai-completions']),
+  supportsReasoningEffort: new Set(['openai-completions']),
+}
+
 /** 官方 reasoning 词表（ModelThinkingLevel 的保守子集），不在其中的值丢弃。 */
 const REASONING_LEVELS = new Set(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
 
@@ -124,9 +135,15 @@ export function translateProvider(routeKey: string, raw: RawProvider): Translate
   if (Array.isArray(raw.defaultInput) && raw.defaultInput.length > 0)
     out.defaultInput = raw.defaultInput
   if (raw.compat !== undefined) {
+    const api = inferApi(routeKey, raw)
     const compat: Record<string, unknown> = {}
     for (const key of COMPAT_WHITELIST) {
-      if (raw.compat[key] !== undefined) compat[key] = raw.compat[key]
+      const value = raw.compat[key]
+      // 空值同样丢弃：官方写时拒绝 valueless 键（catalog.ts assertOfferedCompatFields）
+      if (value === undefined || value === null) continue
+      // 按推断 api 门控：仅写入该协议 offer 的字段，其余丢弃（官方写时拒绝不适配字段）
+      if (!COMPAT_OFFER_APIS[key]?.has(api)) continue
+      compat[key] = value
     }
     if (Object.keys(compat).length > 0) out.compat = compat
   }
@@ -178,19 +195,12 @@ interface SettingsWrite {
   ): Promise<void>
 }
 
-/** 写 settings 带一次冲突重试（用户同时改配置时不抢，放弃并告警）。
- *  冲突判定双条件：instanceof 覆盖同版本副本；error.code 覆盖跨版本副本
- *  （插件自带 rc.7 依赖与 host rc.8 抛错时 instanceof 为 false）。 */
+/** 写 settings 带一次冲突重试（用户同时改配置时不抢，放弃并告警）。 */
 async function writeWithRetry(write: () => Promise<void>): Promise<void> {
   try {
     await write()
   } catch (error) {
-    const conflict =
-      error instanceof SettingsConflictError ||
-      (typeof error === 'object' &&
-        error !== null &&
-        (error as { code?: unknown }).code === 'SETTINGS_CONFLICT')
-    if (!conflict) throw error
+    if (!(error instanceof SettingsConflictError)) throw error
     await write()
   }
 }
@@ -225,8 +235,16 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
     }
     const translated = translateProviders(providers)
     const fbProvider = `${provider}${FALLBACK_SUFFIX}`
-    await writeWithRetry(() => writes.update(NS_PI_AI, { providers: translated }))
-    await writeWithRetry(() => writes.update(NS_AGENT_DEFAULT, { provider: fbProvider, model }))
+    try {
+      // 官方 llm-pi-ai 的 installSettingsSection 注册了 validate（assertServiceable），
+      // 写时拒绝不适配的翻译结果；update 无 expectedRevision 本就无条件写，不做冲突
+      // 重试——失败一律分类为「翻译失败」。
+      await writes.update(NS_PI_AI, { providers: translated })
+      await writes.update(NS_AGENT_DEFAULT, { provider: fbProvider, model })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`翻译失败（官方 llm-pi-ai 拒绝写入翻译后的配置）: ${message}`)
+    }
     await deps.writeState({
       active: true,
       originalProvider: provider,
@@ -306,5 +324,9 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
   ctx.root.on('settings/updated' as never, (ns: unknown) => {
     if (typeof ns === 'string' && WATCHED_NS.has(ns)) run()
   })
-  ctx.root.on('llm/adapters-updated' as never, run)
+  // 事件名已核对：master 0.1.2-alpha.1 的 dsh-llm 保留 'llm/adapters-updated'
+  // （packages/llm/llm/src/types.ts:23 module augmentation，index.ts:344 于每次
+  // adapter 注册/注销提交点 dispatch）；@deepseek-ai/dsh-llm 的类型导入已携带该
+  // 声明，无需 as never。
+  ctx.root.on('llm/adapters-updated', run)
 }

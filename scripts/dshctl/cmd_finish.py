@@ -181,7 +181,9 @@ def _target_dirs(packages: list[str]) -> list[Path]:
     else:
         proc = _git(["status", "--porcelain", "--", "packages/"])
         dirty = dirty_package_dirs(proc.stdout)
-        dirs = [REPO_ROOT / "packages" / n for n in dirty]
+        # 已删除的包（git rm 后仅剩 node_modules 残渣）没有 package.json，跳过
+        dirs = [d for n in dirty
+                if ((d := REPO_ROOT / "packages" / n) / "package.json").exists()]
     by_name = {d.name: d for d in package_dirs()}
     expanded = cascade_client_dependents(dirty, package_dirs())
     extra = [n for n in expanded if n not in dirty and n in by_name]

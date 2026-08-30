@@ -2,7 +2,7 @@
  * 移动端覆盖样式：基础层。断点 767px（手机竖屏）为主；上游布局框架自带
  * 1024px 侧栏自动折叠，本层只补内容级防溢出与触屏可达性。
  *
- * 选择器策略（上游版本基准 0.1.0-rc.8）：
+ * 选择器策略（上游版本基准 0.1.2-alpha.1）：
  * - 上游 CSS Modules 类名 = 哈希前缀_语义后缀（如 pI_x6G_frame），哈希随构建变、
  *   后缀稳定，故一律用 [class*="_语义后缀"] 子串匹配；
  * - shell 侧旧格式为 _语义_哈希_序号（如 _remove_1hk8w_53），子串同样适配；
@@ -20,7 +20,7 @@ export const baseCss = /* css */ `
     overflow-x: clip;
   }
 
-  /* 长 URL / 无空格串在 markdown 与面包屑内折行（rc8 chip 系统已重构为
+  /* 长 URL / 无空格串在 markdown 与面包屑内折行（0.1.2-alpha.1 基线 chip 系统为
      nowrap+缩放方案，自带溢出处理，无需此处覆盖） */
   [class*="_markdown"],
   [class*="_crumb"],

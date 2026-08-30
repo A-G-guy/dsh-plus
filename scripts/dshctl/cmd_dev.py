@@ -140,7 +140,15 @@ def _ensure_headless_disables() -> None:
 def _link_workspace_packages(profile: str) -> None:
     pkg_json = _dev_profile_dir(profile) / "package.json"
     meta = read_json(pkg_json)
-    meta.setdefault("dependencies", {}).update(_workspace_link_deps())
+    deps = meta.setdefault("dependencies", {})
+    current = _workspace_link_deps()
+    # 清除已删除/改名的 workspace 包残留 link（只动指向本仓库的 @dsh-plus/* link）
+    for name, spec in list(deps.items()):
+        if (name not in current and name.startswith("@dsh-plus/")
+                and isinstance(spec, str) and spec.startswith("link:")
+                and str(PACKAGES_DIR) in spec):
+            del deps[name]
+    deps.update(current)
     prof = meta.setdefault("dsh", {}).setdefault("profile", {})
     bundles = prof.setdefault("bundles", DEFAULT_BUNDLES.get(profile, []))
     if "@dsh-plus/bundle-main" not in bundles:

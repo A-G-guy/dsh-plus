@@ -37,14 +37,19 @@ export type AdapterKind = (typeof ADAPTER_KINDS)[number]
 /** deepseek 路由的思考/推理档位（线协议枚举，对齐官方 llm-deepseek）。 */
 export const DEEPSEEK_THINKING = ['enabled', 'disabled'] as const
 export const DEEPSEEK_REASONING_EFFORTS = ['off', 'low', 'high', 'max'] as const
+/** 旧版 imageDetail 枚举（0.1.2-alpha.1 已移除该字段；仅用于 schema 透传陷阱的取值集）。 */
 export const DEEPSEEK_IMAGE_DETAILS = ['auto', 'low'] as const
 
 export const DEFAULT_CONTEXT_WINDOW = 262144
 export const DEFAULT_MAX_TOKENS = 32768
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300000
-/** 单请求 base64 图片载荷上限（rc8 起官方 ResolvedPiAiProviderProfile 必需字段；
+/** 单请求 base64 图片载荷上限（官方 ResolvedPiAiProviderProfile 必需字段；
  *  缺省取官方默认 20MiB，旧配置无需改动即自动生效）。 */
 export const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
+/** 单请求每个确定性内联版本的像素总预算（官方 DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET 同值）。 */
+export const DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
+/** 内联版本编码字节目标（官方 DEFAULT_REQUEST_IMAGE_MAX_BYTES 同值）。 */
+export const DEFAULT_REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 /** dsh-timeout 的定时器上限（与官方 MAX_TIMER_DELAY_MS 对齐）。 */
 export const MAX_TIMER_DELAY_MS = 2 ** 31 - 1
 
@@ -68,7 +73,6 @@ export interface ModelEntryConfig {
   /** 以下仅 adapter: deepseek 的 route 有效（官方 llm-deepseek 目录字段）。 */
   imagePixelBudget?: number
   imageMaxBytes?: number
-  imageDetail?: 'auto' | 'low'
 }
 
 /** 单个 provider route 配置（providers 字典的值）。 */
@@ -97,6 +101,8 @@ export interface ProviderProfileConfig {
   websocketConnectTimeoutMs?: number
   streamIdleTimeoutMs?: number
   maxRequestImageBytes?: number
+  requestImagePixelBudget?: number
+  requestImageMaxBytes?: number
   retryPolicy?: unknown
   models?: ModelEntryConfig[]
   /** 以下仅 adapter: deepseek 的 route 有效（透传官方 llm-deepseek 同名策略）。 */
@@ -167,9 +173,12 @@ const modelEntry = z.object({
     .step(1)
     .min(1)
     .description('（仅 adapter: deepseek）单张请求图片的编码字节上限；缺省继承官方目录'),
+  // 0.1.2-alpha.1 移除字段的 schema 透传陷阱：官方已删除 imageDetail（改用
+  // imagePixelBudget/imageMaxBytes），此处保留取值 union 让旧配置通过 schema、
+  // 在写时校验（assertServiceable）以中文迁移提示明确拒绝（见 profiles-deepseek.ts）。
   imageDetail: z
     .union(DEEPSEEK_IMAGE_DETAILS)
-    .description('（仅 adapter: deepseek）图片细节档位；low 使用 512x512 像素预算'),
+    .description('（已移除）图片细节档位；0.1.2-alpha.1 起请改用 imagePixelBudget/imageMaxBytes'),
 })
 
 const providerProfile = z.object({
@@ -215,7 +224,19 @@ const providerProfile = z.object({
     .description('单支流式读取的最大空闲间隔毫秒'),
   maxRequestImageBytes: z
     .natural()
-    .description('单请求 base64 图片载荷上限字节；缺省 20MiB（rc8 起生效，旧配置免改）'),
+    .description(
+      '单请求 base64 图片载荷上限字节；缺省 20MiB（0.1.2-alpha.1 起官方必需字段，旧配置免改）',
+    ),
+  requestImagePixelBudget: z
+    .number()
+    .step(1)
+    .min(1)
+    .description('单请求每个确定性内联图片版本的像素总预算；缺省 2048x2048（官方同值）'),
+  requestImageMaxBytes: z
+    .number()
+    .step(1)
+    .min(1)
+    .description('内联图片版本编码字节目标；缺省 1MiB（官方同值）'),
   retryPolicy: z.any().description('provider 重试策略（dsh-llm RetryPolicy 形状，构建期校验）'),
   thinking: z
     .union(DEEPSEEK_THINKING)

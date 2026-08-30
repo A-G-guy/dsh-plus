@@ -18,10 +18,13 @@ export { CheckRow, SelectField, type SelectOption, TextField } from './fields.ts
 export { commonEn, commonZh, type Dict, mergeDict } from './i18n.ts'
 export { ChevronDownIcon, type IconProps } from './icons.tsx'
 export {
-  createApiScope,
+  createNamespaceApi,
+  createSettingsScope,
+  type NamespaceSettingsApi,
   type Scope,
   type ScopeHostContext,
   type ScopeSnapshot,
-  type SettingsApi,
+  type SettingsDescribeViewLike,
+  type SettingsRemoteFace,
 } from './scope.ts'
 export { cardCss, injectCardStyle } from './styles.ts'

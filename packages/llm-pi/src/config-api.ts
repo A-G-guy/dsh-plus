@@ -1,7 +1,7 @@
 /**
- * 自定义端点 HTTP 通道：配置读写已迁移到官方 settings RPC（rc7 起第三方
- * 命名空间全量开放），这里只保留官方传输没有的「模型目录」端点（含
- * kitSource / models-dev 运行期诊断，供卡片状态行展示）。
+ * 自定义端点 HTTP 通道：配置读写已迁移到官方 remote.settings 直连
+ * （0.1.2-alpha.1 起第三方命名空间全量开放），这里只保留官方传输没有的
+ * 「模型目录」端点（含 kitSource / models-dev 运行期诊断，供卡片状态行展示）。
  * 仅监听 dsh web 同源（webserver 默认 127.0.0.1），与 GUI 其余面同等暴露面。
  * @module llm-pi/config-api
  */

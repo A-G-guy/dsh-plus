@@ -130,19 +130,25 @@ function materializeModel(
   if (entry.reasoningEfforts !== undefined || nonEmptyDict(entry.compat)) {
     invalid(route, `model "${entry.id}" 的 reasoningEfforts/compat 仅 adapter: pi 可用`)
   }
+  const legacyImageDetail = (entry as ModelEntryConfig & { imageDetail?: unknown }).imageDetail
+  if (legacyImageDetail !== undefined) {
+    // 0.1.2-alpha.1 移除字段：写时明确拒绝并给出迁移提示（官方 llm-deepseek
+    // 对含 imageDetail 的目录模型同样直接抛错，index.ts:212-215）。
+    invalid(
+      route,
+      `model "${entry.id}" 的 imageDetail 已随 0.1.2-alpha.1 移除；` +
+        '请改用 imagePixelBudget/imageMaxBytes（低细节可配更小的 imagePixelBudget）并删除 imageDetail',
+    )
+  }
   const base = resolveOfficialBase(route, entry, deps)
   const input = declaredModalities(entry.input) ?? base.input
   const imageFields = {
     imagePixelBudget: entry.imagePixelBudget ?? base.imagePixelBudget,
     imageMaxBytes: entry.imageMaxBytes ?? base.imageMaxBytes,
-    imageDetail: entry.imageDetail ?? base.imageDetail,
   }
   const acceptsImage = input?.includes('image') ?? false
   if (!acceptsImage && Object.values(imageFields).some((value) => value !== undefined)) {
-    invalid(
-      route,
-      `model "${entry.id}" 未声明 image 模态，不可配置 imagePixelBudget/imageMaxBytes/imageDetail`,
-    )
+    invalid(route, `model "${entry.id}" 未声明 image 模态，不可配置 imagePixelBudget/imageMaxBytes`)
   }
   return {
     id: entry.id,
@@ -227,7 +233,7 @@ function buildRoute(
     if (deps.kit.deepseek === undefined) {
       invalid(
         route,
-        '使用 adapter: deepseek，但当前运行时套件不含 dsh-llm-deepseek（需 dsh ≥ 0.1.1-rc.2）',
+        '使用 adapter: deepseek，但当前运行时套件不含 dsh-llm-deepseek（0.1.2-alpha.1 基线）',
       )
     }
     rejectPiOnlyFields(route, profile)

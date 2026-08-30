@@ -53,7 +53,7 @@ test('条目显式字段逐字段覆盖官方继承值', () => {
         id: 'deepseek-v4-flash-vision-exp',
         name: 'Relay Vision',
         contextWindow: 512000,
-        imageDetail: 'low',
+        imagePixelBudget: 480000,
       },
     ],
   })
@@ -61,9 +61,16 @@ test('条目显式字段逐字段覆盖官方继承值', () => {
   assert.ok(model)
   assert.equal(model.name, 'Relay Vision')
   assert.equal(model.contextWindow, 512000)
-  assert.equal(model.imageDetail, 'low')
+  assert.equal(model.imagePixelBudget, 480000)
   // 未覆盖的字段仍继承官方目录
   assert.deepEqual(model.inputModalities, ['text', 'image'])
+})
+
+test('imageDetail 已随 0.1.2-alpha.1 移除：写时拒绝并提示迁移', () => {
+  assert.throws(
+    () => buildOne({ models: [{ id: 'deepseek-v4-flash-vision-exp', imageDetail: 'low' }] }),
+    /imageDetail 已随 0.1.2-alpha.1 移除；请改用 imagePixelBudget\/imageMaxBytes/,
+  )
 })
 
 test("provider 级 extends: 'deepseek' 全量继承官方目录", () => {

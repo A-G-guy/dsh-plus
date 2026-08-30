@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-24 16:17"
+last_modified: "2026-08-30 21:50"
 ---
 
 # @dsh-plus/notify-email
@@ -49,14 +49,14 @@ dsh-settings-file 持久化到 `$DSH_HOME/settings.yaml`，热生效。
 
 浏览器半注册进官方 `settings.plugin.item` 插槽（设置 → 插件 → 插件配置），
 视觉与交互对齐官方卡片（staged draft、保存/放弃），另加「发送测试邮件」。
-dsh rc7 起该插槽为 **keyed** 槽位：卡片以本插件 settings 命名空间
+该插槽为 **keyed** 槽位（0.1.2-alpha.1 基线）：卡片以本插件 settings 命名空间
 （`dsh-plus-notify-email`，字面量统一在 `src/ns.ts`）为 key 注册，官方配置页
 按 key 与 Host 已注册命名空间配对分发。
 
-**配置传输**：dsh rc7 起白名单已移除、全部已注册命名空间对 `settings.*` RPC
-开放，卡片读写直接走官方 **settingsScope** 传输（浏览器半 `settingsScope.bind`
-绑定命名空间 + `connection.api.settings` 读写；pass 为 secret 角色，value 恒
-脱敏，是否已配置经 describe 的 `secrets` 列表探测；空 pass 提交 = 保持不变）。
+**配置传输**：第三方命名空间对 `settings.*` RPC 全量开放（0.1.2-alpha.1 基线），
+卡片读写经 `ctx.remote.settings` 直连（`connection.api.settings` 已移除；
+pass 为 secret 角色，value 恒脱敏，是否已配置经 describe 的 `secrets` 列表
+探测；空 pass 提交 = 保持不变）。
 自定义端点仅剩「发送测试邮件」（node 半经 `ctx.webServer.register` 注册）：
 
 - `POST /dsh-plus/notify-email/test` — 发送测试邮件（绕过 enabled 门禁）

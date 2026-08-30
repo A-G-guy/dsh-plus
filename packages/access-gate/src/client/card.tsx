@@ -14,8 +14,8 @@ import {
   type CardStatusState,
   CheckRow,
   IDLE_STATUS,
+  type NamespaceSettingsApi,
   type Scope,
-  type SettingsApi,
   TextField,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
@@ -24,7 +24,7 @@ import { SETTINGS_NS } from '../ns.ts'
 export interface CardProps {
   t(key: string): string
   scope: Scope
-  api: SettingsApi
+  api: NamespaceSettingsApi
 }
 
 /** settings 命名空间的脱敏解析值（token 被脱敏剥除）。 */
@@ -126,12 +126,12 @@ export function AccessGateCard(props: CardProps): ReactElement | null {
   useEffect(() => {
     let alive = true
     api
-      .describe({})
-      .then((response) => {
-        if (!alive || !response.result.ok) return
-        const view = response.result.value?.namespaces.find((ns) => ns.ns === SETTINGS_NS)
+      .describe()
+      .then((view) => {
+        if (!alive) return
+        const ns = view.namespaces.find((candidate) => candidate.ns === SETTINGS_NS)
         setTokenConfigured(
-          view?.secrets.some((secret) => secret.path.join('.') === 'token' && secret.set) ?? false,
+          ns?.secrets.some((secret) => secret.path.join('.') === 'token' && secret.set) ?? false,
         )
       })
       .catch(() => {})
@@ -192,15 +192,8 @@ export function AccessGateCard(props: CardProps): ReactElement | null {
     if (draft.token !== '') patch.token = draft.token
     const revision = scope.getSnapshot().revision
     api
-      .update({
-        ns: SETTINGS_NS,
-        patch,
-        ...(revision !== undefined ? { expectedRevision: revision } : {}),
-      })
-      .then(async (response) => {
-        if (!response.result.ok) {
-          throw new Error(response.result.error?.message ?? t('saveFailed'))
-        }
+      .update(patch, revision)
+      .then(async () => {
         await scope.load()
         const next = scope.getSnapshot().value as ConfigValue | undefined
         if (next !== undefined) setDraft(draftFromValue(next))

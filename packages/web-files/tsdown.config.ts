@@ -49,6 +49,12 @@ export default defineConfig([
     dts: true,
     outDir: 'lib',
     external: CLIENT_EXTERNALS,
+    deps: {
+      // @deepseek-ai/dsh-util-workspace-path 无 client bundle 行（模块表无法
+      // 应答它的 require），按源码级内联（master INLINE_SAFE 同款处理）；
+      // 其余 peer 依赖保持默认外置（由外壳模块表供给）。
+      alwaysBundle: ['@deepseek-ai/dsh-util-workspace-path'],
+    },
     outputOptions: {
       entryFileNames: 'client.js',
       // 宿主仅服务 /plugins/<id>/client.js 单文件：禁止动态分包

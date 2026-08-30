@@ -62,6 +62,29 @@ test('given full provider, when translating, then carries whitelisted fields onl
   assert.deepEqual(out.models, [{ id: 'deepseek-v4-flash', name: 'Flash', contextWindow: 400000 }])
 })
 
+test('given compat fields on a non-completions protocol, when translating, then gated off by inferred api', () => {
+  // master 官方 llm-pi-ai 的 COMPAT_GATES：thinkingFormat/supportsReasoningEffort 仅
+  // openai-completions offer，其他协议写 compat 会被 assertOfferedCompatFields 拒绝——
+  // 翻译按推断 api 门控，不适配协议的字段整段丢弃。
+  const anthropic = translateProvider('anthropic', {
+    compat: { thinkingFormat: 'deepseek', supportsReasoningEffort: true },
+  })
+  assert.equal(anthropic.api, 'anthropic-messages')
+  assert.equal(anthropic.compat, undefined)
+  const responses = translateProvider('response', {
+    compat: { thinkingFormat: 'deepseek' },
+  })
+  assert.equal(responses.api, 'openai-responses')
+  assert.equal(responses.compat, undefined)
+})
+
+test('given a valueless compat key, when translating, then dropped (official refuses null values)', () => {
+  const out = translateProvider('chat', {
+    compat: { thinkingFormat: null, supportsReasoningEffort: true },
+  })
+  assert.deepEqual(out.compat, { supportsReasoningEffort: true })
+})
+
 test('given out-of-vocabulary reasoning, when translating, then drops it', () => {
   const out = translateProvider('chat', { reasoning: 'ultra' })
   assert.equal(out.reasoning, undefined)

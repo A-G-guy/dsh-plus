@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-26 18:59"
+last_modified: "2026-08-30 21:50"
 ---
 
 # @dsh-plus/web-files
@@ -29,11 +29,13 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
   （重复路径去重、刷新不入栈）；面包屑每段点击直接跳转对应目录
   （不提供路径手输编辑，有意收窄交互面）；主页按钮一键回家目录
   （/list 缺省 path 即 home）。
-- GUI 内文件链接接管（`src/client.tsx`）：包裹 `workspaces.openPath`
-  （inject workspaces），会话消息/附件的「打开文件」手势不再走宿主
+- GUI 内文件链接接管（`src/client.tsx`）：包裹 `ctx.remote.session.openWorkspacePath`
+  （0.1.2-alpha.1 起官方 openFile 手势的落点——ui-chat openFile →
+  resolveWorkspacePath(cwd, path) → openWorkspacePath；workspaces.openPath
+  已从 IWorkspaces 移除），会话消息/附件的「打开文件」手势不再走宿主
   xdg-open（无桌面环境必然失败），改为 /stat 判定落点后在面板内打开
   （目录直接导航、文件先定位父目录再打开）；非绝对路径回退原实现，
-  卸载时 delete 自身属性还原原型方法。
+  卸载时 delete 自身属性还原 remote 命名空间方法。
 - 列表排序（`src/panel/sort.ts` 纯函数 + 单测）：名称/大小/修改时间
   × 升/降序，目录恒优先，平手回退名称升序；工具栏下拉选择
   （`src/panel/toolbar-menus.tsx`，与新建菜单同处）。排序按目录

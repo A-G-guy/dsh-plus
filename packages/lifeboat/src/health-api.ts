@@ -3,6 +3,7 @@
  * - GET  /dsh-plus/lifeboat/status  → journal + 翻译状态 + 当前用户 patch 层已禁用的 dsh-plus 插件
  * - POST /dsh-plus/lifeboat/restore {name} → removeDisable + journal + 告警
  * rc8 用户 patch 层热应用：恢复无需重启，watchUserPatches 即时重载。
+ * （0.1.2-alpha.1 基线：用户 patch 层热应用机制保留，行为不变。）
  * @module lifeboat/health-api
  */
 import { readFile } from 'node:fs/promises'
@@ -106,7 +107,7 @@ export function registerHealthApi(ctx: Context, deps: HealthDeps): void {
         deps.alert(
           '[DSH] 插件恢复',
           `插件 ${body.name} 的隔离已解除（移除 patch 层禁用覆盖）。${
-            written ? 'rc8 热应用即时生效，无需重启。' : 'patch 层本无覆盖，可能已被手动恢复。'
+            written ? 'patch 层热应用即时生效，无需重启。' : 'patch 层本无覆盖，可能已被手动恢复。'
           }`,
         )
         sendJson(res, 200, { ok: true, written })

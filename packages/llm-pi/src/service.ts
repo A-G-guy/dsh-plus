@@ -127,6 +127,32 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
     profiles,
     resolveApiKey: makeResolveApiKey(ctx, kit),
     resolveAttachments: () => ctx.get('attachments'),
+    // 0.1.2-alpha.1 必需：登录/OAuth 类 provider 与 pi-ai 自有凭据写入的落点。
+    // dsh 树 dev 布局（src/auth.ts 存在）时为官方助手，其余形态为内联等价
+    // 实现（resolve-dsh.ts 探测，见 auth-inline.ts）。
+    auth: {
+      credentials: kit.auth.credentialStoreFrom(ctx),
+      authContext: kit.auth.authContextFrom(ctx),
+    },
+    // 官方接线范式（llm-deepseek/src/index.ts:447-452）：附件宿主路径 →
+    // 当前模型工具执行世界的只读路径桥（经 ctx.fs 的 host→执行世界映射）。
+    resolveImageAccess: (attachments, ref) =>
+      kit.resolveImageAttachmentAccess(
+        attachments,
+        (hostPath) =>
+          (
+            ctx.get('fs') as
+              | { processPathFromHostPath(hostPath: string): string | undefined }
+              | undefined
+          )?.processPathFromHostPath(hostPath),
+        ref,
+      ),
+    onReplayDegrade: ({ provider, model, reason }) => {
+      logger.warn(
+        `llm-pi: 助手历史中 "${provider}/${model}" 的回放状态不可用，` +
+          `该消息按 provider 中立内容发送（${reason}）`,
+      )
+    },
   })
 
   const storedApiKey = async (provider: string | undefined): Promise<string | undefined> => {

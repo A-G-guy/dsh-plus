@@ -1,7 +1,7 @@
 /**
  * 「LLM 路由」配置卡片：注册进 settings.plugin.item 插槽（官方插件配置页）。
  * 顶部：enabled / catalogUrl / catalogRefreshHours / 只读状态行（kitSource、
- * modelsDevStatus，来自模型目录端点）+ 保存（settings.replace 全量）与
+ * modelsDevStatus，来自模型目录端点）+ 保存（settings.update 全量深合并）与
  * 错误/成功提示；下方为 providers 路由列表（新增/删除/字段编辑/compat/模型
  * 目录，见 views/）。外壳与基础控件走 @dsh-plus/shared/client 套件。
  * @module llm-pi/client/card
@@ -12,12 +12,11 @@ import {
   type CardStatusState,
   CheckRow,
   IDLE_STATUS,
+  type NamespaceSettingsApi,
   type Scope,
-  type SettingsApi,
   TextField,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { SETTINGS_NS } from '../ns.ts'
 import { type ConfigValue, fetchCatalog, refreshCatalog, type WireModelsDevStatus } from './api.ts'
 import {
   type Draft,
@@ -32,7 +31,7 @@ import { ProvidersSection } from './views/providers.tsx'
 export interface CardProps {
   t(key: string): string
   scope: Scope
-  api: SettingsApi
+  api: NamespaceSettingsApi
 }
 
 function modelsDevText(status: WireModelsDevStatus | null, t: (key: string) => string): string {
@@ -129,15 +128,8 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
     setSaving(true)
     const revision = scope.getSnapshot().revision
     api
-      .replace({
-        ns: SETTINGS_NS,
-        section: toPatch(draft) as unknown as Record<string, unknown>,
-        ...(revision !== undefined ? { expectedRevision: revision } : {}),
-      })
-      .then(async (response) => {
-        if (!response.result.ok) {
-          throw new Error(response.result.error?.message ?? t('saveFailed'))
-        }
+      .update(toPatch(draft) as unknown as Record<string, unknown>, revision)
+      .then(async () => {
         await scope.load()
         const next = scope.getSnapshot().value as ConfigValue | undefined
         if (next !== undefined) setDraft(draftFromValue(next))

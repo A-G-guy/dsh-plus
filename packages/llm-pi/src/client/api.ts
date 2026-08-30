@@ -1,7 +1,8 @@
 /**
- * 自定义端点通道：仅剩「模型目录」（配置读写已迁移到官方 settingsScope
- * 传输，见 scope.ts 与 card.tsx）。目录响应附带 kitSource 与 models-dev
- * 状态，供卡片的状态行展示（运行期诊断，非配置数据）。
+ * 自定义端点通道：仅剩「模型目录」（配置读写已迁移到 ctx.remote.settings
+ * 直连传输，0.1.2-alpha.1 起 connection.api.settings 已移除；见 scope.ts 与
+ * card.tsx）。目录响应附带 kitSource 与 models-dev 状态，供卡片的状态行
+ * 展示（运行期诊断，非配置数据）。
  * @module llm-pi/client/api
  */
 

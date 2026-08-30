@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-25 03:46"
+last_modified: "2026-08-30 21:50"
 ---
 
 # @dsh-plus/lifeboat 文档索引
@@ -26,7 +26,7 @@ last_modified: "2026-08-25 03:46"
 - **健康面板**（`src/client/health-tab.tsx`）：设置 → 插件 → 「救生艇」tab
   （官方 `settings.plugins.tab` 插槽）。展示应急翻译状态 banner、已隔离插件
   卡片（两段确认「恢复」= 调 `POST /dsh-plus/lifeboat/restore` 移除用户 patch
-  层的禁用覆盖；rc8 用户 patch 层热应用，恢复无需重启）、journal 时间线
+  层的禁用覆盖；用户 patch 层热应用（0.1.2-alpha.1 基线保留），恢复无需重启）、journal 时间线
   （kind 徽标着色：alert 红 / quarantine 橙 / restore 绿）。宿主面端点
   （`src/health-api.ts`）：`GET /dsh-plus/lifeboat/status` 与 restore。
   浏览器半哨兵保持零依赖铁律——健康页经惰性模块隔离加载（rolldown

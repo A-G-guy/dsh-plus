@@ -6,6 +6,7 @@ import { test } from 'node:test'
 
 import { ModelsDevSource } from '../src/catalog/models-dev.ts'
 import type { ProviderProfileConfig } from '../src/config.ts'
+import { THINKING_LEVELS } from '../src/config.ts'
 import { buildProfiles } from '../src/profiles.ts'
 import { loadVendoredKit } from '../src/resolve-dsh.ts'
 
@@ -127,7 +128,7 @@ test('全量 compat：route 级 + 模型级逐字段合并并压过继承值', (
       models: [
         {
           id: 'deepseek-v4-flash',
-          compat: { supportsStore: false, zaiToolStream: false },
+          compat: { supportsStore: false, requiresToolResultName: true },
         },
       ],
     },
@@ -137,11 +138,11 @@ test('全量 compat：route 级 + 模型级逐字段合并并压过继承值', (
   // 模型级压过 route 级；route 级补充；继承值保留
   assert.equal(compat['supportsStore'], false)
   assert.equal(compat['maxTokensField'], 'max_tokens')
-  assert.equal(compat['zaiToolStream'], false)
+  assert.equal(compat['requiresToolResultName'], true)
   assert.equal(compat['thinkingFormat'], 'deepseek')
 })
 
-test('compat 未知键在构建期拒绝（对比官方静默丢弃）', () => {
+test('compat 未知键在构建期拒绝（官方门控：未知键/withhold 均写时拒绝）', () => {
   const providers: Record<string, ProviderProfileConfig> = {
     chat: {
       baseURL: 'https://gateway.example/v1',
@@ -152,6 +153,21 @@ test('compat 未知键在构建期拒绝（对比官方静默丢弃）', () => {
   assert.throws(
     () => buildProfiles(providers, deps),
     /compat\.notARealField 不是 openai-completions 协议的合法字段/,
+  )
+  // 官方 withhold 字段（旧版可配）同样写时拒绝
+  assert.throws(
+    () =>
+      buildProfiles(
+        {
+          chat: {
+            baseURL: 'https://gateway.example/v1',
+            api: 'openai-completions',
+            models: [{ id: 'm', compat: { zaiToolStream: false } }],
+          },
+        },
+        deps,
+      ),
+    /withhold/,
   )
 })
 
@@ -202,7 +218,7 @@ test('route 内协议不一致被拒绝', () => {
   assert.throws(() => buildProfiles(providers, deps), /route 内模型协议不一致/)
 })
 
-test('rc8 兼容：maxRequestImageBytes 缺省取 20MiB，显式配置则透传', () => {
+test('0.1.2-alpha.1 必需字段：requestImagePixelBudget/requestImageMaxBytes 缺省取官方默认，显式配置透传', () => {
   const { profile } = modelsOf(
     buildProfiles(
       {
@@ -216,7 +232,10 @@ test('rc8 兼容：maxRequestImageBytes 缺省取 20MiB，显式配置则透传'
     ),
     'g',
   )
+  // 官方 DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET / DEFAULT_REQUEST_IMAGE_MAX_BYTES
   assert.equal(profile.maxRequestImageBytes, 20 * 1024 * 1024)
+  assert.equal(profile.requestImagePixelBudget, 2048 * 2048)
+  assert.equal(profile.requestImageMaxBytes, 1024 * 1024)
   const { profile: overridden } = modelsOf(
     buildProfiles(
       {
@@ -224,6 +243,8 @@ test('rc8 兼容：maxRequestImageBytes 缺省取 20MiB，显式配置则透传'
           api: 'openai-completions',
           baseURL: 'https://g.example/v1',
           maxRequestImageBytes: 1048576,
+          requestImagePixelBudget: 1024 * 1024,
+          requestImageMaxBytes: 262144,
           models: [{ id: 'm' }],
         },
       },
@@ -232,6 +253,60 @@ test('rc8 兼容：maxRequestImageBytes 缺省取 20MiB，显式配置则透传'
     'g',
   )
   assert.equal(overridden.maxRequestImageBytes, 1048576)
+  assert.equal(overridden.requestImagePixelBudget, 1024 * 1024)
+  assert.equal(overridden.requestImageMaxBytes, 262144)
+})
+
+test('pi 路由含 imageDetail 写时拒绝并提示迁移（schema 透传陷阱）', () => {
+  assert.throws(
+    () =>
+      buildProfiles(
+        {
+          g: {
+            api: 'openai-completions',
+            baseURL: 'https://g.example/v1',
+            models: [{ id: 'm', imageDetail: 'low' as never }],
+          },
+        },
+        deps,
+      ),
+    /imageDetail 已随 0.1.2-alpha.1 移除/,
+  )
+})
+
+test('继承 reasoning 能力物化为显式档位字典（与内置目录语义逐档位一致）', () => {
+  const builtinMap = kit
+    .getBuiltinModels('deepseek')
+    .find((m) => m.id === 'deepseek-v4-pro')?.thinkingLevelMap
+  assert.ok(builtinMap, 'deepseek-v4-pro 应有内置 thinkingLevelMap')
+  const { models } = modelsOf(
+    buildProfiles(
+      {
+        chat: {
+          extends: 'deepseek',
+          baseURL: 'https://g.example/v1',
+          models: [{ id: 'deepseek-v4-pro' }],
+        },
+      },
+      deps,
+    ),
+    'chat',
+  )
+  const pro = models.find((m) => m.id === 'deepseek-v4-pro')
+  assert.ok(pro)
+  assert.equal(pro.reasoning, true)
+  // 语义等价断言：支持档位集合与线值一致。builtin 缺省档位 = 支持且线值取档位名
+  // （pi-ai dispatch 的 map?.[level] ?? level）；xhigh/max 缺省 = 不支持（null）。
+  for (const level of THINKING_LEVELS) {
+    const expected = builtinMap[level]
+    const actual = pro.thinkingLevelMap?.[level]
+    if (expected === undefined) {
+      if (level === 'xhigh' || level === 'max') assert.equal(actual, null)
+      else assert.equal(actual, level)
+    } else {
+      assert.equal(actual, expected)
+    }
+  }
 })
 
 test('enabled 之外的基本校验：空 baseURL / 空 defaultInput / 坏 idle timeout', () => {

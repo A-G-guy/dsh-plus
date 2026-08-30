@@ -177,8 +177,8 @@ def cmd_new_plugin(args) -> None:
     if args.type == "tool":
         pkg = read_json(pkg_dir / "package.json")
         # 平台包一律 peer（宿主提供单实例）+ dev 精确版（供构建/类型）
-        pkg["peerDependencies"]["@deepseek-ai/dsh-tools"] = "^0.1.0-rc.8"
-        pkg["devDependencies"]["@deepseek-ai/dsh-tools"] = "0.1.0-rc.8"
+        pkg["peerDependencies"]["@deepseek-ai/dsh-tools"] = "^0.1.2-alpha.1"
+        pkg["devDependencies"]["@deepseek-ai/dsh-tools"] = "0.1.2-alpha.1"
         write_json(pkg_dir / "package.json", pkg)
     _register_in_bundle(pkg_dir)
     print(f"[new-plugin] 已创建 {pkg_dir}（type={args.type}）")

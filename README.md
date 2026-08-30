@@ -8,7 +8,7 @@
 [![npm @dsh-plus](https://img.shields.io/badge/npm-%40dsh--plus-CB3837?logo=npm&logoColor=white)](https://www.npmjs.com/org/dsh-plus)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![dsh](https://img.shields.io/badge/dsh-0.1.0--rc.8-blue)](https://www.npmjs.com/package/@deepseek-ai/dsh)
+[![dsh](https://img.shields.io/badge/dsh-0.1.2--alpha.1-blue)](https://www.npmjs.com/package/@deepseek-ai/dsh)
 
 </div>
 
@@ -25,9 +25,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | [`@dsh-plus/ui-mobile-fit`](packages/ui-mobile-fit) | 0.1.3 | UI | 纯 CSS 覆盖的移动端窄屏响应式适配，不 fork 上游、跟随升级 | [docs](packages/ui-mobile-fit/docs/README.md) |
 | [`@dsh-plus/remote-settings`](packages/remote-settings) | 0.1.0 | UI | 修复非 loopback 访问（loopback-rewrite 反代）下设置→模型目录报错与插件配置卡片不渲染 | [docs](packages/remote-settings/docs/README.md) |
 | [`@dsh-plus/notify-email`](packages/notify-email) | 0.1.0 | service + UI | 任务完成 / 等待决策 / 出错停止时向指定邮箱发送邮件通知 | [docs](packages/notify-email/docs/README.md) |
-| [`@dsh-plus/subagent-model`](packages/subagent-model) | 0.1.0 | service + UI | 为 `subagent` / `subagent_fork` 等子代理单独配置模型与思考程度 | [docs](packages/subagent-model/docs/README.md) |
 | [`@dsh-plus/llm-pi`](packages/llm-pi) | 0.1.0 | service + UI | 基于 pi-ai 的自定义 LLM 路由：三协议 route、官方目录继承、全量 compat、models.dev 兜底 | [docs](packages/llm-pi/docs/README.md) |
-| [`@dsh-plus/skill-manual`](packages/skill-manual) | 0.1.0 | skill provider | 手动触发技能独立目录（`$DSH_HOME/skills-manual`）：不进模型 catalog，斜杠发现 + `/name` 注入 | [docs](packages/skill-manual/docs/README.md) |
 | [`@dsh-plus/lifeboat`](packages/lifeboat) | 0.1.0 | service | 故障救生艇：兄弟插件崩溃自动隔离（写 patch 层禁用）+ LLM 应急翻译 + 邮件告警 | [docs](packages/lifeboat/docs/README.md) |
 | [`@dsh-plus/reload`](packages/reload) | 0.1.0 | service + UI | 设置页「重新加载」按钮与 `/reload` 命令：两段确认+倒计时后重启 dsh-web，恢复后自动刷新 | [docs](packages/reload/docs/README.md) |
 | [`@dsh-plus/usage-panel`](packages/usage-panel) | 0.1.0 | service + UI | 全量会话 token 用量面板：实时+历史扫描双通道聚合，按日/模型报表，可选价目估算费用 | [docs](packages/usage-panel/docs/README.md) |
@@ -43,7 +41,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 
 - Node.js **≥ 22**（测试依赖 `node --test` 直接运行 TypeScript）
 - pnpm（经 corepack 启用）
-- 已安装 DSH（`@deepseek-ai/dsh`，基准版本 `0.1.0-rc.8`）
+- 已安装 DSH（`@deepseek-ai/dsh`，基准版本 `0.1.2-alpha.1`）
 
 ### 安装到 DSH
 
@@ -79,9 +77,7 @@ dsh plugin --profile web add link:packages/ui-mobile-fit
 packages/
   ui-mobile-fit/        移动端窄屏适配（UI 覆盖）
   notify-email/         任务结束邮件通知
-  subagent-model/       子代理独立模型配置
   llm-pi/               自定义 LLM 路由
-  skill-manual/         手动触发技能目录
   lifeboat/             故障救生艇（隔离/应急翻译/告警）
   reload/               设置按钮 + /reload 命令重启 dsh-web
   usage-panel/          用量统计面板（token 聚合/报表/费用估算）

@@ -15,8 +15,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-from .cmd_dev import (MOCK_SETTINGS, _dev_profile_dir, clear_mock_script,
-                      ensure_mock_running, write_mock_script)
+from .cmd_dev import (HEADLESS_DISABLED_IDS, MOCK_SETTINGS, _dev_profile_dir,
+                      clear_mock_script, ensure_mock_running, write_mock_script)
 from .common import (DEV_HOME, dsh_bin, PROD_HOME, dev_env, fail,
                      find_platform_shadows, read_json, run, write_json,
                      yaml_scalar)
@@ -84,7 +84,16 @@ def _init_scratch_profile(scratch: Path, env: dict[str, str], linker: str) -> Pa
     if not (profile / "package.json").exists():
         fail(f"scratch {SMOKE_PROFILE} profile 初始化失败")
     (profile / "pnpm-workspace.yaml").write_text(
-        f"packages:\n  - .\n\nnodeLinker: {linker}\nautoInstallPeers: false\n",
+        f"packages:\n  - .\n\nnodeLinker: {linker}\nautoInstallPeers: false\n"
+        # node-pty 优先 prebuilds 免编译，允许其 install 脚本（否则 pnpm 以
+        # ERR_PNPM_IGNORED_BUILDS 非零退出）；与生产 profile 决策一致。
+        "allowBuilds:\n  node-pty: true\n",
+        encoding="utf-8")
+    # 0.1.2-alpha.1 起 boot 把「等待不存在的服务」当硬失败（rc 期为挂起）；
+    # headless 无 webServer，与 dev headless 同策禁用 web 系插件。
+    rows = "\n".join(f"- id: {pid}\n  disabled: true" for pid in HEADLESS_DISABLED_IDS)
+    (profile / "cordis.patch.yml").write_text(
+        "# web 系插件在 headless 禁用（无 webServer/UI 面）\n" + rows + "\n",
         encoding="utf-8")
     return profile
 

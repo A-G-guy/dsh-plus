@@ -1,10 +1,25 @@
 /**
- * 逐协议 compat 字段表与校验。
+ * 逐协议 compat 门控表与校验（0.1.2-alpha.1 适配版）。
  *
- * 背景：官方 llm-pi-ai 的配置路径只物化 thinkingFormat/supportsReasoningEffort
- * 两个字段，多余键被静默丢弃；本插件开放 pi-ai 的全量 compat（字段表与
- * pi-ai@0.82.1 types.d.ts:423-538 逐字段对齐），并在 settings 写入与
- * profile 构建时校验——未知键/错类型值直接拒绝并给出合法键清单。
+ * 适配决策：官方 dsh-llm-pi-ai 0.1.2-alpha.1 的 COMPAT_GATES（catalog.ts:292）
+ * 是 compat 可配性的唯一事实源——按协议分型（offer/withhold），withhold 字段
+ * （catalog 已为对应厂商设置，如 openRouterRouting/zaiToolStream/
+ * sendSessionAffinityHeaders/supportsToolSearch 等）写时拒绝并提示以目录
+ * provider 名为 route。官方门控表只在 src/catalog.ts 源码子路径内（npm 发布
+ * 形态不携带 src/、包根也不导出该符号），插件在 dsh 树（npm 布局）与 vendored
+ * 兜底两条路径都无法静态引用，故本文件按官方 catalog.ts 逐字段镜像门控表
+ * （字段全集与分型随 pi-ai 升级同步维护，官方以 Record<keyof Compat> 编译期
+ * 约束漂移，插件以本表 + 注释人工同步）。
+ *
+ * 与旧版字段表的差异（0.1.2-alpha.1 官方门控）：
+ * - completions 新增 offer：supportsFinishReason/chatTemplateArgs/
+ *   supportsThinkingTokenBudget；thinkingFormat 新增 baseten；
+ * - 原表内 openRouterRouting/vercelGatewayRouting/zaiToolStream/
+ *   sendSessionAffinityHeaders/deferredToolsMode/sessionAffinityFormat/
+ *   supportsOpenAIGrammarTools（completions/responses）与 supportsToolSearch/
+ *   supportsExplicitPromptCacheMode（responses）、supportsToolReferences
+ *   （anthropic）改为 withhold → 写时拒绝；
+ * - responses 不再 offer sessionAffinityFormat（withhold）。
  *
  * pi-ai 侧消费语义：getCompat 逐字段 `??` 覆盖 detectCompat 的
  * baseURL/名称猜测；undefined 视为未设置（无法显式清空检测值）。
@@ -13,23 +28,103 @@
 import type { ProtocolId } from './config.ts'
 
 type CompatValue = 'boolean' | 'object' | readonly string[]
+type CompatDisposition = 'offer' | 'withhold'
 
-/** openai-completions 的 21 个字段（pi-ai OpenAICompletionsCompat）。 */
-const COMPLETIONS_FIELDS: Record<string, CompatValue> = {
+/**
+ * 官方 COMPLETIONS_COMPAT_GATE（llm-pi-ai/src/catalog.ts）逐字段镜像。
+ * offer 17 字段 / withhold 7 字段。
+ */
+const COMPLETIONS_COMPAT_GATE: Readonly<Record<string, CompatDisposition>> = {
+  supportsStore: 'offer',
+  supportsDeveloperRole: 'offer',
+  supportsReasoningEffort: 'offer',
+  supportsUsageInStreaming: 'offer',
+  supportsFinishReason: 'offer',
+  maxTokensField: 'offer',
+  requiresToolResultName: 'offer',
+  requiresAssistantAfterToolResult: 'offer',
+  requiresThinkingAsText: 'offer',
+  requiresReasoningContentOnAssistantMessages: 'offer',
+  thinkingFormat: 'offer',
+  chatTemplateKwargs: 'offer',
+  chatTemplateArgs: 'offer',
+  supportsThinkingTokenBudget: 'offer',
+  supportsStrictMode: 'offer',
+  cacheControlFormat: 'offer',
+  supportsLongCacheRetention: 'offer',
+  openRouterRouting: 'withhold',
+  vercelGatewayRouting: 'withhold',
+  zaiToolStream: 'withhold',
+  supportsOpenAIGrammarTools: 'withhold',
+  sendSessionAffinityHeaders: 'withhold',
+  deferredToolsMode: 'withhold',
+  sessionAffinityFormat: 'withhold',
+}
+
+/**
+ * 官方 RESPONSES_COMPAT_GATE 逐字段镜像（三协议共享同一 OpenAIResponsesCompat；
+ * 本插件只服务 openai-responses）。offer 3 字段 / withhold 5 字段。
+ */
+const RESPONSES_COMPAT_GATE: Readonly<Record<string, CompatDisposition>> = {
+  supportsDeveloperRole: 'offer',
+  supportsStrictMode: 'offer',
+  supportsLongCacheRetention: 'offer',
+  sessionAffinityFormat: 'withhold',
+  supportsOpenAIGrammarTools: 'withhold',
+  supportsAdditionalTools: 'withhold',
+  supportsToolSearch: 'withhold',
+  supportsExplicitPromptCacheMode: 'withhold',
+}
+
+/**
+ * 官方 ANTHROPIC_COMPAT_GATE 逐字段镜像。offer 7 字段 / withhold 2 字段。
+ */
+const ANTHROPIC_COMPAT_GATE: Readonly<Record<string, CompatDisposition>> = {
+  supportsEagerToolInputStreaming: 'offer',
+  supportsLongCacheRetention: 'offer',
+  supportsCacheControlOnTools: 'offer',
+  supportsTemperature: 'offer',
+  forceAdaptiveThinking: 'offer',
+  allowEmptySignature: 'offer',
+  supportsStrictTools: 'offer',
+  sendSessionAffinityHeaders: 'withhold',
+  supportsToolReferences: 'withhold',
+}
+
+const GATES_BY_PROTOCOL: Record<ProtocolId, Readonly<Record<string, CompatDisposition>>> = {
+  'openai-completions': COMPLETIONS_COMPAT_GATE,
+  'openai-responses': RESPONSES_COMPAT_GATE,
+  'anthropic-messages': ANTHROPIC_COMPAT_GATE,
+}
+
+/** 某协议某字段的可配性（'offer'/'withhold'；未列出 = 无此字段）。 */
+export function compatDispositionOf(api: ProtocolId, field: string): CompatDisposition | undefined {
+  return GATES_BY_PROTOCOL[api][field]
+}
+
+/**
+ * 字段取值约束（对齐官方 config.ts compatProfile schema）：
+ * boolean 字段 → 'boolean'；maxTokensField/thinkingFormat/cacheControlFormat
+ * → 枚举；chatTemplateKwargs/chatTemplateArgs → 对象。
+ */
+const VALUE_SPECS: Readonly<Record<string, CompatValue>> = {
   supportsStore: 'boolean',
   supportsDeveloperRole: 'boolean',
   supportsReasoningEffort: 'boolean',
   supportsUsageInStreaming: 'boolean',
+  supportsFinishReason: 'boolean',
   maxTokensField: ['max_completion_tokens', 'max_tokens'],
   requiresToolResultName: 'boolean',
   requiresAssistantAfterToolResult: 'boolean',
   requiresThinkingAsText: 'boolean',
   requiresReasoningContentOnAssistantMessages: 'boolean',
   thinkingFormat: [
+    // 官方 SUPPORTED_THINKING_FORMATS（含 baseten，随 chatTemplateArgs 使用）
     'openai',
-    'openrouter',
     'deepseek',
+    'openrouter',
     'together',
+    'baseten',
     'zai',
     'qwen',
     'chat-template',
@@ -38,65 +133,32 @@ const COMPLETIONS_FIELDS: Record<string, CompatValue> = {
     'ant-ling',
   ],
   chatTemplateKwargs: 'object',
-  openRouterRouting: 'object',
-  vercelGatewayRouting: 'object',
-  zaiToolStream: 'boolean',
-  supportsOpenAIGrammarTools: 'boolean',
+  chatTemplateArgs: 'object',
+  supportsThinkingTokenBudget: 'boolean',
   supportsStrictMode: 'boolean',
   cacheControlFormat: ['anthropic'],
-  sendSessionAffinityHeaders: 'boolean',
-  deferredToolsMode: ['kimi'],
-  sessionAffinityFormat: ['openai', 'openai-nosession', 'openrouter'],
   supportsLongCacheRetention: 'boolean',
-}
-
-/** openai-responses 的 7 个字段（pi-ai OpenAIResponsesCompat）。 */
-const RESPONSES_FIELDS: Record<string, CompatValue> = {
-  supportsDeveloperRole: 'boolean',
-  sessionAffinityFormat: ['openai', 'openai-nosession', 'openrouter'],
-  supportsLongCacheRetention: 'boolean',
-  supportsStrictMode: 'boolean',
-  supportsOpenAIGrammarTools: 'boolean',
-  supportsToolSearch: 'boolean',
-  supportsExplicitPromptCacheMode: 'boolean',
-}
-
-/** anthropic-messages 的 9 个字段（pi-ai AnthropicMessagesCompat）。 */
-const ANTHROPIC_FIELDS: Record<string, CompatValue> = {
   supportsEagerToolInputStreaming: 'boolean',
-  supportsLongCacheRetention: 'boolean',
-  sendSessionAffinityHeaders: 'boolean',
   supportsCacheControlOnTools: 'boolean',
   supportsTemperature: 'boolean',
   forceAdaptiveThinking: 'boolean',
   allowEmptySignature: 'boolean',
   supportsStrictTools: 'boolean',
-  supportsToolReferences: 'boolean',
 }
 
-const FIELDS_BY_PROTOCOL: Record<ProtocolId, Record<string, CompatValue>> = {
-  'openai-completions': COMPLETIONS_FIELDS,
-  'openai-responses': RESPONSES_FIELDS,
-  'anthropic-messages': ANTHROPIC_FIELDS,
-}
-
-/** 某协议的全部合法 compat 键（UI 渲染字段组与校验共用）。 */
+/** 某协议全部可配置（offer）的 compat 键（UI 渲染字段组与校验共用）。 */
 export function compatFieldsOf(api: ProtocolId): readonly string[] {
-  return Object.keys(FIELDS_BY_PROTOCOL[api])
+  return Object.entries(GATES_BY_PROTOCOL[api]).flatMap(([field, disposition]) =>
+    disposition === 'offer' ? [field] : [],
+  )
 }
 
-/** 某协议某字段的取值约束（UI 渲染开关/下拉用）。 */
+/** 某协议某 offer 字段的取值约束（UI 渲染开关/下拉用）。 */
 export function compatFieldSpec(api: ProtocolId, field: string): CompatValue | undefined {
-  return FIELDS_BY_PROTOCOL[api][field]
+  return GATES_BY_PROTOCOL[api][field] === 'offer' ? VALUE_SPECS[field] : undefined
 }
 
-function checkValue(
-  _api: ProtocolId,
-  field: string,
-  spec: CompatValue,
-  value: unknown,
-  where: string,
-): void {
+function checkValue(field: string, spec: CompatValue, value: unknown, where: string): void {
   if (spec === 'boolean') {
     if (typeof value !== 'boolean') throw new Error(`${where}: compat.${field} 必须是布尔值`)
     return
@@ -115,8 +177,11 @@ function checkValue(
 }
 
 /**
- * 校验一份 compat 字典对指定协议合法：未知协议/未知键拒绝（对比官方的静默丢弃），
- * 已知键校验值类型/枚举。undefined 值视为未设置，跳过（语义同 pi-ai 的 ??）。
+ * 校验一份 compat 字典对指定协议合法（对齐官方门控语义 + schema 值约束）：
+ * - 未知键/withhold 字段拒绝（官方 0.1.2-alpha.1 写时拒绝，替代旧版静默丢弃）；
+ * - 值类型/枚举按官方 schema 校验；
+ * - 无值键（null/undefined）拒绝（官方 assertOfferedCompatFields 同款：
+ *   "写了但没生效" 的表面状态不允许）。
  */
 export function validateCompat(
   api: string,
@@ -124,26 +189,35 @@ export function validateCompat(
   where: string,
 ): void {
   if (compat === undefined) return
-  const fields = FIELDS_BY_PROTOCOL[api as ProtocolId]
-  if (fields === undefined) {
+  const gate = GATES_BY_PROTOCOL[api as ProtocolId]
+  if (gate === undefined) {
     throw new Error(
-      `${where}: 协议 ${JSON.stringify(api)} 无 compat 字段表（支持：${Object.keys(FIELDS_BY_PROTOCOL).join(', ')}）`,
+      `${where}: 协议 ${JSON.stringify(api)} 无 compat 字段表（支持：${Object.keys(GATES_BY_PROTOCOL).join(', ')}）`,
     )
   }
+  const offered = compatFieldsOf(api as ProtocolId)
   for (const [key, value] of Object.entries(compat)) {
-    const spec = fields[key]
-    if (spec === undefined) {
+    const disposition = gate[key]
+    if (disposition !== 'offer') {
+      if (disposition === 'withhold') {
+        throw new Error(
+          `${where}: compat.${key} 官方按协议 withhold（内置目录已为对应厂商设置该开关）；` +
+            '请以目录 provider 名作为 route 名（继承目录值），或移除该字段',
+        )
+      }
       throw new Error(
-        `${where}: compat.${key} 不是 ${api} 协议的合法字段（合法字段：${Object.keys(fields).join(', ')}）`,
+        `${where}: compat.${key} 不是 ${api} 协议的合法字段（可配置字段：${offered.join(', ')}）`,
       )
     }
-    if (value === undefined) continue
-    checkValue(api, key, spec, value, where)
+    if (value === undefined || value === null) {
+      throw new Error(`${where}: compat.${key} 未设置值；给出值或移除该键（留空不会生效）`)
+    }
+    checkValue(key, VALUE_SPECS[key] as CompatValue, value, where)
   }
 }
 
 /**
- * 逐字段合并 compat 层（后者覆盖前者），丢弃 undefined 值。
+ * 逐字段合并 compat 层（后者覆盖前者），丢弃 undefined/null 值。
  * 层序：继承源（仅同协议）→ route 级 → 模型级。
  */
 export function mergeCompat(
@@ -153,7 +227,7 @@ export function mergeCompat(
   for (const layer of layers) {
     if (layer === undefined) continue
     for (const [key, value] of Object.entries(layer)) {
-      if (value !== undefined) merged[key] = value
+      if (value !== undefined && value !== null) merged[key] = value
     }
   }
   return Object.keys(merged).length > 0 ? merged : undefined

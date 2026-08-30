@@ -2,11 +2,17 @@
  * 浏览器半入口：
  * - settings.section 官方插槽注册「用量统计」独立设置页；
  * - settings.plugin.item keyed 槽位注册价目卡片（key = dsh-plus-usage-panel）。
+ * 配置读写经 ctx.remote.settings 直连（0.1.2-alpha.1 起 connection.api.settings
+ * 已移除；不复用 settingsScope 服务——非 loopback 页面下它固定 memory 模式无数据）。
  * @module @dsh-plus/usage-panel/client
  */
 import type { Context } from '@deepseek-ai/cordis'
 
-import { createApiScope } from '@dsh-plus/shared/client'
+import {
+  createNamespaceApi,
+  createSettingsScope,
+  type SettingsRemoteFace,
+} from '@dsh-plus/shared/client'
 import { en, NS, zh } from './i18n.ts'
 import { UsagePriceCard } from './price-card.tsx'
 import { UsageSection } from './section.tsx'
@@ -15,7 +21,7 @@ import { injectCardStyles, injectSectionStyle } from './styles.ts'
 export const name = 'dsh-plus-usage-panel'
 
 /** 浏览器半需要的 cordis 服务 key（loader 据此注入；package.json 的 dsh.client.inject 管包加载顺序）。 */
-export const inject = ['slots', 'locale', 'connection', 'remote'] as const
+export const inject = ['slots', 'locale', 'remote', 'remote.settings'] as const
 
 interface SlotsLike {
   inject(key: string, callback: () => unknown): unknown
@@ -28,17 +34,13 @@ interface LocaleLike {
 }
 
 interface RemoteLike {
+  settings: SettingsRemoteFace
   $on(event: string, listener: (payload?: unknown) => void): () => void
-}
-
-interface ConnectionLike {
-  api: { settings: Parameters<typeof createApiScope>[0] }
 }
 
 interface ClientContext {
   slots: SlotsLike
   locale: LocaleLike
-  get(key: 'connection'): ConnectionLike
   get(key: 'remote'): RemoteLike
   on(event: string, listener: () => void): () => void
   effect(execute: () => () => void, label?: string): unknown
@@ -73,8 +75,8 @@ export function apply(ctx: Context): void {
   )
 
   // 价目卡片（settings.plugin.item：keyed 槽位，key = settings 命名空间）。
-  const api = c.get('connection').api.settings
-  const scope = createApiScope(api, 'dsh-plus-usage-panel', c, 'usage-panel: settings scope')
+  const scope = createSettingsScope(c, 'dsh-plus-usage-panel', 'usage-panel: settings scope')
+  const api = createNamespaceApi(c.get('remote').settings, 'dsh-plus-usage-panel')
   c.slots.inject('settings.plugin.item', () =>
     c.slots.register(
       {

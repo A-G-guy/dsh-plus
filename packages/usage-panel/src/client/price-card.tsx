@@ -8,8 +8,8 @@ import {
   CardChrome,
   type CardStatusState,
   IDLE_STATUS,
+  type NamespaceSettingsApi,
   type Scope,
-  type SettingsApi,
   TextField,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
@@ -19,7 +19,7 @@ import { fetchModelsDevRaw, importPricesFromModelsDev } from './api.ts'
 export interface CardProps {
   t(key: string): string
   scope: Scope
-  api: SettingsApi
+  api: NamespaceSettingsApi
 }
 
 interface ConfigValue {
@@ -91,15 +91,11 @@ export function UsagePriceCard(props: CardProps): ReactElement | null {
     setSaving(true)
     const revision = scope.getSnapshot().revision
     api
-      .update({
-        ns: 'dsh-plus-usage-panel',
-        patch: { prices: draft.prices, currency: draft.currency, catalogProxy: draft.catalogProxy },
-        ...(revision !== undefined ? { expectedRevision: revision } : {}),
-      })
-      .then(async (response) => {
-        if (!response.result.ok) {
-          throw new Error(response.result.error?.message ?? t('saveFailed'))
-        }
+      .update(
+        { prices: draft.prices, currency: draft.currency, catalogProxy: draft.catalogProxy },
+        revision,
+      )
+      .then(async () => {
         await scope.load()
         setStatus(IDLE_STATUS)
       })

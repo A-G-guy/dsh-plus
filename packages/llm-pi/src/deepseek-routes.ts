@@ -10,6 +10,9 @@
  * 热更新：适配器 options thunk 每次操作重读当前物化产物（连接事实变化下一
  * 请求生效）；retryPolicy 是注册期捕获事实，变化时 handle.replace 原地重注册
  * （官方同款模式）；route 移除即 dispose 释放路由名。
+ *
+ * 0.1.2-alpha.1：DeepSeekAdapterOptions 新增必需 prepareExtensions（官方接线
+ * ctx.get('deepseekLlmApiExtensions')，缺省空实现）与可选 resolveImageAccess。
  * @module llm-pi/deepseek-routes
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -130,6 +133,28 @@ export class DeepseekRouteRegistrar {
       resolveApiKey: this.resolveApiKey as never,
       resolveUserId: () => this.resolveUserId() as never,
       resolveAttachments: () => ctx.get('attachments') as never,
+      // 附件宿主路径 → 模型工具执行世界只读路径桥（官方接线同款，见
+      // llm-deepseek/src/index.ts:447-452）。
+      resolveImageAccess: (attachments, ref) =>
+        kit.resolveImageAttachmentAccess(
+          attachments,
+          (hostPath) =>
+            (
+              ctx.get('fs') as
+                | { processPathFromHostPath(hostPath: string): string | undefined }
+                | undefined
+            )?.processPathFromHostPath(hostPath),
+          ref,
+        ) as never,
+      // 0.1.2-alpha.1 必需：官方扩展注册表（deepseekLlmApiExtensions）缺席时
+      // 给空实现（官方接线范式，llm-deepseek/src/index.ts:404-470）。
+      prepareExtensions: (request) => {
+        const extensions = ctx.get('deepseekLlmApiExtensions') as
+          | { prepare(request: unknown): Promise<unknown> }
+          | undefined
+        return (extensions?.prepare(request) ??
+          Promise.resolve({ fields: {}, accept: () => Promise.resolve() })) as never
+      },
     })
     // 官方 providerInfo 硬编码 name: "DeepSeek"——覆盖为按路由动态读取的
     // displayName，否则自定义 deepseek 路由在模型选择器里与 deepseek-official

@@ -3,7 +3,8 @@
  * 外壳与基础控件走 @dsh-plus/shared/client 套件（CardChrome/TextField/CheckRow），
  * 本文件只保留业务字段与保存/测试逻辑。交互对齐官方卡片：折叠/展开、
  * staged draft、未保存标记、保存/放弃；另加「发送测试邮件」。
- * 配置读写走官方 settingsScope 传输：value 为 schema 解析后的脱敏视图
+ * 配置读写经 ctx.remote.settings 直连（0.1.2-alpha.1 起 connection.api.settings
+ * 已移除）：value 为 schema 解析后的脱敏视图
  * （smtp.pass 不出现，passConfigured 由 describe 的 secrets 探测），
  * 保存经 settings.update 深合并（空 pass 剔除 = 保持不变）。
  * @module notify-email/client/card
@@ -14,8 +15,8 @@ import {
   type CardStatusState,
   CheckRow,
   IDLE_STATUS,
+  type NamespaceSettingsApi,
   type Scope,
-  type SettingsApi,
   TextField,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
@@ -25,7 +26,7 @@ import { sendTest } from './api.ts'
 export interface CardProps {
   t(key: string): string
   scope: Scope
-  api: SettingsApi
+  api: NamespaceSettingsApi
 }
 
 /** settings 命名空间的脱敏解析值（smtp.pass 被脱敏剥除）。 */
@@ -136,12 +137,12 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
   useEffect(() => {
     let alive = true
     api
-      .describe({})
-      .then((response) => {
-        if (!alive || !response.result.ok) return
-        const view = response.result.value?.namespaces.find((ns) => ns.ns === SETTINGS_NS)
+      .describe()
+      .then((view) => {
+        if (!alive) return
+        const ns = view.namespaces.find((candidate) => candidate.ns === SETTINGS_NS)
         setPassConfigured(
-          view?.secrets.some((secret) => secret.path.join('.') === 'smtp.pass' && secret.set) ??
+          ns?.secrets.some((secret) => secret.path.join('.') === 'smtp.pass' && secret.set) ??
             false,
         )
       })
@@ -190,15 +191,8 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
     }
     const revision = scope.getSnapshot().revision
     api
-      .update({
-        ns: SETTINGS_NS,
-        patch,
-        ...(revision !== undefined ? { expectedRevision: revision } : {}),
-      })
-      .then(async (response) => {
-        if (!response.result.ok) {
-          throw new Error(response.result.error?.message ?? t('saveFailed'))
-        }
+      .update(patch, revision)
+      .then(async () => {
         await scope.load()
         const next = scope.getSnapshot().value as ConfigValue | undefined
         if (next !== undefined) setDraft(draftFromValue(next))

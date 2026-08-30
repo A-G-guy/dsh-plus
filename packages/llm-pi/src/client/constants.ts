@@ -29,13 +29,18 @@ export const BUDGET_KEYS = ['minimal', 'low', 'medium', 'high'] as const
 
 type CompatValue = 'boolean' | 'object' | readonly string[]
 
-/** 逐协议 compat 字段表（来源：compat.ts FIELDS_BY_PROTOCOL）。 */
+/**
+ * 逐协议 compat 字段表（来源：compat.ts，逐字段镜像官方 catalog.ts COMPAT_GATES）。
+ * 只列 offer 字段（withhold 字段官方写时拒绝，UI 不提供）；取值约束对齐官方
+ * config.ts compatProfile schema。
+ */
 const COMPAT_FIELDS: Record<string, Record<string, CompatValue>> = {
   'openai-completions': {
     supportsStore: 'boolean',
     supportsDeveloperRole: 'boolean',
     supportsReasoningEffort: 'boolean',
     supportsUsageInStreaming: 'boolean',
+    supportsFinishReason: 'boolean',
     maxTokensField: ['max_completion_tokens', 'max_tokens'],
     requiresToolResultName: 'boolean',
     requiresAssistantAfterToolResult: 'boolean',
@@ -43,9 +48,10 @@ const COMPAT_FIELDS: Record<string, Record<string, CompatValue>> = {
     requiresReasoningContentOnAssistantMessages: 'boolean',
     thinkingFormat: [
       'openai',
-      'openrouter',
       'deepseek',
+      'openrouter',
       'together',
+      'baseten',
       'zai',
       'qwen',
       'chat-template',
@@ -54,36 +60,25 @@ const COMPAT_FIELDS: Record<string, Record<string, CompatValue>> = {
       'ant-ling',
     ],
     chatTemplateKwargs: 'object',
-    openRouterRouting: 'object',
-    vercelGatewayRouting: 'object',
-    zaiToolStream: 'boolean',
-    supportsOpenAIGrammarTools: 'boolean',
+    chatTemplateArgs: 'object',
+    supportsThinkingTokenBudget: 'boolean',
     supportsStrictMode: 'boolean',
     cacheControlFormat: ['anthropic'],
-    sendSessionAffinityHeaders: 'boolean',
-    deferredToolsMode: ['kimi'],
-    sessionAffinityFormat: ['openai', 'openai-nosession', 'openrouter'],
     supportsLongCacheRetention: 'boolean',
   },
   'openai-responses': {
     supportsDeveloperRole: 'boolean',
-    sessionAffinityFormat: ['openai', 'openai-nosession', 'openrouter'],
-    supportsLongCacheRetention: 'boolean',
     supportsStrictMode: 'boolean',
-    supportsOpenAIGrammarTools: 'boolean',
-    supportsToolSearch: 'boolean',
-    supportsExplicitPromptCacheMode: 'boolean',
+    supportsLongCacheRetention: 'boolean',
   },
   'anthropic-messages': {
     supportsEagerToolInputStreaming: 'boolean',
     supportsLongCacheRetention: 'boolean',
-    sendSessionAffinityHeaders: 'boolean',
     supportsCacheControlOnTools: 'boolean',
     supportsTemperature: 'boolean',
     forceAdaptiveThinking: 'boolean',
     allowEmptySignature: 'boolean',
     supportsStrictTools: 'boolean',
-    supportsToolReferences: 'boolean',
   },
 }
 

@@ -1,6 +1,6 @@
 /**
- * 自定义端点通道：仅剩「发送测试邮件」（配置读写已迁移到官方 settingsScope
- * 传输，见 scope.ts 与 card.tsx）。
+ * 自定义端点通道：仅剩「发送测试邮件」（配置读写经 ctx.remote.settings
+ * 直连，见 shared/client scope.ts 与 card.tsx）。
  * @module notify-email/client/api
  */
 

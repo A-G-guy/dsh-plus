@@ -20,6 +20,7 @@
   chat -w 工作区 -m 消息 一键：工作区 → 会话 → 发消息
   mock run --session S   向指定会话注入 mock 内容（回复/工具/todo/斜杠命令）
   pack [包...]           构建并打包 tarball 到 dist/
+  platform-sync          同步平台包 tarball 缓存并刷新 pnpm overrides
   release status|bump|publish  npm 发版（token 自动读取，幂等跳过已发版本）
   finish [包...] [-m 信息]     收尾一条龙：测试→bump→提交→push→发布→本机安装
   install-prod <包>      vendor tarball 装进生产 profile（--dry-run 预览）
@@ -47,6 +48,7 @@ from dshctl.cmd_lint import cmd_lint
 from dshctl.cmd_mock import cmd_mock_run
 from dshctl.cmd_pack import (cmd_install_prod, cmd_pack, cmd_restart_prod,
                              cmd_uninstall_prod)
+from dshctl.cmd_platform import cmd_platform_sync
 from dshctl.cmd_plugin import cmd_new_plugin
 from dshctl.cmd_pw import (cmd_pw_close, cmd_pw_open, cmd_pw_run,
                            cmd_pw_status)
@@ -206,6 +208,10 @@ def build_parser() -> argparse.ArgumentParser:
     pack = sub.add_parser("pack")
     pack.add_argument("packages", nargs="*", help="留空打包全部")
     pack.set_defaults(func=cmd_pack)
+
+    sub.add_parser("platform-sync",
+                   help="同步平台 tarball 缓存 + 刷新 pnpm-workspace overrides"
+                   ).set_defaults(func=cmd_platform_sync)
 
     rel = sub.add_parser("release", help="npm 发版（官方 registry，幂等跳过已发版本）")
     rel_sub = rel.add_subparsers(dest="release_command", required=True)

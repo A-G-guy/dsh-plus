@@ -17,7 +17,6 @@ export interface OfficialModelBase {
   input?: ('text' | 'image')[]
   imagePixelBudget?: number
   imageMaxBytes?: number
-  imageDetail?: 'auto' | 'low'
 }
 
 interface OfficialCatalog {
@@ -46,7 +45,6 @@ function catalogOf(kit: DshKit): OfficialCatalog {
         : { input: [...model.inputModalities] as ('text' | 'image')[] }),
       ...(model.imagePixelBudget === undefined ? {} : { imagePixelBudget: model.imagePixelBudget }),
       ...(model.imageMaxBytes === undefined ? {} : { imageMaxBytes: model.imageMaxBytes }),
-      ...(model.imageDetail === undefined ? {} : { imageDetail: model.imageDetail }),
     })
   }
   const catalog: OfficialCatalog = { baseUrl: resolved.baseURL, models }

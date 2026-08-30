@@ -6,8 +6,9 @@ allowBuilds:
   # node-pty 1.2.0-beta 优先用 prebuilds 免编译；允许其 install 脚本，
   # web-terminal 经 peer 复用宿主单实例（ADR 0001），workspace 内仅开发解析用。
   node-pty: true
-# dsh rc.2 发布当天即需在 dev/vendored 依赖中使用；
+# dsh 0.1.2-alpha.1 尚未发布 npm，@deepseek-ai/* 一律经下方 overrides 解析到本机构建 tarball；
 # minimumReleaseAgeExclude 对 prerelease range 的 peer 解析存在已知缺陷
 #（renovate#40610 同源），故对受信任的第一方 scope 整体豁免。
 minimumReleaseAgeExclude:
   - "@deepseek-ai/*"
+
