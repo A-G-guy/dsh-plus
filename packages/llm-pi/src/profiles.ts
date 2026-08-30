@@ -218,9 +218,9 @@ function materializeModel(
     profile.compat as Record<string, unknown> | undefined,
     entry.compat as Record<string, unknown> | undefined,
   )
-  if (compat !== undefined) {
-    validateCompat(api, compat, `provider "${route}" model "${entry.id}"`)
-  }
+  // 注意：不再对合并结果复验——base.compat 来自官方内置目录（extends），
+  // 目录自身有权携带 withhold 键（如 supportsOpenAIGrammarTools）；门控只约束
+  // 用户手写层（上面两次 validateCompat）。
   return {
     entry: {
       id: entry.id,
