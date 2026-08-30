@@ -39,7 +39,7 @@ import {
   type ModelBase,
 } from './catalog/builtin.ts'
 import type { ModelsDevSource } from './catalog/models-dev.ts'
-import { compatDispositionOf, compatFieldsOf, mergeCompat, validateCompat } from './compat.ts'
+import { mergeCompat, validateCompat } from './compat.ts'
 import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_MAX_REQUEST_IMAGE_BYTES,
@@ -481,22 +481,20 @@ function resolveModelReasoning(entry: PiAiModelProfile): {
   return { reasoning: true, thinkingLevelMap: map }
 }
 
-/** 官方 resolveModelCompat 的插件侧镜像：门控表过滤 + 模型级拒绝不适配字段。 */
+/**
+ * 官方 resolveModelCompat 的插件侧镜像（fallback 专用）：透传物化条目的 compat。
+ * 与官方的差异是有意的：官方校验的是用户原始条目（写时拒绝非 offer 字段），
+ * 而本 fallback 收到的条目已经归一化物化（继承值落定、用户层在 materializeModel
+ * 经 validateCompat 门控校验过）——compat 里可能合法携带内置目录的 withhold 键
+ * （如 supportsOpenAIGrammarTools），再做门控只会误杀目录继承值。
+ */
 function resolveModelCompat(
   provider: string,
   entry: PiAiModelProfile,
-  api: string,
+  _api: string,
 ): { compat: Record<string, unknown> } | Record<string, never> {
   const configured: Record<string, unknown> = {}
   for (const [field, value] of Object.entries(entry.compat ?? {})) {
-    if (compatDispositionOf(api as never, field) !== 'offer') {
-      const offered = compatFieldsOf(api as never)
-      invalid(
-        provider,
-        `model "${entry.id}" 的 compat.${field} 不适用于协议 ${api}；` +
-          `该协议可配置字段：${offered.length === 0 ? '无' : offered.join(', ')}`,
-      )
-    }
     if (value === undefined || value === null) {
       invalid(provider, `model "${entry.id}" 的 compat.${field} 未设置值；给出值或移除该键`)
     }
