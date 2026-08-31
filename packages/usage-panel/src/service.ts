@@ -9,7 +9,7 @@ import { mkdir } from 'node:fs/promises'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
-import { installSettingsSection } from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-settings'
 import { registerUsageApi } from './api.ts'
 import {
   EMPTY_CACHE,
@@ -46,11 +46,15 @@ export class UsagePanelService extends Service {
   constructor(ctx: Context, config: UsagePanelConfig) {
     super(ctx, 'usagePanel')
     this.current = () => config
-    installSettingsSection(ctx, SETTINGS_NS, Config, config, {
-      setSource: (source) => {
-        this.current = source
-      },
-      onChange: () => {},
+    // 官方 installSection 范式（0.1.2-alpha.2）：settings 在时以行级 config 为
+    // base 注册用户层，缺席/detach 时回落行级 config。
+    ctx.inject(['settings'], (settingsCtx) => {
+      settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
+        setSource: (source) => {
+          this.current = source
+        },
+        onChange: () => {},
+      })
     })
     void this.boot()
     // 实时通道：root 上的会话事件（新事件即时折叠进对应会话桶）。

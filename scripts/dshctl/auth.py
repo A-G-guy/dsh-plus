@@ -1,6 +1,6 @@
 """dshctl auth：官方 browser-auth 凭据获取（自签 cookie / 启动令牌检索）。
 
-官方机制（dsh ≥ 0.1.2-alpha.1，client-connection/src/browser-auth.ts）：
+官方机制（dsh 0.1.2-alpha.2 基线逐行核实，client-connection browser-auth）：
 - 签名密钥持久化于 $DSH_HOME/.credentials.yaml
   （records → client-connection/browser-session → payload.secret，base64url 32B）；
 - cookie 名 = dsh-auth-<base64url(sha256(authority))>，authority = host:port；

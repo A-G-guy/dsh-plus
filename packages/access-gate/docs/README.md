@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-31 10:15"
+last_modified: "2026-08-31 15:30"
 ---
 
 # @dsh-plus/access-gate
@@ -11,7 +11,7 @@ service+ui 混合插件（node 半拦截判定，浏览器半提供配置卡片�
 
 ## 与官方认证的关系（0.2.0 起，合并决策）
 
-官方（dsh ≥ 0.1.2-alpha.1）browser-auth 的覆盖与缺口：
+官方（dsh 0.1.2-alpha 线）browser-auth 的覆盖与缺口：
 
 - 官方守护：index（`?token=` 启动令牌交换签发 cookie）、`/api`、connection WS；
 - 官方缺口：**静态资产公开**、插件自有路由（如 web-terminal 的 WS）不在认证范围、

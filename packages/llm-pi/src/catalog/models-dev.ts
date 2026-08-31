@@ -21,14 +21,9 @@ import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import { dirname } from 'node:path'
 
-import HttpsProxyAgentModule from 'https-proxy-agent'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 
 import type { ModelBase } from './builtin.ts'
-
-/** 仅 https 目标走代理（http 目标直连；代理通常只提供 CONNECT 隧道）。 */
-const { HttpsProxyAgent } = HttpsProxyAgentModule as unknown as {
-  HttpsProxyAgent: new (proxy: string) => unknown
-}
 
 export interface ModelsDevStatus {
   fetchedAt: string | null

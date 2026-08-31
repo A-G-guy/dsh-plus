@@ -1,12 +1,12 @@
 ---
-last_modified: "2026-08-30 21:50"
+last_modified: "2026-08-31 15:30"
 ---
 
 # @dsh-plus/llm-pi 文档索引
 
 自定义 LLM 路由插件：在官方 `llm-pi-ai` 之外，以**自动跟随 dsh 上游**的方式提供
 pi-ai 全量能力——三协议自定义 route、官方内置 provider/model 继承 + 字段级覆盖、
-全量 compat（**compat 门控与官方 0.1.2-alpha.1 的 COMPAT_GATES 逐字段对齐，未知键
+全量 compat（**compat 门控与官方 0.1.2-alpha.2 的 COMPAT_GATES 逐字段对齐，未知键
 /withhold 字段写时拒绝**）、models.dev 目录兜底。
 另支持 `adapter: deepseek` 路由：直接复用官方 `DeepSeekAdapter`（视觉模型图片走
 Files API 文件通道、失败自动降级 base64），模型继承官方内置目录而非 pi-ai 目录。
@@ -24,10 +24,10 @@ Files API 文件通道、失败自动降级 base64），模型继承官方内置
   依赖里精确钉住的 vendored 副本（此时跨副本 `instanceof` 会让 `LlmError` 归类
   退化为 UNKNOWN，功能不受影响）。
 - **继承而非复制**：`PiAiAdapter` 构造 seam（`profiles` / `resolveApiKey` /
-  `resolveAttachments` / **`auth`（0.1.2-alpha.1 必需）** / `resolveImageAccess` /
+  `resolveAttachments` / **`auth`（0.1.2-alpha 线必需）** / `resolveImageAccess` /
   `onReplayDegrade` 回调）是官方给出的插件自有解析钩子；schema 校验完全在
   adapter 之外，本插件自行实现配置层。
-- **src 子路径双轨（0.1.2-alpha.1 新增面）**：`resolveProfiles` 与认证助手
+- **src 子路径双轨（0.1.2-alpha 线新增面，alpha.2 包根仍未导出）**：`resolveProfiles` 与认证助手
   （`credentialStoreFrom`/`authContextFrom`）仅从官方 `src/config.ts`/`src/auth.ts`
   子路径导出，npm 发布形态不携带 src/——dsh 树 dev 布局（源码仓库）时经
   src 子路径复用官方实现；npm 布局与 vendored 兜底时走插件等价实现
@@ -61,7 +61,7 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
   `transport`/`reasoning` 等）在 deepseek 路由上**写时拒绝**（防误以为生效）。
   `apiKeyEnv` 必填（DeepSeekAdapter 无环境自发现）；`baseURL` 必填，除非
   `extends: deepseek`（继承官方端点）。
-- **运行时依赖**：0.1.2-alpha.1 基线（树内含 `dsh-llm-deepseek`）；旧版 dsh 树下
+- **运行时依赖**：0.1.2-alpha.2 基线（树内含 `dsh-llm-deepseek`）；旧版 dsh 树下
   deepseek 路由在写入/启动时以明确错误拒绝，pi 路由不受影响（kit 诊断有日志）。
 - 配置卡片暂未提供 deepseek 专有字段的编辑控件，但未知字段会**原样往返保留**
   （卡片编辑不会丢 `adapter` 等手写字段）；deepseek 路由建议直接编辑 settings.yaml。
@@ -117,7 +117,7 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
 6. 自建条目的链式继承（extends 指向本插件另一条目）不支持——基座只来自两个目录源。
 
 compat 合并顺序：继承值（同协议才继承）→ route 级 → 模型级，逐字段后者胜出。
-字段门控以官方 0.1.2-alpha.1 catalog.ts COMPAT_GATES 为唯一事实源（completions
+字段门控以官方 0.1.2-alpha.2 catalog.ts COMPAT_GATES 为唯一事实源（completions
 17 / responses 3 / anthropic 7 个 offer 字段；`openRouterRouting`/`zaiToolStream`/
 `supportsToolSearch`/`sendSessionAffinityHeaders`/`supportsToolReferences` 等
 catalog 已内置厂商设置的字段官方 withhold——**写时拒绝**并提示以目录 provider 名
@@ -131,7 +131,7 @@ catalog 已内置厂商设置的字段官方 withhold——**写时拒绝**并�
   profiles 按原始 config 对象 identity 备忘 → `PiAiAdapter`（快照随 profiles
   identity 失效）→ `registerAdapter` + `registerModelDiscovery` +
   `registerConfigurableProviders`（官方 Models 页/拉取模型动作可见）。
-- 热更新走 `installSettingsSection`：配置变更下一请求生效；route 集或
+- 热更新走 `settings.installSection`：配置变更下一请求生效；route 集或
   displayName/retryPolicy 变化 → `handle.replace` 原子重注册；
   **写入被校验拒绝时保留旧注册**（官方同款护栏）。
 - **运行期宽松解析（lenient）**：`profiles()` 走宽松模式——已写入的 extends 引用
@@ -144,7 +144,7 @@ catalog 已内置厂商设置的字段官方 withhold——**写时拒绝**并�
   是原子语义（任一条目撞既有声明整批不落盘），撞名（如 route 叫 `anthropic`
   撞上官方内置目录条目）时逐个剔除冲突条目重试并告警，其余条目照常生效。
 - 配置读写走官方 remote.settings 直连（浏览器半 `createSettingsScope` /
-  `createNamespaceApi`，0.1.2-alpha.1 起 `connection.api.settings` 已移除；
+  `createNamespaceApi`，0.1.2-alpha 线起 `connection.api.settings` 已移除；
   不复用 settingsScope 服务——非 loopback 页面固定 memory 模式无数据），
   保存为 `settings.update` 深合并（providers dict 全量替换语义）；写入经既有
   settings validate 钩子（assertServiceable）把关。自定义端点仅剩模型目录：

@@ -3,7 +3,7 @@
  * - GET  /dsh-plus/lifeboat/status  → journal + 翻译状态 + 当前用户 patch 层已禁用的 dsh-plus 插件
  * - POST /dsh-plus/lifeboat/restore {name} → removeDisable + journal + 告警
  * rc8 用户 patch 层热应用：恢复无需重启，watchUserPatches 即时重载。
- * （0.1.2-alpha.1 基线：用户 patch 层热应用机制保留，行为不变。）
+ * （0.1.2-alpha.2 基线复核：用户 patch 层热应用机制保留，行为不变。）
  * @module lifeboat/health-api
  */
 import { readFile } from 'node:fs/promises'

@@ -7,13 +7,12 @@
  * @module lifeboat/config
  */
 
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
-/** settings 命名空间（品牌化后供 settings 服务注册/读写）。 */
-export const SETTINGS_NS = settingsNamespace(NS_LITERAL)
+/** settings 命名空间（字面量直供 settings 服务注册/读写，0.1.2-alpha.2 起编译期校验语法）。 */
+export const SETTINGS_NS = NS_LITERAL
 
 /** 行级配置：全部有默认值，正常部署零配置。 */
 export const Config = z.object({

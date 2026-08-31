@@ -89,7 +89,7 @@ def _init_scratch_profile(scratch: Path, env: dict[str, str], linker: str) -> Pa
         # ERR_PNPM_IGNORED_BUILDS 非零退出）；与生产 profile 决策一致。
         "allowBuilds:\n  node-pty: true\n",
         encoding="utf-8")
-    # 0.1.2-alpha.1 起 boot 把「等待不存在的服务」当硬失败（rc 期为挂起）；
+    # 0.1.2-alpha 线起 boot 把「等待不存在的服务」当硬失败（rc 期为挂起）；
     # headless 无 webServer，与 dev headless 同策禁用 web 系插件。
     rows = "\n".join(f"- id: {pid}\n  disabled: true" for pid in HEADLESS_DISABLED_IDS)
     (profile / "cordis.patch.yml").write_text(

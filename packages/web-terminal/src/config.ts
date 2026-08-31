@@ -4,13 +4,12 @@
  * 共用同一 schemastery schema。
  * @module web-terminal/config
  */
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 
 import { NS_LITERAL } from './ns.ts'
 
-/** settings 命名空间；webui 配置卡片与插件运行期读取同一份。 */
-export const SETTINGS_NS = settingsNamespace(NS_LITERAL)
+/** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
+export const SETTINGS_NS = NS_LITERAL
 
 // biome-ignore lint/suspicious/noExplicitAny: dts 可移植性——顶层 schema 的精确类型经 TypeT 消费，显式断掉 cosmokit 推断链
 const ConfigSchema: any = z.object({

@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/.pnpmfile.cjs"]
+    "includes": ["**"]
   },
   "formatter": {
     "enabled": true,

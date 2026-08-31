@@ -1,6 +1,6 @@
 /**
  * NotifyEmailService：通知编排中枢。
- * - 配置：installSettingsSection 接入 settings 用户层（$DSH_HOME/settings.yaml，热生效），
+ * - 配置：settings.installSection 接入 settings 用户层（$DSH_HOME/settings.yaml，热生效），
  *   无 settings provider 时退化为 cordis 行级 config。
  * - 触发器：registerTrigger 是第三方插件的扩展接口；内置官方适配器同路径注册。
  * - 投递：首个非空 EmailNotice 经 Mailer 发送；单个触发器抛错不影响其余。
@@ -8,7 +8,7 @@
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
-import { installSettingsSection } from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-settings'
 import { createJsonlAuditSink } from './audit.ts'
 import { Config, type NotifyEmailConfig, SETTINGS_NS } from './config.ts'
 import { registerTestApi } from './config-api.ts'
@@ -34,11 +34,15 @@ export class NotifyEmailService extends Service {
   constructor(ctx: Context, config: NotifyEmailConfig) {
     super(ctx, 'notifyEmail')
     this.current = () => config
-    installSettingsSection(ctx, SETTINGS_NS, Config, config, {
-      setSource: (source) => {
-        this.current = source
-      },
-      onChange: () => {},
+    // 官方 installSection 范式（0.1.2-alpha.2）：settings 在时以行级 config 为
+    // base 注册用户层，缺席/detach 时回落行级 config。
+    ctx.inject(['settings'], (settingsCtx) => {
+      settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
+        setSource: (source) => {
+          this.current = source
+        },
+        onChange: () => {},
+      })
     })
     const logger = ctx.logger('notify-email')
     const audit = createJsonlAuditSink(dshHomePath('logs', 'notify-email.jsonl'), (message) =>

@@ -15,7 +15,7 @@ import { homedir } from 'node:os'
 import { basename } from 'node:path'
 
 import { type Context, Service } from '@deepseek-ai/cordis'
-import { installSettingsSection } from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-settings'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 
 import { Config, SETTINGS_NS, type WebTerminalConfig } from './config.ts'
@@ -37,11 +37,15 @@ export class WebTerminalService extends Service {
     super(ctx, 'webTerminal')
     this.ptyFactory = ptyFactory
     this.current = () => config
-    installSettingsSection(ctx, SETTINGS_NS, Config, config, {
-      setSource: (source) => {
-        this.current = source
-      },
-      onChange: () => {},
+    // 官方 installSection 范式（0.1.2-alpha.2）：settings 在时以行级 config 为
+    // base 注册用户层，缺席/detach 时回落行级 config。
+    ctx.inject(['settings'], (settingsCtx) => {
+      settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
+        setSource: (source) => {
+          this.current = source
+        },
+        onChange: () => {},
+      })
     })
     this.armSweeper()
     ctx.effect(() => () => this.disposeAll(), 'web-terminal: sessions teardown')

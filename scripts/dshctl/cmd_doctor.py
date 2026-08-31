@@ -1,16 +1,14 @@
 """dshctl doctor / test：环境体检与单元测试。"""
 from __future__ import annotations
 
-import re
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 from .common import (DEV_HOME, DEV_PORT, DEV_RUN_DIR, DSH_BIN, MOCK_PORT,
                      PROD_HOME, PROD_PORTS, REPO_ROOT, TS_HOOK_REPO,
-                     find_platform_shadows, package_dirs, read_json, run,
-                     yaml_scalar)
+                     expected_platform_version, find_platform_shadows,
+                     package_dirs, read_json, run, yaml_scalar)
 
 CHECKS: list[tuple[str, bool, str]] = []
 
@@ -80,23 +78,14 @@ def _check_isolation() -> None:
            f"dev/mock 端口不得占用生产端口 {PROD_PORTS}")
 
 
-def _expected_platform_version() -> str | None:
-    """仓库期望的平台版本 = .pnpmfile.cjs 中平台缓存目录名（platform-sync 维护）。"""
-    pnpmfile = REPO_ROOT / ".pnpmfile.cjs"
-    if not pnpmfile.exists():
-        return None
-    match = re.search(r'PLATFORM_CACHE\s*=\s*"([^"]+)"', pnpmfile.read_text(encoding="utf-8"))
-    if not match:
-        return None
-    return Path(match.group(1)).name
-
-
 def _check_platform_version() -> None:
-    """本机 dsh CLI 版本必须与仓库锁定的平台版本一致（0.1.2-alpha.1 未发布 npm，
-    版本错配会让插件在旧核心里跑新代码或反之）。"""
-    expected = _expected_platform_version()
+    """本机 dsh CLI 版本必须与仓库钉版的平台版本一致（dsh 自 0.1.2-alpha.2 起发布
+    npm，manifest 钉版即事实源；版本错配会让插件在旧核心里跑新代码或反之）。"""
+    expected = expected_platform_version()
     if expected is None:
-        _check("平台版本已锁定（.pnpmfile.cjs）", False, "运行 dshctl.py platform-sync")
+        _check("平台版本钉版全仓一致", False,
+               "packages/*/package.json 的 dsh 版本线 dev 钉版不一致；"
+               "运行 dshctl.py platform-sync <版本> 统一")
         return
     if DSH_BIN is None:
         return  # toolchain 检查已报 dsh 缺失
@@ -107,7 +96,7 @@ def _check_platform_version() -> None:
     except (OSError, subprocess.TimeoutExpired):
         actual = ""
     _check(f"dsh CLI 平台版本 = {expected}", actual == expected,
-           f"当前 {actual or '未知'}；升级后运行 dshctl.py platform-sync 并 pnpm install")
+           f"当前 {actual or '未知'}；升级本机 dsh 后运行 dshctl.py platform-sync <版本> 并 pnpm install")
 
 
 def _check_prod_vendor() -> None:

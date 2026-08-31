@@ -15,18 +15,16 @@ import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type {} from '@deepseek-ai/dsh-llm'
-import {
-  SettingsConflictError,
-  type SettingsProvider,
-  settingsNamespace,
-} from '@deepseek-ai/dsh-settings'
+import { SettingsConflictError, type SettingsProvider } from '@deepseek-ai/dsh-settings'
 import { parseDocument } from 'yaml'
 
 import type { FallbackStateT } from './config.ts'
 import type { Alerter } from './notify.ts'
 
-const NS_PI_AI = settingsNamespace('llm-pi-ai')
-const NS_AGENT_DEFAULT = settingsNamespace('agent-default-model')
+// 0.1.2-alpha.2 起 settings 命名空间直接以字面量使用（编译期校验语法），
+// 不再需要 settingsNamespace() 品牌化。
+const NS_PI_AI = 'llm-pi-ai'
+const NS_AGENT_DEFAULT = 'agent-default-model'
 const RAW_NS_LLM_PI = 'dsh-plus-llm-pi'
 
 /** 翻译路由键后缀：与源路由错开，避免 llm-pi 恢复瞬间撞 DUPLICATE_ADAPTER。 */
@@ -184,9 +182,9 @@ export async function readRawSection(
 }
 
 interface SettingsWrite {
-  update(ns: ReturnType<typeof settingsNamespace>, patch: object): Promise<void>
+  update(ns: string, patch: object): Promise<void>
   mutate(
-    ns: ReturnType<typeof settingsNamespace>,
+    ns: string,
     ops: readonly {
       op: 'set' | 'unset'
       path: readonly string[]
@@ -236,7 +234,7 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
     const translated = translateProviders(providers)
     const fbProvider = `${provider}${FALLBACK_SUFFIX}`
     try {
-      // 官方 llm-pi-ai 的 installSettingsSection 注册了 validate（assertServiceable），
+      // 官方 llm-pi-ai 的 installSection 注册了 validate（assertServiceable），
       // 写时拒绝不适配的翻译结果；update 无 expectedRevision 本就无条件写，不做冲突
       // 重试——失败一律分类为「翻译失败」。
       await writes.update(NS_PI_AI, { providers: translated })
@@ -324,7 +322,7 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
   ctx.root.on('settings/updated' as never, (ns: unknown) => {
     if (typeof ns === 'string' && WATCHED_NS.has(ns)) run()
   })
-  // 事件名已核对：master 0.1.2-alpha.1 的 dsh-llm 保留 'llm/adapters-updated'
+  // 事件名已核对：0.1.2-alpha.2 的 dsh-llm 保留 'llm/adapters-updated'
   // （packages/llm/llm/src/types.ts:23 module augmentation，index.ts:344 于每次
   // adapter 注册/注销提交点 dispatch）；@deepseek-ai/dsh-llm 的类型导入已携带该
   // 声明，无需 as never。

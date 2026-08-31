@@ -14,7 +14,8 @@ import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
-import { deepEqualJson, installSettingsSection } from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-settings'
+import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 
 import { ModelsDevSource } from './catalog/models-dev.ts'
 import { Config, type LlmPiConfig, SETTINGS_NS } from './config.ts'
@@ -127,7 +128,7 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
     profiles,
     resolveApiKey: makeResolveApiKey(ctx, kit),
     resolveAttachments: () => ctx.get('attachments'),
-    // 0.1.2-alpha.1 必需：登录/OAuth 类 provider 与 pi-ai 自有凭据写入的落点。
+    // 0.1.2-alpha.2 必需（包根仍未导出官方 auth 助手）：登录/OAuth 类 provider 与 pi-ai 自有凭据写入的落点。
     // dsh 树 dev 布局（src/auth.ts 存在）时为官方助手，其余形态为内联等价
     // 实现（resolve-dsh.ts 探测，见 auth-inline.ts）。
     auth: {
@@ -284,33 +285,37 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
   ensureDeepseek()
   ensureDirectory()
 
-  installSettingsSection(ctx, SETTINGS_NS, Config, config, {
-    validate: (cfg: LlmPiConfig) => assertServiceable(cfg, deps),
-    setSource: (source: () => LlmPiConfig) => {
-      current = source
-    },
-    onChange: () => {
-      try {
-        ensureRegistration()
-      } catch (error) {
-        logger.error('llm-pi: 更新被拒，保留此前注册的 route')
-        logger.error(error)
-      }
-      try {
-        ensureDeepseek()
-      } catch (error) {
-        logger.error('llm-pi: deepseek route 更新失败，保留此前注册')
-        logger.error(error)
-      }
-      try {
-        ensureDirectory()
-      } catch (error) {
-        logger.error('llm-pi: 更新被拒，保留此前的 configurable-provider 目录')
-        logger.error(error)
-      }
-      const cfg = current()
-      modelsDev.reconfigure(cfg.catalogUrl, cfg.catalogRefreshHours, cfg.catalogProxy ?? '')
-    },
+  // 官方 installSection 范式（0.1.2-alpha.2）：settings 在时以行级 config 为
+  // base 注册用户层（validate 拒绝坏写入），缺席/detach 时回落行级 config。
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
+      validate: (cfg: LlmPiConfig) => assertServiceable(cfg, deps),
+      setSource: (source: () => LlmPiConfig) => {
+        current = source
+      },
+      onChange: () => {
+        try {
+          ensureRegistration()
+        } catch (error) {
+          logger.error('llm-pi: 更新被拒，保留此前注册的 route')
+          logger.error(error)
+        }
+        try {
+          ensureDeepseek()
+        } catch (error) {
+          logger.error('llm-pi: deepseek route 更新失败，保留此前注册')
+          logger.error(error)
+        }
+        try {
+          ensureDirectory()
+        } catch (error) {
+          logger.error('llm-pi: 更新被拒，保留此前的 configurable-provider 目录')
+          logger.error(error)
+        }
+        const cfg = current()
+        modelsDev.reconfigure(cfg.catalogUrl, cfg.catalogRefreshHours, cfg.catalogProxy ?? '')
+      },
+    })
   })
 
   return {

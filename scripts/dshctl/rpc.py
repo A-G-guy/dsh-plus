@@ -1,11 +1,11 @@
 """dshctl rpc：dsh web HTTP RPC 最小客户端（stdlib urllib，零新依赖）。
 
-协议（@deepseek-ai/dsh-host-apiproxy，权威 wire 格式见其 types/api/rpc.d.ts）：
+协议（@deepseek-ai/dsh-client-connection，权威 wire 格式见其 types/rpc.d.ts）：
 - 请求：POST http://127.0.0.1:<port>/api/<method>，
   body {"type":"client-request","rpcId":"<uuid4>","method":..., "payload":...}
 - 响应：{"type":"server-response","rpcId":..., "result":{"ok":true,"value":...}
   或 {"ok":false,"error":{"code","message","details"}}}
-- 认证（dsh ≥ 0.1.2-alpha.1）：官方 browser-auth 对 /api 连 loopback 也无豁免，
+- 认证（dsh ≥ 0.1.2-alpha.2 基线核实）：官方 browser-auth 对 /api 连 loopback 也无豁免，
   一律携 auth.cookie_header 自签的 dsh-auth-* cookie（密钥读目标实例 home 的
   .credentials.yaml，跨重启有效）。
 

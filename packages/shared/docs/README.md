@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-30 21:50"
+last_modified: "2026-08-31 15:30"
 ---
 
 # @dsh-plus/shared
@@ -20,7 +20,7 @@ alwaysBundle 需通配子路径——picomatch 裸包名不匹配 `pkg/subpath`�
 
 | 模块 | 内容 |
 |---|---|
-| `scope.ts` | `createSettingsScope` / `createNamespaceApi`：`ctx.remote.settings` 直连的命名空间 scope 与写/探活面（describe 读 + `settings/document-updated` / `connection/reset` 刷新，generation 防旧读覆盖；0.1.2-alpha.1 起替代已删除的 connection.api.settings） |
+| `scope.ts` | `createSettingsScope` / `createNamespaceApi`：`ctx.remote.settings` 直连的命名空间 scope 与写/探活面（describe 读 + `settings/document-updated` / `connection/reset` 刷新，generation 防旧读覆盖；0.1.2-alpha 线起替代已删除的 connection.api.settings） |
 | `card.tsx` | `CardChrome`：官方卡片同构外壳（折叠/标题/状态徽标/未保存标记/sticky footer/actions） |
 | `fields.tsx` | `TextField` / `CheckRow` / `SelectField`（`prefix` 注入类名前缀） |
 | `styles.ts` | `cardCss(prefix, extra?)` 全套卡片样式 + 移动端增强（≤767px 输入 16px 防缩放、44px 热区、footer 吸底；pointer:coarse 同热区）；`injectCardStyle(pluginId, css)` 官方 data-plugin-css 注入 |

@@ -96,6 +96,25 @@ def is_platform_package(name: str) -> bool:
     return name.startswith(PLATFORM_SCOPE) or name in PLATFORM_EXTRA
 
 
+# dsh 版本线包名前缀（cordis/schemastery/cosmokit 等基座包走各自版本线，不在此列）。
+PLATFORM_DSH_LINE = "@deepseek-ai/dsh"
+
+
+def expected_platform_version() -> str | None:
+    """仓库期望的 dsh 平台版本：全部包 manifest 中 dsh 版本线 dev 钉版的唯一值。
+
+    dsh 自 0.1.2-alpha.2 起发布 npm，钉版即事实源（dshctl platform-sync 统一改写）；
+    多值 = 仓内版本漂移，返回 None 由调用方报修。
+    """
+    versions: set[str] = set()
+    for manifest in sorted(PACKAGES_DIR.glob("*/package.json")):
+        meta = read_json(manifest)
+        for dep, spec in meta.get("devDependencies", {}).items():
+            if dep.startswith(PLATFORM_DSH_LINE) and re.fullmatch(r"\d+\.\d+\.\d+.*", spec):
+                versions.add(spec)
+    return versions.pop() if len(versions) == 1 else None
+
+
 def platform_runtime_deps(meta: dict) -> list[str]:
     """包 meta 的运行时依赖（dependencies + optionalDependencies）中的平台包。"""
     found: list[str] = []

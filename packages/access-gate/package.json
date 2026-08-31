@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/access-gate",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "dsh-plus service+ui plugin: dsh web 全量访问围栏——与官方 browser-auth 合并：官方 cookie 为唯一凭据，可选 IP 附加围栏，未认证导航渲染 token 输入页（PWA 可恢复），loopback 管理通道",
   "type": "module",
   "main": "lib/index.js",
@@ -39,18 +39,18 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-home-paths": "^0.1.2-alpha.1",
-    "@deepseek-ai/dsh-settings": "^0.1.2-alpha.1",
+    "@deepseek-ai/dsh-home-paths": "^0.1.2-alpha.2",
+    "@deepseek-ai/dsh-settings": "^0.1.2-alpha.2",
     "@deepseek-ai/schemastery": "^3.18.1"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/dsh-client-connection": "0.1.2-alpha.1",
-    "@deepseek-ai/dsh-home-paths": "0.1.2-alpha.1",
-    "@deepseek-ai/dsh-settings": "0.1.2-alpha.1",
-    "@deepseek-ai/dsh-host-webserver": "0.1.2-alpha.1",
-    "@deepseek-ai/schemastery": "3.18.1",
-    "@types/react": "~18.3.1",
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-client-connection": "0.1.2-alpha.2",
+    "@deepseek-ai/dsh-home-paths": "0.1.2-alpha.2",
+    "@deepseek-ai/dsh-host-webserver": "0.1.2-alpha.2",
+    "@deepseek-ai/dsh-settings": "0.1.2-alpha.2",
+    "@deepseek-ai/schemastery": "3.18.2",
+    "@types/react": "~18.3.31",
     "react": "^18.2.0"
   },
   "publishConfig": {

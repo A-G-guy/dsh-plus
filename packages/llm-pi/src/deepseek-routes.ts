@@ -11,7 +11,7 @@
  * 请求生效）；retryPolicy 是注册期捕获事实，变化时 handle.replace 原地重注册
  * （官方同款模式）；route 移除即 dispose 释放路由名。
  *
- * 0.1.2-alpha.1：DeepSeekAdapterOptions 新增必需 prepareExtensions（官方接线
+ * 0.1.2-alpha 线：DeepSeekAdapterOptions 必需 prepareExtensions（官方接线
  * ctx.get('deepseekLlmApiExtensions')，缺省空实现）与可选 resolveImageAccess。
  * @module llm-pi/deepseek-routes
  */
@@ -19,7 +19,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type { AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
-import { deepEqualJson } from '@deepseek-ai/dsh-settings'
+import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 
 import type { ResolvedDeepseekRoute } from './profiles-deepseek.ts'
 import type { DshKit } from './resolve-dsh.ts'
@@ -146,7 +146,7 @@ export class DeepseekRouteRegistrar {
             )?.processPathFromHostPath(hostPath),
           ref,
         ) as never,
-      // 0.1.2-alpha.1 必需：官方扩展注册表（deepseekLlmApiExtensions）缺席时
+      // 0.1.2-alpha 线必需：官方扩展注册表（deepseekLlmApiExtensions）缺席时
       // 给空实现（官方接线范式，llm-deepseek/src/index.ts:404-470）。
       prepareExtensions: (request) => {
         const extensions = ctx.get('deepseekLlmApiExtensions') as

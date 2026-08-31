@@ -1,7 +1,7 @@
 /**
  * 浏览器半：修复非 loopback 页面下官方设置平面（settings describe mirror）不可用。
  *
- * 背景（0.1.2-alpha.1 基线）：master 的服务端设置 RPC 可达性由统一 /api 信任
+ * 背景（0.1.2-alpha.2 基线复核：mirror 仍按 isLoopback 降级）：服务端设置 RPC 可达性由统一 /api 信任
  * 围栏（api-request-trust：Host/Origin/sec-fetch-site 校验）+ 浏览器令牌 cookie
  * 认证（browser-auth：?token= 登录签发 dsh-auth-* HttpOnly cookie）把关——旧版
  * 服务端特权方法空信任列表拦截已移除。但浏览器侧 dsh-client-ui-settings 的共享
@@ -43,7 +43,7 @@ export interface MirrorSnapshot {
 }
 
 /**
- * 官方 SettingsDescribeMirror 的最小漂移面（0.1.2-alpha.1 构建产物为准）：
+ * 官方 SettingsDescribeMirror 的最小漂移面（0.1.2-alpha.2 构建产物复核：面不变）：
  * persistence 为构造参数属性（private readonly，非 # 字段，JS 层赋值合法）、
  * load() 为公开方法。两者均可选——上游属性缺失/语义变化即 no-op。
  */

@@ -57,7 +57,7 @@ export const layoutCss = /* css */ `
     padding-left: 48px;
   }
 
-  /* 外移按钮常显面板图标：上游 rail 态默认显示 brand mark（0.1.2-alpha.1 基线
+  /* 外移按钮常显面板图标：上游 rail 态默认显示 brand mark（0.1.2-alpha.2 基线
      类名 _railMark，历史曾名 _railFish）、仅 hover 才换面板图标，触屏无
      hover 会导致展开入口不可辨识 */
   [class*="_frame"][data-sidebar-collapsed] [class*="_sidebarCol"] [class*="_toggle"] [class*="_panelIcon"] {

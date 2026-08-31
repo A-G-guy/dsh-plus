@@ -9,7 +9,8 @@ import json
 import re
 from pathlib import Path
 
-from .common import PACKAGES_DIR, REPO_ROOT, fail, read_json, write_json
+from .common import (PACKAGES_DIR, REPO_ROOT, expected_platform_version, fail,
+                     read_json, write_json)
 
 PKG_JSON = """\
 {{
@@ -176,9 +177,13 @@ def cmd_new_plugin(args) -> None:
     _scaffold(pkg_dir, args.type, args.name)
     if args.type == "tool":
         pkg = read_json(pkg_dir / "package.json")
-        # 平台包一律 peer（宿主提供单实例）+ dev 精确版（供构建/类型）
-        pkg["peerDependencies"]["@deepseek-ai/dsh-tools"] = "^0.1.2-alpha.1"
-        pkg["devDependencies"]["@deepseek-ai/dsh-tools"] = "0.1.2-alpha.1"
+        # 平台包一律 peer（宿主提供单实例）+ dev 精确版（供构建/类型）；
+        # 版本从全仓 manifest 钉版派生（platform-sync 统一维护），不硬编码。
+        platform = expected_platform_version()
+        if platform is None:
+            fail("全仓平台钉版不一致，先运行 dshctl.py platform-sync <版本>")
+        pkg["peerDependencies"]["@deepseek-ai/dsh-tools"] = f"^{platform}"
+        pkg["devDependencies"]["@deepseek-ai/dsh-tools"] = platform
         write_json(pkg_dir / "package.json", pkg)
     _register_in_bundle(pkg_dir)
     print(f"[new-plugin] 已创建 {pkg_dir}（type={args.type}）")

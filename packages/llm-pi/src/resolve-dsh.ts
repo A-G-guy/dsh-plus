@@ -12,7 +12,7 @@
  * 两条路径产物都过形状自检（assertKitShape）：上游重构导致形状漂移时
  * 抛错，由调用方决定回退或放弃注册——绝不让坏套件进入消息链路。
  *
- * 0.1.2-alpha.1 起的新面（包根未导出、仅 src 子路径有）：
+ * 0.1.2-alpha 线的新面（0.1.2-alpha.2 复核包根仍未导出、仅 src 子路径有）：
  * - resolveProfiles（config.ts）：官方解析链，dev 布局树可经 src 子路径复用；
  * - credentialStoreFrom/authContextFrom（auth.ts）：PiAiAdapter 必需 auth 注入。
  * npm 发布形态（lib/index.js 单 bundle + 无 src/）两者都拿不到：dsh 树优先
@@ -118,7 +118,7 @@ function assertKitShape(kit: DshKit, origin: string): void {
   const problems: string[] = []
   if (typeof kit.PiAiAdapter !== 'function') problems.push('PiAiAdapter 不是类')
   else {
-    // 0.1.2-alpha.1 的 LlmAdapter 抽象面：prepareCall/providerRetryPolicy 为
+    // 0.1.2-alpha.2 的 LlmAdapter 抽象面：prepareCall/providerRetryPolicy 为
     // master 适配器必需 override；models.getModels/getModel 语义未变
     // （pi-ai 0.84.2 Models.getModel(provider,id)/getModels(provider)，
     // 由同源 adapter 内部消费，本插件不直调）。

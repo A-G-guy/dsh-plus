@@ -27,7 +27,7 @@ import type { IncomingMessage } from 'node:http'
 import { type Context, Service } from '@deepseek-ai/cordis'
 // HostConnectionHandle 的 Context 声明合并（connection 服务类型来源）。
 import type {} from '@deepseek-ai/dsh-client-connection'
-import { installSettingsSection } from '@deepseek-ai/dsh-settings'
+import type {} from '@deepseek-ai/dsh-settings'
 
 import { type AccessGateConfig, Config, SETTINGS_NS } from './config.ts'
 import { type GateWebServer, installGateInterceptor } from './interceptor.ts'
@@ -52,11 +52,15 @@ export class AccessGateService extends Service {
   constructor(ctx: Context, config: AccessGateConfig) {
     super(ctx, 'accessGate')
     this.current = () => config
-    installSettingsSection(ctx, SETTINGS_NS, Config, config, {
-      setSource: (source) => {
-        this.current = source
-      },
-      onChange: () => {},
+    // 官方 installSection 范式（0.1.2-alpha.2）：settings 提供方在时以行级 config 为
+    // base 注册用户层命名空间，缺席/ detach 时回落行级 config。
+    ctx.inject(['settings'], (settingsCtx) => {
+      settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
+        setSource: (source) => {
+          this.current = source
+        },
+        onChange: () => {},
+      })
     })
     const logger = ctx.logger('access-gate')
 

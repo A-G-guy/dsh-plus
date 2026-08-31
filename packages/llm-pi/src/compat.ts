@@ -1,7 +1,7 @@
 /**
- * 逐协议 compat 门控表与校验（0.1.2-alpha.1 适配版）。
+ * 逐协议 compat 门控表与校验（0.1.2-alpha.2 复核：官方门控表逐块一致，无需变更）。
  *
- * 适配决策：官方 dsh-llm-pi-ai 0.1.2-alpha.1 的 COMPAT_GATES（catalog.ts:292）
+ * 适配决策：官方 dsh-llm-pi-ai 0.1.2-alpha.2 的 COMPAT_GATES（catalog.ts）
  * 是 compat 可配性的唯一事实源——按协议分型（offer/withhold），withhold 字段
  * （catalog 已为对应厂商设置，如 openRouterRouting/zaiToolStream/
  * sendSessionAffinityHeaders/supportsToolSearch 等）写时拒绝并提示以目录

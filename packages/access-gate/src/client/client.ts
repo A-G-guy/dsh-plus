@@ -6,7 +6,7 @@
  * 类型说明：浏览器半只用到 slots/locale/remote 的很窄一面，
  * scope 与基础控件走 @dsh-plus/shared/client 套件（收编自本插件原实现）。
  * 该插槽为 keyed 槽位：key 必须是卡片编辑的 settings 命名空间
- * （即服务端 settingsNamespace() 注册的同一字面量，见 ../ns.ts），
+ * （即服务端注册的同一字面量，见 ../ns.ts），
  * 官方配置页按此 key 与 Host 已注册命名空间配对分发。
  * 配置读写经 ctx.remote.settings 直连（0.1.2-alpha.1 起 connection.api.settings
  * 已移除；不复用 settingsScope 服务——非 loopback 页面下它固定 memory 模式无数据）。

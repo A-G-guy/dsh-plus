@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-30 21:50"
+last_modified: "2026-08-31 15:30"
 ---
 
 # @dsh-plus/web-files
@@ -30,7 +30,7 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
   （不提供路径手输编辑，有意收窄交互面）；主页按钮一键回家目录
   （/list 缺省 path 即 home）。
 - GUI 内文件链接接管（`src/client.tsx`）：包裹 `ctx.remote.session.openWorkspacePath`
-  （0.1.2-alpha.1 起官方 openFile 手势的落点——ui-chat openFile →
+  （0.1.2-alpha 线起官方 openFile 手势的落点——ui-chat openFile →
   resolveWorkspacePath(cwd, path) → openWorkspacePath；workspaces.openPath
   已从 IWorkspaces 移除），会话消息/附件的「打开文件」手势不再走宿主
   xdg-open（无桌面环境必然失败），改为 /stat 判定落点后在面板内打开

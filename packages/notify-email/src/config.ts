@@ -5,13 +5,12 @@
  * @module notify-email/config
  */
 
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
-/** settings 命名空间；webui 配置卡片与插件运行期读取同一份（字面量见 ./ns.ts）。 */
-export const SETTINGS_NS = settingsNamespace(NS_LITERAL)
+/** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
+export const SETTINGS_NS = NS_LITERAL
 
 const SmtpSchema = z.object({
   host: z.string().description('SMTP 服务器主机名').default(''),

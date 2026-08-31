@@ -1,5 +1,5 @@
 /**
- * profile 构建器（0.1.2-alpha.1 适配版）：插件 Config → 官方 schema 形状的
+ * profile 构建器（0.1.2-alpha.2 复核兼容）：插件 Config → 官方 schema 形状的
  * 「前置数据源归一化」→ 官方 resolveProfiles（或插件等价兜底）→
  * ResolvedPiAiProviderProfile。
  *

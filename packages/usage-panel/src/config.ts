@@ -3,12 +3,12 @@
  * （用户层，$DSH_HOME/settings.yaml 热生效）共用同一 schemastery schema。
  * @module usage-panel/config
  */
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
-export const SETTINGS_NS = settingsNamespace(NS_LITERAL)
+/** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验）。 */
+export const SETTINGS_NS = NS_LITERAL
 
 /** 每百万 token 单价条目（模型维度；0 = 免费）。 */
 // biome-ignore lint/suspicious/noExplicitAny: dts 可移植性——嵌套 schema 的精确类型经 TypeT 消费，显式断掉 cosmokit 推断链
