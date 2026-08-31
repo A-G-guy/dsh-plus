@@ -10,13 +10,14 @@ import type { Context } from '@deepseek-ai/cordis'
 
 import { ComposerSecret } from './composer.tsx'
 import { en, NS, zh } from './i18n.ts'
+import { SecretMenu, type TokenSpanLike } from './menu.tsx'
 import { SecretsSection } from './section.tsx'
 import { injectSecretEnvStyle } from './styles.ts'
 
 export const name = 'dsh-plus-secret-env'
 
 /** 浏览器半需要的 cordis 服务 key（loader 据此注入；package.json 的 dsh.client.inject 管包加载顺序）。 */
-export const inject = ['slots', 'locale'] as const
+export const inject = ['slots', 'locale', 'sessions'] as const
 
 interface SlotsLike {
   inject(key: string, callback: () => unknown): unknown
@@ -28,9 +29,19 @@ interface LocaleLike {
   bind(ns: string): (key: string) => string
 }
 
+/** 会话作用域句柄的结构子集（dsh-api-session-controller 客户端 sessions 服务）。 */
+interface SessionScopeLike {
+  bail(subject: unknown, event: string, payload: Record<string, unknown>): unknown
+}
+
+interface SessionsLike {
+  scope(sessionId: string): SessionScopeLike | undefined
+}
+
 interface ClientContext {
   slots: SlotsLike
   locale: LocaleLike
+  sessions: SessionsLike
   effect(execute: () => () => void, label?: string): unknown
 }
 
@@ -72,6 +83,33 @@ export function apply(ctx: Context): void {
         inject: (sessionId: string) => ({ sessionId }),
       },
       ComposerSecret,
+    ),
+  )
+
+  // `$` 触发补全菜单（conversation.input.overlay：composer 卡片内浮层）。
+  // 插入走官方会话作用域 bail 通道 slash/input-insert-text（span+draftRev CAS）。
+  c.slots.inject('conversation.input.overlay', () =>
+    c.slots.register(
+      {
+        name: 'conversation.input.overlay',
+        id: 'dse-secret-menu',
+        order: 10,
+        locale: NS,
+        inject: (sessionId: string) => ({
+          sessionId,
+          insertToken: (text: string, span: TokenSpanLike): boolean => {
+            const actx = c.sessions.scope(sessionId)
+            if (actx === undefined) return false
+            return (
+              actx.bail(actx, 'slash/input-insert-text', {
+                text,
+                span: { start: span.start, end: span.end, draftRev: span.draftRev },
+              }) === true
+            )
+          },
+        }),
+      },
+      SecretMenu,
     ),
   )
 }

@@ -47,6 +47,9 @@ const ownZh = {
   scopeGlobal: '全局',
   scopeSession: '会话',
   scopeOnce: '一次性',
+  // `$` 触发补全菜单
+  'menu.title': '密钥变量',
+  'menu.aria': '密钥变量候选',
   // 错误码
   'error.invalid-name': '变量名不合法：大写字母开头，仅字母/数字/下划线，≤64 字符。',
   'error.empty-value': '值不能为空。',
@@ -98,6 +101,8 @@ const ownEn = {
   scopeGlobal: 'global',
   scopeSession: 'session',
   scopeOnce: 'once',
+  'menu.title': 'Secret variables',
+  'menu.aria': 'Secret variable suggestions',
   'error.invalid-name':
     'Invalid name: start with an uppercase letter; letters/digits/underscore only, ≤64 chars.',
   'error.empty-value': 'Value must not be empty.',

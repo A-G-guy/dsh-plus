@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/secret-env",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh-plus service+ui plugin: 密钥环境变量——以 $DSH_SECRET_* 变量名向 agent 暴露密钥（全局持久/会话级/一次性），执行期经 dsh-shell-env 原生注入，值不进消息流，不影响缓存率",
   "type": "module",
   "main": "lib/index.js",
@@ -54,7 +54,9 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-api-remotes"
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-conversation"
       ],
       "platform": "web"
     }

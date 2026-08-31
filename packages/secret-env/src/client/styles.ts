@@ -47,7 +47,21 @@ const EXTRA = `
 .dse-popList .dse-row+.dse-row{border-top:1px solid var(--dsw-alias-border-l2)}
 .dse-popForm{border-top:1px solid var(--dsw-alias-border-l2);margin-top:8px;padding-top:4px}
 .dse-foot{justify-content:flex-end;gap:8px;display:flex;padding-top:8px}
-/* 响应式：窄屏表格转堆叠，popover 转底部抽屉 */
+/* $ 触发补全菜单（仿官方 input-trigger MenuView 的浮层语言） */
+.dse-menuWrap{position:relative}
+.dse-menu{position:absolute;bottom:calc(100% + 6px);left:8px;z-index:60;min-width:280px;max-width:min(420px,calc(100vw - 32px));max-height:320px;overflow:auto;background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:4px}
+.dse-menuTitle{color:var(--dsw-alias-label-tertiary);font-size:11px;font-weight:600;padding:6px 10px 4px}
+.dse-menuItem{appearance:none;border:none;background:0 0;cursor:pointer;align-items:center;gap:8px;width:100%;padding:7px 10px;border-radius:8px;display:flex;text-align:left}
+.dse-menuItem:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.dse-menuItemActive{background:var(--dsw-alias-interactive-bg-hover)}
+.dse-menuName{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dsw-alias-label-primary);font-size:13px;flex:none}
+.dse-menuDesc{color:var(--dsw-alias-label-tertiary);font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dse-menuBadges{align-items:center;gap:4px;flex:none;display:flex}
+@media (max-width:767px){
+.dse-menu{left:0;right:0;min-width:0;max-width:none;max-height:45vh}
+.dse-menuItem{min-height:44px}
+}
+
 @media (max-width:767px){
 .dse-formGrid{grid-template-columns:1fr}
 .dse-row{flex-wrap:wrap;padding:12px 12px}

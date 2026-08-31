@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-01 01:18"
+last_modified: "2026-09-01 02:07"
 ---
 
 # @dsh-plus/secret-env
@@ -31,6 +31,19 @@ shell 工具——值由宿主在执行瞬间注入，**永不进入会话记录
 界面展示与模型实际可见的名称一致：`$DSH_SECRET_<SUFFIX>`。
 SUFFIX 规则：大写字母开头，仅大写字母/数字/下划线，≤64 字符
 （输入自动 trim + 大写归一）。
+
+## `$` 触发补全
+
+在聊天输入框键入 `$` 即弹出密钥名候选（交互对齐官方 `/` 命令与 `@` 引用）：
+继续键入按前缀/子串过滤，↑↓ 选择，Enter/Tab/点击补全为完整变量名
+（含尾随空格），Esc 关闭。词法边界与官方一致：起草开头、空白后、标点后
+才触发；词中 `$`（如续写 `foo$BAR`）不弹窗。
+
+实现要点：官方 input-trigger 管线的检测核只认 `/` 与 `@`（TriggerChar 联合
+类型），`$` 进不了该管线，故检测/菜单由插件自理（conversation.input.overlay
+插槽 + 官方标准面 `useInput`/`inputActions`）；插入复用官方会话作用域 bail
+通道 `slash/input-insert-text`（span + draftRev CAS，编辑器内应用，引用芯片
+按 detect 投影坐标修正）。补全只写变量名文本，值不经过浏览器外的任何通道。
 
 ## 已知边界（方案 A 固有限制）
 
