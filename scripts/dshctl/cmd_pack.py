@@ -208,15 +208,25 @@ def _health_check(since_epoch: float) -> list[str]:
     if not port_open(PROD_WEB_PORT):
         problems.append(f"端口 {PROD_WEB_PORT} 30s 内未监听")
     else:
-        try:
-            req = urllib.request.Request(f"http://127.0.0.1:{PROD_WEB_PORT}/",
-                                         method="GET")
-            urllib.request.urlopen(req, timeout=5)
-        except urllib.error.HTTPError as exc:
-            if exc.code not in (200, 401):
-                problems.append(f"index 应答 HTTP {exc.code}（期望 200/401）")
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            problems.append(f"index 不可达: {exc}")
+        # 端口监听后 web UI 路由可能仍在装配（预热期会瞬时 404），
+        # 在 deadline 内重试到 200/401 为止，避免误报触发回滚。
+        code: int | None = None
+        while time.time() < deadline:
+            try:
+                req = urllib.request.Request(f"http://127.0.0.1:{PROD_WEB_PORT}/",
+                                             method="GET")
+                urllib.request.urlopen(req, timeout=5)
+                code = 200
+                break
+            except urllib.error.HTTPError as exc:
+                code = exc.code
+                if code in (200, 401):
+                    break
+                time.sleep(1)
+            except (urllib.error.URLError, TimeoutError, OSError):
+                time.sleep(1)
+        if code not in (200, 401):
+            problems.append(f"index 应答 HTTP {code}（期望 200/401）")
     failures = _journal_failures(since_epoch)
     if failures:
         print("[health] 警告：重启后 journal 检出插件失败/隔离迹象：",
