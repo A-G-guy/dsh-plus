@@ -165,7 +165,7 @@ def _snapshot_prod() -> Path:
     (snap / "dsh-version.txt").write_text(version.stdout.strip() + "\n",
                                           encoding="utf-8")
     # 滚动清理：只留最近 _SNAPSHOT_KEEP 份（定向删除具体快照目录，非通配）
-    backups = sorted(PROD_HOME / "backups").glob("install-prod-*")
+    backups = sorted((PROD_HOME / "backups").glob("install-prod-*"))
     for old in backups[: max(0, len(backups) - _SNAPSHOT_KEEP)]:
         if old.is_dir() and old != snap:
             shutil.rmtree(old)
