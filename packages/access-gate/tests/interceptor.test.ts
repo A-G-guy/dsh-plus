@@ -1,18 +1,32 @@
 /**
  * interceptor.ts 单元测试：结构包装后的放行/拦截/豁免/dispose 还原。
+ * 合并官方认证后：凭据校验以注入的 officialAuth 代理（官方 cookie），
+ * token 交换请求与 PWA 安装资产豁免。
  */
 import assert from 'node:assert/strict'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { test } from 'node:test'
 
 import { type AccessGateConfig, Config } from '../src/config.ts'
-import { type GateWebServer, installGateInterceptor } from '../src/interceptor.ts'
+import {
+  type GateWebServer,
+  type InterceptorDeps,
+  installGateInterceptor,
+  isExemptPath,
+  isTokenExchange,
+} from '../src/interceptor.ts'
 
 const ENABLED: AccessGateConfig = Config({
   enabled: true,
-  token: 'tok',
   allowedIps: ['100.108.58.63'],
 })
+
+/** 官方 cookie 校验代理：仅认 cookie 头 dsh-auth-x=valid。 */
+const officialAuth = (req: IncomingMessage): boolean => req.headers.cookie === 'dsh-auth-x=valid'
+
+function deps(config: () => AccessGateConfig): InterceptorDeps {
+  return { config, officialAuth }
+}
 
 interface Captured {
   status: number
@@ -175,54 +189,103 @@ async function dispatch(server: GateWebServer, req: IncomingMessage): Promise<Ca
 
 test('拦截器：enabled=false 完全旁路', async () => {
   const server = makeServer({ withFallback: true })
-  installGateInterceptor(fakeCtx, server, { config: () => Config({ enabled: false }) })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => Config({ enabled: false })),
+  )
   const captured = await dispatch(server, makeReq({ headers: { 'x-forwarded-for': '8.8.8.8' } }))
   assert.equal(captured.status, 200)
   assert.equal(captured.body, '{"api":true}')
 })
 
-test('拦截器：本机直连放行；XFF 陌生 IP API 403；导航登录页', async () => {
+test('拦截器：本机直连放行；XFF 陌生 IP（白名单外）API 403', async () => {
   const server = makeServer({ withFallback: true })
-  installGateInterceptor(fakeCtx, server, { config: () => ENABLED })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => ENABLED),
+  )
 
   const local = await dispatch(server, makeReq({}))
   assert.equal(local.status, 200)
 
   const blocked = await dispatch(server, makeReq({ headers: { 'x-forwarded-for': '8.8.8.8' } }))
   assert.equal(blocked.status, 403)
+})
 
+test('拦截器：未认证导航（白名单内、无 cookie）→ token 输入页', async () => {
+  const server = makeServer({ withFallback: true })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => ENABLED),
+  )
   const nav = await dispatch(
     server,
     makeReq({
       url: '/',
       method: 'GET',
-      headers: { 'x-forwarded-for': '8.8.8.8', accept: 'text/html' },
+      headers: { 'x-forwarded-for': '100.108.58.63', accept: 'text/html' },
     }),
   )
   assert.equal(nav.status, 200)
-  assert.match(nav.body, /访问控制|access/i)
-  assert.match(nav.body, /dsh-plus\/gate\/login/)
+  assert.match(nav.body, /启动令牌/)
+  assert.match(nav.body, /\/\?token=/)
 })
 
-test('拦截器：白名单 IP 与 token cookie 放行', async () => {
+test('拦截器：官方 cookie 有效放行；IP 围栏外即使持 cookie 也 403', async () => {
   const server = makeServer({ withFallback: true })
-  installGateInterceptor(fakeCtx, server, { config: () => ENABLED })
-
-  const allowed = await dispatch(
+  installGateInterceptor(
+    fakeCtx,
     server,
-    makeReq({ headers: { 'x-forwarded-for': '100.108.58.63' } }),
+    deps(() => ENABLED),
   )
-  assert.equal(allowed.status, 200)
-  assert.equal(allowed.body, '{"api":true}')
 
-  const withToken = await dispatch(
+  const authed = await dispatch(
     server,
-    makeReq({ headers: { 'x-forwarded-for': '8.8.8.8', cookie: 'dsh_gate=tok' } }),
+    makeReq({ headers: { 'x-forwarded-for': '100.108.58.63', cookie: 'dsh-auth-x=valid' } }),
   )
-  assert.equal(withToken.status, 200)
+  assert.equal(authed.status, 200)
+  assert.equal(authed.body, '{"api":true}')
+
+  const fenced = await dispatch(
+    server,
+    makeReq({ headers: { 'x-forwarded-for': '8.8.8.8', cookie: 'dsh-auth-x=valid' } }),
+  )
+  assert.equal(fenced.status, 403, '附加 IP 围栏优先于凭据')
 })
 
-test('拦截器：豁免路径（/dsh-plus/gate/*）不过围栏', async () => {
+test('拦截器：白名单为空时任何来源凭官方 cookie 即可放行', async () => {
+  const server = makeServer({ withFallback: true })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => Config({ enabled: true })),
+  )
+  const captured = await dispatch(
+    server,
+    makeReq({ headers: { 'x-forwarded-for': '8.8.8.8', cookie: 'dsh-auth-x=valid' } }),
+  )
+  assert.equal(captured.status, 200)
+})
+
+test('拦截器：官方令牌交换（GET /?token=）豁免，直达 fallback 由官方处理', async () => {
+  const server = makeServer({ withFallback: true })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => ENABLED),
+  )
+  const captured = await dispatch(
+    server,
+    makeReq({ url: '/?token=abc', method: 'GET', headers: { 'x-forwarded-for': '8.8.8.8' } }),
+  )
+  assert.equal(captured.status, 200)
+  assert.equal(captured.body, '<html>index</html>')
+})
+
+test('拦截器：豁免路径（自有端点 + PWA 安装资产）不过围栏', async () => {
   const server = makeServer({ withFallback: true })
   server.register({
     kind: 'prefix',
@@ -232,8 +295,12 @@ test('拦截器：豁免路径（/dsh-plus/gate/*）不过围栏', async () => {
       res.end('{"gate":true}')
     },
   })
-  installGateInterceptor(fakeCtx, server, { config: () => ENABLED })
-  const captured = await dispatch(
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => ENABLED),
+  )
+  const gate = await dispatch(
     server,
     makeReq({
       url: '/dsh-plus/gate/status',
@@ -241,17 +308,45 @@ test('拦截器：豁免路径（/dsh-plus/gate/*）不过围栏', async () => {
       headers: { 'x-forwarded-for': '8.8.8.8' },
     }),
   )
-  assert.equal(captured.status, 200)
-  assert.equal(captured.body, '{"gate":true}')
+  assert.equal(gate.status, 200)
+  assert.equal(gate.body, '{"gate":true}')
+
+  // PWA 安装资产未认证也必须可达（否则浏览器无法安装 PWA）
+  assert.ok(isExemptPath('/manifest.webmanifest'))
+  assert.ok(isExemptPath('/favicon.svg'))
+  const manifest = await dispatch(
+    server,
+    makeReq({
+      url: '/manifest.webmanifest',
+      method: 'GET',
+      headers: { 'x-forwarded-for': '8.8.8.8' },
+    }),
+  )
+  assert.equal(manifest.status, 200, 'manifest 豁免后落 fallback 正常服务')
+})
+
+test('令牌交换判定：仅 GET / 且带 token 参数', () => {
+  assert.ok(isTokenExchange(makeReq({ url: '/?token=abc', method: 'GET' })))
+  assert.ok(!isTokenExchange(makeReq({ url: '/?token=abc', method: 'POST' })))
+  assert.ok(!isTokenExchange(makeReq({ url: '/api?token=abc', method: 'GET' })))
+  assert.ok(!isTokenExchange(makeReq({ url: '/', method: 'GET' })))
 })
 
 test('拦截器：fallback（SPA）被围栏覆盖且放行时 SPA 语义保留', async () => {
   const server = makeServer({ withFallback: true })
-  installGateInterceptor(fakeCtx, server, { config: () => ENABLED })
-  // 陌生 IP 非 HTML accept → 403（而非落到 SPA）
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => ENABLED),
+  )
+  // 白名单内但未认证 + 非 HTML accept → 403（而非落到 SPA）
   const blocked = await dispatch(
     server,
-    makeReq({ url: '/some/spa/route', method: 'GET', headers: { 'x-forwarded-for': '8.8.8.8' } }),
+    makeReq({
+      url: '/some/spa/route',
+      method: 'GET',
+      headers: { 'x-forwarded-for': '100.108.58.63' },
+    }),
   )
   assert.equal(blocked.status, 403)
   // 本机直连 → 放行，SPA 正常服务
@@ -265,7 +360,11 @@ test('拦截器：fallback（SPA）被围栏覆盖且放行时 SPA 语义保留'
 test('拦截器：enabled=false 时 route 对象 handler 不被替换（旁路零开销）', async () => {
   const server = makeServer()
   const routeBefore = server.match('/health') as { handler: unknown }
-  installGateInterceptor(fakeCtx, server, { config: () => Config({ enabled: false }) })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => Config({ enabled: false })),
+  )
   await dispatch(server, makeReq({ url: '/health', method: 'GET' }))
   const routeAfter = server.match('/health') as { handler: unknown }
   assert.equal(routeAfter.handler, routeBefore.handler, 'disabled 时 match 返回原 route 对象')
@@ -273,7 +372,11 @@ test('拦截器：enabled=false 时 route 对象 handler 不被替换（旁路�
 
 test('拦截器：WS 升级先注册条目被拦；后注册条目同样被拦', async () => {
   const server = makeServer()
-  installGateInterceptor(fakeCtx, server, { config: () => ENABLED })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => ENABLED),
+  )
 
   const ended: string[] = []
   const fakeSocket = { end: (chunk: string) => ended.push(chunk) }
@@ -282,7 +385,7 @@ test('拦截器：WS 升级先注册条目被拦；后注册条目同样被拦',
     handler: (req: IncomingMessage, socket: unknown, head: Buffer) => unknown
   }
   before.handler(
-    makeReq({ headers: { 'x-forwarded-for': '8.8.8.8' } }),
+    makeReq({ headers: { 'x-forwarded-for': '100.108.58.63' } }),
     fakeSocket,
     Buffer.alloc(0),
   )
@@ -298,17 +401,19 @@ test('拦截器：WS 升级先注册条目被拦；后注册条目同样被拦',
     handler: (req: IncomingMessage, socket: unknown, head: Buffer) => unknown
   }
   const allowedResult = after.handler(
+    makeReq({
+      headers: { 'x-forwarded-for': '100.108.58.63', cookie: 'dsh-auth-x=valid' },
+    }),
+    fakeSocket,
+    Buffer.alloc(0),
+  )
+  assert.equal(allowedResult, 'upgraded', '官方 cookie 有效且白名单内 → 放行')
+  const blockedResult = after.handler(
     makeReq({ headers: { 'x-forwarded-for': '100.108.58.63' } }),
     fakeSocket,
     Buffer.alloc(0),
   )
-  assert.equal(allowedResult, 'upgraded', '白名单 IP 放行')
-  const blockedResult = after.handler(
-    makeReq({ headers: { 'x-forwarded-for': '8.8.8.8' } }),
-    fakeSocket,
-    Buffer.alloc(0),
-  )
-  assert.equal(blockedResult, undefined, '陌生 IP 拒绝且不进协议协商')
+  assert.equal(blockedResult, undefined, '无官方 cookie 拒绝且不进协议协商')
   assert.equal(ended.length, 2)
 })
 
@@ -320,7 +425,11 @@ test('拦截器：dispose 完全还原（patch 方法卸载、在位 handler 还
   const originalMuxHandler = muxRoute.handler
   const originalFallbackRef = server.fallback
 
-  const undo = installGateInterceptor(fakeCtx, server, { config: () => ENABLED })
+  const undo = installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => ENABLED),
+  )
   // 安装期：match 已被 patch（引用变化），在位 handler 已被替换
   assert.notEqual(server.match, server.match.bind(server))
   assert.notEqual(muxRoute.handler, originalMuxHandler)
@@ -344,7 +453,11 @@ test('拦截器：dispose 完全还原（patch 方法卸载、在位 handler 还
 
 test('拦截器：registerFallback 后注册的 fallback 亦被包装', async () => {
   const server = makeServer()
-  installGateInterceptor(fakeCtx, server, { config: () => ENABLED })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => ENABLED),
+  )
   server.registerFallback((_req, res) => {
     res.writeHead(200, { 'content-type': 'text/html' })
     res.end('<html>index</html>')
@@ -362,18 +475,22 @@ test('结构守卫：形状不符 fail-loud', () => {
   broken.match = 'not-a-function'
   assert.throws(
     () =>
-      installGateInterceptor(fakeCtx, broken as unknown as GateWebServer, {
-        config: () => ENABLED,
-      }),
+      installGateInterceptor(
+        fakeCtx,
+        broken as unknown as GateWebServer,
+        deps(() => ENABLED),
+      ),
     /shape changed/,
   )
   broken.match = originalMatch
   broken.upgrades = []
   assert.throws(
     () =>
-      installGateInterceptor(fakeCtx, broken as unknown as GateWebServer, {
-        config: () => ENABLED,
-      }),
+      installGateInterceptor(
+        fakeCtx,
+        broken as unknown as GateWebServer,
+        deps(() => ENABLED),
+      ),
     /shape changed/,
   )
 })

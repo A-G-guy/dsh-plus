@@ -63,7 +63,8 @@ def _click_in_gui(title: str, port: int) -> None:
         print("[session] 会话暂无标题，请在 GUI 侧边栏手动选中", file=sys.stderr)
         return
     try:
-        pwcli(["goto", f"http://127.0.0.1:{port}"], session=DEFAULT_SESSION)
+        from .cmd_dev import dev_authed_url
+        pwcli(["goto", dev_authed_url(port)], session=DEFAULT_SESSION)
         proc = pwcli(["find", title], session=DEFAULT_SESSION)
         ref = _pick_treeitem_ref(proc.stdout, title)
         if ref:

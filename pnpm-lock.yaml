@@ -29,6 +29,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz
         version: file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz
+      '@deepseek-ai/dsh-client-connection':
+        specifier: file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-client-connection-0.1.2-alpha.1.tgz
+        version: file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-client-connection-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz)(@deepseek-ai/dsh-host-webserver@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-host-webserver-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz))(@deepseek-ai/dsh-settings@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-settings-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz)(@deepseek-ai/schemastery@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-schemastery-3.18.1.tgz))
       '@deepseek-ai/dsh-home-paths':
         specifier: file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-home-paths-0.1.2-alpha.1.tgz
         version: file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-home-paths-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz)
@@ -842,6 +845,23 @@ packages:
       '@deepseek-ai/cordis': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz
       '@deepseek-ai/dsh-brand': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-brand-0.1.2-alpha.1.tgz
       '@deepseek-ai/dsh-invariants': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-invariants-0.1.2-alpha.1.tgz
+
+  '@deepseek-ai/dsh-client-connection@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-client-connection-0.1.2-alpha.1.tgz':
+    resolution: {integrity: sha512-LncX3IYXLXq9R7Ta3x8TK3+csZsX6G6DXeLCrFlDL7yaKgGkLeNrhkMGgKnUxlwptn5/xjiVmmRYF9xOq3pFLg==, tarball: file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-client-connection-0.1.2-alpha.1.tgz}
+    version: 0.1.2-alpha.1
+    peerDependencies:
+      '@deepseek-ai/cordis': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz
+      '@deepseek-ai/dsh-attachment': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-attachment-0.1.2-alpha.1.tgz
+      '@deepseek-ai/dsh-brand': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-brand-0.1.2-alpha.1.tgz
+      '@deepseek-ai/dsh-commands': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-commands-0.1.2-alpha.1.tgz
+      '@deepseek-ai/dsh-credentials': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-credentials-0.1.2-alpha.1.tgz
+      '@deepseek-ai/dsh-host-directory-picker': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-host-directory-picker-0.1.2-alpha.1.tgz
+      '@deepseek-ai/dsh-host-webserver': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-host-webserver-0.1.2-alpha.1.tgz
+      '@deepseek-ai/dsh-invariants': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-invariants-0.1.2-alpha.1.tgz
+      '@deepseek-ai/dsh-llm': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-llm-0.1.2-alpha.1.tgz
+      '@deepseek-ai/dsh-session': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-session-0.1.2-alpha.1.tgz
+      '@deepseek-ai/dsh-settings': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-settings-0.1.2-alpha.1.tgz
+      '@deepseek-ai/dsh-tool-todo': file:/home/agguy/.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-tool-todo-0.1.2-alpha.1.tgz
 
   '@deepseek-ai/dsh-client-locale@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-client-locale-0.1.2-alpha.1.tgz':
     resolution: {integrity: sha512-W6l4W1IKDnVVu5p2XImNFU7jklysZ3+Wt36ti8+eTn0eckPPkYmejvrmTrr9fgNPCabY1JLIVNlGz7SS4JQhwQ==, tarball: file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-client-locale-0.1.2-alpha.1.tgz}
@@ -2784,6 +2804,14 @@ snapshots:
   '@deepseek-ai/dsh-attachment@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-attachment-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz)':
     dependencies:
       '@deepseek-ai/cordis': file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz
+
+  '@deepseek-ai/dsh-client-connection@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-client-connection-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz)(@deepseek-ai/dsh-host-webserver@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-host-webserver-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz))(@deepseek-ai/dsh-settings@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-settings-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz)(@deepseek-ai/schemastery@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-schemastery-3.18.1.tgz))':
+    dependencies:
+      '@deepseek-ai/cordis': file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz
+      '@deepseek-ai/dsh-host-webserver': file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-host-webserver-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz)
+      '@deepseek-ai/dsh-settings': file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-settings-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz)(@deepseek-ai/dsh-session@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-session-0.1.2-alpha.1.tgz(@deepseek-ai/cordis@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-cordis-4.0.1.tgz))(@deepseek-ai/schemastery@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-schemastery-3.18.1.tgz)
+      '@deepseek-ai/schemastery': file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-schemastery-3.18.1.tgz
+      zod: 4.5.2
 
   '@deepseek-ai/dsh-client-locale@file:../../../.cache/dsh-plus/platform/0.1.2-alpha.1/deepseek-ai-dsh-client-locale-0.1.2-alpha.1.tgz(157098718428bf4410c13f9776d7e05f)':
     dependencies:

@@ -13,11 +13,15 @@ from .pwcli import DEFAULT_SESSION, pw_sessions, pwcli, pwcli_base
 
 
 def _dev_url(args) -> str:
-    url = args.url or f"http://127.0.0.1:{DEV_PORT}"
-    if args.url is None and not port_open(DEV_PORT):
+    if args.url is not None:
+        return args.url
+    if not port_open(DEV_PORT):
         from .cmd_dev import ensure_dev_up
         ensure_dev_up()
-    return url
+    # 官方 browser-auth 下裸地址只会撞 token 输入页；
+    # 直接用含当前启动令牌的认证链接打开（检索失败退化裸地址，页内可粘贴登录）。
+    from .cmd_dev import dev_authed_url
+    return dev_authed_url()
 
 
 def cmd_pw_open(args) -> None:

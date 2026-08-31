@@ -1,12 +1,20 @@
 /**
  * dsh 插件：访问围栏（access-gate）。
  *
- * 为 dsh web 的全部 HTTP/WebSocket 流量提供访问安全校验与访问控制：
- * - 本机直连（loopback 且无 x-forwarded-for）永久放行——管理通道，防锁死；
- * - 远程流量按 tailscale serve 注入的 x-forwarded-for 还原真实客户端 IP，
- *   命中白名单（精确 IP / CIDR，v4+v6）即放行；
- * - 或持有效 token（登录页换取 HttpOnly cookie）放行；
- * - 其余：浏览器导航返回登录页，API / WS 一律 403 / 拒绝升级。
+ * 与官方 browser-auth 合并后的全量访问围栏：
+ * - 访问凭据唯一化为官方 dsh-auth-* cookie（`?token=` 启动令牌交换签发，
+ *   30 天、按 authority 分别持有）——凭据校验委托 connection.requestRejection()，
+ *   本插件不再持有自有 token/cookie；
+ * - 本机直连（loopback 且无 x-forwarded-for）gate 层永久放行——管理通道；
+ * - allowedIps 为可选附加 IP 围栏（XFF 还原，精确 IP / CIDR，v4+v6）；
+ * - 未认证的浏览器导航 → token 输入页（粘贴启动令牌走官方交换，**PWA 内
+ *   同路径可用**——恢复官方 start_url 无法携带 token 导致的 PWA 死结）；
+ *   未认证的 API / WS / 静态资产 → 403 / 拒绝升级；
+ * - 豁免：自有端点（/dsh-plus/gate/*）、PWA 安装资产、官方令牌交换请求。
+ *
+ * 自有端点：GET /dsh-plus/gate/status（卡片诊断）、GET /dsh-plus/gate/launch-url
+ * （仅本机直连，返回当前进程认证链接——令牌跨 authority 有效，支持 host/scheme
+ * 参数生成远程变体）。
  *
  * 配置：settings 命名空间 dsh-plus-access-gate（webui 配置卡片同一份，
  * 热生效）；enabled=false 时完全旁路（等价插件缺席）。
@@ -14,7 +22,11 @@
  * 隔离止损，绝不静默 fail-open）。
  * @module @dsh-plus/access-gate
  */
+
+import type { IncomingMessage } from 'node:http'
 import { type Context, Service } from '@deepseek-ai/cordis'
+// HostConnectionHandle 的 Context 声明合并（connection 服务类型来源）。
+import type {} from '@deepseek-ai/dsh-client-connection'
 import { installSettingsSection } from '@deepseek-ai/dsh-settings'
 
 import { type AccessGateConfig, Config, SETTINGS_NS } from './config.ts'
@@ -23,7 +35,7 @@ import { registerGateRoutes } from './routes.ts'
 
 export const name = 'dsh-plus-access-gate'
 
-export const inject = ['webServer'] as const
+export const inject = ['webServer', 'connection'] as const
 
 export { Config }
 
@@ -48,15 +60,22 @@ export class AccessGateService extends Service {
     })
     const logger = ctx.logger('access-gate')
 
+    // 官方凭据校验委托：undefined = 已通过（含官方 Host 信任围栏）。
+    const officialAuth = (req: IncomingMessage): boolean =>
+      ctx.connection.requestRejection({ headers: req.headers }) === undefined
+
     // 自有端点（/dsh-plus/gate/*，围栏豁免路径）。
     registerGateRoutes(ctx, {
       config: () => this.current(),
+      officialAuth,
+      authenticatedUrl: (baseUrl) => ctx.connection.authenticatedUrl(baseUrl),
       onError: (message) => logger.warn(message),
     })
 
     // 结构包装：全部 HTTP/WS 流量的围栏。
     const undo = installGateInterceptor(ctx, ctx.webServer as unknown as GateWebServer, {
       config: () => this.current(),
+      officialAuth,
       onBlock: (message) => logger.info(message),
     })
     ctx.effect(() => undo, 'access-gate: interceptor')

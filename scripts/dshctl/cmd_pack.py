@@ -6,18 +6,28 @@
 防陈旧机制：vendor 内 tarball 文件名追加内容哈希（slug-version-<sha256前8位>.tgz），
 内容变则 file: spec 字符串变，pnpm 必然重新解析安装——根治"同版本号、同文件名的
 file: tarball 不刷新 node_modules"；安装后逐文件比对 tarball 与 node_modules 作证。
+
+防双死机制（2026-08-30 事故教训：适配中途新旧版本错配 + lifeboat 写回失败
+→ web 完全进不去）：
+- 重启前自动快照 profile 配置层与 settings（~/.dsh/backups/install-prod-<ts>/）；
+- 重启后健康检查（active + 端口可达 + index 应答 200/401 + journal 插件失败扫描）；
+- 失败即自动回滚快照并二次重启；回滚也失败时给出明确的手工指引。
 """
 from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
-from .common import (DIST_DIR, dsh_bin, PROD_HOME, PROD_WEB_SERVICE, REPO_ROOT,
+from .common import (DIST_DIR, dsh_bin, PROD_HOME, PROD_WEB_PORT,
+                     PROD_WEB_SERVICE, port_open, REPO_ROOT,
                      fail, find_package, find_platform_shadows,
                      platform_runtime_deps, read_json, run)
 
@@ -120,6 +130,143 @@ def _restart_prod() -> None:
     if out != "active":
         fail(f"{PROD_WEB_SERVICE} 重启后未 active，"
              f"请立即 journalctl -u {PROD_WEB_SERVICE} 排查")
+
+
+# ── 防双死：快照 / 健康检查 / 自动回滚 ─────────────────────────────
+
+_SNAPSHOT_KEEP = 10
+_SNAPSHOT_FILES = ("package.json", "pnpm-workspace.yaml", "cordis.yml",
+                   "cordis.patch.yml")
+
+
+def _snapshot_prod() -> Path:
+    """重启前快照生产 profile 配置层 + settings + vendor，返回快照目录。
+
+    快照对象是"可回滚的最小完整状态"：profile 声明文件决定 pnpm 安装结果，
+    settings.yaml 决定插件配置；node_modules 由 `dsh plugin install` 依声明重建。
+    """
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    snap = PROD_HOME / "backups" / f"install-prod-{stamp}"
+    profile_dir = snap / "profiles/web"
+    profile_dir.mkdir(parents=True)
+    prod_profile = _prod_profile_dir()
+    for name in _SNAPSHOT_FILES:
+        src = prod_profile / name
+        if src.exists():
+            shutil.copy2(src, profile_dir / name)
+    vendor = prod_profile / "vendor"
+    if vendor.is_dir():
+        shutil.copytree(vendor, profile_dir / "vendor")
+    settings = PROD_HOME / "settings.yaml"
+    if settings.exists():
+        shutil.copy2(settings, snap / "settings.yaml")
+    version = subprocess.run([dsh_bin(), "--version"], capture_output=True,
+                             text=True, env=_prod_env())
+    (snap / "dsh-version.txt").write_text(version.stdout.strip() + "\n",
+                                          encoding="utf-8")
+    # 滚动清理：只留最近 _SNAPSHOT_KEEP 份（定向删除具体快照目录，非通配）
+    backups = sorted(PROD_HOME / "backups").glob("install-prod-*")
+    for old in backups[: max(0, len(backups) - _SNAPSHOT_KEEP)]:
+        if old.is_dir() and old != snap:
+            shutil.rmtree(old)
+    print(f"[snapshot] 生产配置层已快照 → {snap}")
+    return snap
+
+
+def _journal_failures(since_epoch: float) -> list[str]:
+    """重启后 journal 中的插件失败/隔离行（best-effort，无权限则跳过）。"""
+    since = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(since_epoch))
+    try:
+        proc = subprocess.run(
+            ["sudo", "-n", "journalctl", "-u", PROD_WEB_SERVICE,
+             "--since", since, "--no-pager"],
+            capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if proc.returncode != 0:
+        return []
+    markers = ("加载失败", "FAILED", "隔离", "shape changed", "quarantine")
+    return [line for line in proc.stdout.splitlines()
+            if any(m in line for m in markers)][:20]
+
+
+def _health_check(since_epoch: float) -> list[str]:
+    """重启后健康检查，返回问题列表（空 = 健康）。
+
+    健康 = 服务 active + 端口监听 + index 应答 200/401（官方认证上线后
+    401 即正常）。journal 中的插件加载失败单列（lifeboat 会隔离止损，
+    web 仍可用，但必须醒目提示）。
+    """
+    problems: list[str] = []
+    out = subprocess.run(["systemctl", "is-active", PROD_WEB_SERVICE],
+                         capture_output=True, text=True).stdout.strip()
+    if out != "active":
+        problems.append(f"服务状态 {out!r}（期望 active）")
+    deadline = time.time() + 30
+    while not port_open(PROD_WEB_PORT) and time.time() < deadline:
+        time.sleep(0.5)
+    if not port_open(PROD_WEB_PORT):
+        problems.append(f"端口 {PROD_WEB_PORT} 30s 内未监听")
+    else:
+        try:
+            req = urllib.request.Request(f"http://127.0.0.1:{PROD_WEB_PORT}/",
+                                         method="GET")
+            urllib.request.urlopen(req, timeout=5)
+        except urllib.error.HTTPError as exc:
+            if exc.code not in (200, 401):
+                problems.append(f"index 应答 HTTP {exc.code}（期望 200/401）")
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            problems.append(f"index 不可达: {exc}")
+    failures = _journal_failures(since_epoch)
+    if failures:
+        print("[health] 警告：重启后 journal 检出插件失败/隔离迹象：",
+              file=sys.stderr)
+        for line in failures:
+            print(f"  {line}", file=sys.stderr)
+    return problems
+
+
+def _restore_snapshot(snap: Path) -> None:
+    """按快照还原 profile 声明层与 settings，并依声明重建 node_modules。"""
+    prod_profile = _prod_profile_dir()
+    for name in _SNAPSHOT_FILES:
+        backup = snap / "profiles/web" / name
+        if backup.exists():
+            shutil.copy2(backup, prod_profile / name)
+    vendor_backup = snap / "profiles/web/vendor"
+    if vendor_backup.is_dir():
+        vendor = prod_profile / "vendor"
+        if vendor.exists():
+            shutil.rmtree(vendor)
+        shutil.copytree(vendor_backup, vendor)
+    settings_backup = snap / "settings.yaml"
+    if settings_backup.exists():
+        shutil.copy2(settings_backup, PROD_HOME / "settings.yaml")
+    run([dsh_bin(), "plugin", "--profile", "web", "install"], env=_prod_env())
+    print(f"[rollback] 已从快照还原: {snap}")
+
+
+def _restart_prod_guarded() -> None:
+    """快照 → 重启 → 健康检查 → 失败自动回滚（再重启再检查）。"""
+    snap = _snapshot_prod()
+    started = time.time()
+    _restart_prod()
+    problems = _health_check(started)
+    if not problems:
+        print("[health] ✔ 重启后健康检查通过（active + 端口 + index 应答）")
+        return
+    print("[health] 健康检查未通过：", file=sys.stderr)
+    for problem in problems:
+        print(f"  - {problem}", file=sys.stderr)
+    print("[rollback] 自动回滚到重启前快照…", file=sys.stderr)
+    _restore_snapshot(snap)
+    started = time.time()
+    _restart_prod()
+    remaining = _health_check(started)
+    if remaining:
+        fail(f"回滚后仍未恢复健康：{'; '.join(remaining)}。快照保留在 {snap}，"
+             f"请人工 journalctl -u {PROD_WEB_SERVICE} 排查")
+    print("[rollback] ✔ 已回滚并恢复健康；新安装未生效，问题快照保留备查")
 
 
 def _workspace_dep_closure(pkg_dir: Path) -> list[Path]:
@@ -396,7 +543,7 @@ def cmd_install_prod(args) -> None:
     install_one(pkg_dir)
     if args.restart:
         if _confirm_restart():
-            _restart_prod()
+            _restart_prod_guarded()
     else:
         print("[install-prod] 安装完成。择机重启生效: python3 scripts/dshctl.py restart-prod")
 
@@ -468,6 +615,6 @@ def cmd_uninstall_prod(args) -> None:
 
 def cmd_restart_prod(_args) -> None:
     if _confirm_restart():
-        _restart_prod()
+        _restart_prod_guarded()
     else:
         print("[restart] 已取消")

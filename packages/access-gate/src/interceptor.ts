@@ -4,13 +4,19 @@
  * 机制（dsh-host-webserver 无中间件机制，路由分发必经以下三个面）：
  * 1. `match(pathname)` —— HTTP 分发总咽喉：patch 后**请求级**围栏判定——
  *    放行则返回原 route（handler 外包一层，route 对象本体不动，webserver
- *    拿到的是浅拷贝）；拒绝则返回内联拒绝 route（导航→登录页，其余→403；
+ *    拿到的是浅拷贝）；拒绝则返回内联拒绝 route（导航→token 输入页，其余→403；
  *    连「未知路径」的探测面也一并收敛）。与路由注册时序完全无关。
  * 2. `fallback` 字段 + `registerFallback` 方法 —— SPA index/静态资源：
  *    在位包装已注册的 fallback（frontend-static 先于本插件），并 patch
  *    方法兜底后续注册。
  * 3. `upgrades` Map 各 route 的 handler + `registerUpgrade` 方法 —— WS 升级
  *    双路径覆盖（先/后注册的条目都被拦截）。
+ *
+ * 与官方认证合并后的放行面：
+ * - 凭据校验委托官方 `connection.requestRejection()`（officialAuth 注入）；
+ * - 豁免：自有端点（/dsh-plus/gate/*）、PWA 安装资产（manifest/favicon）、
+ *   官方令牌交换（GET /?token=，校验本身由官方 authorizeIndex 完成）；
+ * - 未认证导航 → token 输入页（PWA 内同路径可用）；未认证非导航 → 403。
  *
  * 结构守卫：安装前校验字段形状（match 为函数、upgrades 为 Map 等），
  * 不符即 fail-loud 抛错（启动失败由 lifeboat 隔离止损，绝不静默 fail-open）。
@@ -24,8 +30,8 @@ import type { Context } from '@deepseek-ai/cordis'
 
 import type { AccessGateConfig } from './config.ts'
 import { decideGate, type GateRequest } from './decision.ts'
-import { renderLoginPage } from './login-page.ts'
 import { GATE_ROUTE } from './routes.ts'
+import { renderTokenPage } from './token-page.ts'
 
 type HttpHandler = (req: IncomingMessage, res: ServerResponse) => unknown
 type UpgradeHandler = (req: IncomingMessage, socket: Duplex, head: Buffer) => unknown
@@ -43,12 +49,26 @@ export interface GateWebServer {
 
 export interface InterceptorDeps {
   config: () => AccessGateConfig
+  /** 官方 browser-auth 校验（委托 connection.requestRejection；含官方 Host 围栏）。 */
+  officialAuth: (req: IncomingMessage) => boolean
   onBlock?: (message: string) => void
 }
 
-/** 是否围栏豁免路径（自有登录/状态端点）。 */
+/** PWA 安装/图标资产：未认证也必须可达，否则浏览器无法安装 PWA。 */
+const PWA_ASSETS: ReadonlySet<string> = new Set(['/manifest.webmanifest', '/favicon.svg'])
+
+/** 是否围栏豁免路径（自有状态/管理端点 + PWA 安装资产）。 */
 export function isExemptPath(pathname: string): boolean {
-  return pathname === GATE_ROUTE || pathname.startsWith(`${GATE_ROUTE}/`)
+  return (
+    pathname === GATE_ROUTE || pathname.startsWith(`${GATE_ROUTE}/`) || PWA_ASSETS.has(pathname)
+  )
+}
+
+/** 官方令牌交换请求：GET / 且携带 token 查询参数（放行给官方 authorizeIndex 校验）。 */
+export function isTokenExchange(req: IncomingMessage): boolean {
+  if (req.method !== 'GET') return false
+  const url = new URL(req.url ?? '/', 'http://x')
+  return url.pathname === '/' && url.searchParams.has('token')
 }
 
 function toGateRequest(req: IncomingMessage): GateRequest {
@@ -77,14 +97,15 @@ function rejectUpgrade(socket: Duplex, clientIp: string, log: (m: string) => voi
 
 /** 单请求围栏判定；放行 true / 拒绝（已写响应）false。 */
 function passHttp(req: IncomingMessage, res: ServerResponse, deps: InterceptorDeps): boolean {
-  if (isExemptPath(new URL(req.url ?? '/', 'http://x').pathname)) return true
-  const decision = decideGate(toGateRequest(req), deps.config())
+  const url = new URL(req.url ?? '/', 'http://x')
+  if (isExemptPath(url.pathname) || isTokenExchange(req)) return true
+  const decision = decideGate(toGateRequest(req), deps.config(), deps.officialAuth(req))
   if (decision.verdict === 'pass') return true
   const log = deps.onBlock ?? (() => {})
-  if (decision.verdict === 'login' && !res.headersSent) {
+  if (decision.verdict === 'token-page' && !res.headersSent) {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
-    res.end(renderLoginPage())
-    log(`login page ${req.method ?? '?'} ${req.url ?? '?'}`)
+    res.end(renderTokenPage())
+    log(`token page ${req.method ?? '?'} ${req.url ?? '?'}`)
     return false
   }
   if (!res.headersSent) {
@@ -100,7 +121,6 @@ function passHttp(req: IncomingMessage, res: ServerResponse, deps: InterceptorDe
 /** HTTP handler 包装体：先判定再派发。 */
 function gatedHttp(handler: HttpHandler, deps: InterceptorDeps): HttpHandler {
   return async (req, res) => {
-    if (isExemptPath(new URL(req.url ?? '/', 'http://x').pathname)) return handler(req, res)
     if (!passHttp(req, res, deps)) return
     return handler(req, res)
   }
@@ -109,7 +129,9 @@ function gatedHttp(handler: HttpHandler, deps: InterceptorDeps): HttpHandler {
 /** WS 升级包装体：拒绝时不进协议协商。 */
 function gatedUpgrade(handler: UpgradeHandler, deps: InterceptorDeps): UpgradeHandler {
   return (req, socket, head) => {
-    const decision = decideGate(toGateRequest(req), deps.config())
+    if (isExemptPath(new URL(req.url ?? '/', 'http://x').pathname))
+      return handler(req, socket, head)
+    const decision = decideGate(toGateRequest(req), deps.config(), deps.officialAuth(req))
     if (decision.verdict === 'pass') return handler(req, socket, head)
     rejectUpgrade(socket, decision.clientIp ?? 'unknown', deps.onBlock ?? (() => {}))
     return undefined

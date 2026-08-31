@@ -26,6 +26,7 @@
   install-prod <包>      vendor tarball 装进生产 profile（--dry-run 预览）
   uninstall-prod <包>    从生产 profile 移除（含传递闭包与孤儿 vendor tgz）
   restart-prod           确认后重启生产 web 服务（systemctl）
+  url [--dev] [--host H] 输出当前进程认证链接（含启动令牌；令牌随重启更新）
 
 环境变量 DSHCTL_VERBOSE=1：命令回显 + 子命令输出原文全量透传。
 """
@@ -58,6 +59,7 @@ from dshctl.cmd_seed import cmd_dev_seed
 from dshctl.cmd_session import (cmd_chat, cmd_session_list, cmd_session_new,
                                 cmd_session_open, cmd_session_send)
 from dshctl.cmd_smoke import cmd_smoke, cmd_smoke_prod
+from dshctl.cmd_url import cmd_url
 from dshctl.common import DEV_PORT
 from dshctl.pwcli import DEFAULT_SESSION
 
@@ -85,6 +87,13 @@ def build_parser() -> argparse.ArgumentParser:
                      help="被测 nodeLinker 布局，缺省读生产 profile 当前值")
     smp.set_defaults(func=cmd_smoke_prod)
     sub.add_parser("restart-prod").set_defaults(func=cmd_restart_prod)
+
+    urlp = sub.add_parser("url", help="输出当前进程认证链接（含启动令牌；令牌随重启更新）")
+    urlp.add_argument("--dev", action="store_true", help="目标 dev 实例（缺省生产）")
+    urlp.add_argument("--port", type=int, default=DEV_PORT, help="dev 端口（仅 --dev）")
+    urlp.add_argument("--host", help="生成指定 authority 变体，如 miniserver.example:3080")
+    urlp.add_argument("--scheme", default="http", choices=["http", "https"])
+    urlp.set_defaults(func=cmd_url)
 
     newp = sub.add_parser("new-plugin")
     newp.add_argument("name", help="包目录名，小写 kebab-case，如 tool-weather")

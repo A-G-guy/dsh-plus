@@ -208,7 +208,18 @@ def _start_daemons() -> None:
         start_daemon([dsh_bin(), "web", "--port", str(DEV_PORT)],
                      env=dev_env(), name="dsh-web-dev")
         wait_port(DEV_PORT, "dsh-web-dev")
-        print(f"[dev] dsh-web-dev 已启动 → http://127.0.0.1:{DEV_PORT}")
+        print(f"[dev] dsh-web-dev 已启动 → {dev_authed_url()}")
+
+
+def dev_authed_url(port: int = DEV_PORT) -> str:
+    """dev 实例当前进程认证链接（含启动令牌；检索失败退化为裸地址 + 提示）。"""
+    from .auth import authenticated_url
+    try:
+        return authenticated_url(
+            port, host=f"127.0.0.1:{port}", scheme="http",
+            service=None, dev_log=DEV_RUN_DIR / "dsh-web-dev.log")
+    except SystemExit:
+        return f"http://127.0.0.1:{port}（令牌检索失败，稍后可用 dshctl.py url --dev 重取）"
 
 
 def cmd_dev_up(args) -> None:

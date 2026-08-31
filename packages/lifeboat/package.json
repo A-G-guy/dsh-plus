@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/lifeboat",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "description": "dsh-plus service plugin: 故障救生艇——兄弟插件崩溃时自动隔离（写用户 patch 层禁用），llm-pi 缺席时把其配置临时翻译为官方 llm-pi-ai 路由，恢复后自动还原",
   "type": "module",
   "main": "lib/index.js",

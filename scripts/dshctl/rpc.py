@@ -5,7 +5,9 @@
   body {"type":"client-request","rpcId":"<uuid4>","method":..., "payload":...}
 - 响应：{"type":"server-response","rpcId":..., "result":{"ok":true,"value":...}
   或 {"ok":false,"error":{"code","message","details"}}}
-- 信任围栏：loopback host 且不带 cross-site Origin 即放行（本模块不发 Origin）。
+- 认证（dsh ≥ 0.1.2-alpha.1）：官方 browser-auth 对 /api 连 loopback 也无豁免，
+  一律携 auth.cookie_header 自签的 dsh-auth-* cookie（密钥读目标实例 home 的
+  .credentials.yaml，跨重启有效）。
 
 防费用护栏：一切会触发 LLM 调用的操作（prompt/mock）必须先过
 assert_mock_backend()——host.describe 证明目标实例默认模型指向本机 mock。
@@ -19,6 +21,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+from .auth import cookie_header, home_for_port
 from .common import DEV_PORT, PROD_PORTS, fail
 
 # dev settings.yaml（cmd_dev.MOCK_SETTINGS）中的默认模型指向本机 mock LLM；
@@ -36,7 +39,9 @@ def call(method: str, payload: dict, *, port: int = DEV_PORT,
     request = urllib.request.Request(
         f"http://127.0.0.1:{port}/api/{method}",
         data=json.dumps(envelope).encode(),
-        headers={"content-type": "application/json"}, method="POST")
+        headers={"content-type": "application/json",
+                 "cookie": cookie_header(home_for_port(port, PROD_PORTS), port)},
+        method="POST")
     try:
         with urllib.request.urlopen(request, timeout=timeout) as resp:
             body = json.loads(resp.read().decode())

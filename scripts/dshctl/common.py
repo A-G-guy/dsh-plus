@@ -77,7 +77,8 @@ REAL_KEY_VARS = [
 ]
 
 # 生产 profile 端口（dsh 本体 3080 / 回环代理 3081），dev 严禁占用。
-PROD_PORTS = {3080, 3081}
+PROD_WEB_PORT = 3080
+PROD_PORTS = {PROD_WEB_PORT, 3081}
 
 # ── 平台包单实例红线 ────────────────────────────────────────────────
 # 平台包 = dsh 宿主安装树提供的包。插件必须经 peerDependencies 声明、运行时经
