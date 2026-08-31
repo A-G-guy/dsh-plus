@@ -10,7 +10,7 @@
   .credentials.yaml，跨重启有效）。
 
 防费用护栏：一切会触发 LLM 调用的操作（prompt/mock）必须先过
-assert_mock_backend()——host.describe 证明目标实例默认模型指向本机 mock。
+assert_mock_backend()——settings/describe 证明目标实例默认模型指向本机 mock。
 """
 from __future__ import annotations
 
@@ -30,14 +30,27 @@ MOCK_PROVIDER = "deepseek"
 MOCK_MODEL = "deepseek-v4-flash"
 
 
+# alpha.2 wire：payload = {"args": {<参数 wire 名>: <请求对象>}}；
+# 单对象参数的 wire 名绝大多数为 request，少数为 _request；零参数端点列于下。
+_ZERO_PARAM_ENDPOINTS = frozenset({"settings/describe"})
+_PARAM_WIRE = {"session/list": "_request"}
+
+
 def call(method: str, payload: dict, *, port: int = DEV_PORT,
          timeout: float = 30.0):
-    """发起一元 RPC 调用，成功返回 result.value；业务/传输错误统一 fail。"""
+    """发起一元 RPC 调用，成功返回 result.value；业务/传输错误统一 fail。
+
+    端点名：alpha.2 起 wire 为 `<namespace>/<method>`（斜杠），URL 与信封
+    method 均用之；调用点沿用旧的 `a.b` 点号写法，在此单点映射。
+    """
     assert_not_prod_port(port)
+    endpoint = method.replace(".", "/")
+    args = {} if endpoint in _ZERO_PARAM_ENDPOINTS else {
+        _PARAM_WIRE.get(endpoint, "request"): payload}
     envelope = {"type": "client-request", "rpcId": str(uuid.uuid4()),
-                "method": method, "payload": payload}
+                "method": endpoint, "payload": {"args": args}}
     request = urllib.request.Request(
-        f"http://127.0.0.1:{port}/api/{method}",
+        f"http://127.0.0.1:{port}/api/{endpoint}",
         data=json.dumps(envelope).encode(),
         headers={"content-type": "application/json",
                  "cookie": cookie_header(home_for_port(port, PROD_PORTS), port)},
@@ -64,18 +77,38 @@ def assert_not_prod_port(port: int) -> None:
 
 
 def assert_mock_backend(port: int = DEV_PORT) -> dict:
-    """证明目标实例的默认模型走本机 mock，否则拒绝（零真实 API 费用红线）。"""
-    info = call("host.describe", {}, port=port)
-    if info.get("provider") != MOCK_PROVIDER or info.get("model") != MOCK_MODEL:
+    """证明目标实例的默认模型走本机 mock，否则拒绝（零真实 API 费用红线）。
+
+    alpha.2 起无 host.describe；改经 settings/describe 读 agent-default-model
+    命名空间的生效值（value.provider/model）判定。
+    """
+    described = call("settings.describe", {}, port=port)
+    descriptor = next(
+        (d for d in described.get("namespaces", [])
+         if d.get("ns") == "agent-default-model"), {})
+    value = descriptor.get("value") or {}
+    if value.get("provider") != MOCK_PROVIDER or value.get("model") != MOCK_MODEL:
         fail(f"目标实例（:{port}）默认模型为 "
-             f"{info.get('provider')}/{info.get('model')}，并非本机 mock "
+             f"{value.get('provider')}/{value.get('model')}，并非本机 mock "
              f"（{MOCK_PROVIDER}/{MOCK_MODEL}）；为避免真实 API 费用，拒绝继续")
-    return info
+    return value
+
+
+def _workspace_items(home: Path) -> list[dict]:
+    """直读实例 home 的 storages/workspace.json（alpha.2 无 workspace/list 端点；
+    注册表本地产物即权威源，只读不破坏一致性）。"""
+    path = home / "storages" / "workspace.json"
+    if not path.exists():
+        return []
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    table = doc.get("tables", {}).get("workspaces", {})
+    return [{"workspaceId": wid, **row} for wid, row in table.items()]
 
 
 def resolve_workspace(ref: str, *, port: int = DEV_PORT, create: bool = False) -> dict:
     """按 workspaceId / 绝对路径 / 标题解析工作区；create=True 时路径未注册则创建。"""
-    items = call("workspace.list", {}, port=port)["items"]
+    home = home_for_port(port, PROD_PORTS)
+    items = _workspace_items(home)
     for ws in items:
         if ref in (ws["workspaceId"], ws["title"]):
             return ws

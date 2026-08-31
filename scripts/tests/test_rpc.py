@@ -48,12 +48,36 @@ class TestCall(unittest.TestCase):
         with mock.patch("urllib.request.urlopen", fake_urlopen):
             value = rpc.call("session.list", {}, port=3082)
         self.assertEqual(value, {"answer": 1})
-        self.assertTrue(captured["url"].endswith("/api/session.list"))
+        # alpha.2 wire：斜杠端点名 + payload 单 args 字段包裹参数对象
+        self.assertTrue(captured["url"].endswith("/api/session/list"))
         body = captured["body"]
         self.assertEqual(body["type"], "client-request")
-        self.assertEqual(body["method"], "session.list")
-        self.assertEqual(body["payload"], {})
+        self.assertEqual(body["method"], "session/list")
+        self.assertEqual(body["payload"], {"args": {"_request": {}}})
         self.assertTrue(body["rpcId"])
+
+    def test_default_param_wire_name(self):
+        captured = {}
+
+        def fake_urlopen(request, timeout):
+            captured["body"] = json.loads(request.data.decode())
+            return ok_response({})
+
+        with mock.patch("urllib.request.urlopen", fake_urlopen):
+            rpc.call("session.prompt", {"sessionId": "s"}, port=3082)
+        self.assertEqual(captured["body"]["payload"],
+                         {"args": {"request": {"sessionId": "s"}}})
+
+    def test_zero_param_endpoint(self):
+        captured = {}
+
+        def fake_urlopen(request, timeout):
+            captured["body"] = json.loads(request.data.decode())
+            return ok_response({})
+
+        with mock.patch("urllib.request.urlopen", fake_urlopen):
+            rpc.call("settings.describe", {}, port=3082)
+        self.assertEqual(captured["body"]["payload"], {"args": {}})
 
     def test_business_error_fails(self):
         with mock.patch("urllib.request.urlopen",
@@ -75,15 +99,27 @@ class TestCall(unittest.TestCase):
                 rpc.call("session.list", {}, port=port)
 
 
+def _describe_value(provider: str, model: str) -> dict:
+    return {"namespaces": [{"ns": "agent-default-model",
+                            "value": {"provider": provider, "model": model}}]}
+
+
 class TestGuards(unittest.TestCase):
     def test_mock_backend_accepted(self):
-        desc = {"provider": "deepseek", "model": "deepseek-v4-flash"}
-        with mock.patch.object(rpc, "call", return_value=desc):
-            self.assertEqual(rpc.assert_mock_backend(3082), desc)
+        described = _describe_value("deepseek", "deepseek-v4-flash")
+        with mock.patch.object(rpc, "call", return_value=described):
+            value = rpc.assert_mock_backend(3082)
+        self.assertEqual(value["provider"], "deepseek")
+        self.assertEqual(value["model"], "deepseek-v4-flash")
 
     def test_real_backend_rejected(self):
-        desc = {"provider": "kimi-coding", "model": "k3-256k"}
-        with mock.patch.object(rpc, "call", return_value=desc):
+        described = _describe_value("kimi-coding", "k3-256k")
+        with mock.patch.object(rpc, "call", return_value=described):
+            with self.assertRaises(SystemExit):
+                rpc.assert_mock_backend(3082)
+
+    def test_missing_descriptor_rejected(self):
+        with mock.patch.object(rpc, "call", return_value={"namespaces": []}):
             with self.assertRaises(SystemExit):
                 rpc.assert_mock_backend(3082)
 
@@ -105,16 +141,16 @@ SESSIONS = [
 
 class TestResolve(unittest.TestCase):
     def test_workspace_by_title(self):
-        with mock.patch.object(rpc, "call", return_value={"items": WS}):
+        with mock.patch.object(rpc, "_workspace_items", return_value=WS):
             self.assertEqual(rpc.resolve_workspace("monit")["workspaceId"], "ws-2")
 
     def test_workspace_by_path(self):
-        with mock.patch.object(rpc, "call", return_value={"items": WS}):
+        with mock.patch.object(rpc, "_workspace_items", return_value=WS):
             ws = rpc.resolve_workspace("/home/agguy/workspace/projects/monit")
             self.assertEqual(ws["workspaceId"], "ws-2")
 
     def test_workspace_missing_fails(self):
-        with mock.patch.object(rpc, "call", return_value={"items": WS}):
+        with mock.patch.object(rpc, "_workspace_items", return_value=WS):
             with self.assertRaises(SystemExit):
                 rpc.resolve_workspace("不存在的标题xyz")
 

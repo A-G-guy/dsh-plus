@@ -4,19 +4,21 @@
 发送 prompt——web 实例的 agent 走真实管线消费 mock 响应，产出的会话记录
 （工具调用/思考/todo/终答）与真实模型完全一致，GUI 实时可见。
 
-红线：目标实例必须先通过 assert_mock_backend（host.describe 证明默认模型
+红线：目标实例必须先通过 assert_mock_backend（settings/describe 证明默认模型
 指向本机 mock），且 RPC 端口不得为生产端口。
 """
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
 
+from .auth import home_for_port
 from .cmd_dev import clear_mock_script, ensure_mock_running, write_mock_script
 from .cmd_session import _click_in_gui, _prompt, _require_dev_up, _session_title
-from .common import fail
+from .common import PROD_PORTS, fail
 from .rpc import assert_mock_backend, call, resolve_session, wait_session_idle
 
 TODO_STATUSES = ("pending", "in_progress", "completed")
@@ -93,10 +95,28 @@ def _default_marker(entries: list[dict]) -> str | None:
     return None
 
 
+def _read_session_log(session_id: str, port: int) -> str:
+    """直读目标实例 home 下的会话 JSONL（zstd 压缩；marker 校验只读、无副作用）。
+
+    alpha.2 的 session/page 需 follow 游标（durable address + throughSeq），
+    对一次性校验过重；本地落盘文件即权威记录，zstd CLI 解压即可。
+    """
+    home = home_for_port(port, PROD_PORTS)
+    matches = sorted(home.glob(f"sessions/*/{session_id}/session.jsonl.zstd"))
+    if not matches:
+        fail(f"会话 {session_id} 的落盘记录不存在（尚无消息持久化？）")
+    try:
+        proc = subprocess.run(["zstd", "-dc", str(matches[-1])],
+                              capture_output=True, text=True, timeout=30)
+    except FileNotFoundError:
+        fail("缺少 zstd CLI（解压会话记录需要）；请安装 zstd 后重试")
+    if proc.returncode != 0:
+        fail(f"会话记录解压失败: {proc.stderr.strip()}")
+    return proc.stdout
+
+
 def _verify_marker(session_id: str, marker: str, port: int) -> None:
-    page = call("session.history", {"sessionId": session_id, "maxMessages": 5},
-                port=port)
-    if marker not in json.dumps(page, ensure_ascii=False):
+    if marker not in _read_session_log(session_id, port):
         fail(f"会话历史中未见 marker {marker!r}，mock 内容未按预期落库；"
              f"请检查 mock-llm 日志与脚本 match 是否命中")
 

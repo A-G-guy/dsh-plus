@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 import sys
 import time
+import uuid
 
 from .common import DEV_PORT, fail, port_open
 from .pwcli import DEFAULT_SESSION, pwcli
@@ -34,13 +35,13 @@ def _require_dev_up(port: int) -> None:
 
 
 def _prompt(session_id: str, text: str, mode: str, port: int) -> None:
-    value = call("session.prompt", {
+    # alpha.2 wire：requestId 为客户端铸造的幂等身份（必填）；
+    # 回执仅 {accepted:true}，不再有斜杠命令回显字段。
+    call("session.prompt", {
+        "requestId": str(uuid.uuid4()),
         "sessionId": session_id, "mode": mode,
         "content": [{"type": "text", "text": text}],
     }, port=port)
-    command = (value or {}).get("command")
-    if command and command.get("text"):
-        print(f"[session] 斜杠命令已执行: {command['text']}")
 
 
 def _pick_treeitem_ref(find_output: str, title: str) -> str | None:
