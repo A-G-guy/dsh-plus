@@ -211,3 +211,92 @@ test('given a blank description, when registering, then a fallback description i
   assert.ok(contributor !== undefined)
   assert.notEqual(contributor.variables[envNameOf('NODESC_KEY')]?.description.trim(), '')
 })
+
+test('given a global secret, when globally masked, then injection stops and the mask persists', async () => {
+  const fake = createFakeCtx()
+  await fake.service.setGlobal('MASK_KEY', 'test-only-mask', '')
+  const envName = envNameOf('MASK_KEY')
+  await fake.service.setMask('MASK_KEY', true)
+  assert.equal(collect(fake)[envName], undefined)
+  assert.deepEqual(fake.settings.data.masked, ['MASK_KEY'])
+  await fake.service.setMask('MASK_KEY', false)
+  assert.equal(collect(fake)[envName], 'test-only-mask')
+  assert.deepEqual(fake.settings.data.masked, [])
+})
+
+test('given global and session values, when masked in one session, then only that session is blocked', async () => {
+  const fake = createFakeCtx()
+  await fake.service.setGlobal('SMASK_KEY', 'test-only-global', '')
+  fake.service.setSession('s1', 'S_ONLY', 'test-only-s1', '', false)
+  await fake.service.setMask('SMASK_KEY', true, 's1')
+  await fake.service.setMask('S_ONLY', true, 's1')
+  assert.equal(collect(fake, 's1')[envNameOf('SMASK_KEY')], undefined)
+  assert.equal(collect(fake, 's2')[envNameOf('SMASK_KEY')], 'test-only-global')
+  // 会话屏蔽同样拦截会话级值。
+  assert.equal(collect(fake, 's1')[envNameOf('S_ONLY')], undefined)
+  assert.equal(collect(fake, 's2')[envNameOf('S_ONLY')], undefined)
+  // 会话视图列表反映屏蔽态。
+  const list = await fake.service.list('s1')
+  assert.equal(list.global.find((item) => item.name === 'SMASK_KEY')?.masked, true)
+})
+
+test('given an inherited host variable, when the service boots, then it is forwarded by default', async () => {
+  process.env[envNameOf('INH_KEY')] = 'test-only-inherited'
+  try {
+    const fake = createFakeCtx()
+    await fake.service.ready
+    assert.equal(collect(fake)[envNameOf('INH_KEY')], 'test-only-inherited')
+    const list = await fake.service.list()
+    assert.deepEqual(
+      list.inherited.map((item) => [item.name, item.masked]),
+      [['INH_KEY', false]],
+    )
+    // 列表永不回显继承值。
+    assert.equal(JSON.stringify(list).includes('test-only-inherited'), false)
+  } finally {
+    delete process.env[envNameOf('INH_KEY')]
+  }
+})
+
+test('given an inherited variable, when masked globally or per session, then forwarding stops', async () => {
+  process.env[envNameOf('INH2_KEY')] = 'test-only-inh2'
+  try {
+    const fake = createFakeCtx()
+    await fake.service.ready
+    const envName = envNameOf('INH2_KEY')
+    await fake.service.setMask('INH2_KEY', true, 's1')
+    assert.equal(collect(fake, 's1')[envName], undefined)
+    assert.equal(collect(fake, 's2')[envName], 'test-only-inh2')
+    await fake.service.setMask('INH2_KEY', true)
+    assert.equal(collect(fake)[envName], undefined)
+    assert.equal(collect(fake, 's2')[envName], undefined)
+    const list = await fake.service.list('s2')
+    assert.equal(list.inherited[0]?.masked, true)
+    assert.equal(list.inherited[0]?.globallyMasked, true)
+    await fake.service.setMask('INH2_KEY', false)
+    assert.equal(collect(fake, 's2')[envName], 'test-only-inh2')
+  } finally {
+    delete process.env[envNameOf('INH2_KEY')]
+  }
+})
+
+test('given an inherited name later indexed, when managed registration takes over, then no key conflict and back', async () => {
+  process.env[envNameOf('TAKE_KEY')] = 'test-only-env'
+  try {
+    const fake = createFakeCtx()
+    await fake.service.ready
+    const envName = envNameOf('TAKE_KEY')
+    assert.equal(collect(fake)[envName], 'test-only-env')
+    // 索引接管：受管 contributor 注册前继承 contributor 让位（无一键两主）。
+    await fake.service.setGlobal('TAKE_KEY', 'test-only-managed', '')
+    assert.equal(collect(fake)[envName], 'test-only-managed')
+    // 继承条目消失（已入索引）。
+    const list = await fake.service.list()
+    assert.equal(list.inherited.length, 0)
+    // 移出索引后回落继承转发。
+    await fake.service.unsetGlobal('TAKE_KEY')
+    assert.equal(collect(fake)[envName], 'test-only-env')
+  } finally {
+    delete process.env[envNameOf('TAKE_KEY')]
+  }
+})

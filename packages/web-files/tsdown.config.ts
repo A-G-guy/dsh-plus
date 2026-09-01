@@ -62,5 +62,7 @@ export default defineConfig([
       banner: CLIENT_BANNER,
       footer: CLIENT_FOOTER,
     },
+    // 浏览器无 process 全局：折叠打包依赖（scheduler/shiki 等）的 NODE_ENV 分支。
+    define: { 'process.env.NODE_ENV': '"production"' },
   },
 ])

@@ -1,17 +1,20 @@
 /**
  * 浏览器半入口：
- * - settings.section 官方插槽注册「密钥变量」独立设置页（全局管理）；
- * - conversation.input.right session 作用域插槽注册 composer 钥匙胶囊
- *   （会话级密钥面板；会话 id 由插槽 inject 工厂直接供给）。
+ * - settings.section 官方插槽注册「环境变量」独立设置页
+ *   （全局管理 + 继承变量屏蔽 + 会话变量管理）；
+ * - conversation.input.overlay 注册两个 session 作用域浮层：
+ *   `$` 触发补全菜单与 /var 命令唤起的会话变量面板；
+ * - commandUi 注册 /var 斜杠命令（官方 popupSelect 壳 → 打开总线 → 面板）。
  * 数据均经同源 HTTP 端点（值不上行经任何对话通道）。
  * @module @dsh-plus/secret-env/client
  */
 import type { Context } from '@deepseek-ai/cordis'
 
-import { ComposerSecret } from './composer.tsx'
+import { registerVarCommand } from './command.ts'
 import { en, NS, zh } from './i18n.ts'
 import { SecretMenu, type TokenSpanLike } from './menu.tsx'
-import { SecretsSection } from './section.tsx'
+import { SessionPanelHost } from './panel-host.tsx'
+import { SecretsSection, type SessionsListLike } from './section.tsx'
 import { injectSecretEnvStyle } from './styles.ts'
 
 export const name = 'dsh-plus-secret-env'
@@ -34,14 +37,16 @@ interface SessionScopeLike {
   bail(subject: unknown, event: string, payload: Record<string, unknown>): unknown
 }
 
-interface SessionsLike {
+interface SessionsLike extends SessionsListLike {
   scope(sessionId: string): SessionScopeLike | undefined
+  subagentAddress?(sessionId: string): unknown
 }
 
 interface ClientContext {
   slots: SlotsLike
   locale: LocaleLike
   sessions: SessionsLike
+  inject(keys: readonly string[], callback: (scope: never) => void): unknown
   effect(execute: () => () => void, label?: string): unknown
 }
 
@@ -65,26 +70,14 @@ export function apply(ctx: Context): void {
         id: 'dsh-plus-secret-env',
         order: 16,
         label: () => t('nav'),
-        inject: () => ({ t }),
+        inject: () => ({ t, sessions: c.sessions }),
       },
       SecretsSection,
     ),
   )
 
-  // composer 工具行钥匙胶囊（conversation.input.right：session 作用域 list 槽，
-  // inject 工厂收框架解析的 sessionId）。
-  c.slots.inject('conversation.input.right', () =>
-    c.slots.register(
-      {
-        name: 'conversation.input.right',
-        id: 'dsh-plus-secret-env',
-        order: 40,
-        locale: NS,
-        inject: (sessionId: string) => ({ sessionId }),
-      },
-      ComposerSecret,
-    ),
-  )
+  // `/var` 斜杠命令（commandUi 由 dsh-client-ui-commands 客户端半提供）。
+  registerVarCommand(c, c.sessions, t)
 
   // `$` 触发补全菜单（conversation.input.overlay：composer 卡片内浮层）。
   // 插入走官方会话作用域 bail 通道 slash/input-insert-text（span+draftRev CAS）。
@@ -110,6 +103,20 @@ export function apply(ctx: Context): void {
         }),
       },
       SecretMenu,
+    ),
+  )
+
+  // `/var` 唤起的会话变量面板（同一 overlay 槽，监听打开总线）。
+  c.slots.inject('conversation.input.overlay', () =>
+    c.slots.register(
+      {
+        name: 'conversation.input.overlay',
+        id: 'dse-secret-panel',
+        order: 20,
+        locale: NS,
+        inject: (sessionId: string) => ({ sessionId }),
+      },
+      SessionPanelHost,
     ),
   )
 }

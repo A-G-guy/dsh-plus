@@ -1,13 +1,13 @@
 /**
  * 变量名语法（纯函数，零依赖；node 半与浏览器半共用）：
  * 用户给出后缀（如 `GITHUB_TOKEN`），插件拼出完整受管变量名
- * `DSH_SECRET_GITHUB_TOKEN`——即模型经 `env | grep ^DSH_` 可见、
- * 在 shell 命令中以 `$DSH_SECRET_*` 引用的那个名字。
+ * `DSH_VAR_GITHUB_TOKEN`——即模型经 `env | grep ^DSH_` 可见、
+ * 在 shell 命令中以 `$DSH_VAR_*` 引用的那个名字。
  * @module secret-env/names
  */
 
 /** 受管变量名前缀（属 dsh-shell-env 的 DSH_* 受管命名空间）。 */
-export const ENV_PREFIX = 'DSH_SECRET_'
+export const ENV_PREFIX = 'DSH_VAR_'
 
 /** 后缀语法：POSIX 环境变量名，大写字母开头，总长（含前缀）不超过 79。 */
 const SUFFIX_PATTERN = /^[A-Z][A-Z0-9_]*$/

@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/access-gate",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "dsh-plus service+ui plugin: dsh web 全量访问围栏——与官方 browser-auth 合并：官方 cookie 为唯一凭据，可选 IP 附加围栏，未认证导航渲染 token 输入页（PWA 可恢复），loopback 管理通道",
   "type": "module",
   "main": "lib/index.js",

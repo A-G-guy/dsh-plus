@@ -14,12 +14,12 @@ export interface SecretHit {
   readonly end: number
 }
 
-/** 菜单候选项（全局与会话密钥的统一视图，纯展示数据）。 */
+/** 菜单候选项（全局/会话/继承密钥的统一视图，纯展示数据）。 */
 export interface SecretCandidate {
   readonly envName: string
   readonly name: string
   readonly description: string
-  readonly scope: 'global' | 'session'
+  readonly scope: 'global' | 'session' | 'inherited'
   readonly once?: boolean
 }
 

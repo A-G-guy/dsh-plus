@@ -11,4 +11,4 @@ allowBuilds:
 # 第一方 scope 整体豁免，防止启用 minimumReleaseAge 时新版发布窗口期被拦。
 minimumReleaseAgeExclude:
   - "@deepseek-ai/*"
-
+  - lucide-react@1.38.0

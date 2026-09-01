@@ -92,12 +92,23 @@ function toCandidates(list: SecretList): SecretCandidate[] {
       scope: 'session' as const,
       once: entry.once,
     })),
-    ...list.global.map((entry) => ({
-      envName: entry.envName,
-      name: entry.name,
-      description: entry.description,
-      scope: 'global' as const,
-    })),
+    // 已屏蔽的变量不会注入，不出候选（避免误导补全）。
+    ...list.global
+      .filter((entry) => !entry.masked)
+      .map((entry) => ({
+        envName: entry.envName,
+        name: entry.name,
+        description: entry.description,
+        scope: 'global' as const,
+      })),
+    ...list.inherited
+      .filter((entry) => !entry.masked)
+      .map((entry) => ({
+        envName: entry.envName,
+        name: entry.name,
+        description: '',
+        scope: 'inherited' as const,
+      })),
   ]
 }
 
@@ -262,6 +273,7 @@ export function SecretMenu(props: SecretMenuProps): ReactElement | null {
             type="button"
             role="option"
             aria-selected={index === highlight}
+            title={`$${entry.envName}`}
             className={`dse-menuItem${index === highlight ? ' dse-menuItemActive' : ''}`}
             onMouseEnter={() => setHighlight(index)}
             onMouseDown={(event) => {
@@ -269,12 +281,16 @@ export function SecretMenu(props: SecretMenuProps): ReactElement | null {
               pick(entry)
             }}
           >
-            <span className="dse-menuName">${entry.envName}</span>
+            <span className="dse-menuName">{entry.name}</span>
             <span className="dse-menuDesc">{entry.description}</span>
             <span className="dse-menuBadges">
               {entry.once === true ? <span className="dse-badge">{t('scopeOnce')}</span> : null}
               <span className="dse-badge dse-badgeDim">
-                {entry.scope === 'session' ? t('scopeSession') : t('scopeGlobal')}
+                {entry.scope === 'session'
+                  ? t('scopeSession')
+                  : entry.scope === 'inherited'
+                    ? t('scopeInherited')
+                    : t('scopeGlobal')}
               </span>
             </span>
           </button>

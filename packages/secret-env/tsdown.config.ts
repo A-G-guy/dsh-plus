@@ -36,13 +36,22 @@ export default defineConfig([
     dts: true,
     outDir: 'lib',
     deps: {
-      neverBundle: ['react', 'react/jsx-runtime'],
+      neverBundle: [
+        'react',
+        'react/jsx-runtime',
+        // 平台 seed 模块：运行时由外壳模块表供给（shared 图标由此 re-export）
+        '@deepseek-ai/dsh-client-ui-primitives',
+      ],
       alwaysBundle: ['@dsh-plus/shared/**'],
     },
     outputOptions: {
       entryFileNames: 'client.js',
       banner: CLIENT_BANNER,
       footer: CLIENT_FOOTER,
+      // 宿主只服务单文件 client.js：代码分割的 chunk 进不了模块表，必须内联。
+      inlineDynamicImports: true,
     },
+    // 浏览器无 process 全局：折叠打包依赖（scheduler/shiki 等）的 NODE_ENV 分支。
+    define: { 'process.env.NODE_ENV': '"production"' },
   },
 ])

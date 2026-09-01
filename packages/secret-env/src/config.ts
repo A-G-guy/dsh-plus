@@ -22,6 +22,10 @@ const SecretMetaSchema: any = z.object({
 
 export const Config = z.object({
   secrets: z.array(SecretMetaSchema).description('全局密钥元数据索引（值存凭据库）').default([]),
+  masked: z
+    .array(z.string())
+    .description('全局屏蔽的变量名后缀（继承变量等；注入时跳过）')
+    .default([]),
 })
 
 export type SecretEnvConfig = Schemastery.TypeT<typeof Config>

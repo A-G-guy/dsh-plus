@@ -41,6 +41,10 @@ export default defineConfig([
       entryFileNames: 'client.js',
       banner: CLIENT_BANNER,
       footer: CLIENT_FOOTER,
+      // 宿主只服务单文件 client.js：代码分割的 chunk 进不了模块表，必须内联。
+      inlineDynamicImports: true,
     },
+    // 浏览器无 process 全局：折叠打包依赖（scheduler/shiki 等）的 NODE_ENV 分支。
+    define: { 'process.env.NODE_ENV': '"production"' },
   },
 ])

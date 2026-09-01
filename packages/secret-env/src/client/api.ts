@@ -11,6 +11,8 @@ export interface GlobalWireEntry {
   configured: boolean
   source?: string
   writable: boolean
+  /** 会话视图：本会话已屏蔽（无 sessionId 的请求恒 false）。 */
+  masked: boolean
 }
 
 export interface SessionWireEntry {
@@ -21,9 +23,20 @@ export interface SessionWireEntry {
   createdAt: string
 }
 
+/** 继承变量：宿主进程环境中已存在的 DSH_VAR_*（非本插件管理）。 */
+export interface InheritedWireEntry {
+  name: string
+  envName: string
+  /** 生效屏蔽态（全局或本会话）。 */
+  masked: boolean
+  /** 是否由全局屏蔽导致（会话视图据此禁用会话级开关）。 */
+  globallyMasked: boolean
+}
+
 export interface SecretList {
   global: GlobalWireEntry[]
   session: SessionWireEntry[]
+  inherited: InheritedWireEntry[]
 }
 
 interface WriteResult {
@@ -73,4 +86,9 @@ export function setSession(
 
 export function unsetSession(sessionId: string, name: string): Promise<void> {
   return write('session/unset', { sessionId, name })
+}
+
+/** 屏蔽/恢复：sessionId 缺席为全局屏蔽（设置页），否则为会话级屏蔽。 */
+export function setMask(name: string, masked: boolean, sessionId?: string): Promise<void> {
+  return write('mask/set', { name, masked, sessionId })
 }

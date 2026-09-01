@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/web-files",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "dsh-plus ui plugin: Web 内嵌类 SFTP 文件浏览与编辑（远程/移动端无本地编辑器时预览并编辑服务器文件）",
   "type": "module",
   "main": "lib/index.js",

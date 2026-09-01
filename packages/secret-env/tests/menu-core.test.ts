@@ -54,9 +54,9 @@ test('sameHit: 逐字段等价', () => {
 })
 
 const ENTRIES: SecretCandidate[] = [
-  { envName: 'DSH_SECRET_GITHUB_TOKEN', name: 'GITHUB_TOKEN', description: '', scope: 'global' },
-  { envName: 'DSH_SECRET_API_KEY', name: 'API_KEY', description: '', scope: 'session' },
-  { envName: 'DSH_SECRET_GITLAB_CI', name: 'GITLAB_CI', description: '', scope: 'global' },
+  { envName: 'DSH_VAR_GITHUB_TOKEN', name: 'GITHUB_TOKEN', description: '', scope: 'global' },
+  { envName: 'DSH_VAR_API_KEY', name: 'API_KEY', description: '', scope: 'session' },
+  { envName: 'DSH_VAR_GITLAB_CI', name: 'GITLAB_CI', description: '', scope: 'global' },
 ]
 
 test('filter: 空 query 全量返回', () => {

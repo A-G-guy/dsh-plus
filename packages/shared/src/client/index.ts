@@ -16,7 +16,23 @@ export {
 export { getJson, postJson } from './fetch.ts'
 export { CheckRow, SelectField, type SelectOption, TextField } from './fields.tsx'
 export { commonEn, commonZh, type Dict, mergeDict } from './i18n.ts'
-export { ChevronDownIcon, type IconProps } from './icons.tsx'
+export {
+  ChevronDownIcon,
+  IconApiOutline14,
+  IconCheckOutline16,
+  IconChevronDownOutline14,
+  IconCloseOutline16,
+  IconCopyOutline16,
+  IconEye,
+  IconEyeOff,
+  IconLoadingOutline16,
+  IconPlusOutline16,
+  type IconProps,
+  IconRefreshOutline14,
+  IconRefreshOutline16,
+  IconTrashOutline16,
+  IconWarningOutline16,
+} from './icons.tsx'
 export {
   createNamespaceApi,
   createSettingsScope,

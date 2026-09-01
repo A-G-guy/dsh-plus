@@ -1,10 +1,34 @@
 /**
- * 共享图标：与官方 WebUI 基元（@deepseek-ai/dsh-client-ui-primitives）逐字
- * 对齐的 SVG 图标。插件无法直接依赖官方基元包，故内联同一份 path 数据，
- * 保证视觉与官方完全一致。
+ * 共享图标（所有 dsh-plus 插件统一入口）：
+ * - 官方基元图标直接 re-export @deepseek-ai/dsh-client-ui-primitives——
+ *   它是平台 seed 模块，插件构建时 external（neverBundle），运行时由外壳
+ *   模块表供给单例，视觉与官方逐字一致；
+ * - 官方缺失的语义（Eye/EyeOff）由 lucide-react 补齐（随插件 bundle 打入，
+ *   react 保持 external 解析到外壳单例，无双实例风险）。
+ *
+ * 消费方 tsdown 约定：neverBundle 必须含 '@deepseek-ai/dsh-client-ui-primitives'。
  * @module @dsh-plus/shared/client/icons
  */
+import type { LucideProps } from 'lucide-react'
+// 深路径直连 ESM 单图标文件：主入口是 CJS barrel，经它导入会让打包器
+// 纳入全部图标（约 1.8k 个）；深路径 + 本地通配类型声明保持 tree-shake 精确。
+import Eye from 'lucide-react/dist/esm/icons/eye.mjs'
+import EyeOff from 'lucide-react/dist/esm/icons/eye-off.mjs'
 import type { ReactElement } from 'react'
+
+export {
+  IconApiOutline14,
+  IconCheckOutline16,
+  IconChevronDownOutline14,
+  IconCloseOutline16,
+  IconCopyOutline16,
+  IconLoadingOutline16,
+  IconPlusOutline16,
+  IconRefreshOutline14,
+  IconRefreshOutline16,
+  IconTrashOutline16,
+  IconWarningOutline16,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 
 export interface IconProps {
   /** 边长（px），默认 14（对齐官方 Outline14 规格）。 */
@@ -12,23 +36,19 @@ export interface IconProps {
   className?: string
 }
 
-/** 官方 IconChevronDownOutline14 的同构实现（path 数据逐字一致）。 */
-export function ChevronDownIcon(props: IconProps): ReactElement {
-  const size = props.size ?? 14
-  return (
-    <svg
-      width={size}
-      height={size}
-      className={props.className}
-      viewBox="0 0 14 14"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M11.8486 5.5L11.4238 5.92383L8.69727 8.65137C8.44157 8.90706 8.21562 9.13382 8.01172 9.29785C7.79912 9.46883 7.55595 9.61756 7.25 9.66602C7.08435 9.69222 6.91565 9.69222 6.75 9.66602C6.44405 9.61756 6.20088 9.46883 5.98828 9.29785C5.78438 9.13382 5.55843 8.90706 5.30273 8.65137L2.57617 5.92383L2.15137 5.5L3 4.65137L3.42383 5.07617L6.15137 7.80273C6.42595 8.07732 6.59876 8.24849 6.74023 8.3623C6.87291 8.46904 6.92272 8.47813 6.9375 8.48047C6.97895 8.48703 7.02105 8.48703 7.0625 8.48047C7.07728 8.47813 7.12709 8.46904 7.25977 8.3623C7.40124 8.24849 7.57405 8.07732 7.84863 7.80273L10.5762 5.07617L11 4.65137L11.8486 5.5Z"
-        fill="currentColor"
-      />
-    </svg>
-  )
+/** 历史别名：官方 IconChevronDownOutline14（早期版本曾内联同 path，现直连官方）。 */
+export { IconChevronDownOutline14 as ChevronDownIcon } from '@deepseek-ai/dsh-client-ui-primitives'
+
+function lucideProps(props: IconProps): LucideProps {
+  return { size: props.size ?? 14, className: props.className, 'aria-hidden': true }
+}
+
+/** 可见（注入生效）语义——官方基元无 Eye 系，lucide 补齐。 */
+export function IconEye(props: IconProps): ReactElement {
+  return <Eye {...lucideProps(props)} />
+}
+
+/** 已屏蔽（本会话/全局不注入）语义。 */
+export function IconEyeOff(props: IconProps): ReactElement {
+  return <EyeOff {...lucideProps(props)} />
 }

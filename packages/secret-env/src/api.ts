@@ -1,5 +1,6 @@
 /**
- * secret-env HTTP 端点：GET list / POST global.set / global.unset / session.set / session.unset。
+ * secret-env HTTP 端点：GET list / POST global.set / global.unset /
+ * session.set / session.unset / mask.set。
  * 与 dsh web 同源（webServer 默认 loopback / 反代信任域），无独立鉴权
  * （与 usage-panel/notify-email 自定义端点同一暴露面约定）。
  * 值只在「浏览器 → 本端点 → 服务」链路出现，响应永不回显值。
@@ -145,6 +146,28 @@ export function registerSecretEnvApi(ctx: Context, service: SecretEnvService): v
           if (req.method !== 'POST') throw new SecretEnvError('method', 'POST only')
           const body = JSON.parse(await readBody(req)) as Record<string, unknown>
           service.unsetSession(readString(body.sessionId), readSuffix(body.name))
+          sendJson(res, 200, { ok: true })
+        },
+        res,
+      )
+    },
+  })
+
+  ctx.webServer.register({
+    kind: 'prefix',
+    path: `${ROUTE}/mask/set`,
+    handler: async (req, res) => {
+      guard(
+        'mask/set',
+        async () => {
+          if (req.method !== 'POST') throw new SecretEnvError('method', 'POST only')
+          const body = JSON.parse(await readBody(req)) as Record<string, unknown>
+          const sessionId = readString(body.sessionId)
+          await service.setMask(
+            readSuffix(body.name),
+            body.masked === true,
+            sessionId === '' ? undefined : sessionId,
+          )
           sendJson(res, 200, { ok: true })
         },
         res,
