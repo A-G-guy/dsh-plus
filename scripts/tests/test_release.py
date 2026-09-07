@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from dshctl import cmd_release
 
@@ -74,6 +75,44 @@ class TestPublishOrder(unittest.TestCase):
             _make_pkg(root, "b", "@dsh-plus/b", {"@dsh-plus/a": "workspace:*"})
             with self.assertRaises(SystemExit):
                 cmd_release.publish_order([root / "a", root / "b"])
+
+
+class TestWaitPublished(unittest.TestCase):
+    """发布后可见性确认：覆盖官方 registry 对刚发布版本的最终一致性窗口。"""
+
+    def test_confirms_once_visible(self):
+        # 前两次查询落在同步窗口内（不可见），随后可见 → 轮询必须返回 True
+        seen = iter([{"versions": {"0.1.0": {}}},
+                     {"versions": {"0.1.0": {}}},
+                     {"versions": {"0.1.0": {}, "0.2.0": {}}}])
+        with mock.patch.object(cmd_release, "registry_document",
+                               side_effect=lambda _name: next(seen)), \
+                mock.patch("dshctl.cmd_release.time.sleep"):
+            self.assertTrue(cmd_release.wait_published("@dsh-plus/x", "0.2.0",
+                                                       attempts=6, interval=0))
+
+    def test_timeout_reports_unconfirmed(self):
+        # 同步延迟超过轮询窗口 → 返回 False（发布本身已成功，由调用方警告）
+        with mock.patch.object(cmd_release, "registry_document",
+                               return_value={"versions": {"0.1.0": {}}}), \
+                mock.patch("dshctl.cmd_release.time.sleep"):
+            self.assertFalse(cmd_release.wait_published("@dsh-plus/x", "0.2.0",
+                                                        attempts=3, interval=0))
+
+    def test_empty_document_counts_as_unpublished(self):
+        # 包文档 404（从未发布）时轮询持续不可见
+        with mock.patch.object(cmd_release, "registry_document",
+                               return_value=None), \
+                mock.patch("dshctl.cmd_release.time.sleep"):
+            self.assertFalse(cmd_release.wait_published("@dsh-plus/x", "0.1.0",
+                                                        attempts=2, interval=0))
+
+    def test_conflict_feature_regex_matches_npm_error(self):
+        for text in ("npm ERR! code EPUBLISHCONFLICT",
+                     "You cannot publish over the previously published versions",
+                     "cannot publish over existing version 0.1.0"):
+            self.assertIsNotNone(cmd_release.PUBLISH_CONFLICT_RE.search(text), text)
+        self.assertIsNone(cmd_release.PUBLISH_CONFLICT_RE.search("npm ERR! network timeout"))
 
 
 if __name__ == "__main__":

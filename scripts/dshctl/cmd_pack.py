@@ -86,7 +86,6 @@ def pack_one(pkg_dir: Path) -> Path:
         cwd=REPO_ROOT)
     if not tarball.exists():
         fail(f"{meta['name']} pack 未产出预期 tarball: {tarball.name}")
-    print(f"[pack] {meta['name']}@{meta['version']} → {tarball}")
     return tarball
 
 
@@ -97,6 +96,7 @@ def cmd_pack(args) -> None:
         targets = package_dirs()
     for pkg in targets:
         pack_one(pkg)
+    print(f"[pack] 完成：{len(targets)} 个包 → {DIST_DIR}")
 
 
 def _prod_env() -> dict[str, str]:

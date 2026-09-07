@@ -5,7 +5,8 @@
 与本机 dsh CLI 版本比对）。本命令是升级平台版本的唯一入口：
 
   1. 收集 packages/*/package.json 实际用到的 dsh 版本线包（peer/dev/dependencies）；
-  2. 逐一核验 npm 上存在该版本（防钉到未发布版本）；
+  2. 逐一核验官方 registry 上存在该版本（防钉到未发布版本；直连官方 registry，
+     本机 npm 镜像的同步延迟不参与判定）；
   3. 统一改写所有 manifest 的 dsh 版本线钉版（peer → ^<version>，dev → <version>）；
      基座包（cordis/schemastery/cosmokit 等独立版本线）不动，按需手工升级。
 
@@ -13,14 +14,21 @@
 """
 from __future__ import annotations
 
+import json
 import re
-import subprocess
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from .common import PACKAGES_DIR, fail, read_json, write_json
 
 # dsh 版本线包名前缀（与 common.PLATFORM_DSH_LINE 同义，局部常量避免循环依赖误导）。
 DSH_LINE = "@deepseek-ai/dsh"
+
+# 官方 registry 固定直连——`npm view` 走用户配置的 registry（可能是镜像），
+# 刚发布的版本在镜像上有同步延迟，会把"已发布"误判为"不存在"。
+NPM_REGISTRY = "https://registry.npmjs.org"
+REGISTRY_TIMEOUT = 20
 
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+.*$")
 
@@ -37,18 +45,29 @@ def _used_dsh_packages() -> list[str]:
     return sorted(used)
 
 
+def version_exists_on_registry(name: str, version: str) -> bool:
+    """直连官方 registry 核验 name@version 是否存在（404 = 不存在）。"""
+    url = f"{NPM_REGISTRY}/{name.replace('/', '%2f')}/{version}"
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=REGISTRY_TIMEOUT) as resp:
+            return resp.status == 200
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return False
+        fail(f"registry 查询失败 {name}@{version}: HTTP {exc.code}")
+    except urllib.error.URLError as exc:
+        fail(f"registry 不可达: {exc.reason}（需要代理时先 export HTTPS_PROXY）")
+    return False
+
+
 def _verify_on_npm(packages: list[str], version: str) -> None:
-    """逐一核验 npm 上存在 目标版本；任一缺失即整体失败（不写任何文件）。"""
-    missing: list[str] = []
-    for name in packages:
-        result = subprocess.run(
-            ["npm", "view", f"{name}@{version}", "version"],
-            capture_output=True, text=True, timeout=60,
-        )
-        if result.returncode != 0 or not result.stdout.strip():
-            missing.append(name)
+    """逐一核验官方 registry 上存在目标版本；任一缺失即整体失败（不写任何文件）。"""
+    missing = [name for name in packages
+               if not version_exists_on_registry(name, version)]
     if missing:
-        fail(f"npm 上不存在 {version} 版本的平台包: {', '.join(missing)}（未做任何改写）")
+        fail(f"官方 registry 上不存在 {version} 版本的平台包: "
+             f"{', '.join(missing)}（未做任何改写）")
 
 
 def _rewrite_manifests(version: str) -> list[Path]:

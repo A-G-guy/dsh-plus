@@ -10,12 +10,17 @@
 - workspace:* 依赖在 pnpm publish 时自动落成真实版本号；多包同发按 workspace
   依赖拓扑排序（被依赖者先发），保证 registry 上依赖始终可解析。
 - 幂等：registry 已存在 name@version 自动跳过，重跑安全。
+- registry 同步延迟：npm 官方 registry 对刚发布的版本有短暂最终一致性窗口
+  （用户本机镜像则可能延迟更久）。发布成功后轮询官方 registry 确认可见；
+  platform-sync 的版本核验同样直连官方 registry，不受本机镜像配置影响。
 """
 from __future__ import annotations
 
 import json
 import os
 import re
+import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -27,6 +32,12 @@ NPM_REGISTRY = "https://registry.npmjs.org"
 SCOPE = "@dsh-plus/"
 VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 REGISTRY_TIMEOUT = 15
+# 发布后可见性确认：轮询次数与间隔（npm 官方最终一致性窗口通常秒级）。
+PUBLISH_CONFIRM_ATTEMPTS = 6
+PUBLISH_CONFIRM_INTERVAL = 2.0
+# npm publish 对已存在版本的典型拒绝特征（同步窗口内重发/误判"未发布"）。
+PUBLISH_CONFLICT_RE = re.compile(
+    r"EPUBLISHCONFLICT|cannot publish over|publish over the", re.I)
 
 # token 自动解析的 shell 环境文件查找链（按序，首个命中即止）；
 # 额外文件经 DSHCTL_TOKEN_FILES（os.pathsep 分隔）或 local_config.EXTRA_TOKEN_FILES 补充。
@@ -206,6 +217,22 @@ def guard_npm_auth() -> str:
     return token
 
 
+def wait_published(name: str, version: str,
+                   attempts: int = PUBLISH_CONFIRM_ATTEMPTS,
+                   interval: float = PUBLISH_CONFIRM_INTERVAL) -> bool:
+    """发布后轮询官方 registry 直到 name@version 可见（覆盖最终一致性窗口）。
+
+    npm 官方 registry 对刚发布的版本有短暂可见性延迟（镜像则更久），
+    紧随其后的查询可能误判"未发布"。返回是否在超时前确认可见。
+    """
+    for _ in range(max(1, attempts)):
+        doc = registry_document(name)
+        if doc is not None and version in published_versions(doc):
+            return True
+        time.sleep(interval)
+    return False
+
+
 def publish_one(pkg: Path, *, token: str | None = None) -> str:
     """构建并发布单包；registry 已有同版本则跳过。返回 published/skipped。"""
     meta = read_json(pkg / "package.json")
@@ -217,9 +244,21 @@ def publish_one(pkg: Path, *, token: str | None = None) -> str:
     env = dict(os.environ)
     if token:
         env["NPM_TOKEN"] = token
-    run(["pnpm", "publish", "--registry", NPM_REGISTRY, "--no-git-checks"],
-        cwd=pkg, env=env)
-    print(f"[release] ✔ 已发布 {meta['name']}@{meta['version']}")
+    proc = run(["pnpm", "publish", "--registry", NPM_REGISTRY, "--no-git-checks"],
+               cwd=pkg, env=env, check=False)
+    if proc.returncode != 0:
+        detail = (proc.stderr or "") + (proc.stdout or "")
+        if PUBLISH_CONFLICT_RE.search(detail):
+            fail(f"npm 拒绝 {meta['name']}@{meta['version']}（版本已存在）。"
+                 "若刚发布过同版本，可能是 registry 同步窗口内的重复提交："
+                 "重跑 dshctl 即幂等跳过，无需其他处理")
+        fail(f"发布失败 {meta['name']}@{meta['version']}（exit {proc.returncode}），"
+             "详见上方报错与日志")
+    if wait_published(meta["name"], meta["version"]):
+        print(f"[release] ✔ 已发布并确认可见 {meta['name']}@{meta['version']}")
+    else:
+        print(f"[release] ✔ 已发布 {meta['name']}@{meta['version']}，但 registry "
+              "尚未确认可见（同步延迟）；重跑 dshctl 幂等跳过", file=sys.stderr)
     return "published"
 
 
