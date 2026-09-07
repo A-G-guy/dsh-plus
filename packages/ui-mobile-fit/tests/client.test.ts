@@ -91,7 +91,9 @@ function createFakeEnv() {
   }
   const document = {
     head: { appendChild: () => {} },
+    body: {},
     querySelector: (sel) => (sel.includes('meta') ? meta : null),
+    querySelectorAll: () => [],
     createElement: () => tag,
     activeElement: null,
     documentElement: {
@@ -333,5 +335,69 @@ test('given a coarse pointer, when tapping the attachment button, then the file 
     globalThis.HTMLInputElement = prevInput
     globalThis.HTMLElement = prevHtmlel
     globalThis.Element = prevElement
+  }
+})
+
+test('given the composer mounts a file input after install, when the observer fires, then the input gains the broad accept regardless of tap timing', () => {
+  // 回归（第二轮）：点击捕获兜底依赖事件时序（拦截/合成事件差异可能错过），
+  // MutationObserver 常驻扫描是主保险——composer 内出现 file input 即补 accept，
+  // Android Photo Picker 才不会被"无 accept"的文件框接管（只剩拍照/录像/相册）。
+  class FakeElement {}
+  class FakeInput extends FakeElement {
+    accept: string | null = null
+    closest(selector: string) {
+      return selector.includes('_composerSeat') ? ({ seat: true } as Element) : null
+    }
+    getAttribute(name: string) {
+      return name === 'accept' ? this.accept : null
+    }
+    setAttribute(name: string, value: string) {
+      if (name === 'accept') this.accept = value
+    }
+  }
+  const input = new FakeInput()
+  const observerCallbacks: Array<() => void> = []
+  class FakeMutationObserver {
+    constructor(callback: () => void) {
+      observerCallbacks.push(callback)
+    }
+    observe() {}
+    disconnect() {}
+  }
+  const { document, window } = createFakeEnv()
+  window.matchMedia = () => ({ matches: true })
+  document.querySelectorAll = () => [input]
+  const prevDoc = globalThis.document
+  const prevWin = globalThis.window
+  const prevInput = globalThis.HTMLInputElement
+  const prevHtmlel = globalThis.HTMLElement
+  const prevElement = globalThis.Element
+  const prevObserver = globalThis.MutationObserver
+  globalThis.document = document
+  globalThis.window = window
+  globalThis.HTMLInputElement = FakeInput
+  globalThis.HTMLElement = FakeElement
+  globalThis.Element = FakeElement
+  globalThis.MutationObserver = FakeMutationObserver
+  try {
+    const dispose = installBehaviors()
+    // 安装时的首扫已补 accept（不依赖任何事件）
+    assert.equal(input.accept, '*/*')
+    // 后续 DOM 变化（React 重挂 input 等）：observer 回调再次扫描并保持
+    input.accept = null
+    for (const callback of observerCallbacks) callback()
+    assert.equal(input.accept, '*/*')
+    // 幂等：重复扫描不产生变化
+    input.accept = '*/*'
+    for (const callback of observerCallbacks) callback()
+    assert.equal(input.accept, '*/*')
+    dispose()
+  } finally {
+    globalThis.document = prevDoc
+    globalThis.window = prevWin
+    globalThis.HTMLInputElement = prevInput
+    globalThis.HTMLElement = prevHtmlel
+    globalThis.Element = prevElement
+    globalThis.MutationObserver = prevObserver
   }
 })

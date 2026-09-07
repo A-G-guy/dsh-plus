@@ -128,11 +128,30 @@ function installTapOutsideClose(): Dispose {
 }
 
 /** 触屏附件按钮修复：官方附件按钮（0.1.3-alpha.2 基线的"添加附件"回形针）
- *  程序化 click 一个【无 accept】的隐藏 file input——iOS 对无 accept 的程序化
- *  文件框只给"照片/相机"、不给"选择文件"。在官方 onClick 之前（document 捕获
- *  先于 React 根委托）给 input 补宽泛 accept，使系统选择器提供文件选项；
- *  Android 行为不变（本就含文件项）。选择器失配时静默降级，不影响原生行为。 */
+ *  程序化 click 一个【无 accept】的隐藏 file input。Android（含 Photo Picker
+ *  的版本）与 iOS 对 accept 为空或仅含 image/video 的文件框只给"拍照/录像/
+ *  相册"，不给"选择文件"；补宽泛 accept 后系统选择器恢复文件入口。
+ *  双保险：
+ *  1. MutationObserver 常驻：composer 内出现/重挂 file input 立即补 accept，
+ *     不依赖点击时序、不受事件拦截影响（React 重渲染不会清理未知属性）；
+ *  2. document 捕获 click：官方 onClick（React 根委托）之前再补一次。
+ *  选择器失配时静默降级，不影响原生行为。 */
 const ATTACH_LABELS = ['添加附件', 'Add attachment']
+const FILE_ACCEPT = '*/*'
+
+/** 给附件 file input 补宽泛 accept（幂等）。 */
+function ensureFileInputAccept(input: HTMLInputElement): void {
+  if (input.getAttribute('accept') !== FILE_ACCEPT) {
+    input.setAttribute('accept', FILE_ACCEPT)
+  }
+}
+
+/** 扫描并修复范围内所有 composer 内的 file input（observer 回调与首扫共用）。 */
+function applyFileAcceptScan(root: ParentNode): void {
+  for (const input of root.querySelectorAll<HTMLInputElement>('input[type="file"]')) {
+    if (input.closest(COMPOSER_SELECTOR) !== null) ensureFileInputAccept(input)
+  }
+}
 
 function installFileInputAcceptFix(): Dispose {
   const onClick = (e: MouseEvent): void => {
@@ -145,7 +164,20 @@ function installFileInputAcceptFix(): Dispose {
     if (label === null || !ATTACH_LABELS.includes(label)) return
     const input = button.parentElement?.querySelector<HTMLInputElement>('input[type="file"]')
     if (input === null || input === undefined) return
-    if (input.getAttribute('accept') !== '*/*') input.setAttribute('accept', '*/*')
+    ensureFileInputAccept(input)
+  }
+  if (document.body !== null && document.body !== undefined) {
+    applyFileAcceptScan(document)
+    const observer =
+      typeof MutationObserver === 'undefined'
+        ? null
+        : new MutationObserver(() => applyFileAcceptScan(document))
+    observer?.observe(document.body, { childList: true, subtree: true })
+    document.addEventListener('click', onClick, true)
+    return () => {
+      document.removeEventListener('click', onClick, true)
+      observer?.disconnect()
+    }
   }
   document.addEventListener('click', onClick, true)
   return () => document.removeEventListener('click', onClick, true)
