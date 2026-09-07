@@ -127,6 +127,30 @@ function installTapOutsideClose(): Dispose {
   return () => document.removeEventListener('click', onClick, true)
 }
 
+/** 触屏附件按钮修复：官方附件按钮（0.1.3-alpha.2 基线的"添加附件"回形针）
+ *  程序化 click 一个【无 accept】的隐藏 file input——iOS 对无 accept 的程序化
+ *  文件框只给"照片/相机"、不给"选择文件"。在官方 onClick 之前（document 捕获
+ *  先于 React 根委托）给 input 补宽泛 accept，使系统选择器提供文件选项；
+ *  Android 行为不变（本就含文件项）。选择器失配时静默降级，不影响原生行为。 */
+const ATTACH_LABELS = ['添加附件', 'Add attachment']
+
+function installFileInputAcceptFix(): Dispose {
+  const onClick = (e: MouseEvent): void => {
+    if (!isCoarse()) return
+    const target = e.target
+    if (!(target instanceof Element)) return
+    const button = target.closest<HTMLElement>('button[aria-label]')
+    if (button === null) return
+    const label = button.getAttribute('aria-label')
+    if (label === null || !ATTACH_LABELS.includes(label)) return
+    const input = button.parentElement?.querySelector<HTMLInputElement>('input[type="file"]')
+    if (input === null || input === undefined) return
+    if (input.getAttribute('accept') !== '*/*') input.setAttribute('accept', '*/*')
+  }
+  document.addEventListener('click', onClick, true)
+  return () => document.removeEventListener('click', onClick, true)
+}
+
 /** 触屏 Tooltip 复位：点按后 React 侧 hover/focus 标志常驻（触屏无
  *  mouseleave/blur 收尾），overlays.ts 的淡出动画只能让气泡消失一次——
  *  气泡 span 不重挂，再次点按同一按钮时提示不再出现。点按 2.2s 后若气泡
@@ -166,6 +190,7 @@ export function installBehaviors(): Dispose {
     installImeInset(),
     installAutofocusGuard(),
     installTapOutsideClose(),
+    installFileInputAcceptFix(),
     installTooltipReset(),
   ]
   return () => {

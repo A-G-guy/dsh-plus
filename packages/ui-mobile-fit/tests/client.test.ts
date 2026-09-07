@@ -268,3 +268,70 @@ test('given the composer is a contenteditable host, when a session switch focuse
     globalThis.Element = prevElement
   }
 })
+
+test('given a coarse pointer, when tapping the attachment button, then the file input gains a broad accept (file picker stays available on iOS)', () => {
+  // 回归：官方附件按钮程序化 click 无 accept 的 hidden file input，iOS 只给
+  // 照片/相机、不给"选择文件"。触屏点按附件按钮时必须补 accept="*/*"。
+  class FakeElement {}
+  class FakeInput extends FakeElement {
+    accept: string | null = null
+    getAttribute(name: string) {
+      return name === 'accept' ? this.accept : null
+    }
+    setAttribute(name: string, value: string) {
+      if (name === 'accept') this.accept = value
+    }
+  }
+  class FakeButton extends FakeElement {
+    ariaLabel: string
+    parent: FakeRow | null = null
+    constructor(label: string) {
+      super()
+      this.ariaLabel = label
+    }
+    get parentElement() {
+      return this.parent
+    }
+    getAttribute(name: string) {
+      return name === 'aria-label' ? this.ariaLabel : null
+    }
+    closest(selector: string) {
+      return selector.includes('button') ? this : null
+    }
+  }
+  class FakeRow extends FakeElement {
+    input = new FakeInput()
+    querySelector(selector: string) {
+      return selector.includes('input') ? this.input : null
+    }
+  }
+  const { document, window, listeners } = createFakeEnv()
+  window.matchMedia = () => ({ matches: true }) // coarse
+  const row = new FakeRow()
+  const button = new FakeButton('添加附件')
+  button.parent = row
+  const prevDoc = globalThis.document
+  const prevWin = globalThis.window
+  const prevInput = globalThis.HTMLInputElement
+  const prevHtmlel = globalThis.HTMLElement
+  const prevElement = globalThis.Element
+  globalThis.document = document
+  globalThis.window = window
+  globalThis.HTMLInputElement = FakeInput
+  globalThis.HTMLElement = FakeElement
+  globalThis.Element = FakeElement
+  try {
+    const dispose = installBehaviors()
+    // 注意：createFakeEnv 的 listeners 按 type 单槽，click 注册顺序靠后的是
+    // installFileInputAcceptFix；tapOutsideClose 在非窄屏直接返回。
+    listeners.get('click')({ target: button })
+    assert.equal(row.input.accept, '*/*')
+    dispose()
+  } finally {
+    globalThis.document = prevDoc
+    globalThis.window = prevWin
+    globalThis.HTMLInputElement = prevInput
+    globalThis.HTMLElement = prevHtmlel
+    globalThis.Element = prevElement
+  }
+})
