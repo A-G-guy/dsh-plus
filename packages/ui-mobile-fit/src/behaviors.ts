@@ -171,9 +171,7 @@ function installAttachPicker(): Dispose {
     input.click()
   }
 
-  const zh = (document.documentElement.lang ?? '').toLowerCase().startsWith('zh')
-
-  const open = (input: HTMLInputElement): void => {
+  const open = (input: HTMLInputElement, zh: boolean): void => {
     if (state.open) {
       close()
       return
@@ -215,10 +213,11 @@ function installAttachPicker(): Dispose {
     const input = button.parentElement?.querySelector<HTMLInputElement>('input[type="file"]')
     if (input === null || input === undefined) return
     // 吞掉该次点按：官方 onClick（React 根委托冒泡）不再触发原生选择器，
-    // 改由二次选择层接管
+    // 改由二次选择层接管。语言跟随官方按钮的实际渲染文案（页面根标签的
+    // lang 属性不可靠，aria-label 即当前 locale 的事实源）。
     e.preventDefault()
     e.stopPropagation()
-    open(input)
+    open(input, label === '添加附件')
   }
 
   document.addEventListener('click', onCapture, true)
