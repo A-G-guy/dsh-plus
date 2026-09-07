@@ -211,13 +211,25 @@ export interface FallbackDeps {
   writeState(state: FallbackStateT | null): Promise<void>
 }
 
-/** 装配 LLM 应急翻译：启动后及 settings/llm 变化时评估一次（并发合并）。 */
-export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
+/** 启动宽限（ms）：llm-pi 等兄弟插件的 adapter 注册晚于 lifeboat 就绪，
+ *  启动竞态下立即评估会把"还没加载"误判为"缺席"——每次重启都误发
+ *  「应急翻译 + 已还原」两条通知。宽限期内一律不评估，宽限结束自动评估
+ *  一次，事件订阅覆盖后续变化；真故障（llm-pi 缺席）在宽限后照常告警。 */
+export const BOOT_GRACE_MS = 60_000
+
+/** 装配 LLM 应急翻译：启动宽限结束后及 settings/llm 变化时评估一次（并发合并）。 */
+export function installLlmFallback(
+  ctx: Context,
+  deps: FallbackDeps,
+  graceMs: number = BOOT_GRACE_MS,
+): void {
   const logger = ctx.logger('lifeboat')
   const settings = ctx.settings as SettingsProvider
   const writes = settings as unknown as SettingsWrite
   const settingsFile = dshHomePath('settings.yaml')
   let inFlight: Promise<void> | undefined
+  const startedAt = Date.now()
+  const withinGrace = (): boolean => Date.now() - startedAt < graceMs
 
   const listProviderIds = (): Set<string> => new Set(ctx.llm.listProviders().map((p) => p.id))
 
@@ -300,6 +312,7 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
   }
 
   const run = (): void => {
+    if (withinGrace()) return
     if (inFlight !== undefined) return
     inFlight = evaluate()
       .catch((error: unknown) => {
@@ -312,9 +325,11 @@ export function installLlmFallback(ctx: Context, deps: FallbackDeps): void {
       })
   }
 
-  // 首次评估延迟到启动收尾：lifeboat 首位加载时兄弟插件的 adapter 尚未注册，
-  // 立刻评估会把"还没加载"误判为"缺席"。事件订阅覆盖后续变化。
-  const bootTimer = setTimeout(run, 10_000)
+  // 首次评估延迟到启动宽限结束：lifeboat 首位加载时兄弟插件的 adapter 尚未
+  // 注册（llm-pi 就绪可能远超 10s），提前评估会把"还没加载"误判为"缺席"
+  // （每次重启都误发应急翻译 + 还原通知）。宽限结束评估一次，事件订阅
+  // 覆盖后续变化；宽限内的 settings/llm 事件同样被时间闸跳过，由收尾评估兜底。
+  const bootTimer = setTimeout(run, graceMs)
   ctx.effect(() => () => clearTimeout(bootTimer), 'lifeboat: fallback boot timer')
   ctx.on('ready' as never, run)
   // 只响应与本判定相关的命名空间变化：journal 写自身命名空间，不过滤会自触发循环。
