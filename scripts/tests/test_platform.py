@@ -108,7 +108,7 @@ class TestUpgradeCliGuard(unittest.TestCase):
     def test_rejects_when_processes_running(self):
         import contextlib
         import io
-        args = mock.Mock(version="0.1.3-alpha.2", force=False)
+        args = mock.Mock(version="0.1.3-alpha.2", force=False, defer=False, clear=False)
         with mock.patch.object(cmd_platform, "version_exists_on_registry",
                                return_value=True), \
                 mock.patch.object(cmd_platform, "running_dsh_processes",
@@ -119,7 +119,7 @@ class TestUpgradeCliGuard(unittest.TestCase):
         self.assertIn("dsh 进程在运行", buf.getvalue())
 
     def test_force_allows_upgrade_when_running(self):
-        args = mock.Mock(version="0.1.3-alpha.2", force=True)
+        args = mock.Mock(version="0.1.3-alpha.2", force=True, defer=False, clear=False)
         with mock.patch.object(cmd_platform, "version_exists_on_registry",
                                return_value=True), \
                 mock.patch.object(cmd_platform, "running_dsh_processes",
@@ -132,6 +132,57 @@ class TestUpgradeCliGuard(unittest.TestCase):
                                                 "dsh-session": "0.1.3-alpha.2"}):
             cmd_platform.cmd_upgrade_cli(args)
         run.assert_called_once()
+
+
+class TestDeferUpgradeGate(unittest.TestCase):
+    """defer 模式：待升级标记 + 闸门脚本/drop-in 就位，配合 WebUI /reload 完成升级。"""
+
+    def test_defer_writes_marker_with_prev_version(self):
+        args = mock.Mock(version="0.1.3-alpha.2", defer=True, clear=False, force=False)
+        with tempfile.TemporaryDirectory() as td:
+            marker = Path(td) / "pending.json"
+            with mock.patch.object(cmd_platform, "version_exists_on_registry",
+                                   return_value=True), \
+                    mock.patch.object(cmd_platform, "_ensure_gate_installed") as ensure, \
+                    mock.patch.object(cmd_platform, "GATE_MARKER", marker), \
+                    mock.patch.object(cmd_platform, "_current_cli_version",
+                                      return_value="0.1.2-rc.1"):
+                cmd_platform.cmd_upgrade_cli(args)
+            ensure.assert_called_once()
+            data = json.loads(marker.read_text(encoding="utf-8"))
+        self.assertEqual(data["version"], "0.1.3-alpha.2")
+        self.assertEqual(data["prev"], "0.1.2-rc.1")
+
+    def test_clear_removes_marker(self):
+        with tempfile.TemporaryDirectory() as td:
+            marker = Path(td) / "pending.json"
+            marker.write_text("{}", encoding="utf-8")
+            with mock.patch.object(cmd_platform, "GATE_MARKER", marker):
+                cmd_platform._clear_upgrade_gate()
+            self.assertFalse(marker.exists())
+
+    def test_clear_without_marker_is_noop(self):
+        with tempfile.TemporaryDirectory() as td:
+            marker = Path(td) / "pending.json"
+            with mock.patch.object(cmd_platform, "GATE_MARKER", marker):
+                cmd_platform._clear_upgrade_gate()  # 不抛错即可
+
+    def test_gate_script_template_uses_absolute_bins_and_exec(self):
+        script = cmd_platform.GATE_SCRIPT_TEMPLATE.format(
+            NPM="/home/agguy/.npm-global/bin/npm",
+            DSH="/home/agguy/.npm-global/bin/dsh")
+        self.assertIn("npm install -g", script)
+        self.assertIn("pending-cli-upgrade.json", script)
+        self.assertIn("exec /home/agguy/.npm-global/bin/dsh", script)
+        # 升级失败不阻塞启动：无 set -e
+        self.assertNotIn("set -e", script)
+
+    def test_dropin_overrides_execstart_and_raises_timeout(self):
+        dropin = cmd_platform.GATE_DROPIN_TEMPLATE.format(
+            gate="/home/agguy/.dsh/scripts/dsh-web-cli-gate.sh")
+        self.assertIn("ExecStart=\n", dropin)
+        self.assertIn("ExecStart=/home/agguy/.dsh/scripts/dsh-web-cli-gate.sh", dropin)
+        self.assertIn("TimeoutStartSec=600", dropin)
 
 
 if __name__ == "__main__":

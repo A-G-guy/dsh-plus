@@ -226,9 +226,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     uc = sub.add_parser("upgrade-cli",
                         help="安全升级全局 dsh CLI（官方 registry；运行中进程探测 + 平台包一致性校验）")
-    uc.add_argument("version", help="目标版本（如 0.1.3-alpha.2）")
+    uc.add_argument("version", nargs="?", help="目标版本（如 0.1.3-alpha.2）")
     uc.add_argument("--force", action="store_true",
                     help="跳过运行中进程探测（维护窗口内明确承担风险）")
+    uc.add_argument("--defer", action="store_true",
+                    help="不立即升级：写入待升级标记 + 安装 systemd 升级闸门，之后在 WebUI 点 /reload 即完成升级")
+    uc.add_argument("--clear", action="store_true",
+                    help="清除待升级标记（闸门保留，无标记时直通启动）")
     uc.set_defaults(func=cmd_upgrade_cli)
 
     rel = sub.add_parser("release", help="npm 发版（官方 registry，幂等跳过已发版本）")

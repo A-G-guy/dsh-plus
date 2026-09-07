@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -160,13 +161,26 @@ def cmd_upgrade_cli(args: object) -> None:
     背景：全局 npm 升级会替换运行中 dsh 进程依赖的包文件（曾致生产黑屏），
     且 npm 对 prerelease 范围解析可能留下"dsh 主包新 + 平台包旧"的混合版本。
     本命令默认拒绝在运行中进程存在时升级；升级后抽查平台包版本一致性。
+
+    --defer <版本>：不立即升级，写入"待升级标记"并确保 systemd 升级闸门就位。
+    之后用户在 WebUI 点一下 /reload：服务重启 → 闸门在 dsh 进程启动前完成
+    升级 → 新版本启动——全程无需停止生产进程、无需用户离开 WebUI。
+    --clear：清除待升级标记（闸门保留，无标记时直通）。
     """
+    if getattr(args, "clear", False):
+        _clear_upgrade_gate()
+        return
     version = getattr(args, "version", None)
     if not version or not VERSION_RE.match(version):
-        fail("用法: dshctl.py upgrade-cli <版本>（如 0.1.3-alpha.2）")
+        fail("用法: dshctl.py upgrade-cli <版本>（立即升级）| "
+             "upgrade-cli --defer <版本>（写入标记，配合 WebUI /reload 完成）| "
+             "upgrade-cli --clear（清除待升级标记）")
     if not version_exists_on_registry(DSH_LINE, version):
         fail(f"官方 registry 上不存在 @deepseek-ai/dsh@{version}"
              "（刚发布需等待同步，稍后重试）")
+    if getattr(args, "defer", False):
+        _defer_upgrade(version)
+        return
     running = running_dsh_processes()
     if running and not getattr(args, "force", False):
         lines = "\n".join(f"    PID {pid}: {args_text}" for pid, args_text in running)
@@ -194,3 +208,103 @@ def cmd_upgrade_cli(args: object) -> None:
         print(f"[upgrade-cli] ✔ 全局 CLI 与抽查平台包已统一到 {version}")
     print("[upgrade-cli] 重启生效（生产: python3 scripts/dshctl.py restart-prod，"
           "需用户确认）")
+
+
+# ── defer 模式：标记文件 + systemd 升级闸门 ──────────────────────────
+
+GATE_MARKER = Path.home() / ".dsh/pending-cli-upgrade.json"
+GATE_SCRIPT = Path.home() / ".dsh/scripts/dsh-web-cli-gate.sh"
+GATE_LOG = Path.home() / ".dsh/logs/cli-upgrade.log"
+GATE_UNIT_DROPIN = "/etc/systemd/system/dsh-web.service.d/20-cli-upgrade-gate.conf"
+NPM_BIN = Path.home() / ".npm-global/bin/npm"
+DSH_BIN_PATH = Path.home() / ".npm-global/bin/dsh"
+
+# systemd drop-in：清空原 ExecStart 改走闸门 wrapper（升级完成/失败均直通启动
+# dsh），并放宽启动超时——npm 完整重装闭包可能耗时 1-3 分钟。
+GATE_DROPIN_TEMPLATE = """# dshctl upgrade-cli --defer 安装的 CLI 升级闸门（幂等，可安全删除以还原）：
+# 服务启动前若存在待升级标记，先完成全局 CLI 升级再启动 dsh（进程未起，替换安全）。
+[Service]
+ExecStart=
+ExecStart={gate} web --trusted-host miniserver.tail27b689.ts.net
+TimeoutStartSec=600
+"""
+
+# 闸门脚本：存在标记 → npm 升级（失败保留标记待下次 reload 重试，不阻塞启动）
+# → dsh --version 校验 → 清标记；随后 exec 原 dsh 入口。绝对路径避免服务环境 PATH 差异。
+GATE_SCRIPT_TEMPLATE = """#!/usr/bin/env bash
+# dshctl 安装的 CLI 升级闸门：dsh-web 服务启动前置钩子。
+# 存在 $DSH_HOME/pending-cli-upgrade.json 时先升级全局 CLI（此时无 dsh 进程，
+# 替换全局包文件安全），再启动 dsh。升级失败不阻塞启动（保留标记待重试）。
+set -u
+GATE_FILE="$HOME/.dsh/pending-cli-upgrade.json"
+LOG="$HOME/.dsh/logs/cli-upgrade.log"
+if [ -f "$GATE_FILE" ]; then
+  echo "=== $(date '+%F %T') gate: 检测到待升级标记 ===" >> "$LOG"
+  VERSION="$(python3 -c "import json;print(json.load(open('$GATE_FILE'))['version'])")"
+  PREV="$(python3 -c "import json;print(json.load(open('$GATE_FILE')).get('prev',''))")"
+  if {NPM} install -g "@deepseek-ai/dsh@$VERSION" --registry=https://registry.npmjs.org >> "$LOG" 2>&1; then
+    ACTUAL="$({DSH} --version 2>&1 | tail -1)"
+    if [ "$ACTUAL" = "$VERSION" ]; then
+      rm -f "$GATE_FILE"
+      echo "=== $(date '+%F %T') gate: 升级完成 $VERSION ===" >> "$LOG"
+    else
+      echo "=== $(date '+%F %T') gate: 版本不符（$ACTUAL != $VERSION），尝试回滚 $PREV ===" >> "$LOG"
+      if [ -n "$PREV" ]; then
+        {NPM} install -g "@deepseek-ai/dsh@$PREV" --registry=https://registry.npmjs.org >> "$LOG" 2>&1 || true
+      fi
+    fi
+  else
+    echo "=== $(date '+%F %T') gate: npm 升级失败，保留标记待下次 reload 重试 ===" >> "$LOG"
+  fi
+fi
+exec {DSH} "$@"
+"""
+
+
+def _current_cli_version() -> str:
+    proc = subprocess.run(["dsh", "--version"], capture_output=True, text=True,
+                          timeout=30)
+    return (proc.stdout or proc.stderr or "").strip() or "unknown"
+
+
+def _ensure_gate_installed() -> None:
+    """确保闸门脚本与 systemd drop-in 就位（幂等）。"""
+    GATE_SCRIPT.parent.mkdir(parents=True, exist_ok=True)
+    GATE_LOG.parent.mkdir(parents=True, exist_ok=True)
+    script = GATE_SCRIPT_TEMPLATE.format(NPM=NPM_BIN, DSH=DSH_BIN_PATH)
+    if GATE_SCRIPT.read_text(encoding="utf-8") != script:
+        GATE_SCRIPT.write_text(script, encoding="utf-8")
+    GATE_SCRIPT.chmod(0o755)
+    dropin = GATE_DROPIN_TEMPLATE.format(gate=GATE_SCRIPT)
+    proc = subprocess.run(["sudo", "-n", "tee", GATE_UNIT_DROPIN],
+                          input=dropin, capture_output=True, text=True)
+    if proc.returncode != 0:
+        fail(f"写入 systemd drop-in 失败: {proc.stderr.strip() or proc.stdout.strip()}")
+    subprocess.run(["sudo", "-n", "systemctl", "daemon-reload"], check=False)
+    shown = subprocess.run(["systemctl", "show", "-p", "ExecStart", "--value",
+                            PROD_WEB_SERVICE], capture_output=True, text=True)
+    if str(GATE_SCRIPT) not in shown.stdout:
+        fail(f"systemd 服务 {PROD_WEB_SERVICE} 的 ExecStart 未指向闸门脚本"
+             f"（当前: {shown.stdout.strip()}），请检查 drop-in 是否生效")
+    print(f"[upgrade-cli] ✔ 升级闸门就位：服务启动前自动完成 CLI 升级（{GATE_SCRIPT}）")
+
+
+def _defer_upgrade(version: str) -> None:
+    """写待升级标记并确保闸门就位；用户在 WebUI 点 /reload 即完成升级。"""
+    _ensure_gate_installed()
+    marker = {"version": version, "prev": _current_cli_version(),
+              "writtenAt": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    GATE_MARKER.write_text(json.dumps(marker, indent=2) + "\n", encoding="utf-8")
+    print(f"[upgrade-cli] ✔ 待升级标记已写入 {GATE_MARKER.name}"
+          f"（目标 {version}，回滚基线 {marker['prev']}）")
+    print("[upgrade-cli] 现在在 WebUI 中点一下 /reload（或设置页「重新加载」）：")
+    print("[upgrade-cli] 服务重启时闸门会先完成 CLI 升级再启动，期间 GUI 短暂中断后自动恢复")
+
+
+def _clear_upgrade_gate() -> None:
+    """清除待升级标记（闸门保留，无标记时直通启动）。"""
+    if GATE_MARKER.exists():
+        GATE_MARKER.unlink()
+        print("[upgrade-cli] ✔ 待升级标记已清除")
+    else:
+        print("[upgrade-cli] 无待升级标记")
