@@ -127,60 +127,105 @@ function installTapOutsideClose(): Dispose {
   return () => document.removeEventListener('click', onClick, true)
 }
 
-/** 触屏附件按钮修复：官方附件按钮（0.1.3-alpha.2 基线的"添加附件"回形针）
- *  程序化 click 一个【无 accept】的隐藏 file input。Android（含 Photo Picker
- *  的版本）与 iOS 对 accept 为空或仅含 image/video 的文件框只给"拍照/录像/
- *  相册"，不给"选择文件"；补宽泛 accept 后系统选择器恢复文件入口。
- *  双保险：
- *  1. MutationObserver 常驻：composer 内出现/重挂 file input 立即补 accept，
- *     不依赖点击时序、不受事件拦截影响（React 重渲染不会清理未知属性）；
- *  2. document 捕获 click：官方 onClick（React 根委托）之前再补一次。
- *  选择器失配时静默降级，不影响原生行为。 */
+/** 触屏附件按钮二次选择：官方"添加附件"回形针（0.1.3-alpha.2 基线）程序化
+ *  click 一个【无 accept】的隐藏 file input——Android（Photo Picker）与 iOS
+ *  对无 accept 的文件框只给"拍照/录像/相册"，不给"选择文件"；accept 值对
+ *  部分 ROM 也不可靠。移动端改为拦截按钮点击并弹出二次选择层：
+ *  - 相册/拍照：还原官方无 accept 行为（系统媒体选择器，拍照/录像/相册）；
+ *  - 选择文件：给同一官方 file input 补文件类型 accept 后触发（系统文件
+ *    管理器；onChange→addFiles 等其余流程全部保持官方）。
+ *  仅 coarse 指针生效；桌面与其余逻辑保持官方原生。 */
 const ATTACH_LABELS = ['添加附件', 'Add attachment']
-const FILE_ACCEPT = '*/*'
+/** 文件选择的目标 accept：显式文件类型（不含 image/video，避免媒体选择器接管）。 */
+export const ATTACH_FILE_ACCEPT = 'application/*,text/*'
 
-/** 给附件 file input 补宽泛 accept（幂等）。 */
-function ensureFileInputAccept(input: HTMLInputElement): void {
-  if (input.getAttribute('accept') !== FILE_ACCEPT) {
-    input.setAttribute('accept', FILE_ACCEPT)
-  }
+/** 附件 file input 的目标 accept（纯函数）：media → 还原官方无 accept；file → 文件类型列表。 */
+export function attachAcceptFor(kind: 'media' | 'file'): string | null {
+  return kind === 'file' ? ATTACH_FILE_ACCEPT : null
 }
 
-/** 扫描并修复范围内所有 composer 内的 file input（observer 回调与首扫共用）。 */
-function applyFileAcceptScan(root: ParentNode): void {
-  for (const input of root.querySelectorAll<HTMLInputElement>('input[type="file"]')) {
-    if (input.closest(COMPOSER_SELECTOR) !== null) ensureFileInputAccept(input)
-  }
+interface AttachPickerState {
+  open: boolean
+  input: HTMLInputElement | null
+  layer: HTMLDivElement | null
 }
 
-function installFileInputAcceptFix(): Dispose {
-  const onClick = (e: MouseEvent): void => {
+function installAttachPicker(): Dispose {
+  const state: AttachPickerState = { open: false, input: null, layer: null }
+
+  const close = (): void => {
+    state.open = false
+    state.layer?.remove()
+    state.layer = null
+    state.input = null
+  }
+
+  /** 按选择设置 accept 并触发官方 file input（onChange 等其余流程不变）。 */
+  const pick = (kind: 'media' | 'file'): void => {
+    const input = state.input
+    close()
+    if (input === null) return
+    const accept = attachAcceptFor(kind)
+    if (accept === null) input.removeAttribute('accept')
+    else input.setAttribute('accept', accept)
+    input.click()
+  }
+
+  const zh = (document.documentElement.lang ?? '').toLowerCase().startsWith('zh')
+
+  const open = (input: HTMLInputElement): void => {
+    if (state.open) {
+      close()
+      return
+    }
+    const layer = document.createElement('div')
+    layer.className = 'dsh-mobile-attach-picker'
+    layer.setAttribute('role', 'menu')
+    const media = document.createElement('button')
+    media.type = 'button'
+    media.setAttribute('role', 'menuitem')
+    media.textContent = zh ? '相册 / 拍照' : 'Photos / Camera'
+    media.addEventListener('click', () => pick('media'))
+    const file = document.createElement('button')
+    file.type = 'button'
+    file.setAttribute('role', 'menuitem')
+    file.textContent = zh ? '选择文件' : 'Choose file'
+    file.addEventListener('click', () => pick('file'))
+    layer.append(media, file)
+    document.body.appendChild(layer)
+    state.open = true
+    state.input = input
+    state.layer = layer
+  }
+
+  const onCapture = (e: MouseEvent): void => {
     if (!isCoarse()) return
     const target = e.target
     if (!(target instanceof Element)) return
+    // 选择层已开：层内点按放行（选项按钮自行处理），层外点按关闭且不吞事件
+    if (state.open) {
+      if (state.layer?.contains(target) === true) return
+      close()
+      return
+    }
     const button = target.closest<HTMLElement>('button[aria-label]')
     if (button === null) return
     const label = button.getAttribute('aria-label')
     if (label === null || !ATTACH_LABELS.includes(label)) return
     const input = button.parentElement?.querySelector<HTMLInputElement>('input[type="file"]')
     if (input === null || input === undefined) return
-    ensureFileInputAccept(input)
+    // 吞掉该次点按：官方 onClick（React 根委托冒泡）不再触发原生选择器，
+    // 改由二次选择层接管
+    e.preventDefault()
+    e.stopPropagation()
+    open(input)
   }
-  if (document.body !== null && document.body !== undefined) {
-    applyFileAcceptScan(document)
-    const observer =
-      typeof MutationObserver === 'undefined'
-        ? null
-        : new MutationObserver(() => applyFileAcceptScan(document))
-    observer?.observe(document.body, { childList: true, subtree: true })
-    document.addEventListener('click', onClick, true)
-    return () => {
-      document.removeEventListener('click', onClick, true)
-      observer?.disconnect()
-    }
+
+  document.addEventListener('click', onCapture, true)
+  return () => {
+    document.removeEventListener('click', onCapture, true)
+    close()
   }
-  document.addEventListener('click', onClick, true)
-  return () => document.removeEventListener('click', onClick, true)
 }
 
 /** 触屏 Tooltip 复位：点按后 React 侧 hover/focus 标志常驻（触屏无
@@ -222,7 +267,7 @@ export function installBehaviors(): Dispose {
     installImeInset(),
     installAutofocusGuard(),
     installTapOutsideClose(),
-    installFileInputAcceptFix(),
+    installAttachPicker(),
     installTooltipReset(),
   ]
   return () => {

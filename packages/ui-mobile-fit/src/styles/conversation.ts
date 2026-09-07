@@ -130,4 +130,47 @@ export const conversationCss = /* css */ `
     min-width: 0;
   }
 }
+
+/* 触屏附件二次选择层（behaviors.ts 动态挂到 body，固定类名）：
+   底部小菜单，样式对齐官方菜单（变量同源）。 */
+@media (pointer: coarse) {
+  .dsh-mobile-attach-picker {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+    transform: translateX(-50%);
+    z-index: 60;
+    box-sizing: border-box;
+    flex-direction: column;
+    min-width: 220px;
+    border: 1px solid var(--dsw-alias-border-l2);
+    background: var(--dsw-specific-menu);
+    box-shadow: var(--dsw-shadow-lv3);
+    border-radius: 14px;
+    gap: 2px;
+    margin: 0;
+    padding: 6px;
+    display: flex;
+  }
+
+  .dsh-mobile-attach-picker button {
+    box-sizing: border-box;
+    width: 100%;
+    color: var(--dsw-alias-label-primary);
+    cursor: pointer;
+    border: 0;
+    border-radius: 8px;
+    text-align: left;
+    background: transparent;
+    font-family: var(--dsw-font-family);
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 22px;
+    padding: 10px 12px;
+  }
+
+  .dsh-mobile-attach-picker button:active {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+}
 `
