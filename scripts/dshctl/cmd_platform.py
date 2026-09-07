@@ -272,7 +272,7 @@ def _ensure_gate_installed() -> None:
     GATE_SCRIPT.parent.mkdir(parents=True, exist_ok=True)
     GATE_LOG.parent.mkdir(parents=True, exist_ok=True)
     script = GATE_SCRIPT_TEMPLATE.format(NPM=NPM_BIN, DSH=DSH_BIN_PATH)
-    if GATE_SCRIPT.read_text(encoding="utf-8") != script:
+    if not GATE_SCRIPT.exists() or GATE_SCRIPT.read_text(encoding="utf-8") != script:
         GATE_SCRIPT.write_text(script, encoding="utf-8")
     GATE_SCRIPT.chmod(0o755)
     dropin = GATE_DROPIN_TEMPLATE.format(gate=GATE_SCRIPT)
