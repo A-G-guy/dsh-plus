@@ -37,6 +37,19 @@ test('given the conversation layer, when inspecting composer takeover cards, the
   )
 })
 
+test('given the conversation layer, when inspecting the mobile header, then the session log capsule shrinks so jobs and subagent entries stay tappable', () => {
+  // 回归：顶栏 Session 日志胶囊（上游 min-width:111px）挤占横向空间，
+  // 后台任务/子代理入口被挤出视口无法点按。窄屏必须压缩胶囊（图标化 +
+  // 文案视觉隐藏保 a11y）、收紧工具区间距，并允许标题行换行兜底。
+  assert.match(mobileFitCss, /\[class\*="_sessionLogButton"\][^{]*\{[^}]*min-width: 0/)
+  assert.match(
+    mobileFitCss,
+    /\[class\*="_sessionLogButton"\] span[^{]*\{[^}]*clip-path: inset\(50%\)/,
+  )
+  assert.match(mobileFitCss, /\[class\*="_headerUtilities"\][^{]*\{[^}]*margin-left: 8px/)
+  assert.match(mobileFitCss, /\[class\*="_titleRow"\][^{]*\{[^}]*flex-wrap: wrap/)
+})
+
 test('given the overlays layer, when inspecting tooltip handling, then coarse-pointer bubbles auto-hide', () => {
   // 触屏点按触发 Tooltip 的 mouseenter/focus 后无 mouseleave/blur 收尾，
   // 气泡常驻遮挡；修复 = coarse 媒体内给 _bubble[data-side] 挂自动淡出动画，
@@ -201,5 +214,57 @@ test('given the keyboard opens and closes, when the visual viewport shrinks then
     globalThis.window = prevWin
     globalThis.HTMLInputElement = prevInput
     globalThis.HTMLTextAreaElement = prevTextarea
+  }
+})
+
+test('given the composer is a contenteditable host, when a session switch focuses it without a gesture, then the focus is blurred (keyboard stays closed)', () => {
+  // 回归：上游 composer 自 0.1.2-rc.1 为 Lexical contenteditable div（不再
+  // 是 input/textarea），守卫只认 input/textarea 时整体失效——切会话即弹
+  // 输入法。contenteditable 宿主同样必须被无手势聚焦拦截。
+  class FakeElement {}
+  class FakeHTMLElement extends FakeElement {}
+  class FakeComposer extends FakeHTMLElement {
+    isContentEditable = true
+    blurred = 0
+    closest(selector: string) {
+      return selector.includes('_composerSeat') ? ({ marker: 'seat' } as Element) : null
+    }
+    blur() {
+      this.blurred += 1
+    }
+  }
+  const { document, window, listeners } = createFakeEnv()
+  window.matchMedia = () => ({ matches: true })
+  const composer = new FakeComposer()
+  const prevDoc = globalThis.document
+  const prevWin = globalThis.window
+  const prevInput = globalThis.HTMLInputElement
+  const prevTextarea = globalThis.HTMLTextAreaElement
+  const prevHtmlel = globalThis.HTMLElement
+  const prevElement = globalThis.Element
+  globalThis.document = document
+  globalThis.window = window
+  globalThis.HTMLInputElement = FakeHTMLElement
+  globalThis.HTMLTextAreaElement = FakeHTMLElement
+  globalThis.HTMLElement = FakeHTMLElement
+  globalThis.Element = FakeElement
+  try {
+    const dispose = installBehaviors()
+    // 无近期手势：程序化聚焦 contenteditable composer → 必须 blur
+    listeners.get('focusin')({ target: composer })
+    assert.equal(composer.blurred, 1)
+    // 有近期手势（真实点按 composer 内部）：放行
+    const pointerTarget = new FakeComposer()
+    listeners.get('pointerdown')({ target: pointerTarget })
+    listeners.get('focusin')({ target: pointerTarget })
+    assert.equal(pointerTarget.blurred, 0)
+    dispose()
+  } finally {
+    globalThis.document = prevDoc
+    globalThis.window = prevWin
+    globalThis.HTMLInputElement = prevInput
+    globalThis.HTMLTextAreaElement = prevTextarea
+    globalThis.HTMLElement = prevHtmlel
+    globalThis.Element = prevElement
   }
 })

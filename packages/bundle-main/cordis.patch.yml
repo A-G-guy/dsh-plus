@@ -28,5 +28,7 @@
       name: '@dsh-plus/web-terminal'
     - id: dsh-plus-usage-panel
       name: '@dsh-plus/usage-panel'
+    - id: dsh-plus-subagent-model
+      name: '@dsh-plus/subagent-model'
     - id: dsh-plus-secret-env
       name: '@dsh-plus/secret-env'

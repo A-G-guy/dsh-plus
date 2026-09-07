@@ -55,6 +55,38 @@ export const conversationCss = /* css */ `
     flex-shrink: 0;
   }
 
+  /* 顶栏横向空间紧张时允许换行（会话名/后台任务/子代理与右侧工具区各占一行），
+     防止右侧操作被挤出视口无法点按 */
+  [class*="_titleRow"] {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  [class*="_headerUtilities"] {
+    margin-left: 8px;
+    gap: 6px;
+  }
+
+  /* Session 日志胶囊（上游 min-width:111px）是顶栏最大的固定宽度消耗者，
+     窄屏收缩为图标按钮（文案视觉隐藏但保留可访问名），把横向空间让给
+     后台任务/子代理入口 */
+  [class*="_sessionLogButton"] {
+    min-width: 0 !important;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  [class*="_sessionLogButton"] span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   /* composer：占满窄屏宽度，附件/模式行允许换行。
      0.1.2-alpha.2 基线上游 composer 输入行（ui-conversation InputBar 的 .row）
      已自带 flex-wrap:wrap（窄屏布局），此处保留 _tools/_modes 子级换行兜底；

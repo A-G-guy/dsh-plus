@@ -16,8 +16,14 @@ const COARSE_QUERY = '(pointer: coarse)'
 
 const isNarrow = (): boolean => window.matchMedia(NARROW_QUERY).matches
 const isCoarse = (): boolean => window.matchMedia(COARSE_QUERY).matches
-const isTextField = (el: EventTarget | null): el is HTMLInputElement | HTMLTextAreaElement =>
-  el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+
+/** 可编辑宿主：经典 input/textarea，或 contenteditable 宿主（上游 composer
+ *  自 0.1.2-rc.1 起为 Lexical 编辑器，根元素是 div[contenteditable]——
+ *  只认 input/textarea 会让守卫整体失效，切会话即弹输入法）。 */
+const isEditableTarget = (el: EventTarget | null): boolean => {
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return true
+  return el instanceof HTMLElement && el.isContentEditable === true
+}
 
 type Dispose = () => void
 
@@ -45,7 +51,7 @@ function installImeInset(): Dispose {
   if (vv === undefined || vv === null) return () => {}
   const root = document.documentElement
   const update = (): void => {
-    const focused = isNarrow() && isCoarse() && isTextField(document.activeElement)
+    const focused = isNarrow() && isCoarse() && isEditableTarget(document.activeElement)
     const inset = focused ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0
     if (inset > 0) {
       root.style.setProperty('--dsh-ime-inset', `${Math.round(inset)}px`)
@@ -65,9 +71,11 @@ function installImeInset(): Dispose {
   }
 }
 
-/** 上游 composer 在会话切换/解锁的 useEffect 里 el.focus()（conversation 包
- *  `locked || el === null` 分支），触屏上每切一次会话就弹一次输入法。
- *  这里只拦截 composer 容器内文本框的"无手势聚焦"：手势落点在 composer 之外
+/** 上游 composer 在会话切换/解锁的 useEffect 里 editor.getRootElement()?.focus()
+ *  （conversation 包 `locked || editor === null` 分支），触屏上每切一次会话就弹
+ *  一次输入法。composer 根元素是 Lexical 的 contenteditable div（data-composer-input，
+ *  0.1.2-rc.1 基线，此前为 input/textarea——isEditableTarget 两种都认）。
+ *  这里只拦截 composer 容器内可编辑宿主的"无手势聚焦"：手势落点在 composer 之外
  *  （如侧栏会话标题）时，随后的程序化 focus 一律 blur；直点输入框不受影响。
  *  composer 之外的输入框（重命名、设置项等）本来就是用户主动触达，不拦截。 */
 const COMPOSER_SELECTOR =
@@ -79,7 +87,7 @@ function installAutofocusGuard(): Dispose {
   const onPointerDown = (e: PointerEvent): void => {
     const target = e.target
     if (!(target instanceof Element)) return
-    if (isTextField(target) || target.closest(COMPOSER_SELECTOR) !== null) {
+    if (isEditableTarget(target) || target.closest(COMPOSER_SELECTOR) !== null) {
       allowUntil = Date.now() + GESTURE_WINDOW_MS
     }
   }
@@ -87,7 +95,7 @@ function installAutofocusGuard(): Dispose {
     allowUntil = Date.now() + GESTURE_WINDOW_MS
   }
   const onFocusIn = (e: FocusEvent): void => {
-    if (!isNarrow() || !isCoarse() || !isTextField(e.target)) return
+    if (!isNarrow() || !isCoarse() || !isEditableTarget(e.target)) return
     if (e.target.closest(COMPOSER_SELECTOR) === null) return
     if (Date.now() < allowUntil) return
     e.target.blur()
