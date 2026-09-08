@@ -7,11 +7,12 @@ import { test } from 'node:test'
 import { Config } from '../src/config.ts'
 import { SETTINGS_NS } from '../src/ns.ts'
 
-test('默认值：enabled=false / 空白名单 / 信任 XFF', () => {
+test('默认值：enabled=false / 空白名单 / 信任 XFF / 自动登录关闭', () => {
   const config = Config({})
   assert.equal(config.enabled, false)
   assert.deepEqual(config.allowedIps, [])
   assert.equal(config.trustForwardedFor, true)
+  assert.equal(config.autoLoginTrustedIps, false, 'IP 信任自动登录默认关闭（fail-safe）')
 })
 
 test('schemastery array 缺省物化为 []（消费端语义按"未设置"处理）', () => {
@@ -33,6 +34,7 @@ test('旧配置键（token/cookieMaxAgeHours 等）透传忽略，不阻断加�
   const config = Config(legacy)
   assert.equal(config.enabled, true)
   assert.deepEqual(config.allowedIps, ['100.108.58.63'])
+  assert.equal(config.autoLoginTrustedIps, false, '旧配置无此键 → 默认关闭')
 })
 
 test('命名空间字面量符合 dsh-plus 约定', () => {

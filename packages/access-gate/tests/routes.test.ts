@@ -57,6 +57,7 @@ function makeDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
     config: () => DEFAULTS,
     officialAuth: () => false,
     authenticatedUrl: (base) => `${base}/?token=process-token`,
+    autoLoginReady: () => true,
     ...overrides,
   }
 }
@@ -80,6 +81,45 @@ test('status：报告 enabled/verdict/officialAuthed/ipFenceActive', async () =>
   assert.equal(body.ipFenceActive, true)
   assert.equal(body.allowedCount, 1)
   assert.equal(body.clientIp, '100.108.58.63')
+})
+
+test('status：autoLoginActive/autoLoginReady 上报（开启与密钥可用性分列）', async () => {
+  const on = createGateRoutes(
+    makeDeps({
+      config: () =>
+        Config({ enabled: true, allowedIps: ['100.108.58.63'], autoLoginTrustedIps: true }),
+    }),
+  )
+  const resOn = fakeRes()
+  await on(fakeReq('GET', '/status', { 'x-forwarded-for': '100.108.58.63' }), resOn.res)
+  const bodyOn = JSON.parse((await resOn.done).body) as Record<string, unknown>
+  assert.equal(bodyOn.autoLoginActive, true)
+  assert.equal(bodyOn.autoLoginReady, true)
+
+  const off = createGateRoutes(
+    makeDeps({
+      config: () => Config({ enabled: true, allowedIps: ['100.108.58.63'] }),
+      autoLoginReady: () => false,
+    }),
+  )
+  const resOff = fakeRes()
+  await off(fakeReq('GET', '/status', { 'x-forwarded-for': '100.108.58.63' }), resOff.res)
+  const bodyOff = JSON.parse((await resOff.done).body) as Record<string, unknown>
+  assert.equal(bodyOff.autoLoginActive, false)
+  assert.equal(bodyOff.autoLoginReady, false, '密钥读取失败如实上报')
+})
+
+test('status：autoLogin deps 缺省时 autoLoginReady=false（向后兼容）', async () => {
+  const handler = createGateRoutes({
+    config: () => DEFAULTS,
+    officialAuth: () => false,
+    authenticatedUrl: (base) => `${base}/?token=process-token`,
+  })
+  const { res, done } = fakeRes()
+  await handler(fakeReq('GET', '/status', {}), res)
+  const body = JSON.parse((await done).body) as Record<string, unknown>
+  assert.equal(body.autoLoginActive, false)
+  assert.equal(body.autoLoginReady, false)
 })
 
 test('status：远程未认证的导航请求 → verdict=token-page', async () => {

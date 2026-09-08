@@ -22,6 +22,7 @@ import { isLoopbackAddress, parseAllowEntry, parseIp } from './ip.ts'
 /** 围栏判定结果。 */
 export type GateVerdict =
   | 'pass' /** 放行（本机直连 / 官方 cookie 有效） */
+  | 'autologin' /** IP 信任自动登录：白名单来源未认证 → 由拦截器落官方 cookie 后放行 */
   | 'block' /** 拒绝：非导航请求或 IP 围栏拦截 → 403 */
   | 'token-page' /** 拒绝：浏览器导航请求 → token 输入页 */
 
@@ -30,8 +31,8 @@ export interface GateDecision {
   verdict: GateVerdict
   /** 还原出的客户端 IP（有 XFF 或非 loopback 直连时存在）。 */
   clientIp?: string
-  /** 放行原因（诊断/日志用）：local / cookie。 */
-  reason?: 'local' | 'cookie'
+  /** 放行原因（诊断/日志用）：local / cookie / trusted-ip。 */
+  reason?: 'local' | 'cookie' | 'trusted-ip'
   /** 无效白名单条目（卡片诊断用，判定时忽略它们）。 */
   invalidEntries?: string[]
 }
@@ -78,8 +79,10 @@ export function compileAllowlist(entries: readonly string[]): CompiledAllowlist 
  * 围栏判定（纯函数，无任何副作用与 IO）。
  * 逻辑次序：豁免路径由调用方前置处理；enabled=false 直通；确定有效来源
  * （受信 XFF 优先，否则 remoteAddress）；来源为 loopback 直连 → 放行；
- * 白名单非空时作附加 IP 围栏，不命中即拒；官方 cookie 有效 → 放行；
- * 否则导航 → token 输入页，非导航 → 403；无来源 → fail-closed。
+ * 白名单非空时作附加 IP 围栏，不命中即拒；autoLoginTrustedIps=true 且
+ * 白名单命中但官方未认证 → autologin（拦截器负责落官方 cookie）；
+ * 官方 cookie 有效 → 放行；否则导航 → token 输入页，非导航 → 403；
+ * 无来源 → fail-closed。
  *
  * loopback 语义：XFF 被信任时，存在 XFF 即代表请求经代理（serve→proxy→dsh
  * 全链 loopback，真实客户端只在 XFF 里）——remoteAddress 是 loopback 也不
@@ -115,6 +118,11 @@ export function decideGate(
     const clientIp = parseIp(clientIpText)
     if (clientIp === null || !allowlist.match(clientIp)) {
       return { verdict: 'block', clientIp: clientIpText, invalidEntries }
+    }
+    // IP 信任自动登录：白名单命中 + 未认证 → 拦截器落官方 cookie 后放行
+    // （仅当显式开启且白名单非空；已认证走下方 cookie 正常路径）。
+    if (policy.autoLoginTrustedIps && !officialAuthed) {
+      return { verdict: 'autologin', clientIp: clientIpText, reason: 'trusted-ip', invalidEntries }
     }
   }
 

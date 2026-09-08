@@ -1,12 +1,12 @@
 ---
-last_modified: "2026-08-31 15:30"
+last_modified: "2026-09-08 17:42"
 ---
 
 # @dsh-plus/access-gate
 
 dsh web 的全量访问围栏：为全部 HTTP / WebSocket 流量提供访问控制，**与官方
 browser-auth 合并**——官方 cookie 为唯一访问凭据，本插件补齐官方不覆盖的面
-（静态资产、插件自有路由、可选 IP 附加围栏）并恢复 PWA 可用性。
+（静态资产、插件自有路由、可选 IP 附加围栏、IP 信任自动登录）并恢复 PWA 可用性。
 service+ui 混合插件（node 半拦截判定，浏览器半提供配置卡片）。
 
 ## 与官方认证的关系（0.2.0 起，合并决策）
@@ -29,10 +29,33 @@ service+ui 混合插件（node 半拦截判定，浏览器半提供配置卡片�
 |---|---|---|
 | 本机直连 | `remoteAddress` 为 loopback 且（XFF 不被信任或不存在） | 管理通道，gate 层永久放行——防锁死兜底 |
 | 官方 cookie | `connection.requestRejection()` 通过（含官方 Host 信任围栏） | 唯一凭据；token 输入页粘贴启动令牌换取 |
+| IP 信任自动登录 | `autoLoginTrustedIps=true` 且来源命中 `allowedIps` 且未认证 | 自动铸造官方登录 cookie（免启动 token）；见下节 |
 | 附加 IP 围栏 | `allowedIps` 非空时，还原的客户端 IP 必须命中（精确 IP 或 CIDR，v4/v6） | **附加层**：不命中即拒，即使持有效官方 cookie；空 = 不限制来源 IP |
 
 未认证请求：浏览器导航（GET + accept 含 text/html）→ **token 输入页**；
 API / 静态资产 / WebSocket 升级 → 403 / 拒绝升级。`enabled=false` 时完全旁路。
+
+## IP 信任自动登录（autoLoginTrustedIps）
+
+**开启条件与语义**：`autoLoginTrustedIps=true` 且 `allowedIps` 非空时，白名单
+来源的未认证请求判定为 `autologin`——服务端用官方 browser-auth 签名密钥
+（`$DSH_HOME/.credentials.yaml`，跨重启不变）铸造与 `?token=` 交换产物逐字节
+等价的 `dsh-auth-*` cookie：
+
+- 浏览器导航 → 200 + `Set-Cookie` + 引导页（纯客户端 `location.replace('/')`），
+  浏览器落罐后进入已登录态，全程无 token；
+- API / WS → 直接放行（浏览器正常流程先导航落罐；官方 `requestRejection`
+  按连接携带的 cookie 通过）；
+- cookie 属性与官方同款（HttpOnly + SameSite=Strict，30 天），到期后任一
+  导航自动重签——**自动续期，永不手动输 token**。
+
+**安全边界（必须知悉）**：开启即视为信任白名单内全部设备（tailnet 内）——
+命中白名单 = 完整 dsh 访问权。白名单准确性是唯一边界；XFF 由 tailscale serve
+覆盖（不可伪造），白名单外无法借道。
+
+**fail-safe**：签名密钥读取失败（文件缺失/格式变化）→ 自动降级为不自动登录
+（导航回 token 页），围栏本身不受影响；status 端点 `autoLoginReady` 如实上报。
+`allowedIps` 为空时永不触发（无法定义信任集）。
 
 ## token 输入页（PWA 恢复机制）
 
@@ -61,6 +84,10 @@ PWA 自己的存储里完成官方交换，死结解除。PWA 安装资产（`/m
 - XFF 被信任时：存在 XFF 即代表请求经代理——remoteAddress 是 loopback 也**不**直通，
   必须按 XFF 判定。XFF 不被信任时：来源即 remoteAddress，loopback 直连 → 放行。
 - 能直发 loopback 或伪造 XFF 的只有本机进程——与官方围栏的既有信任边界一致。
+- **autoLogin 的 cookie 铸造**：dsh-proxy 把 Host 重写为 `127.0.0.1:3080`，
+  官方 cookie 名/签名受众按请求 Host 计算，故自签 cookie 与官方交换产物在
+  同一 authority 上同构可验——铸造合法性源于读取同一份持久化签名密钥
+  （`.credentials.yaml`，与 dshctl auth.py 自签同源同级别）。
 
 ## 拦截机制
 
@@ -80,7 +107,7 @@ dsh-host-webserver 无中间件机制，本插件对 `ctx.webServer` 服务实�
 
 | 端点 | 方法 | 说明 |
 |---|---|---|
-| `/dsh-plus/gate/status` | GET | 当前客户端判定状态（verdict/clientIp/reason/officialAuthed/ipFenceActive/白名单非法条目），卡片诊断用 |
+| `/dsh-plus/gate/status` | GET | 当前客户端判定状态（verdict/clientIp/reason/officialAuthed/ipFenceActive/autoLoginActive/autoLoginReady/白名单非法条目），卡片诊断用 |
 | `/dsh-plus/gate/launch-url` | GET | **仅本机直连**（loopback 且无 XFF）：返回当前进程认证链接 `{url}`；令牌跨 authority 有效，支持 `?host=&scheme=` 生成远程变体（如 tailscale 域名 https） |
 
 ## 配置
@@ -94,6 +121,7 @@ cordis 行级 `Config`（组合默认值）与 settings namespace `dsh-plus-acce
 | `enabled` | false | 总开关（配置完成再开启，安全上线） |
 | `allowedIps` | [] | 附加 IP 围栏：精确 IP 或 CIDR（v4/v6）；空 = 不限制来源 IP |
 | `trustForwardedFor` | true | 仅当入口代理强制覆盖 XFF 时开启（tailscale serve 满足） |
+| `autoLoginTrustedIps` | false | IP 信任自动登录：白名单来源未认证时自动铸造官方 cookie（免 token）；默认关闭 |
 
 **旧配置迁移**：0.1.x 的 `token`/`cookieMaxAgeHours`/`loginFailLimit`/`loginCooldownMs`
 键已删除；schemastery 透传忽略未知键（有测试钉死），旧 settings.yaml 不阻断加载，

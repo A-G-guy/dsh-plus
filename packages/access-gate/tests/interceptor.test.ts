@@ -21,11 +21,26 @@ const ENABLED: AccessGateConfig = Config({
   allowedIps: ['100.108.58.63'],
 })
 
+/** autoLoginTrustedIps 开启的围栏配置（IP 信任自动登录）。 */
+const ENABLED_AUTO: AccessGateConfig = Config({
+  enabled: true,
+  allowedIps: ['100.108.58.63'],
+  autoLoginTrustedIps: true,
+})
+
 /** 官方 cookie 校验代理：仅认 cookie 头 dsh-auth-x=valid。 */
 const officialAuth = (req: IncomingMessage): boolean => req.headers.cookie === 'dsh-auth-x=valid'
 
 function deps(config: () => AccessGateConfig): InterceptorDeps {
   return { config, officialAuth }
+}
+
+/** deps + IP 信任自动登录铸造器（铸出的 cookie 值按注入返回）。 */
+function depsWithAutoLogin(
+  config: () => AccessGateConfig,
+  mint: (req: IncomingMessage) => string | null,
+): InterceptorDeps {
+  return { config, officialAuth, autoLoginCookie: mint }
 }
 
 interface Captured {
@@ -493,4 +508,149 @@ test('结构守卫：形状不符 fail-loud', () => {
       ),
     /shape changed/,
   )
+})
+
+test('拦截器：autologin 导航 → 200 + Set-Cookie + 引导页（无 token 输入框）', async () => {
+  const server = makeServer({ withFallback: true })
+  const cookies: string[] = []
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    depsWithAutoLogin(
+      () => ENABLED_AUTO,
+      (req) => {
+        cookies.push(String(req.headers.host))
+        return 'dsh-auth-x=autocookie; Path=/; HttpOnly; SameSite=Strict'
+      },
+    ),
+  )
+  const nav = await dispatch(
+    server,
+    makeReq({
+      url: '/',
+      method: 'GET',
+      headers: { 'x-forwarded-for': '100.108.58.63', accept: 'text/html', host: '127.0.0.1:3080' },
+    }),
+  )
+  assert.equal(nav.status, 200)
+  assert.equal(
+    nav.headers['set-cookie'],
+    'dsh-auth-x=autocookie; Path=/; HttpOnly; SameSite=Strict',
+  )
+  assert.match(nav.body, /location\.replace\('\/'\)/)
+  assert.doesNotMatch(nav.body, /启动令牌/, '不应出现 token 输入页')
+})
+
+test('拦截器：autologin API/WS 放行到原 handler（cookie 由浏览器连接携带）', async () => {
+  const server = makeServer()
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    depsWithAutoLogin(
+      () => ENABLED_AUTO,
+      () => 'dsh-auth-x=autocookie; Path=/',
+    ),
+  )
+  const api = await dispatch(
+    server,
+    makeReq({ headers: { 'x-forwarded-for': '100.108.58.63', host: '127.0.0.1:3080' } }),
+  )
+  assert.equal(api.status, 200)
+  assert.equal(api.body, '{"api":true}')
+
+  const ended: string[] = []
+  const fakeSocket = { end: (chunk: string) => ended.push(chunk) }
+  const mux = server.upgrades.get('/api/events.mux') as {
+    handler: (req: IncomingMessage, socket: unknown, head: Buffer) => unknown
+  }
+  const result = mux.handler(
+    makeReq({ headers: { 'x-forwarded-for': '100.108.58.63', host: 'h' } }),
+    fakeSocket,
+    Buffer.alloc(0),
+  )
+  assert.equal(result, 'upgraded', 'WS autologin 放行')
+  assert.equal(ended.length, 0)
+})
+
+test('拦截器：autologin 铸造失败（null）→ 导航回退 token 页、API/WS 403（fail-safe）', async () => {
+  const server = makeServer({ withFallback: true })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    depsWithAutoLogin(
+      () => ENABLED_AUTO,
+      () => null,
+    ),
+  )
+  const nav = await dispatch(
+    server,
+    makeReq({
+      url: '/',
+      method: 'GET',
+      headers: { 'x-forwarded-for': '100.108.58.63', accept: 'text/html' },
+    }),
+  )
+  assert.equal(nav.status, 200)
+  assert.match(nav.body, /启动令牌/, '铸造失败回退 token 输入页')
+  assert.equal(nav.headers['set-cookie'], undefined)
+
+  const api = await dispatch(server, makeReq({ headers: { 'x-forwarded-for': '100.108.58.63' } }))
+  assert.equal(api.status, 403)
+})
+
+test('拦截器：autoLoginCookie 缺省（旧 deps）→ autologin 按原语义回退（token 页/403）', async () => {
+  const server = makeServer({ withFallback: true })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    deps(() => ENABLED_AUTO),
+  )
+  const nav = await dispatch(
+    server,
+    makeReq({
+      url: '/',
+      method: 'GET',
+      headers: { 'x-forwarded-for': '100.108.58.63', accept: 'text/html' },
+    }),
+  )
+  assert.equal(nav.status, 200)
+  assert.match(nav.body, /启动令牌/)
+})
+
+test('拦截器：autologin 只对白名单内生效，白名单外 403（IP 围栏先于导航面）', async () => {
+  const server = makeServer({ withFallback: true })
+  installGateInterceptor(
+    fakeCtx,
+    server,
+    depsWithAutoLogin(
+      () => ENABLED_AUTO,
+      () => 'dsh-auth-x=autocookie; Path=/',
+    ),
+  )
+  const outsider = await dispatch(
+    server,
+    makeReq({
+      url: '/',
+      method: 'GET',
+      headers: { 'x-forwarded-for': '8.8.8.8', accept: 'text/html' },
+    }),
+  )
+  assert.equal(outsider.status, 403, '白名单外连导航面都没有（IP 围栏拦截）')
+  assert.equal(outsider.headers['set-cookie'], undefined)
+})
+
+test('拦截器：dispose 后 autologin 引导路径失效（拦截完全还原）', async () => {
+  const server = makeServer({ withFallback: true })
+  const undo = installGateInterceptor(
+    fakeCtx,
+    server,
+    depsWithAutoLogin(
+      () => ENABLED_AUTO,
+      () => 'dsh-auth-x=autocookie; Path=/',
+    ),
+  )
+  undo()
+  const api = await dispatch(server, makeReq({ headers: { 'x-forwarded-for': '100.108.58.63' } }))
+  assert.equal(api.status, 200, '拦截卸载后无围栏（原 route handler 直达）')
+  assert.equal(api.body, '{"api":true}')
 })

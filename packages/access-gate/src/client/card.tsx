@@ -33,12 +33,14 @@ export interface ConfigValue {
   enabled: boolean
   allowedIps: string[]
   trustForwardedFor: boolean
+  autoLoginTrustedIps: boolean
 }
 
 interface Draft {
   enabled: boolean
   allowedIpsText: string
   trustForwardedFor: boolean
+  autoLoginTrustedIps: boolean
 }
 
 interface Diag {
@@ -50,6 +52,8 @@ interface Diag {
   ipFenceActive: boolean
   invalidEntries: string[]
   allowedCount: number
+  autoLoginActive: boolean
+  autoLoginReady: boolean
 }
 
 function draftFromValue(value: ConfigValue): Draft {
@@ -57,6 +61,7 @@ function draftFromValue(value: ConfigValue): Draft {
     enabled: value.enabled,
     allowedIpsText: value.allowedIps.join('\n'),
     trustForwardedFor: value.trustForwardedFor,
+    autoLoginTrustedIps: value.autoLoginTrustedIps,
   }
 }
 
@@ -68,6 +73,7 @@ function toPatch(draft: Draft): Record<string, unknown> {
       .map((s) => s.trim())
       .filter((s) => s.length > 0),
     trustForwardedFor: draft.trustForwardedFor,
+    autoLoginTrustedIps: draft.autoLoginTrustedIps,
   }
 }
 
@@ -75,12 +81,14 @@ function toPatch(draft: Draft): Record<string, unknown> {
 const REASON_KEYS: Record<string, string> = {
   local: 'diagLocal',
   cookie: 'diagCookie',
+  'trusted-ip': 'diagTrustedIp',
 }
 
 function verdictLabel(t: (key: string) => string, diag: Diag): string {
   if (!diag.enabled) return t('diagOff')
   if (diag.verdict === 'pass') return t('diagPass')
   if (diag.verdict === 'token-page') return t('diagTokenPage')
+  if (diag.verdict === 'autologin') return t('diagAutoLogin')
   return t('diagBlock')
 }
 
@@ -215,6 +223,14 @@ export function AccessGateCard(props: CardProps): ReactElement | null {
       </div>
       <CheckRow
         prefix="dag"
+        id="dag-autologin"
+        label={t('autoLoginHint')}
+        checked={draft.autoLoginTrustedIps}
+        disabled={disabled}
+        onEdit={(v) => edit('autoLoginTrustedIps', v)}
+      />
+      <CheckRow
+        prefix="dag"
         id="dag-xff"
         label={t('trustForwardedForHint')}
         checked={draft.trustForwardedFor}
@@ -244,6 +260,14 @@ export function AccessGateCard(props: CardProps): ReactElement | null {
               {diag.officialAuthed ? t('diagOfficialYes') : t('diagOfficialNo')}
             </span>
           </div>
+          {diag.autoLoginActive ? (
+            <div className="dag-diagRow">
+              <span className="dag-diagKey">{t('diagAutoLogin')}</span>
+              <span className="dag-diagVal">
+                {diag.autoLoginReady ? t('diagAutoLoginReady') : t('diagAutoLoginNoSecret')}
+              </span>
+            </div>
+          ) : null}
           {diag.invalidEntries.length > 0 ? (
             <div className="dag-diagRow">
               <span className="dag-diagKey">!</span>

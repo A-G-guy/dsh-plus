@@ -28,6 +28,8 @@ export interface RouteDeps {
   authenticatedUrl: (baseUrl: string) => string
   /** 客户端 IP 还原（与围栏同一规则）；缺省时从请求自身推导。 */
   resolveClientIp?: (req: IncomingMessage) => string | undefined
+  /** IP 信任自动登录可用性（签名密钥可读）；缺省视为不可用（诊断展示）。 */
+  autoLoginReady?: () => boolean
   onError?: (message: string) => void
 }
 
@@ -83,6 +85,8 @@ export function createGateRoutes(
       ipFenceActive: config.allowedIps.length > 0,
       invalidEntries: decision.invalidEntries ?? [],
       allowedCount: config.allowedIps.length,
+      autoLoginActive: config.autoLoginTrustedIps,
+      autoLoginReady: deps.autoLoginReady?.() ?? false,
     })
   }
 

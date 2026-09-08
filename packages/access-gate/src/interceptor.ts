@@ -29,7 +29,7 @@ import type { Duplex } from 'node:stream'
 import type { Context } from '@deepseek-ai/cordis'
 
 import type { AccessGateConfig } from './config.ts'
-import { decideGate, type GateRequest } from './decision.ts'
+import { decideGate, type GateRequest, isNavigationRequest } from './decision.ts'
 import { GATE_ROUTE } from './routes.ts'
 import { renderTokenPage } from './token-page.ts'
 
@@ -51,6 +51,12 @@ export interface InterceptorDeps {
   config: () => AccessGateConfig
   /** 官方 browser-auth 校验（委托 connection.requestRejection；含官方 Host 围栏）。 */
   officialAuth: (req: IncomingMessage) => boolean
+  /**
+   * IP 信任自动登录的 cookie 铸造器：返回可直接写 Set-Cookie 的官方同款
+   * cookie 串；无法铸造（密钥缺失/authority 不可得等）返回 null（fail-safe，
+   * 调用方回退普通未认证路径）。仅在判定 autologin 时被调用。
+   */
+  autoLoginCookie?: (req: IncomingMessage) => string | null
   onBlock?: (message: string) => void
 }
 
@@ -95,6 +101,41 @@ function rejectUpgrade(socket: Duplex, clientIp: string, log: (m: string) => voi
   log(`blocked upgrade (${clientIp})`)
 }
 
+/** IP 信任自动登录的引导页：已落官方 cookie，纯客户端跳回干净首页。 */
+function renderAutoLoginPage(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>正在进入 - DeepSeek Harness</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #16181d; color: #e6e8ec;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  }
+  .card { width: min(92vw, 420px); padding: 32px 28px; border-radius: 14px; text-align: center;
+    background: #1e2128; border: 1px solid #2e323c; box-shadow: 0 8px 32px rgba(0,0,0,.4); box-sizing: border-box; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #3d6dff; margin: 0 2px; animation: b 1s infinite ease-in-out; }
+  .dot:nth-child(2) { animation-delay: .15s; } .dot:nth-child(3) { animation-delay: .3s; }
+  @keyframes b { 0%,80%,100% { opacity:.25; transform:scale(.8); } 40% { opacity:1; transform:scale(1); } }
+  h1 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+  p { margin: 0; font-size: 13px; color: #9aa1ad; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1><span class="dot"></span><span class="dot"></span><span class="dot"></span></h1>
+    <h1>已自动登录</h1>
+    <p>正在进入…（本设备已在信任名单，无需手动登录）</p>
+  </div>
+<script>location.replace('/')</script>
+</body>
+</html>`
+}
+
 /** 单请求围栏判定；放行 true / 拒绝（已写响应）false。 */
 function passHttp(req: IncomingMessage, res: ServerResponse, deps: InterceptorDeps): boolean {
   const url = new URL(req.url ?? '/', 'http://x')
@@ -102,6 +143,35 @@ function passHttp(req: IncomingMessage, res: ServerResponse, deps: InterceptorDe
   const decision = decideGate(toGateRequest(req), deps.config(), deps.officialAuth(req))
   if (decision.verdict === 'pass') return true
   const log = deps.onBlock ?? (() => {})
+  if (decision.verdict === 'autologin') {
+    const cookie = deps.autoLoginCookie?.(req)
+    if (cookie !== null && cookie !== undefined) {
+      if (isNavigationRequest(toGateRequest(req)) && !res.headersSent) {
+        // 导航：落官方 cookie + 引导页跳回干净首页（浏览器后续请求自动携带）。
+        res.writeHead(200, {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+          'set-cookie': cookie,
+        })
+        res.end(renderAutoLoginPage())
+        log(`auto-login ${req.method ?? '?'} ${req.url ?? '?'} (${decision.clientIp ?? 'unknown'})`)
+        return false
+      }
+      // 非导航（API/静态资产）：cookie 可铸即放行——浏览器正常流程先导航落罐，
+      // 直呼请求由官方 requestRejection 按其携带的 cookie 判定。
+      return true
+    }
+    // 铸造失败（fail-safe）：导航回退 token 输入页，非导航落入下方 403。
+    log(`auto-login skipped: cookie unavailable (${decision.clientIp ?? 'unknown'})`)
+    if (isNavigationRequest(toGateRequest(req)) && !res.headersSent) {
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+      })
+      res.end(renderTokenPage())
+      return false
+    }
+  }
   if (decision.verdict === 'token-page' && !res.headersSent) {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
     res.end(renderTokenPage())
@@ -126,13 +196,22 @@ function gatedHttp(handler: HttpHandler, deps: InterceptorDeps): HttpHandler {
   }
 }
 
-/** WS 升级包装体：拒绝时不进协议协商。 */
+/** WS 升级包装体：拒绝时不进协议协商；IP 信任自动登录（cookie 可铸）放行。 */
 function gatedUpgrade(handler: UpgradeHandler, deps: InterceptorDeps): UpgradeHandler {
   return (req, socket, head) => {
     if (isExemptPath(new URL(req.url ?? '/', 'http://x').pathname))
       return handler(req, socket, head)
     const decision = decideGate(toGateRequest(req), deps.config(), deps.officialAuth(req))
     if (decision.verdict === 'pass') return handler(req, socket, head)
+    // IP 信任自动登录：cookie 可铸时放行（浏览器 WebSocket 会带此前导航落罐的
+    // cookie；官方 requestRejection 由连接携带的 cookie 通过）。
+    if (
+      decision.verdict === 'autologin' &&
+      deps.autoLoginCookie !== undefined &&
+      deps.autoLoginCookie(req) !== null
+    ) {
+      return handler(req, socket, head)
+    }
     rejectUpgrade(socket, decision.clientIp ?? 'unknown', deps.onBlock ?? (() => {}))
     return undefined
   }

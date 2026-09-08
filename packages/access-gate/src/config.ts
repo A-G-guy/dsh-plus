@@ -34,6 +34,12 @@ export const Config = z.object({
       '是否信任 x-forwarded-for 还原真实客户端 IP（仅当入口代理强制覆盖该头时开启；tailscale serve 满足）',
     )
     .default(true),
+  autoLoginTrustedIps: z
+    .boolean()
+    .description(
+      'IP 信任自动登录：来源命中 allowedIps 白名单且未认证时，服务端自动签发官方登录 cookie（免启动 token，仅对白名单来源生效）；默认关闭，需显式开启',
+    )
+    .default(false),
 })
 
 export type AccessGateConfig = Schemastery.TypeT<typeof Config>
@@ -43,4 +49,5 @@ export interface GatePolicy {
   readonly enabled: boolean
   readonly allowedIps: readonly string[]
   readonly trustForwardedFor: boolean
+  readonly autoLoginTrustedIps: boolean
 }

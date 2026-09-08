@@ -12,6 +12,7 @@ const BASE: GatePolicy = {
   enabled: true,
   allowedIps: [],
   trustForwardedFor: true,
+  autoLoginTrustedIps: false,
 }
 
 function req(
@@ -174,3 +175,84 @@ function parseIpLike(text: string): { value: bigint; bits: 32 | 128 } {
   assert.ok(parsed !== null)
   return parsed
 }
+
+test('autoLogin：开启 + 白名单命中 + 未认证 → autologin（导航与非导航一致）', () => {
+  const policy: GatePolicy = {
+    ...BASE,
+    allowedIps: ['100.108.58.63'],
+    autoLoginTrustedIps: true,
+  }
+  const nav = decideGate(navReq({ 'x-forwarded-for': '100.108.58.63' }), policy, false)
+  assert.equal(nav.verdict, 'autologin')
+  assert.equal(nav.reason, 'trusted-ip')
+  const api = decideGate(req({ headers: { 'x-forwarded-for': '100.108.58.63' } }), policy, false)
+  assert.equal(api.verdict, 'autologin')
+})
+
+test('autoLogin：开启 + 已认证 → 正常 cookie 放行（不触发 autologin）', () => {
+  const policy: GatePolicy = {
+    ...BASE,
+    allowedIps: ['100.108.58.63'],
+    autoLoginTrustedIps: true,
+  }
+  const decision = decideGate(
+    req({ headers: { 'x-forwarded-for': '100.108.58.63' } }),
+    policy,
+    true,
+  )
+  assert.equal(decision.verdict, 'pass')
+  assert.equal(decision.reason, 'cookie')
+})
+
+test('autoLogin：开启 + 白名单不命中 → block（围栏优先，绝不借道进入）', () => {
+  const policy: GatePolicy = {
+    ...BASE,
+    allowedIps: ['100.108.58.63'],
+    autoLoginTrustedIps: true,
+  }
+  const decision = decideGate(navReq({ 'x-forwarded-for': '8.8.8.8' }), policy, false)
+  assert.equal(decision.verdict, 'block')
+})
+
+test('autoLogin：关闭 → 白名单命中未认证回到原语义（导航 token 页 / API 403）', () => {
+  const policy: GatePolicy = {
+    ...BASE,
+    allowedIps: ['100.108.58.63'],
+    autoLoginTrustedIps: false,
+  }
+  const nav = decideGate(navReq({ 'x-forwarded-for': '100.108.58.63' }), policy, false)
+  assert.equal(nav.verdict, 'token-page')
+  const api = decideGate(req({ headers: { 'x-forwarded-for': '100.108.58.63' } }), policy, false)
+  assert.equal(api.verdict, 'block')
+})
+
+test('autoLogin：开启但白名单为空 → 不触发（无法定义信任集，fail-safe）', () => {
+  const policy: GatePolicy = { ...BASE, autoLoginTrustedIps: true }
+  const nav = decideGate(navReq({ 'x-forwarded-for': '8.8.8.8' }), policy, false)
+  assert.equal(nav.verdict, 'token-page')
+})
+
+test('autoLogin：本机直连优先于 autologin（loopback 永久放行）', () => {
+  const policy: GatePolicy = {
+    ...BASE,
+    allowedIps: ['127.0.0.1'],
+    autoLoginTrustedIps: true,
+  }
+  const decision = decideGate(req(), policy, false)
+  assert.equal(decision.verdict, 'pass')
+  assert.equal(decision.reason, 'local')
+})
+
+test('autoLogin：v6 白名单条目同样触发（XFF 还原 v6 来源）', () => {
+  const policy: GatePolicy = {
+    ...BASE,
+    allowedIps: ['fd7a:115c:a1e0::c328:f805'],
+    autoLoginTrustedIps: true,
+  }
+  const decision = decideGate(
+    req({ headers: { 'x-forwarded-for': 'fd7a:115c:a1e0::c328:f805' } }),
+    policy,
+    false,
+  )
+  assert.equal(decision.verdict, 'autologin')
+})
