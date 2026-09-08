@@ -4,9 +4,16 @@
  * 本组件仅暴露 view 状态类名）。
  * @module @dsh-plus/web-files/panel/panel
  */
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
-import type { DirSortPreference, FsEntryDto, ListResponse, ReadResponse } from '../protocol.ts'
+import { IconFullscreen, IconFullscreenExit } from '@dsh-plus/shared/client'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  type DirSortPreference,
+  detectImageType,
+  type FsEntryDto,
+  type ListResponse,
+  type ReadResponse,
+} from '../protocol.ts'
 import * as api from './api.ts'
 import { FilesApiError } from './api.ts'
 import { Browser } from './browser.tsx'
@@ -49,7 +56,10 @@ export interface FilePanelProps {
 /** 当前打开的文件状态。 */
 interface OpenFile {
   entry: FsEntryDto
-  read: ReadResponse
+  /** 文本内容（图片预览时为 null）。 */
+  read: ReadResponse | null
+  /** 图片内联预览地址（detectImageType 命中时非 null，此时不经 /read）。 */
+  imageUrl: string | null
   /** 是否处于编辑态。 */
   editing: boolean
   /** 编辑后有未保存改动。 */
@@ -74,6 +84,8 @@ export function FilePanel({ files, t }: FilePanelProps) {
   const [listing, setListing] = useState<ListResponse | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  /** 桌面端全屏（移动端本就真全屏，按钮已隐藏）。 */
+  const [fullscreen, setFullscreen] = useState(false)
   const [showHidden, setShowHidden] = useState(false)
   /** 按目录记忆的排序偏好（路径 → 键/方向）；服务端落盘，跨设备共享。 */
   const [sortByDir, setSortByDir] = useState<Record<string, DirSortPreference>>({})
@@ -185,9 +197,20 @@ export function FilePanel({ files, t }: FilePanelProps) {
       if (entry.kind !== 'file') return
       setFile(null)
       setFileError(null)
+      // 图片按扩展名直连 /media 内联预览，不经过 /read 的二进制拒绝。
+      if (detectImageType(entry.name) !== null) {
+        setFile({
+          entry,
+          read: null,
+          imageUrl: api.mediaUrl(entry.path),
+          editing: false,
+          dirty: false,
+        })
+        return
+      }
       try {
         const read = await api.read({ path: entry.path })
-        setFile({ entry, read, editing: false, dirty: false })
+        setFile({ entry, read, imageUrl: null, editing: false, dirty: false })
       } catch (error) {
         setFileError({
           path: entry.path,
@@ -261,7 +284,7 @@ export function FilePanel({ files, t }: FilePanelProps) {
 
   const save = useCallback(
     async (doc: string, force: boolean) => {
-      if (file === null || saving) return
+      if (file === null || file.read === null || saving) return
       setSaving(true)
       try {
         const result = await api.write({
@@ -405,23 +428,39 @@ export function FilePanel({ files, t }: FilePanelProps) {
         title={t('panel.title')}
         closeLabel={t('panel.close')}
         headless
-        className="wf-modal"
+        className={`wf-modal${fullscreen ? ' wf-modal-fullscreen' : ''}`}
       >
         <div
           className={`wf-panel${file !== null || fileError !== null ? ' wf-panel-viewing' : ''}`}
         >
           <header className="wf-head">
             <span className="wf-title">{t('panel.title')}</span>
-            <Tooltip label={t('panel.close')} side="bottom">
-              <button
-                type="button"
-                className="wf-icon-button"
-                onClick={closePanel}
-                aria-label={t('panel.close')}
+            <span className="wf-head-actions">
+              <Tooltip
+                label={fullscreen ? t('panel.fullscreenExit') : t('panel.fullscreen')}
+                side="bottom"
               >
-                <IconCloseOutline16 />
-              </button>
-            </Tooltip>
+                <button
+                  type="button"
+                  className="wf-icon-button wf-desktop-only"
+                  onClick={() => setFullscreen((value) => !value)}
+                  aria-pressed={fullscreen}
+                  aria-label={fullscreen ? t('panel.fullscreenExit') : t('panel.fullscreen')}
+                >
+                  {fullscreen ? <IconFullscreenExit size={16} /> : <IconFullscreen size={16} />}
+                </button>
+              </Tooltip>
+              <Tooltip label={t('panel.close')} side="bottom">
+                <button
+                  type="button"
+                  className="wf-icon-button"
+                  onClick={closePanel}
+                  aria-label={t('panel.close')}
+                >
+                  <IconCloseOutline16 />
+                </button>
+              </Tooltip>
+            </span>
           </header>
           <div className="wf-body">
             <section className="wf-pane-list">
@@ -636,7 +675,7 @@ interface FileViewProps {
   registerDocGetter: (getter: (() => string) | null) => void
 }
 
-/** 预览/编辑半区：头部动作 + CodeMirror。 */
+/** 预览/编辑半区：头部动作 + 图片预览或 CodeMirror。 */
 function FileView({
   file,
   t,
@@ -650,7 +689,8 @@ function FileView({
   onDownload,
   registerDocGetter,
 }: FileViewProps) {
-  const editable = !file.read.truncated
+  const editable = file.read !== null && !file.read.truncated
+  const image = file.imageUrl !== null
   return (
     <div className="wf-fileview">
       <header className="wf-filehead">
@@ -659,8 +699,8 @@ function FileView({
         </button>
         <span className="wf-filename" title={file.entry.path}>
           {file.entry.name}
-          {file.dirty && <span className="wf-dirty">● {t('view.dirty')}</span>}
-          {!file.editing && <span className="wf-readonly-tag">{t('view.readonly')}</span>}
+          {!image && file.dirty && <span className="wf-dirty">● {t('view.dirty')}</span>}
+          {!image && !file.editing && <span className="wf-readonly-tag">{t('view.readonly')}</span>}
         </span>
         <span className="wf-fileactions">
           <Tooltip label={t('toast.copied')} side="bottom">
@@ -683,12 +723,12 @@ function FileView({
               <IconDownloadOutline16 />
             </button>
           </Tooltip>
-          {editable && !file.editing && (
+          {!image && editable && !file.editing && (
             <Button variant="toolbar" size="sm" icon={<IconEditOutline16 />} onClick={onEditToggle}>
               {t('view.edit')}
             </Button>
           )}
-          {file.editing && (
+          {!image && file.editing && (
             <>
               <Button variant="ghost" size="sm" onClick={onEditToggle}>
                 {t('view.cancelEdit')}
@@ -705,17 +745,27 @@ function FileView({
           )}
         </span>
       </header>
-      {file.read.truncated && <div className="wf-banner">{t('view.tooLarge')}</div>}
-      <div className="wf-editor-host">
-        <CodeEditor
-          value={file.read.content}
-          filename={file.entry.name}
-          readOnly={!file.editing}
-          onDocChanged={onDirty}
-          onSaveKey={onSave}
-          registerDocGetter={registerDocGetter}
-        />
-      </div>
+      {image ? (
+        <div className="wf-image-host">
+          <img src={file.imageUrl} alt={file.entry.name} />
+        </div>
+      ) : (
+        <>
+          {file.read?.truncated === true && <div className="wf-banner">{t('view.tooLarge')}</div>}
+          {file.read !== null && (
+            <div className="wf-editor-host">
+              <CodeEditor
+                value={file.read.content}
+                filename={file.entry.name}
+                readOnly={!file.editing}
+                onDocChanged={onDirty}
+                onSaveKey={onSave}
+                registerDocGetter={registerDocGetter}
+              />
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

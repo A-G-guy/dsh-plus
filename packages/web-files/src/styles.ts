@@ -58,6 +58,18 @@ export const webFilesCss = `
   flex-direction: column;
   overflow: hidden;
 }
+/* 桌面端全屏：固定铺满视口（与移动端断点内规则一致，供按钮切换）。 */
+.wf-modal-fullscreen {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100%;
+  max-height: none;
+  border: none;
+  border-radius: 0 !important;
+}
 .wf-panel {
   display: flex;
   flex-direction: column;
@@ -71,6 +83,12 @@ export const webFilesCss = `
   justify-content: space-between;
   padding: 10px 14px;
   border-bottom: 1px solid var(--dsw-alias-border-l1, #e5e7eb);
+  flex: none;
+}
+.wf-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   flex: none;
 }
 .wf-title {
@@ -351,8 +369,32 @@ export const webFilesCss = `
   overflow: auto;
 }
 
+/* ── 图片预览 ── */
+.wf-image-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 16px;
+  background: var(--dsw-alias-bg-base, #ffffff);
+}
+.wf-image-host img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+  flex: none;
+}
+
 /* ── 移动端（≤767px，与 ui-mobile-fit 断点对齐）：全屏 + 单栏切换 ── */
 @media (max-width: 767px) {
+  /* 移动端本就真全屏：桌面端全屏切换按钮隐藏。 */
+  .wf-desktop-only {
+    display: none !important;
+  }
   .wf-modal {
     position: fixed;
     inset: 0;

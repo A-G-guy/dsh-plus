@@ -53,7 +53,12 @@ export default defineConfig([
       // @deepseek-ai/dsh-util-workspace-path 无 client bundle 行（模块表无法
       // 应答它的 require），按源码级内联（master INLINE_SAFE 同款处理）；
       // 其余 peer 依赖保持默认外置（由外壳模块表供给）。
-      alwaysBundle: ['@deepseek-ai/dsh-util-workspace-path'],
+      alwaysBundle: [
+        '@deepseek-ai/dsh-util-workspace-path',
+        // @dsh-plus/shared 无 client bundle 行：按源码级内联（与
+        // web-terminal/usage-panel 同约定；lucide 图标随其打入）。
+        '@dsh-plus/shared/**',
+      ],
     },
     outputOptions: {
       entryFileNames: 'client.js',

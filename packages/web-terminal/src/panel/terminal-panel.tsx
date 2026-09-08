@@ -4,6 +4,8 @@
  * 不支持分屏，底部浮动辅助键盘（Esc/Tab/Ctrl/Alt/Shift/方向键）。
  * @module web-terminal/panel/terminal-panel
  */
+
+import { IconFullscreen, IconFullscreenExit } from '@dsh-plus/shared/client'
 import {
   Fragment,
   type ReactElement,
@@ -15,7 +17,6 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-
 import type { SessionDto } from '../protocol.ts'
 import { TerminalConnection } from './connection.ts'
 import {
@@ -71,6 +72,8 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
   const [activeTab, setActiveTab] = useState<string | null>(null)
   const [closeTarget, setCloseTarget] = useState<{ tab: TabState; session: string } | null>(null)
   const [renaming, setRenaming] = useState<{ tabId: string; value: string } | null>(null)
+  /** 桌面端全屏（移动端本就真全屏，按钮已隐藏）。 */
+  const [fullscreen, setFullscreen] = useState(false)
   const dragRef = useRef<DragState | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
   /** 移动端修饰键（keybar 与 xterm 输入共享，sticky-once）。 */
@@ -255,7 +258,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
       title={t('panel.title')}
       onClose={() => terminal.setOpen(false)}
       headless
-      className="wt-modal"
+      className={`wt-modal${fullscreen ? ' wt-modal-fullscreen' : ''}`}
     >
       <div className="wt-panel" ref={rootRef}>
         <div className="wt-tabbar">
@@ -343,6 +346,16 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
                 }
               >
                 <IconFocusOutline16 />
+              </Button>
+              <Button
+                variant="ghost"
+                className="wt-desktop-only"
+                title={fullscreen ? t('toolbar.fullscreenExit') : t('toolbar.fullscreen')}
+                aria-label={fullscreen ? t('toolbar.fullscreenExit') : t('toolbar.fullscreen')}
+                aria-pressed={fullscreen}
+                onClick={() => setFullscreen((value) => !value)}
+              >
+                {fullscreen ? <IconFullscreenExit size={16} /> : <IconFullscreen size={16} />}
               </Button>
               {hiddenSessions.length > 0 && (
                 <PlaceMenu

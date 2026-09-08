@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-26 04:44"
+last_modified: "2026-09-08 12:21"
 ---
 
 # @dsh-plus/web-terminal
@@ -53,6 +53,9 @@ dshctl 的平台包运行时依赖守卫不受影响——node-pty/ws 不在
   服务 client.js 单文件，不能依赖独立 style.css 产物）。
 - 响应式：断点 767px（与 ui-mobile-fit 对齐），移动端 Modal 全屏、**不支持
   分屏**（分割按钮隐藏 + 逻辑守卫）、仅焦点叶可见（点击叶切换焦点）。
+- 桌面端全屏：工具栏全屏按钮（lucide Maximize/Minimize，经 shared 统一
+  出口）切换 `wt-modal-fullscreen`（fixed inset:0 铺满视口）；移动端本就
+  真全屏，按钮随 `wt-desktop-only` 隐藏。
 - 移动端辅助键盘 `src/panel/keybar.tsx`：类 Termux extra-keys，钉在面板
   底部（absolute 相对 .wt-panel，逃逸模态卡 transform 包含块），输入法
   弹出时经 visualViewport 计算缺口上浮；Ctrl/Alt/Shift 为 sticky-once

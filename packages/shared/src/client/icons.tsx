@@ -14,6 +14,8 @@ import type { LucideProps } from 'lucide-react'
 // 纳入全部图标（约 1.8k 个）；深路径 + 本地通配类型声明保持 tree-shake 精确。
 import Eye from 'lucide-react/dist/esm/icons/eye.mjs'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off.mjs'
+import Maximize from 'lucide-react/dist/esm/icons/maximize.mjs'
+import Minimize from 'lucide-react/dist/esm/icons/minimize.mjs'
 import type { ReactElement } from 'react'
 
 export {
@@ -51,4 +53,14 @@ export function IconEye(props: IconProps): ReactElement {
 /** 已屏蔽（本会话/全局不注入）语义。 */
 export function IconEyeOff(props: IconProps): ReactElement {
   return <EyeOff {...lucideProps(props)} />
+}
+
+/** 进入全屏语义——官方基元无全屏系，lucide 补齐（面板工具栏/头部通用）。 */
+export function IconFullscreen(props: IconProps): ReactElement {
+  return <Maximize {...lucideProps(props)} />
+}
+
+/** 退出全屏语义。 */
+export function IconFullscreenExit(props: IconProps): ReactElement {
+  return <Minimize {...lucideProps(props)} />
 }

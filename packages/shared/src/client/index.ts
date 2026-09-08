@@ -25,6 +25,8 @@ export {
   IconCopyOutline16,
   IconEye,
   IconEyeOff,
+  IconFullscreen,
+  IconFullscreenExit,
   IconLoadingOutline16,
   IconPlusOutline16,
   type IconProps,

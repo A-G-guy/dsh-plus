@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-31 15:30"
+last_modified: "2026-09-08 12:21"
 ---
 
 # @dsh-plus/web-files
@@ -29,6 +29,12 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
   （重复路径去重、刷新不入栈）；面包屑每段点击直接跳转对应目录
   （不提供路径手输编辑，有意收窄交互面）；主页按钮一键回家目录
   （/list 缺省 path 即 home）。
+- 图片浏览：按扩展名（`src/protocol.ts` `detectImageType`，两端共用
+  单一事实源）识别常见位图/矢量格式，打开时直连 `/media` 内联预览
+  （`<img>` 居中缩放，原图字节流 + 正确 MIME + inline disposition，
+  不经 `/read` 的二进制拒绝）；非图片经 `/media` 请求由服务端 415
+  拒绝。桌面端头部全屏按钮（lucide Maximize/Minimize，经 shared 统一
+  出口）切换 `wf-modal-fullscreen`；移动端本就真全屏，按钮隐藏。
 - GUI 内文件链接接管（`src/client.tsx`）：包裹 `ctx.remote.session.openWorkspacePath`
   （0.1.2-alpha 线起官方 openFile 手势的落点——ui-chat openFile →
   resolveWorkspacePath(cwd, path) → openWorkspacePath；workspaces.openPath
@@ -69,6 +75,7 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
 | `/delete` | POST | **仅单文件或空目录**，非空目录拒绝（不递归，数据安全底线） |
 | `/upload` | POST raw | 流式落盘，上限 50MB |
 | `/download` | GET | attachment 流式下载，RFC 5987 文件名编码 |
+| `/media` | GET | 图片 inline 流式预览（扩展名校验，非图片 415；供 `<img>` 直连） |
 | `/prefs/get` | POST | 读取跨设备面板偏好（showHidden + 按目录排序） |
 | `/prefs/set` | POST | 合并偏好补丁（仅出现的字段更新），返回合并后完整偏好 |
 

@@ -38,7 +38,7 @@ import type {
   StatRequest,
   WriteRequest,
 } from './protocol.ts'
-import { ROUTE_PREFIX } from './protocol.ts'
+import { detectImageType, ROUTE_PREFIX } from './protocol.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Events {
@@ -104,10 +104,10 @@ function wrap(ctx: Context, endpoint: string, method: 'GET' | 'POST', handler: H
   }
 }
 
-/** Content-Disposition 文件名：ASCII 直出，非 ASCII 走 RFC 5987 filename*。 */
-function contentDisposition(filename: string): string {
+/** Content-Disposition 头：ASCII 直出，非 ASCII 走 RFC 5987 filename*。 */
+function disposition(kind: 'attachment' | 'inline', filename: string): string {
   const ascii = /^[\x20-\x7e]*$/.test(filename) ? filename.replaceAll('"', "'") : 'download'
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+  return `${kind}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`
 }
 
 /** 端点表：路径段 → 处理器。 */
@@ -163,7 +163,27 @@ function buildHandlers(ctx: Context): Record<string, Handler> {
       res.writeHead(200, {
         'content-type': 'application/octet-stream',
         'content-length': String(info.size),
-        'content-disposition': contentDisposition(basename(info.path)),
+        'content-disposition': disposition('attachment', basename(info.path)),
+      })
+      await new Promise<void>((resolvePromise, rejectPromise) => {
+        createReadStream(info.path)
+          .pipe(res)
+          .on('finish', resolvePromise)
+          .on('error', rejectPromise)
+      })
+    }),
+    // 图片内联预览：扩展名校验 + 原样字节流（供浏览器 <img> 直连，
+    // 不触发 attachment 下载语义；访问接缝与 download 一致）。
+    '/media': wrap(ctx, '/media', 'GET', async (_req, res, url) => {
+      const info = await statDownload(url.searchParams.get('path') ?? '')
+      const mime = detectImageType(basename(info.path))
+      if (mime === null) {
+        throw new FilesError(`${info.path} is not an image`, 'not-an-image', 415)
+      }
+      res.writeHead(200, {
+        'content-type': mime,
+        'content-length': String(info.size),
+        'content-disposition': disposition('inline', basename(info.path)),
       })
       await new Promise<void>((resolvePromise, rejectPromise) => {
         createReadStream(info.path)

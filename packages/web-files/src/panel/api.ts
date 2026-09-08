@@ -118,3 +118,8 @@ export async function upload(dir: string, file: File): Promise<{ path: string; s
 export function downloadUrl(path: string): string {
   return `${ROUTE_PREFIX}/download?${new URLSearchParams({ path }).toString()}`
 }
+
+/** 图片内联预览地址（浏览器 <img> 直连；服务端按扩展名校验）。 */
+export function mediaUrl(path: string): string {
+  return `${ROUTE_PREFIX}/media?${new URLSearchParams({ path }).toString()}`
+}

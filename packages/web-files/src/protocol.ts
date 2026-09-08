@@ -22,6 +22,31 @@ export const UPLOAD_MAX_BYTES = 50 * 1024 * 1024
 /** 按目录记忆排序的最大目录数；超出按最久未更新逐出（防偏好文件无界增长）。 */
 export const PREFS_SORT_MAX_DIRS = 500
 
+/**
+ * 图片扩展名 → MIME（/media 内联预览用；服务端/浏览器半共用单一事实源）。
+ * 仅登记浏览器 `<img>` 可解码的常见位图/矢量格式。
+ */
+export const IMAGE_MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.bmp': 'image/bmp',
+  '.avif': 'image/avif',
+  '.ico': 'image/x-icon',
+  '.tif': 'image/tiff',
+  '.tiff': 'image/tiff',
+}
+
+/** 按扩展名识别图片（大小写不敏感）；非图片返回 null。 */
+export function detectImageType(name: string): string | null {
+  const dot = name.lastIndexOf('.')
+  if (dot < 0) return null
+  return IMAGE_MIME[name.slice(dot).toLowerCase()] ?? null
+}
+
 /** 列表排序键。 */
 export const SORT_KEYS = ['name', 'size', 'mtime'] as const
 export type SortKey = (typeof SORT_KEYS)[number]
@@ -163,6 +188,7 @@ export type FilesErrorCode =
   | 'entry-exists'
   | 'binary-file'
   | 'non-utf8'
+  | 'not-an-image'
   | 'file-too-large'
   | 'mtime-conflict'
   | 'dir-not-empty'

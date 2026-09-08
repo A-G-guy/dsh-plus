@@ -60,6 +60,18 @@ export const webTerminalCss = `
   flex-direction: column;
   overflow: hidden;
 }
+/* 桌面端全屏：固定铺满视口（与移动端断点内规则一致，供按钮切换）。 */
+.wt-modal-fullscreen {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100%;
+  max-height: none;
+  border: none;
+  border-radius: 0 !important;
+}
 .wt-panel {
   display: flex;
   flex-direction: column;
