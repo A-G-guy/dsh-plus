@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-07 22:52"
+last_modified: "2026-09-08 12:36"
 ---
 
 # @dsh-plus/subagent-model
@@ -17,6 +17,8 @@ last_modified: "2026-09-07 22:52"
 已登记进 `@dsh-plus/bundle-main` 聚合层（生产 profile 随 bundle 加载）。
 
 ## 配置
+
+配置 UI：webui **设置 → 插件 → 插件配置** 的「子代理模型配置」卡片（`settings.plugin.item` keyed 槽位，key = 下方命名空间；提供商/模型/思考档位下拉数据来自 host 同源「模型目录」端点 `/dsh-plus/subagent-model/catalog`）。与官方「子代理模型」卡片（主代理侧白名单）并存不冲突。
 
 settings 命名空间 `dsh-plus-subagent-model`（`$DSH_HOME/settings.yaml`，热生效）：
 

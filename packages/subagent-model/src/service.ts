@@ -5,11 +5,14 @@
  *   走 validateEntries 规则（model 不能脱离 provider 等），非法即拒。
  * - 委托挂钩：包装 ctx.subagents.start/startContinuable，按 provider 名
  *   （未命中回落 default 条目）注入 agentOptions（provider/model/effort）。
+ * - 自定义端点：ctx.webServer 仅注册模型目录路由（配置读写已走官方
+ *   remote.settings 直连，settings.plugin.item 卡片见 client 半）。
  * @module @dsh-plus/subagent-model
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 
 import { Config, SETTINGS_NS, type SubagentModelConfig, validateEntries } from './config.ts'
+import { registerCatalogApi } from './config-api.ts'
 import { installDelegationHook } from './delegation.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -19,7 +22,7 @@ declare module '@deepseek-ai/cordis' {
 }
 
 export class SubagentModelService extends Service {
-  static [Context.inject] = ['subagents']
+  static [Context.inject] = ['subagents', 'llm']
 
   private current: () => SubagentModelConfig
 
@@ -41,6 +44,10 @@ export class SubagentModelService extends Service {
       })
     })
     installDelegationHook(ctx, () => this.current())
+    // 模型目录端点（卡片下拉数据源；仅监听 dsh web 同源）。
+    ctx.inject(['webServer'], (webCtx) => {
+      registerCatalogApi(webCtx)
+    })
   }
 
   /** 当前生效配置（settings 用户层解析结果或 cordis 行级 config）。 */
