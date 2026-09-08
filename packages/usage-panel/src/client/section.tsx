@@ -1,35 +1,25 @@
 /**
- * 用量统计设置页：概要卡 + 按日柱状图 + 按模型表（纯 CSS/SVG，无图表库）。
- * 注册进 settings.section 官方插槽（设置导航独立页）。
- * 响应式：≤767px 表格转纵向堆叠行、柱状图标签抽稀、按钮 44px 热区。
+ * 用量统计设置页：概要卡 + 筛选栏（日期范围/provider/model）+ 按日柱状图 +
+ * 按模型表（纯 CSS/SVG，无图表库）。历史数据由后台自动增量同步，页面只展示
+ * 同步状态（进行中进度 / 最近完成时间 / 最近错误），无手动扫描按钮。
+ * 响应式：≤767px 表格转纵向堆叠行（每格带标注）、柱状图标签抽稀、按钮 44px 热区。
  * @module usage-panel/client/section
  */
 import { type ReactElement, useEffect, useMemo, useState } from 'react'
-import { type RangeKey, rangeDays, totalsByDay, totalsByModel } from '../ranges.ts'
-import { fetchUsageData, startScan, type UsageData, type UsageWireRow } from './api.ts'
+import {
+  filterRows,
+  normalizeCustomRange,
+  type RangeKey,
+  resolveRange,
+  totalsByDay,
+  totalsByModel,
+} from '../ranges.ts'
+import { fetchUsageData, type UsageData, type UsageWireRow } from './api.ts'
+import { fmtCost, fmtTokens, todayLocal } from './format.ts'
+import { DayChart, DayDetail, ModelTable } from './report.tsx'
 
 export interface SectionProps {
   t(key: string): string
-}
-
-function fmtTokens(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return String(n)
-}
-
-function fmtCost(cost: number | null, currency: string): string {
-  if (cost === null) return '—'
-  const abs = Math.abs(cost)
-  return `${cost.toFixed(abs > 0 && abs < 0.01 ? 4 : 2)} ${currency}`
-}
-
-function todayLocal(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-    now.getDate(),
-  ).padStart(2, '0')}`
 }
 
 const RANGES: Array<{ key: RangeKey; labelKey: string }> = [
@@ -37,14 +27,63 @@ const RANGES: Array<{ key: RangeKey; labelKey: string }> = [
   { key: '30d', labelKey: 'range30d' },
   { key: 'month', labelKey: 'rangeMonth' },
   { key: 'all', labelKey: 'rangeAll' },
+  { key: 'custom', labelKey: 'rangeCustom' },
 ]
+
+interface Filters {
+  range: RangeKey
+  start: string
+  end: string
+  provider: string
+  model: string
+}
+
+const INITIAL_FILTERS: Filters = {
+  range: '7d',
+  start: '',
+  end: '',
+  provider: '',
+  model: '',
+}
+
+/** 同步状态行（进行中显示进度条，否则显示最近完成/错误）。 */
+function SyncStatus(props: { data: UsageData; t(key: string): string }): ReactElement | null {
+  const { data, t } = props
+  const sync = data.sync
+  if (!sync.running && sync.lastFinishedAt === null && sync.lastError === null) {
+    return <p className="dup-meta">{t('syncIdle')}</p>
+  }
+  if (sync.running) {
+    return (
+      <div className="dup-progress" role="status" aria-label={t('syncRunning')}>
+        <span className="dup-progressText">
+          {t('syncRunning')}：{sync.done}/{sync.total}
+        </span>
+        <div className="dup-progressBar">
+          <div
+            className="dup-progressFill"
+            style={{
+              width: `${sync.total === 0 ? 0 : Math.round((sync.done / sync.total) * 100)}%`,
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
+  return (
+    <p className="dup-meta">
+      {t('syncDone')}：
+      {sync.lastFinishedAt !== null ? new Date(sync.lastFinishedAt).toLocaleString() : '—'}
+      {sync.lastError !== null ? ` · ${t('syncError')}：${sync.lastError}` : ''}
+    </p>
+  )
+}
 
 export function UsageSection(props: SectionProps): ReactElement {
   const { t } = props
   const [data, setData] = useState<UsageData | null>(null)
   const [failed, setFailed] = useState(false)
-  const [scanning, setScanning] = useState(false)
-  const [range, setRange] = useState<RangeKey>('7d')
+  const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
   const load = (): void => {
@@ -61,37 +100,58 @@ export function UsageSection(props: SectionProps): ReactElement {
     load()
   }, [])
 
-  // 扫描进行中轮询（轻量：3s 间隔，仅在 scanning 非 null 时）。
+  // 同步进行中轮询（轻量：3s 间隔，仅在 running 时）；空闲时单次拉取。
   // biome-ignore lint/correctness/useExhaustiveDependencies: load 为闭包稳定函数，刻意不重建轮询定时器
   useEffect(() => {
-    if (data?.scanning == null) return
+    if (data?.sync.running !== true) return
     const timer = setInterval(load, 3000)
     return () => clearInterval(timer)
-  }, [data?.scanning])
+  }, [data?.sync.running])
 
   const today = todayLocal()
   const scoped = useMemo(() => {
     if (data === null) return null
-    const rangeSpec = rangeDays(range, today)
-    const rows =
-      rangeSpec === null
-        ? data.rows
-        : data.rows.filter((r) => r.date >= rangeSpec.start && r.date <= rangeSpec.end)
-    return { rows, days: totalsByDay(rows, range, today), models: totalsByModel(rows) }
-  }, [data, range, today])
+    const range =
+      filters.range === 'custom'
+        ? normalizeCustomRange(filters.start, filters.end)
+        : resolveRange(filters.range, today)
+    const rows = filterRows(data.rows, {
+      range,
+      provider: filters.provider,
+      model: filters.model,
+    })
+    return {
+      rows,
+      days: totalsByDay(
+        rows,
+        filters.range,
+        today,
+        filters.range === 'custom' ? { start: filters.start, end: filters.end } : undefined,
+      ),
+      models: totalsByModel(rows),
+    }
+  }, [data, filters, today])
 
   const rangeCost = useMemo(() => {
     if (scoped === null) return null
-    return scoped.rows.reduce((sum, row) => (row.cost === null ? sum : sum + row.cost), 0)
+    return scoped.rows.reduce((sum, row) => (row.cost === null ? sum : row.cost), 0)
   }, [scoped])
 
-  const onScan = (): void => {
-    setScanning(true)
-    startScan()
-      .then(() => load())
-      .catch(() => {})
-      .finally(() => setScanning(false))
-  }
+  const modelOptions = useMemo(() => {
+    if (data === null) return []
+    const seen = new Set<string>()
+    for (const row of data.rows) seen.add(`${row.provider}\u0000${row.model}`)
+    return [...seen]
+      .map((key) => {
+        const [provider, model] = key.split('\u0000')
+        return { key, provider: provider ?? '', model: model ?? '' }
+      })
+      .sort((a, b) =>
+        a.provider === b.provider
+          ? a.model.localeCompare(b.model)
+          : a.provider.localeCompare(b.provider),
+      )
+  }, [data])
 
   if (data === null) {
     return (
@@ -106,7 +166,7 @@ export function UsageSection(props: SectionProps): ReactElement {
     )
   }
 
-  const scanState = data.scanning
+  const scopedEmpty = scoped !== null && scoped.rows.length === 0 && data.rows.length > 0
   return (
     <div className="dup-section">
       <header className="dup-head">
@@ -118,55 +178,102 @@ export function UsageSection(props: SectionProps): ReactElement {
           <span className="dup-meta">
             {t('sessions')}：{data.sessions}
           </span>
-          <button
-            type="button"
-            className="dup-btn dup-btnGhost"
-            disabled={scanState !== null || scanning}
-            onClick={onScan}
-          >
-            {scanState !== null || scanning ? t('scanRunning') : t('scanHistory')}
-          </button>
         </div>
       </header>
 
-      {scanState !== null ? (
-        <div
-          className="dup-progress"
-          role="status"
-          aria-label={`${t('scanProgress')} ${scanState.done}/${scanState.total}`}
-        >
-          <span className="dup-progressText">
-            {t('scanProgress')}：{scanState.done}/{scanState.total}
-          </span>
-          <div className="dup-progressBar">
-            <div
-              className="dup-progressFill"
-              style={{
-                width: `${scanState.total === 0 ? 0 : Math.round((scanState.done / scanState.total) * 100)}%`,
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
+      <SyncStatus data={data} t={t} />
 
-      {scoped === null || (scoped.rows.length === 0 && data.rows.length === 0) ? (
+      {data.rows.length === 0 ? (
         <p className="dup-empty">{t('noData')}</p>
       ) : (
         <>
-          <div className="dup-ranges" role="tablist" aria-label={t('byDay')}>
-            {RANGES.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                role="tab"
-                aria-selected={range === item.key}
-                className={`dup-rangeBtn${range === item.key ? ' dup-rangeActive' : ''}`}
-                onClick={() => setRange(item.key)}
+          <div className="dup-filters">
+            <div className="dup-ranges" role="tablist" aria-label={t('byDay')}>
+              {RANGES.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={filters.range === item.key}
+                  className={`dup-rangeBtn${filters.range === item.key ? ' dup-rangeActive' : ''}`}
+                  onClick={() => setFilters((f) => ({ ...f, range: item.key }))}
+                >
+                  {t(item.labelKey)}
+                </button>
+              ))}
+            </div>
+            {filters.range === 'custom' ? (
+              <div className="dup-customRange">
+                <input
+                  type="date"
+                  className="dup-input dup-in"
+                  value={filters.start}
+                  max={filters.end === '' ? undefined : filters.end}
+                  aria-label={t('dateStart')}
+                  onChange={(e) => setFilters((f) => ({ ...f, start: e.target.value }))}
+                />
+                <span className="dup-rangeDash">–</span>
+                <input
+                  type="date"
+                  className="dup-input dup-in"
+                  value={filters.end}
+                  min={filters.start === '' ? undefined : filters.start}
+                  aria-label={t('dateEnd')}
+                  onChange={(e) => setFilters((f) => ({ ...f, end: e.target.value }))}
+                />
+              </div>
+            ) : null}
+            <div className="dup-filtersRow">
+              <select
+                className="dup-input dup-in"
+                value={
+                  filters.provider === ''
+                    ? ''
+                    : filters.model === ''
+                      ? `p:${filters.provider}`
+                      : `m:${filters.provider}\u0000${filters.model}`
+                }
+                aria-label={t('modelFilter')}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value === '') {
+                    setFilters((f) => ({ ...f, provider: '', model: '' }))
+                    return
+                  }
+                  if (value.startsWith('p:')) {
+                    setFilters((f) => ({ ...f, provider: value.slice(2), model: '' }))
+                    return
+                  }
+                  const [provider, model] = value.slice(2).split('\u0000')
+                  setFilters((f) => ({ ...f, provider: provider ?? '', model: model ?? '' }))
+                }}
               >
-                {t(item.labelKey)}
+                <option value="">{t('modelFilterAll')}</option>
+                {modelOptions.map((option) => {
+                  const value =
+                    option.model === ''
+                      ? `p:${option.provider}`
+                      : `m:${option.provider}\u0000${option.model}`
+                  return (
+                    <option key={option.key} value={value}>
+                      {option.model === ''
+                        ? option.provider
+                        : `${option.provider} / ${option.model}`}
+                    </option>
+                  )
+                })}
+              </select>
+              <button
+                type="button"
+                className="dup-btn dup-btnGhost dup-btnSmall"
+                onClick={() => setFilters(INITIAL_FILTERS)}
+              >
+                {t('filtersReset')}
               </button>
-            ))}
+            </div>
           </div>
+
+          {scopedEmpty ? <p className="dup-empty">{t('noMatch')}</p> : null}
 
           <div className="dup-stats">
             <div className="dup-stat">
@@ -198,7 +305,7 @@ export function UsageSection(props: SectionProps): ReactElement {
           {selectedDay !== null && scoped !== null ? (
             <DayDetail
               date={selectedDay}
-              rows={scoped.rows.filter((r) => r.date === selectedDay)}
+              rows={scoped.rows.filter((r: UsageWireRow) => r.date === selectedDay)}
               currency={data.currency}
               t={t}
             />
@@ -208,146 +315,6 @@ export function UsageSection(props: SectionProps): ReactElement {
           <ModelTable rows={scoped?.rows ?? []} currency={data.currency} t={t} />
         </>
       )}
-    </div>
-  )
-}
-
-function DayChart(props: {
-  days: Array<{
-    date: string
-    inputTokens: number
-    outputTokens: number
-    cacheReadTokens: number
-    cacheWriteTokens: number
-  }>
-  selected: string | null
-  onSelect(date: string | null): void
-}): ReactElement {
-  const days = props.days
-  const max = Math.max(
-    1,
-    ...days.map((d) => d.inputTokens + d.outputTokens + d.cacheReadTokens + d.cacheWriteTokens),
-  )
-  // 窄屏标签抽稀：>10 根柱时隔 N 根显示标签。
-  const labelStep = Math.ceil(days.length / 10)
-  return (
-    <div className="dup-chart" role="img" aria-label="daily usage bars">
-      {days.map((day, index) => {
-        const total =
-          day.inputTokens + day.outputTokens + day.cacheReadTokens + day.cacheWriteTokens
-        const active = props.selected === day.date
-        return (
-          <button
-            key={day.date}
-            type="button"
-            className={`dup-barCol${active ? ' dup-barActive' : ''}`}
-            title={`${day.date}：${fmtTokens(total)}`}
-            aria-pressed={active}
-            onClick={() => props.onSelect(active ? null : day.date)}
-          >
-            <div
-              className="dup-bar"
-              style={{ height: `${Math.max(total > 0 ? 3 : 0, Math.round((total / max) * 100))}%` }}
-            />
-            <span className="dup-barLabel">{index % labelStep === 0 ? day.date.slice(5) : ''}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-/** 单日明细：该日按模型分布（tokens / 调用 / 费用）。 */
-function DayDetail(props: {
-  date: string
-  rows: UsageWireRow[]
-  currency: string
-  t(key: string): string
-}): ReactElement {
-  const { date, rows, currency, t } = props
-  const merged = totalsByModel(rows)
-  const dayTotal = rows.reduce(
-    (sum, r) => sum + r.inputTokens + r.outputTokens + r.cacheReadTokens + r.cacheWriteTokens,
-    0,
-  )
-  const dayCost = rows.reduce((sum, r) => (r.cost === null ? sum : sum + r.cost), 0)
-  const hasAnyCost = rows.some((r) => r.cost !== null)
-  const costByKey = new Map(rows.map((r) => [`${r.provider}\u0000${r.model}`, r.cost] as const))
-  return (
-    <div className="dup-dayDetail">
-      <div className="dup-dayHead">
-        <span className="dup-dayDate">{date}</span>
-        <span className="dup-dayMeta">
-          {t('total')} {fmtTokens(dayTotal)} · {t('calls')}{' '}
-          {rows.reduce((sum, r) => sum + r.calls, 0)}
-          {hasAnyCost ? ` · ${fmtCost(dayCost, currency)}` : ''}
-        </span>
-      </div>
-      {merged.length === 0 ? (
-        <p className="dup-empty">{t('noData')}</p>
-      ) : (
-        <div className="dup-table dup-dayTable">
-          {merged.map((m) => {
-            const cost = costByKey.get(`${m.provider}\u0000${m.model}`) ?? null
-            return (
-              <div className="dup-tr" key={`${m.provider}/${m.model}`}>
-                <span className="dup-td dup-tdModel">
-                  <span className="dup-provider">{m.provider}</span>
-                  <span className="dup-model">{m.model}</span>
-                </span>
-                <span className="dup-td">{fmtTokens(m.inputTokens)}</span>
-                <span className="dup-td">{fmtTokens(m.outputTokens)}</span>
-                <span className="dup-td">{fmtTokens(m.cacheReadTokens)}</span>
-                <span className="dup-td">{m.calls}</span>
-                <span className="dup-td">{cost !== null ? fmtCost(cost, currency) : '—'}</span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ModelTable(props: {
-  rows: UsageWireRow[]
-  currency: string
-  t(key: string): string
-}): ReactElement {
-  const { rows, currency, t } = props
-  const merged = totalsByModel(rows)
-  const costByKey = new Map(rows.map((r) => [`${r.provider}\u0000${r.model}`, r.cost] as const))
-  return (
-    <div className="dup-table">
-      <div className="dup-tr dup-th">
-        <span className="dup-td dup-tdModel">
-          {t('provider')} / {t('model')}
-        </span>
-        <span className="dup-td">{t('inputTokens')}</span>
-        <span className="dup-td">{t('outputTokens')}</span>
-        <span className="dup-td">{t('cacheRead')}</span>
-        <span className="dup-td">{t('calls')}</span>
-        <span className="dup-td">{t('cost')}</span>
-      </div>
-      {merged.map((m) => {
-        const cost = costByKey.get(`${m.provider}\u0000${m.model}`) ?? null
-        const hasAnyCost = rows.some(
-          (r) => r.provider === m.provider && r.model === m.model && r.cost !== null,
-        )
-        return (
-          <div className="dup-tr" key={`${m.provider}/${m.model}`}>
-            <span className="dup-td dup-tdModel">
-              <span className="dup-provider">{m.provider}</span>
-              <span className="dup-model">{m.model}</span>
-            </span>
-            <span className="dup-td">{fmtTokens(m.inputTokens)}</span>
-            <span className="dup-td">{fmtTokens(m.outputTokens)}</span>
-            <span className="dup-td">{fmtTokens(m.cacheReadTokens)}</span>
-            <span className="dup-td">{m.calls}</span>
-            <span className="dup-td">{hasAnyCost ? fmtCost(cost, currency) : '—'}</span>
-          </div>
-        )
-      })}
     </div>
   )
 }

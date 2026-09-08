@@ -1,10 +1,11 @@
 /**
  * usage 折叠器（纯函数）：从会话事件流提取 token 用量行集。
- * 权威依据 dsh-session README「Token accounting」：
- * - `assistant/chunk { chunk.type: 'usage' }` 优先；
- * - `assistant/message.usage` 是 committed-step 兜底（无 usage chunk 时）；
- * 两者只取其一，绝不双计。provider/model 取自 assistant/message 的
- * message.source（AssistantProvenance）。
+ * 口径对齐 0.1.3 官方 token-meter（usage-projection fold）：
+ * - 会计源是 assistant 结算事件（assistant/message / assistant/attempt），
+ *   usage 取 `message.usage`，缺席时回落 stream 记录内嵌的 usage chunk；
+ * - 单一 `last` 替换槽：同一 (turn, step) 连续重结算按替换计入；
+ * - `llm/retry-started` 关闭替换槽（对齐官方 last 重置，重试后重新累加）。
+ * provider/model 取自 assistant/message 的 message.source（AssistantProvenance）。
  * @module usage-panel/usage-fold
  */
 
@@ -29,9 +30,9 @@ export interface FoldEvent {
   data?: unknown
 }
 
-interface ChunkEventShape {
-  turn?: number
-  step?: number
+/** assistant 结算事件携带的耗损紧凑流记录（`chunk` 变体可能内嵌 usage）。 */
+interface StreamRecordShape {
+  type?: string
   chunk?: { type?: string; usage?: UsageShape | null } | null
 }
 
@@ -47,20 +48,56 @@ interface MessageSourceShape {
   model?: string
 }
 
-interface AssistantMessageShape {
+interface SettlementShape {
+  turn?: number
+  step?: number
   usage?: UsageShape | null
   message?: { source?: MessageSourceShape }
+  stream?: readonly StreamRecordShape[]
 }
 
-const UNKNOWN_PROVIDER = '—'
-const UNKNOWN_MODEL = '—'
-
-const CHUNK_EVENT = 'assistant/chunk'
+const UNKNOWN = '—'
+const RETRY_EVENT = 'llm/retry-started'
 const MESSAGE_EVENT = 'assistant/message'
+const ATTEMPT_EVENT = 'assistant/attempt'
 
-/** 步键：turn:step（同一 step 的 usage chunk 与 message 属同一次调用）。 */
-function stepKey(data: { turn?: number; step?: number }): string {
+/** 折叠期行（UsageRow + 结算键，用于重试替换语义）。 */
+interface PendingRow extends UsageRow {
+  lastKey: string
+}
+
+/** 替换槽：最近一次结算的步键、桶键与样本（对齐官方 last）。 */
+interface LastSlot {
+  step: string
+  bucketKey: string
+  usage: UsageShape
+}
+
+function stepKey(data: SettlementShape): string {
   return `${data.turn ?? '?'}:${data.step ?? '?'}`
+}
+
+/**
+ * 结算事件的使用量样本：`usage` 字段优先（官方 `usageOf` 同序），缺席回落
+ * stream 内嵌的最后一个 usage chunk。
+ */
+function settlementUsage(data: SettlementShape): UsageShape | null {
+  if (data.usage != null) return data.usage
+  const stream = data.stream
+  if (!Array.isArray(stream)) return null
+  for (let i = stream.length - 1; i >= 0; i -= 1) {
+    const record = stream[i]
+    if (
+      typeof record === 'object' &&
+      record !== null &&
+      record.type === 'chunk' &&
+      record.chunk?.type === 'usage' &&
+      record.chunk.usage != null
+    ) {
+      return record.chunk.usage
+    }
+  }
+  return null
 }
 
 /** 事件时间毫秒 → 本地日字符串（按调用方时区偏移分钟）。 */
@@ -78,164 +115,6 @@ function pick(value: unknown, fallback = 0): number {
   return isFiniteCount(value) ? value : fallback
 }
 
-/**
- * 折叠一段事件流为 usage 行集。
- * 返回行按 (date, provider, model) 排序稳定输出；同一步同时存在
- * usage chunk 与 message.usage 时以 chunk 为准（官方会计规则）。
- */
-export function foldUsage(events: readonly FoldEvent[], tzOffsetMinutes: number): UsageRow[] {
-  const chunkSteps = new Set<string>()
-  const buckets = new Map<string, PendingRow>()
-  // 第一遍：记录带 usage 的 chunk 步（优先会计源）与 provider/model 标注。
-  for (const event of events) {
-    if (event.type === CHUNK_EVENT) {
-      const data = event.data as ChunkEventShape | undefined
-      if (data?.chunk?.type === 'usage' && data.chunk.usage != null) {
-        chunkSteps.add(stepKey(event.data as { turn?: number; step?: number }))
-      }
-    }
-  }
-  // 第二遍：归桶。
-  for (const event of events) {
-    if (event.type === CHUNK_EVENT) {
-      const data = event.data as ChunkEventShape | undefined
-      if (data?.chunk?.type !== 'usage' || data.chunk.usage == null) continue
-      const usage = data.chunk.usage
-      // chunk 不带 provider/model：先入"未标注"桶（pendingStep 记录步键），
-      // 第二遍的 message 事件回填后由 finalize 合并进最终桶。
-      const key = unlabeledKey(stepKey(data))
-      const row = ensureRow(buckets, key, '', '')
-      row.pendingStep = stepKey(data)
-      annotateDate(buckets, key, localDay(event.time, tzOffsetMinutes))
-      addUsage(row, usage)
-      row.calls += 1
-      continue
-    }
-    if (event.type === MESSAGE_EVENT) {
-      const data = event.data as
-        | (AssistantMessageShape & { turn?: number; step?: number })
-        | undefined
-      if (data === undefined) continue
-      const key = stepKey(data)
-      const usage = data.usage ?? null
-      const provider = data.message?.source?.provider ?? ''
-      const model = data.message?.source?.model ?? ''
-      const date = localDay(event.time, tzOffsetMinutes)
-      // 1) 回填同 step 的 unlabeled chunk 行：标注 + 迁移到最终桶键。
-      adoptUnlabeled(buckets, key, provider, model, date)
-      // 2) 无 usage chunk 的 committed step：message.usage 兜底计账。
-      if (usage != null && !chunkSteps.has(key)) {
-        const row = ensureRow(buckets, finalKey(date, provider, model), provider, model)
-        row.date = date
-        addUsage(row, usage)
-        row.calls += 1
-      }
-    }
-  }
-  // 残留的 unlabeled 行（本批无 message 回填，如增量扫描只进了 chunk）：
-  // 归并为每日期一行、provider/model 记为 '—'，不跨行拆散。
-  const orphans = new Map<string, PendingRow>()
-  for (const [key, row] of [...buckets.entries()]) {
-    if (!key.startsWith('\u0000unlabeled\u0000')) continue
-    buckets.delete(key)
-    const okey = finalKey(row.date, UNKNOWN_PROVIDER, UNKNOWN_MODEL)
-    const target = orphans.get(okey) ?? ensureRow(orphans, okey, UNKNOWN_PROVIDER, UNKNOWN_MODEL)
-    target.date = row.date
-    target.inputTokens += row.inputTokens
-    target.outputTokens += row.outputTokens
-    target.cacheReadTokens += row.cacheReadTokens
-    target.cacheWriteTokens += row.cacheWriteTokens
-    target.calls += row.calls
-  }
-  for (const [okey, orphan] of orphans) buckets.set(okey, orphan)
-
-  return [...buckets.values()]
-    .map(finalizeRow)
-    .sort((a, b) =>
-      a.date === b.date
-        ? a.provider === b.provider
-          ? a.model.localeCompare(b.model)
-          : a.provider.localeCompare(b.provider)
-        : a.date.localeCompare(b.date),
-    )
-}
-
-/** 折叠期行（比 UsageRow 多 date/step 临时标注）。 */
-interface PendingRow extends UsageRow {
-  pendingStep: string
-}
-
-/** 最终桶键（与 UsageRow 身份一致）。 */
-function finalKey(date: string, provider: string, model: string): string {
-  return `${date}\u0000${provider}\u0000${model}`
-}
-
-/** unlabeled 桶键（chunk 先行、message 未到时的暂存）。 */
-function unlabeledKey(step: string): string {
-  return `\u0000unlabeled\u0000${step}`
-}
-
-/** date 单独标注（unlabeled 桶的 date 待迁移时用）。 */
-function annotateDate(buckets: Map<string, PendingRow>, key: string, date: string): void {
-  const row = buckets.get(key)
-  if (row !== undefined) row.date = date
-}
-
-/** message 到达：把同 step 的 unlabeled 行标注并迁移到最终桶。 */
-function adoptUnlabeled(
-  buckets: Map<string, PendingRow>,
-  step: string,
-  provider: string,
-  model: string,
-  date: string,
-): void {
-  const key = unlabeledKey(step)
-  const row = buckets.get(key)
-  if (row === undefined) return
-  buckets.delete(key)
-  if (provider.length > 0) row.provider = provider
-  if (model.length > 0) row.model = model
-  row.date = date
-  const target = ensureRow(
-    buckets,
-    finalKey(row.date, row.provider, row.model),
-    row.provider,
-    row.model,
-  )
-  target.date = row.date
-  target.inputTokens += row.inputTokens
-  target.outputTokens += row.outputTokens
-  target.cacheReadTokens += row.cacheReadTokens
-  target.cacheWriteTokens += row.cacheWriteTokens
-  target.calls += row.calls
-}
-
-function ensureRow(
-  buckets: Map<string, PendingRow>,
-  key: string,
-  provider: string,
-  model: string,
-): PendingRow {
-  let row = buckets.get(key)
-  if (row === undefined) {
-    row = {
-      date: '',
-      provider,
-      model,
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
-      calls: 0,
-      pendingStep: '',
-    }
-    buckets.set(key, row)
-  }
-  if (provider.length > 0 && row.provider.length === 0) row.provider = provider
-  if (model.length > 0 && row.model.length === 0) row.model = model
-  return row
-}
-
 function addUsage(row: PendingRow, usage: UsageShape): void {
   row.inputTokens += pick(usage.inputTokens)
   row.outputTokens += pick(usage.outputTokens)
@@ -243,15 +122,88 @@ function addUsage(row: PendingRow, usage: UsageShape): void {
   row.cacheWriteTokens += pick(usage.cacheWriteTokens)
 }
 
-function finalizeRow(row: PendingRow): UsageRow {
-  return {
-    date: row.date,
-    provider: row.provider,
-    model: row.model,
-    inputTokens: row.inputTokens,
-    outputTokens: row.outputTokens,
-    cacheReadTokens: row.cacheReadTokens,
-    cacheWriteTokens: row.cacheWriteTokens,
-    calls: row.calls,
+function subUsage(row: PendingRow, usage: UsageShape): void {
+  row.inputTokens -= pick(usage.inputTokens)
+  row.outputTokens -= pick(usage.outputTokens)
+  row.cacheReadTokens -= pick(usage.cacheReadTokens)
+  row.cacheWriteTokens -= pick(usage.cacheWriteTokens)
+}
+
+/**
+ * 折叠一段事件流为 usage 行集。
+ * 返回行按 (date, provider, model) 排序稳定输出；同一 (turn, step) 的
+ * 连续重结算按替换计入（先回撤旧样本再加新样本，对齐官方 addReplacing），
+ * `llm/retry-started` 关闭替换槽使重试的新尝试照常累加（失败尝试计入）。
+ */
+export function foldUsage(events: readonly FoldEvent[], tzOffsetMinutes: number): UsageRow[] {
+  const buckets = new Map<string, PendingRow>()
+  let last: LastSlot | null = null
+  for (const event of events) {
+    if (event.type === RETRY_EVENT) {
+      const data = (event.data ?? {}) as SettlementShape
+      if (last !== null && last.step === stepKey(data)) last = null
+      continue
+    }
+    if (event.type !== MESSAGE_EVENT && event.type !== ATTEMPT_EVENT) continue
+    const data = (event.data ?? {}) as SettlementShape
+    const usage = settlementUsage(data)
+    if (usage === null) continue
+    const step = stepKey(data)
+    const replacing = last !== null && last.step === step
+    // 替换结算：先回撤旧样本（旧桶可能因回撤清空而被删除）。
+    if (replacing && last !== null) {
+      const previous = last
+      const old = buckets.get(previous.bucketKey)
+      if (old !== undefined) {
+        subUsage(old, previous.usage)
+        old.calls -= 1
+        if (old.calls <= 0) buckets.delete(previous.bucketKey)
+      }
+    }
+    const date = localDay(event.time, tzOffsetMinutes)
+    const message = event.type === MESSAGE_EVENT ? data.message : undefined
+    const provider = message?.source?.provider ?? ''
+    const model = message?.source?.model ?? ''
+    const labeled = provider.length > 0 || model.length > 0
+    const bucketKey = labeled
+      ? `${date}\u0000${provider}\u0000${model}`
+      : `\0unlabeled\u0000${date}`
+    let row = buckets.get(bucketKey)
+    if (row === undefined) {
+      row = {
+        date,
+        provider,
+        model,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        calls: 0,
+        lastKey: '',
+      }
+      buckets.set(bucketKey, row)
+    }
+    if (provider.length > 0) row.provider = provider
+    if (model.length > 0) row.model = model
+    addUsage(row, usage)
+    row.calls += 1
+    row.lastKey = step
+    last = { step, bucketKey, usage }
   }
+  return [...buckets.values()]
+    .map((row) => {
+      const { lastKey: _lastKey, ...rest } = row
+      // 仅有 attempt（无 message 回填 provider）的失败尝试：归入「—」聚合行。
+      if (rest.provider.length === 0 && rest.model.length === 0) {
+        return { ...rest, provider: UNKNOWN, model: UNKNOWN }
+      }
+      return rest
+    })
+    .sort((a, b) =>
+      a.date === b.date
+        ? a.provider === b.provider
+          ? a.model.localeCompare(b.model)
+          : a.provider.localeCompare(b.provider)
+        : a.date.localeCompare(b.date),
+    )
 }

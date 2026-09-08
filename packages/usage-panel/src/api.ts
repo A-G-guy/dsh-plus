@@ -1,5 +1,5 @@
 /**
- * usage-panel HTTP 端点：GET data / POST scan / POST prices-import。
+ * usage-panel HTTP 端点：GET data / GET|POST catalog / POST prices-import。
  * 与 dsh web 同源（webServer 默认 loopback / 反代信任域），无独立鉴权
  * （与 notify-email/lifeboat 自定义端点同一暴露面约定）。
  * @module usage-panel/api
@@ -13,7 +13,7 @@ import type { UsagePanelService } from './service.ts'
 import type { UsageRow } from './usage-fold.ts'
 
 const ROUTE_DATA = '/dsh-plus/usage-panel/data'
-const ROUTE_SCAN = '/dsh-plus/usage-panel/scan'
+const ROUTE_CATALOG = '/dsh-plus/usage-panel/catalog'
 const ROUTE_PRICES = '/dsh-plus/usage-panel/prices-import'
 
 interface WireRow extends UsageRow {
@@ -51,7 +51,8 @@ export function registerUsageApi(ctx: Context, service: UsagePanelService): void
           generatedAt: new Date().toISOString(),
           currency: table.currency,
           pricedCount: table.entries.length,
-          scanning: service.scanState(),
+          sync: service.syncProgress(),
+          catalog: service.catalogState(),
           sessions: service.sessionCount(),
           rows,
         })
@@ -63,25 +64,36 @@ export function registerUsageApi(ctx: Context, service: UsagePanelService): void
       }
     },
   })
+  // 目录状态/手动刷新：GET 看状态（含 fetchedAt/error），POST 触发后台刷新（立即返回）。
   ctx.webServer.register({
     kind: 'prefix',
-    path: ROUTE_SCAN,
+    path: ROUTE_CATALOG,
     handler: async (req: IncomingMessage, res: ServerResponse) => {
       try {
-        if (req.method !== 'POST') {
-          sendJson(res, 405, { error: 'POST only' })
+        if (req.method === 'POST') {
+          const catalog = service.catalogStore()
+          if (catalog === null) {
+            sendJson(res, 409, { error: 'catalog-unavailable' })
+            return
+          }
+          void catalog.refresh()
+          sendJson(res, 202, { ok: true })
           return
         }
-        const result = await service.startScan()
-        sendJson(res, result.ok ? 200 : 409, result)
+        if (req.method !== 'GET') {
+          sendJson(res, 405, { error: 'GET or POST only' })
+          return
+        }
+        sendJson(res, 200, service.catalogState())
       } catch (error) {
         logger.warn(
-          `scan endpoint failed: ${error instanceof Error ? error.message : String(error)}`,
+          `catalog endpoint failed: ${error instanceof Error ? error.message : String(error)}`,
         )
         sendJson(res, 500, { error: 'internal' })
       }
     },
   })
+  // 价目导入：请求体可带 doc（兼容外部来源），缺省用 host 端已缓存目录折算。
   ctx.webServer.register({
     kind: 'prefix',
     path: ROUTE_PRICES,
@@ -92,30 +104,21 @@ export function registerUsageApi(ctx: Context, service: UsagePanelService): void
           return
         }
         const body = JSON.parse(await readBody(req)) as { doc?: unknown }
-        if (typeof body.doc !== 'string') {
+        if (body.doc !== undefined && typeof body.doc !== 'string') {
           sendJson(res, 400, { error: 'doc-required' })
           return
         }
-        const settings = (
-          ctx as unknown as {
-            settings: {
-              get(ns: string): unknown
-              update(ns: string, patch: Record<string, unknown>): Promise<void>
-            }
-          }
-        ).settings
-        const current = settings.get('dsh-plus-usage-panel') as { prices?: unknown[] } | undefined
-        const imported = await service.importFromModelsDev(body.doc, async (entries) => {
-          await settings.update('dsh-plus-usage-panel', {
-            prices: entries,
-            ...(current === undefined || typeof current !== 'object' ? {} : {}),
-          })
-        })
+        const imported = await service.importFromModelsDev(
+          typeof body.doc === 'string' ? body.doc : null,
+        )
         sendJson(res, 200, { imported })
       } catch (error) {
-        logger.warn(
-          `prices-import failed: ${error instanceof Error ? error.message : String(error)}`,
-        )
+        const message = error instanceof Error ? error.message : String(error)
+        logger.warn(`prices-import failed: ${message}`)
+        if (message === 'catalog-unavailable' || message === 'settings-unavailable') {
+          sendJson(res, 409, { error: message })
+          return
+        }
         sendJson(res, 500, { error: 'internal' })
       }
     },

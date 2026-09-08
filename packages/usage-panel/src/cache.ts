@@ -1,7 +1,8 @@
 /**
- * 用量缓存：`$DSH_HOME/usage-panel/cache.json`（schema v1）。
- * `{version, sessions: {[id]: {lastSeq, rows[]}}}`——lastSeq 短路免重扫、
- * 原子写（临时文件 + rename）、损坏降级为全量重建。
+ * 用量缓存：`$DSH_HOME/usage-panel/cache.json`（schema v2）。
+ * `{version, sessions: {[id]: {revision?, lastSeq, rows[]}}}`——revision/
+ * lastSeq 双重短路免重读、原子写（临时文件 + rename）、损坏/版本不符降级为
+ * 空缓存（由同步任务自动重建；不做跨版本迁移，旧版本数据直接弃用）。
  * @module usage-panel/cache
  */
 import { existsSync } from 'node:fs'
@@ -10,9 +11,11 @@ import { dirname } from 'node:path'
 
 import type { UsageRow } from './usage-fold.ts'
 
-export const CACHE_VERSION = 1
+export const CACHE_VERSION = 2
 
 export interface SessionCacheEntry {
+  /** 后端 opaque 变更令牌（persistence list 快照）；缺失表示该会话需要重读。 */
+  revision?: string
   lastSeq: number
   rows: UsageRow[]
 }
@@ -71,7 +74,23 @@ function coerceRow(raw: CacheRow): UsageRow | null {
   }
 }
 
-/** 解析缓存文件；损坏/版本不符 → null（调用方降级为空缓存全量重建）。 */
+function coerceEntry(raw: unknown): SessionCacheEntry | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const e = raw as { revision?: unknown; lastSeq?: unknown; rows?: unknown }
+  if (typeof e.lastSeq !== 'number' || !Number.isFinite(e.lastSeq) || !Array.isArray(e.rows)) {
+    return null
+  }
+  const rows: UsageRow[] = []
+  for (const item of e.rows) {
+    const row = coerceRow(item as CacheRow)
+    if (row !== null) rows.push(row)
+  }
+  const entry: SessionCacheEntry = { lastSeq: e.lastSeq, rows }
+  if (typeof e.revision === 'string' && e.revision.length > 0) entry.revision = e.revision
+  return entry
+}
+
+/** 解析缓存文件；损坏/版本不符 → null（调用方降级为空缓存自动重建）。 */
 export function parseCache(text: string): UsageCache | null {
   let parsed: unknown
   try {
@@ -81,6 +100,7 @@ export function parseCache(text: string): UsageCache | null {
   }
   if (typeof parsed !== 'object' || parsed === null) return null
   const doc = parsed as { version?: unknown; sessions?: unknown }
+  // 严格 v2：旧版本（无 revision 语义）不迁移，降级为空缓存由同步重建。
   if (
     doc.version !== CACHE_VERSION ||
     typeof doc.sessions !== 'object' ||
@@ -90,21 +110,14 @@ export function parseCache(text: string): UsageCache | null {
     return null
   }
   const sessions: Record<string, SessionCacheEntry> = {}
-  for (const [id, entry] of Object.entries(doc.sessions as Record<string, unknown>)) {
-    if (typeof entry !== 'object' || entry === null) continue
-    const e = entry as { lastSeq?: unknown; rows?: unknown }
-    if (typeof e.lastSeq !== 'number' || !Array.isArray(e.rows)) continue
-    const rows: UsageRow[] = []
-    for (const raw of e.rows) {
-      const row = coerceRow(raw as CacheRow)
-      if (row !== null) rows.push(row)
-    }
-    sessions[id] = { lastSeq: e.lastSeq, rows }
+  for (const [id, raw] of Object.entries(doc.sessions as Record<string, unknown>)) {
+    const entry = coerceEntry(raw)
+    if (entry !== null) sessions[id] = entry
   }
   return { version: CACHE_VERSION, sessions }
 }
 
-/** 读取缓存文件；缺失/损坏 → 空缓存（全量重建语义）。 */
+/** 读取缓存文件；缺失/损坏 → 空缓存（同步任务自动重建）。 */
 export async function loadCache(path: string): Promise<UsageCache> {
   if (!existsSync(path)) return { ...EMPTY_CACHE, sessions: {} }
   try {

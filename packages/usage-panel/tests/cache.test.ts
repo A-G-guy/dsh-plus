@@ -21,30 +21,33 @@ function row(over: Partial<UsageRow>): UsageRow {
   }
 }
 
-test('parseCache：合法文档往返保留会话条目', () => {
+test('parseCache：合法文档往返保留会话条目（含 revision）', () => {
   const cache = parseCache(
     JSON.stringify({
-      version: 1,
+      version: 2,
       sessions: {
-        s1: { lastSeq: 42, rows: [row({ inputTokens: 10 })] },
+        s1: { revision: 'rev-1', lastSeq: 42, rows: [row({ inputTokens: 10 })] },
       },
     }),
   )
   assert.notEqual(cache, null)
+  assert.equal(cache?.version, 2)
   assert.equal(cache?.sessions.s1?.lastSeq, 42)
+  assert.equal(cache?.sessions.s1?.revision, 'rev-1')
   assert.equal(cache?.sessions.s1?.rows[0]?.inputTokens, 10)
 })
 
-test('parseCache：损坏 JSON / 版本不符 / 形状非法 → null（降级全量重建）', () => {
+test('parseCache：损坏 JSON / 版本不符（v1 不迁移）/ 形状非法 → null（降级重建）', () => {
   assert.equal(parseCache('{broken'), null)
+  assert.equal(parseCache(JSON.stringify({ version: 1, sessions: {} })), null)
   assert.equal(parseCache(JSON.stringify({ version: 99, sessions: {} })), null)
-  assert.equal(parseCache(JSON.stringify({ version: 1, sessions: [] })), null)
+  assert.equal(parseCache(JSON.stringify({ version: 2, sessions: [] })), null)
 })
 
 test('parseCache：行字段非法的条目被剔除，其余保留', () => {
   const cache = parseCache(
     JSON.stringify({
-      version: 1,
+      version: 2,
       sessions: {
         s1: {
           lastSeq: 1,

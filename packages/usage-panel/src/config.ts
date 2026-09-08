@@ -25,6 +25,18 @@ export const Config = z.object({
   prices: z.array(PriceEntrySchema).description('价目表（手工或 models.dev 导入）').default([]),
   currency: z.string().min(1).description('费用货币单位展示码').default('CNY'),
   catalogProxy: z.string().description('models.dev 拉取代理（空 = 直连）').default(''),
+  autoSyncMinutes: z
+    .number()
+    .min(0)
+    .max(1440)
+    .description('历史会话自动增量同步间隔（分钟，0 = 仅启动时同步一次）')
+    .default(30),
+  catalogRefreshHours: z
+    .number()
+    .min(0)
+    .max(720)
+    .description('models.dev 目录自动刷新间隔（小时，0 = 仅启动时拉取一次）')
+    .default(24),
 })
 
 export type UsagePanelConfig = Schemastery.TypeT<typeof Config>

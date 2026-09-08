@@ -18,6 +18,12 @@ const sectionCss = `
 .dup-meta{color:var(--dsw-alias-label-tertiary);font-size:12px}
 .dup-empty{color:var(--dsw-alias-label-tertiary);font-size:13px;margin:8px 0}
 .dup-ranges{display:flex;gap:6px;flex-wrap:wrap}
+.dup-filters{display:flex;flex-direction:column;gap:8px}
+.dup-customRange{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dup-customRange .dup-in{width:auto}
+.dup-rangeDash{color:var(--dsw-alias-label-tertiary)}
+.dup-filtersRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dup-filtersRow .dup-in{width:auto;min-width:220px}
 .dup-rangeBtn{appearance:none;font:inherit;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);background:0 0;color:var(--dsw-alias-label-secondary);border-radius:8px;padding:5px 12px;font-size:12px;line-height:1.5}
 .dup-rangeBtn:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-label-dimmed)}
 .dup-rangeActive{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3);border-color:transparent}
@@ -61,6 +67,8 @@ const sectionCss = `
 @media (max-width:767px){
 .dup-headActions{width:100%;justify-content:space-between}
 .dup-rangeBtn{min-height:44px;flex:1}
+.dup-customRange .dup-in{font-size:16px;min-height:44px;flex:1}
+.dup-filtersRow .dup-in{font-size:16px;min-height:44px;flex:1;min-width:0}
 .dup-chart{height:96px}
 .dup-tr{grid-template-columns:1fr}
 .dup-th{display:none}

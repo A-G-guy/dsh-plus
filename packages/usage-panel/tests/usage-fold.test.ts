@@ -1,5 +1,6 @@
 /**
- * usage 折叠器：chunk 优先 / message 兜底不双计、provider/model 归桶、跨日切分。
+ * usage 折叠器：settlement 优先级（usage 字段 / stream 内嵌 chunk）、
+ * 重试替换语义、provider/model 归桶、跨日切分。
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -7,20 +8,7 @@ import { test } from 'node:test'
 import { type FoldEvent, foldUsage, localDay } from '../src/usage-fold.ts'
 
 const TZ = 480 // UTC+8（本机服务器时区）
-
-function chunkEvent(
-  turn: number,
-  step: number,
-  usage: object,
-  time = Date.UTC(2026, 7, 25, 2, 0),
-): FoldEvent {
-  return {
-    type: 'assistant/chunk',
-    seq: 1,
-    time,
-    data: { turn, step, chunk: { type: 'usage', usage } },
-  }
-}
+const T0 = Date.UTC(2026, 7, 25, 2, 0)
 
 function messageEvent(
   turn: number,
@@ -28,7 +16,7 @@ function messageEvent(
   provider: string,
   model: string,
   usage: object | null,
-  time = Date.UTC(2026, 7, 25, 2, 0),
+  time = T0,
 ): FoldEvent {
   return {
     type: 'assistant/message',
@@ -37,15 +25,59 @@ function messageEvent(
     data: {
       turn,
       step,
-      message: { source: { kind: 'model', provider, model } },
       ...(usage === null ? {} : { usage }),
+      message: { source: { kind: 'model', provider, model } },
     },
   }
 }
 
-test('同一步 usage chunk + message.usage：只计 chunk 一次（不双计）', () => {
+/** stream 内嵌 usage chunk（0.1.3：usage 随 stream 落盘在 message/attempt 内）。 */
+function messageWithStreamUsage(
+  turn: number,
+  step: number,
+  provider: string,
+  model: string,
+  usage: object,
+): FoldEvent {
+  return {
+    type: 'assistant/message',
+    seq: 3,
+    time: T0,
+    data: {
+      turn,
+      step,
+      message: { source: { kind: 'model', provider, model } },
+      stream: [{ type: 'chunk', time: T0, chunk: { type: 'usage', usage } }],
+    },
+  }
+}
+
+function attemptEvent(turn: number, step: number, usage: object): FoldEvent {
+  return {
+    type: 'assistant/attempt',
+    seq: 4,
+    time: T0,
+    data: {
+      turn,
+      step,
+      stream: [{ type: 'chunk', time: T0, chunk: { type: 'usage', usage } }],
+    },
+  }
+}
+
+function retryEvent(turn: number, step: number): FoldEvent {
+  return { type: 'llm/retry-started', seq: 5, time: T0, data: { turn, step } }
+}
+
+test('message.usage 字段优先；同批 stream chunk 不双计', () => {
   const usage = { inputTokens: 100, outputTokens: 50, cacheReadTokens: 10, cacheWriteTokens: 5 }
-  const rows = foldUsage([chunkEvent(1, 0, usage), messageEvent(1, 0, 'p', 'm', usage)], TZ)
+  const rows = foldUsage(
+    [
+      messageWithStreamUsage(1, 0, 'p', 'm', { inputTokens: 999 }),
+      messageEvent(1, 0, 'p', 'm', usage),
+    ],
+    TZ,
+  )
   assert.equal(rows.length, 1)
   assert.equal(rows[0]?.calls, 1)
   assert.equal(rows[0]?.inputTokens, 100)
@@ -53,26 +85,58 @@ test('同一步 usage chunk + message.usage：只计 chunk 一次（不双计）
   assert.equal(rows[0]?.model, 'm')
 })
 
-test('无 usage chunk 的 committed step：message.usage 兜底计账', () => {
+test('无 usage 字段时回落 stream 内嵌 usage chunk', () => {
   const rows = foldUsage(
-    [messageEvent(1, 1, 'openai', 'gpt', { inputTokens: 30, outputTokens: 20 })],
+    [messageWithStreamUsage(1, 0, 'openai', 'gpt', { inputTokens: 30, outputTokens: 20 })],
+    TZ,
+  )
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0]?.inputTokens, 30)
+  assert.equal(rows[0]?.provider, 'openai')
+})
+
+test('无 message 的 attempt 结算（失败尝试）计入「—」聚合行', () => {
+  const rows = foldUsage([attemptEvent(1, 0, { inputTokens: 7 })], TZ)
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0]?.provider, '—')
+  assert.equal(rows[0]?.inputTokens, 7)
+  assert.equal(rows[0]?.calls, 1)
+})
+
+test('同一 (turn,step) 连续重结算：替换语义（不累加）', () => {
+  const rows = foldUsage(
+    [
+      messageEvent(1, 0, 'a', 'x', { inputTokens: 100 }),
+      messageEvent(1, 0, 'a', 'x', { inputTokens: 40 }),
+    ],
     TZ,
   )
   assert.equal(rows.length, 1)
   assert.equal(rows[0]?.calls, 1)
-  assert.equal(rows[0]?.inputTokens, 30)
-  assert.equal(rows[0]?.provider, 'openai')
+  assert.equal(rows[0]?.inputTokens, 40)
+})
+
+test('llm/retry-started 关闭替换槽：重试尝试照常累加（失败尝试计入）', () => {
+  const rows = foldUsage(
+    [
+      messageEvent(1, 0, 'a', 'x', { inputTokens: 100 }),
+      retryEvent(1, 0),
+      attemptEvent(1, 0, { inputTokens: 20 }),
+      messageEvent(1, 0, 'a', 'x', { inputTokens: 30 }),
+    ],
+    TZ,
+  )
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0]?.calls, 2)
+  assert.equal(rows[0]?.inputTokens, 130)
 })
 
 test('多 provider/model 归桶分离；同桶跨步累加', () => {
   const rows = foldUsage(
     [
-      chunkEvent(1, 0, { inputTokens: 10, outputTokens: 1 }),
-      messageEvent(1, 0, 'a', 'x', null),
-      chunkEvent(1, 1, { inputTokens: 20, outputTokens: 2 }),
-      messageEvent(1, 1, 'a', 'x', null),
-      chunkEvent(2, 0, { inputTokens: 5, outputTokens: 0 }),
-      messageEvent(2, 0, 'b', 'y', null),
+      messageEvent(1, 0, 'a', 'x', { inputTokens: 10 }),
+      messageEvent(1, 1, 'a', 'x', { inputTokens: 20 }),
+      messageEvent(2, 0, 'b', 'y', { inputTokens: 5 }),
     ],
     TZ,
   )
@@ -89,10 +153,8 @@ test('跨日切分：同 provider 不同日分行（本地时区口径）', () =
   const day2 = Date.UTC(2026, 7, 25, 20, 0) // UTC+8 = 8/26 04:00
   const rows = foldUsage(
     [
-      chunkEvent(1, 0, { inputTokens: 1 }, day1),
-      messageEvent(1, 0, 'a', 'm', null, day1),
-      chunkEvent(2, 0, { inputTokens: 2 }, day2),
-      messageEvent(2, 0, 'a', 'm', null, day2),
+      messageEvent(1, 0, 'a', 'm', { inputTokens: 1 }, day1),
+      messageEvent(2, 0, 'a', 'm', { inputTokens: 2 }, day2),
     ],
     TZ,
   )

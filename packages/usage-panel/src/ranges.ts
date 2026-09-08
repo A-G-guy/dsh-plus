@@ -1,10 +1,11 @@
 /**
  * 范围切片（纯函数）：行集 → 时间范围聚合视图（概要/按日/按模型）。
+ * 支持快捷区间与自定义日期区间、provider/model 维度筛选。
  * @module usage-panel/ranges
  */
 import type { UsageRow } from './usage-fold.ts'
 
-export type RangeKey = '7d' | '30d' | 'month' | 'all'
+export type RangeKey = '7d' | '30d' | 'month' | 'all' | 'custom'
 
 /** 当天本地日（供默认范围计算；测试注入固定值）。 */
 export function today(nowMs: number, tzOffsetMinutes: number): string {
@@ -27,19 +28,62 @@ export function rangeDays(key: RangeKey, todayStr: string): { start: string; end
     case 'month':
       return { start: `${todayStr.slice(0, 7)}-01`, end: todayStr }
     case 'all':
+    case 'custom':
       return null
   }
 }
 
-/** 过滤范围内的行（all = 全量）。 */
-export function rowsInRange(
-  rows: readonly UsageRow[],
+/** 快捷范围键解析为具体区间（custom 走显式 start/end）。 */
+export function resolveRange(
   key: RangeKey,
   todayStr: string,
-): UsageRow[] {
-  const range = rangeDays(key, todayStr)
-  if (range === null) return [...rows]
-  return rows.filter((row) => row.date >= range.start && row.date <= range.end)
+  custom?: { start?: string; end?: string },
+): { start: string; end: string } | null {
+  if (key === 'custom') {
+    if (custom === undefined) return null
+    const start = isDay(custom.start) ? custom.start : undefined
+    const end = isDay(custom.end) ? custom.end : undefined
+    if (start === undefined && end === undefined) return null
+    return { start: start ?? '0000-01-01', end: end ?? '9999-12-31' }
+  }
+  return rangeDays(key, todayStr)
+}
+
+function isDay(value: string | undefined): value is string {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+/** 归一化自定义区间（start > end 时交换；非法输入 → null）。 */
+export function normalizeCustomRange(
+  start: string | undefined,
+  end: string | undefined,
+): { start: string; end: string } | null {
+  if (!isDay(start) && !isDay(end)) return null
+  const s = isDay(start) ? start : '0000-01-01'
+  const e = isDay(end) ? end : '9999-12-31'
+  return s <= e ? { start: s, end: e } : { start: e, end: s }
+}
+
+export interface FilterSpec {
+  range: { start: string; end: string } | null
+  /** provider 精确匹配（空/缺省 = 不过滤）。 */
+  provider?: string
+  /** model 精确匹配（空/缺省 = 不过滤）。 */
+  model?: string
+}
+
+/** 无关字段为空时不做该维度过滤（trim 后空串视为未指定）。泛型保形：wire 行（含 cost）过滤后仍是 wire 行。 */
+export function filterRows<T extends UsageRow>(rows: readonly T[], spec: FilterSpec): T[] {
+  const provider = spec.provider?.trim() ?? ''
+  const model = spec.model?.trim() ?? ''
+  return rows.filter((row) => {
+    if (spec.range !== null) {
+      if (row.date < spec.range.start || row.date > spec.range.end) return false
+    }
+    if (provider.length > 0 && row.provider !== provider) return false
+    if (model.length > 0 && row.model !== model) return false
+    return true
+  })
 }
 
 export interface DayTotal {
@@ -71,12 +115,7 @@ function emptyTotals(): Omit<DayTotal & ModelTotal, 'date' | 'provider' | 'model
   }
 }
 
-/** 按日聚合（升序，范围每天一行，零用量日补零）。 */
-export function totalsByDay(
-  rows: readonly UsageRow[],
-  key: RangeKey,
-  todayStr: string,
-): DayTotal[] {
+function accumulate(rows: readonly UsageRow[]): Map<string, DayTotal> {
   const buckets = new Map<string, DayTotal>()
   for (const row of rows) {
     let bucket = buckets.get(row.date)
@@ -90,7 +129,18 @@ export function totalsByDay(
     bucket.cacheWriteTokens += row.cacheWriteTokens
     bucket.calls += row.calls
   }
-  const range = rangeDays(key, todayStr)
+  return buckets
+}
+
+/** 按日聚合：固定区间（非 all）每天一行零补齐；all 只含有用量的日子。 */
+export function totalsByDay(
+  rows: readonly UsageRow[],
+  key: RangeKey,
+  todayStr: string,
+  custom?: { start?: string; end?: string },
+): DayTotal[] {
+  const buckets = accumulate(rows)
+  const range = resolveRange(key, todayStr, custom)
   if (range === null) {
     return [...buckets.values()].sort((a, b) => a.date.localeCompare(b.date))
   }

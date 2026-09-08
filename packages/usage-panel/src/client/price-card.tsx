@@ -1,6 +1,7 @@
 /**
  * 价目配置卡片：注册进 settings.plugin.item 插槽（官方插件配置页）。
- * 价目行编辑（provider/model/四价）+ models.dev 一键导入 + 代理配置。
+ * 价目行编辑（provider/model/四价）+ models.dev 一键导入（host 后台拉取，
+ * 前端轮询目录状态：refreshing 期间禁用按钮，完成后经缓存文档折算导入）。
  * @module usage-panel/client/price-card
  */
 
@@ -14,7 +15,7 @@ import {
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
-import { fetchModelsDevRaw, importPricesFromModelsDev } from './api.ts'
+import { fetchCatalogState, importPricesFromModelsDev, refreshCatalog } from './api.ts'
 
 export interface CardProps {
   t(key: string): string
@@ -34,8 +35,6 @@ interface ConfigValue {
   currency: string
   catalogProxy: string
 }
-
-const MODELS_DEV_URL = 'https://models.dev/api.json'
 
 function num(text: string): number {
   const value = Number(text)
@@ -106,10 +105,22 @@ export function UsagePriceCard(props: CardProps): ReactElement | null {
       .finally(() => setSaving(false))
   }
 
+  /** 导入流程：触发 host 后台刷新 → 轮询目录状态（refreshing 结束）→ 缓存文档折算导入。 */
   const onImport = (): void => {
     setImporting(true)
-    fetchModelsDevRaw(MODELS_DEV_URL)
-      .then((doc) => importPricesFromModelsDev(doc))
+    refreshCatalog()
+      .catch(() => {})
+      .then(() => fetchCatalogState())
+      .then((state) => {
+        if (!state.refreshing) return state
+        const deadline = Date.now() + 60_000
+        const poll = (): Promise<typeof state> =>
+          new Promise((resolve) => setTimeout(resolve, 1500))
+            .then(fetchCatalogState)
+            .then((next) => (next.refreshing && Date.now() < deadline ? poll() : next))
+        return poll()
+      })
+      .then(() => importPricesFromModelsDev())
       .then(async ({ imported }) => {
         await scope.load()
         const next = scope.getSnapshot().value as ConfigValue | undefined
