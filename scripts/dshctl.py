@@ -48,6 +48,7 @@ from dshctl.cmd_headless import cmd_hl
 from dshctl.cmd_hooks import cmd_init_hooks
 from dshctl.cmd_lint import cmd_lint
 from dshctl.cmd_mock import cmd_mock_run
+from dshctl.cmd_migrate_storage import cmd_migrate_storage
 from dshctl.cmd_pack import (cmd_install_prod, cmd_pack, cmd_restart_prod,
                              cmd_uninstall_prod)
 from dshctl.cmd_platform import cmd_platform_sync, cmd_upgrade_cli
@@ -214,6 +215,10 @@ def build_parser() -> argparse.ArgumentParser:
     mr.add_argument("--open", action="store_true", help="完成后在浏览器中定位该会话")
     mr.add_argument("--port", type=int, default=DEV_PORT)
     mr.set_defaults(func=cmd_mock_run)
+
+    mig = sub.add_parser("migrate-storage",
+                         help="dsh-plus 存储规范一次性迁移（复制旧数据+密钥入 credentials+清单）")
+    mig.set_defaults(func=cmd_migrate_storage)
 
     pack = sub.add_parser("pack")
     pack.add_argument("packages", nargs="*", help="留空打包全部")
