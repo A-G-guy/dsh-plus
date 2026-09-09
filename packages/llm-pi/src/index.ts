@@ -8,6 +8,10 @@
  * - 模块解析优先 dsh 安装树（dsh 升级即自动跟随上游），vendored 副本兜底。
  *
  * 注册全新的 route 名，不触碰官方 llm-pi-ai 的任何 route 与配置。
+ *
+ * 接线约束：inject 须含 credentials（auth-inline/deepseek-routes 经
+ * ctx.get('credentials') 读 seam；凭据解析为请求时惰性调用，硬声明保证
+ * 时序，消除启动早窗口的一次性 MISSING_CREDENTIAL）。
  * @module @dsh-plus/llm-pi
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -18,7 +22,7 @@ import { startRuntime } from './service.ts'
 
 export const name = 'dsh-plus-llm-pi'
 
-export const inject = ['llm'] as const
+export const inject = ['credentials', 'llm'] as const
 
 export type {
   LlmPiConfig,
