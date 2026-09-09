@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/bundle-main",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "dsh-plus aggregate bundle: ordered cordis patch layer wiring all dsh-plus plugins",
   "type": "module",
   "main": "lib/index.js",
@@ -34,7 +34,8 @@
     "@dsh-plus/access-gate": "workspace:*",
     "@dsh-plus/usage-panel": "workspace:*",
     "@dsh-plus/subagent-model": "workspace:*",
-    "@dsh-plus/secret-env": "workspace:*"
+    "@dsh-plus/secret-env": "workspace:*",
+    "@dsh-plus/image-studio": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2"

@@ -32,3 +32,5 @@
       name: '@dsh-plus/subagent-model'
     - id: dsh-plus-secret-env
       name: '@dsh-plus/secret-env'
+    - id: dsh-plus-image-studio
+      name: '@dsh-plus/image-studio'
