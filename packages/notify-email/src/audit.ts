@@ -1,5 +1,6 @@
 /**
- * 通知投递审计：每次发送尝试追加一行 JSONL 到 $DSH_HOME/logs/notify-email.jsonl。
+ * 通知投递审计：每次发送尝试追加一行 JSONL 到
+ * $DSH_HOME/dsh-plus/notify-email/audit.jsonl。
  * 让 dry-run 可观测（dev 实例 logger 不落盘），也为生产排查「为什么没收到邮件」留痕。
  * 记录正文截断 2000 字符；永远不含 SMTP 凭据。写失败只告警不阻断。
  * @module notify-email/audit

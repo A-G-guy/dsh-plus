@@ -7,12 +7,12 @@
  * @module @dsh-plus/notify-email
  */
 import { Context, Service } from '@deepseek-ai/cordis'
-import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type {} from '@deepseek-ai/dsh-settings'
+import { pluginDataPath } from '@dsh-plus/shared'
 import { createJsonlAuditSink } from './audit.ts'
 import { Config, type NotifyEmailConfig, SETTINGS_NS } from './config.ts'
 import { registerTestApi } from './config-api.ts'
-import { Mailer } from './mailer.ts'
+import { type CredentialsSeamLike, Mailer } from './mailer.ts'
 import { createDecisionTrigger, createTurnEndTrigger } from './triggers/builtin.ts'
 import type { DecisionCall, NotifyTrigger, TurnEndInfo } from './triggers/types.ts'
 import { installDecisionWatcher } from './watchers/decision.ts'
@@ -22,6 +22,12 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     notifyEmail: NotifyEmailService
   }
+}
+
+/** credentials seam 最小面提取（缺席返回 undefined；Mailer 自行降级行级密码）。 */
+function credentialsOf(ctx: Context): CredentialsSeamLike | undefined {
+  const found = (ctx as unknown as { get?(key: string): unknown }).get?.('credentials')
+  return found !== null && typeof found === 'object' ? (found as CredentialsSeamLike) : undefined
 }
 
 export class NotifyEmailService extends Service {
@@ -45,10 +51,10 @@ export class NotifyEmailService extends Service {
       })
     })
     const logger = ctx.logger('notify-email')
-    const audit = createJsonlAuditSink(dshHomePath('logs', 'notify-email.jsonl'), (message) =>
+    const audit = createJsonlAuditSink(pluginDataPath('notify-email', 'audit.jsonl'), (message) =>
       logger.warn(`audit write failed: ${message}`),
     )
-    this.mailer = new Mailer(() => this.current(), logger, undefined, audit)
+    this.mailer = new Mailer(() => this.current(), logger, undefined, audit, credentialsOf(ctx))
     this.registerTrigger(createDecisionTrigger(() => this.current()))
     this.registerTrigger(createTurnEndTrigger(() => this.current()))
     installDecisionWatcher(ctx, this)

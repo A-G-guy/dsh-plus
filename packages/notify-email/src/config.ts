@@ -1,7 +1,8 @@
 /**
  * 配置单一事实源：cordis 行级 Config（组合默认值，dev/prod patch 层可覆盖）
  * 与 settings namespace（用户层，经 dsh-settings-file 持久化到 $DSH_HOME/settings.yaml）
- * 共用同一 schemastery schema。SMTP 密码标记 secret 角色，任何读取通道不得回传。
+ * 共用同一 schemastery schema。SMTP 密码走官方 credentials seam
+ * （refs/NOTIFY_EMAIL_SMTP_PASS），不进 settings.yaml（存储规范）。
  * @module notify-email/config
  */
 
@@ -12,12 +13,19 @@ import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 /** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
 export const SETTINGS_NS = NS_LITERAL
 
+/** SMTP 密码在官方 credentials seam 中的引用名。 */
+export const SMTP_PASS_REF = 'NOTIFY_EMAIL_SMTP_PASS'
+
 const SmtpSchema = z.object({
   host: z.string().description('SMTP 服务器主机名').default(''),
   port: z.natural().max(65535).description('SMTP 端口').default(465),
   secure: z.boolean().description('使用 TLS 直连（465 端口通常为 true）').default(true),
   user: z.string().description('SMTP 登录用户名（通常为发件邮箱）').default(''),
-  pass: z.string().role('secret').description('SMTP 密码/授权码').default(''),
+  pass: z
+    .string()
+    .role('secret')
+    .description('SMTP 密码/授权码（仅兼容行级注入；用户层请配置 credentials 引用）')
+    .default(''),
   from: z.string().description('发件地址（From 头）').default(''),
 })
 

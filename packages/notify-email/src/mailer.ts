@@ -5,8 +5,10 @@
  */
 import nodemailer from 'nodemailer'
 
+import { credentialRef } from '@deepseek-ai/dsh-credentials'
+
 import { type AuditSink, buildAuditRecord } from './audit.ts'
-import type { NotifyEmailConfig } from './config.ts'
+import { type NotifyEmailConfig, SMTP_PASS_REF } from './config.ts'
 
 /** 一封待发邮件（触发器产物的最小契约）。 */
 export interface MailMessage {
@@ -22,7 +24,16 @@ export interface SendResult {
 }
 
 /** 发送通道：按生效配置投递一封邮件；失败抛错由调用方归一化。 */
-export type Transport = (cfg: NotifyEmailConfig, msg: MailMessage) => Promise<void>
+export type Transport = (
+  cfg: NotifyEmailConfig,
+  msg: MailMessage,
+  credentials?: CredentialsSeamLike,
+) => Promise<void>
+
+/** credentials seam 最小面（Mailer 不感知完整 seam 类型）。 */
+export interface CredentialsSeamLike {
+  resolve(ref: ReturnType<typeof credentialRef>): Promise<{ value: string } | undefined>
+}
 
 export interface MailLogger {
   info(msg: string): void
@@ -34,13 +45,15 @@ const CONNECTION_TIMEOUT_MS = 10_000
 const GREETING_TIMEOUT_MS = 10_000
 const SOCKET_TIMEOUT_MS = 30_000
 
-/** 真实 SMTP 通道：每次发送按当前配置新建 transport（配置热改即生效，发送低频无池化需求）。 */
-export const smtpTransport: Transport = async (cfg, msg) => {
+/** 真实 SMTP 通道：每次发送按当前配置新建 transport（配置热改即生效，发送低频无池化需求）。
+ * 密码优先 credentials seam（NOTIFY_EMAIL_SMTP_PASS），缺席回落行级 smtp.pass（兼容注入场景）。 */
+export const smtpTransport: Transport = async (cfg, msg, credentials) => {
+  const pass = await resolvePass(cfg, credentials)
   const transporter = nodemailer.createTransport({
     host: cfg.smtp.host,
     port: cfg.smtp.port,
     secure: cfg.smtp.secure,
-    auth: cfg.smtp.user.length > 0 ? { user: cfg.smtp.user, pass: cfg.smtp.pass } : undefined,
+    auth: cfg.smtp.user.length > 0 && pass !== null ? { user: cfg.smtp.user, pass } : undefined,
     connectionTimeout: CONNECTION_TIMEOUT_MS,
     greetingTimeout: GREETING_TIMEOUT_MS,
     socketTimeout: SOCKET_TIMEOUT_MS,
@@ -54,22 +67,37 @@ export const smtpTransport: Transport = async (cfg, msg) => {
   })
 }
 
+/** 解析生效密码：credentials 引用优先，行级 secret 兜底；两处皆空返回 null。 */
+async function resolvePass(
+  cfg: NotifyEmailConfig,
+  credentials: CredentialsSeamLike | undefined,
+): Promise<string | null> {
+  if (credentials !== undefined) {
+    const resolved = await credentials.resolve(credentialRef(SMTP_PASS_REF)).catch(() => undefined)
+    if (resolved !== undefined && resolved.value.length > 0) return resolved.value
+  }
+  return cfg.smtp.pass.length > 0 ? cfg.smtp.pass : null
+}
+
 export class Mailer {
   private readonly resolveConfig: () => NotifyEmailConfig
   private readonly logger: MailLogger
   private readonly transport: Transport
   private readonly audit?: AuditSink
+  private readonly credentials?: CredentialsSeamLike
 
   constructor(
     resolveConfig: () => NotifyEmailConfig,
     logger: MailLogger,
     transport: Transport = smtpTransport,
     audit?: AuditSink,
+    credentials?: CredentialsSeamLike,
   ) {
     this.resolveConfig = resolveConfig
     this.logger = logger
     this.transport = transport
     this.audit = audit
+    this.credentials = credentials
   }
 
   /**
@@ -87,7 +115,7 @@ export class Mailer {
       return this.record(msg, cfg, { ok: true, detail: 'dry-run' })
     }
     try {
-      await this.transport(cfg, msg)
+      await this.transport(cfg, msg, this.credentials)
       return this.record(msg, cfg, { ok: true, detail: 'sent' })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

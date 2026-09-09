@@ -214,6 +214,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: 0.1.5-alpha.1
         version: 0.1.5-alpha.1(288d2f4271bc6bef491bb5a5c084f12c)
+      '@deepseek-ai/dsh-credentials':
+        specifier: 0.1.5-alpha.1
+        version: 0.1.5-alpha.1
       '@deepseek-ai/dsh-home-paths':
         specifier: 0.1.5-alpha.1
         version: 0.1.5-alpha.1(@deepseek-ai/cordis@4.0.2)

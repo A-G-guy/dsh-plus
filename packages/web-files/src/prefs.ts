@@ -1,6 +1,6 @@
 /**
- * 面板偏好的服务端持久化：JSON 单文件落盘（默认
- * `~/.dsh/web-files/prefs.json`），供全部设备共享（跨设备记忆）。
+ * 面板偏好的服务端持久化：JSON 单文件落盘（
+ * `$DSH_HOME/dsh-plus/web-files/prefs.json`），供全部设备共享（跨设备记忆）。
  *
  * 与 HTTP 层解耦以便单测（路径经构造器注入）；所有外部输入在本模块
  * 边界校验，损坏/越界数据静默回退默认项而非整文件作废。
@@ -9,7 +9,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute } from 'node:path'
 
-import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
+import { pluginDataPath } from '@dsh-plus/shared'
 
 import { FilesError, requireAbsolute } from './fs-core.ts'
 import {
@@ -101,7 +101,7 @@ export class PrefsStore {
   readonly path: string
   private queue: Promise<unknown> = Promise.resolve()
 
-  constructor(path: string = dshHomePath('web-files', 'prefs.json')) {
+  constructor(path: string = pluginDataPath('web-files', 'prefs.json')) {
     this.path = path
   }
 
