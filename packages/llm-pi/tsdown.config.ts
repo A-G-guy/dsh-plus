@@ -36,7 +36,7 @@ export default defineConfig([
     // react 由外壳 ModuleLoader 提供（seed）；@dsh-plus/shared 按源码级打苞
     // （shared 无 client bundle row，不能作为动态 external）。
     deps: {
-      neverBundle: ['react', 'react/jsx-runtime'],
+      neverBundle: ['react', 'react/jsx-runtime', '@deepseek-ai/dsh-client-ui-primitives'],
       alwaysBundle: ['@dsh-plus/shared/**'],
     },
     outputOptions: {

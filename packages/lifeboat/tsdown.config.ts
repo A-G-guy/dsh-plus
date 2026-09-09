@@ -35,7 +35,7 @@ export default defineConfig([
     dts: true,
     outDir: 'lib',
     deps: {
-      neverBundle: ['react', 'react/jsx-runtime'],
+      neverBundle: ['react', 'react/jsx-runtime', '@deepseek-ai/dsh-client-ui-primitives'],
       alwaysBundle: ['@dsh-plus/shared/**'],
     },
     outputOptions: {

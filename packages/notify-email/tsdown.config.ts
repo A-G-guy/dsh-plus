@@ -41,7 +41,7 @@ export default defineConfig([
     // tsdown deps：neverBundle 只留 react 系；alwaysBundle 需通配子路径
     // （picomatch 裸包名不匹配 `pkg/subpath`）。
     deps: {
-      neverBundle: ['react', 'react/jsx-runtime'],
+      neverBundle: ['react', 'react/jsx-runtime', '@deepseek-ai/dsh-client-ui-primitives'],
       alwaysBundle: ['@dsh-plus/shared/**'],
     },
     outputOptions: {
