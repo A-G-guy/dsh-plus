@@ -9,7 +9,8 @@
  *   remote.settings 直连，settings.plugin.item 卡片见 client 半）。
  * @module @dsh-plus/subagent-model
  */
-import { Context, Service } from '@deepseek-ai/cordis'
+import type { Context } from '@deepseek-ai/cordis'
+import { Service } from '@deepseek-ai/cordis'
 
 import { Config, SETTINGS_NS, type SubagentModelConfig, validateEntries } from './config.ts'
 import { registerCatalogApi } from './config-api.ts'
@@ -22,7 +23,9 @@ declare module '@deepseek-ai/cordis' {
 }
 
 export class SubagentModelService extends Service {
-  static [Context.inject] = ['subagents', 'llm']
+  // 普通 static inject：cordis 4.0.2 不存在 Context.inject 符号（computed key
+  // 会失效为 'undefined' 使声明无效）；delegation 挂钩依赖此时序声明。
+  static inject = ['subagents', 'llm']
 
   private current: () => SubagentModelConfig
 

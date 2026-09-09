@@ -6,7 +6,8 @@
  * - 投递：首个非空 EmailNotice 经 Mailer 发送；单个触发器抛错不影响其余。
  * @module @dsh-plus/notify-email
  */
-import { Context, Service } from '@deepseek-ai/cordis'
+import type { Context } from '@deepseek-ai/cordis'
+import { Service } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
 import { pluginDataPath } from '@dsh-plus/shared'
 import { createJsonlAuditSink } from './audit.ts'
@@ -31,7 +32,11 @@ function credentialsOf(ctx: Context): CredentialsSeamLike {
 }
 
 export class NotifyEmailService extends Service {
-  static [Context.inject] = ['agents', 'tools', 'credentials']
+  // cordis 4.0.2 以普通静态属性读取插件级 inject（Context.inject 符号在该版本
+  // 不存在，computed key 会静默变成字符串 'undefined' 使声明失效——0.1.18 的
+  // 553 回归即源于此：credentials 未就绪时构造读 ctx.credentials 抛
+  // "cannot get property credentials without inject"，服务 fiber 静默 FAILED）。
+  static inject = ['agents', 'tools', 'credentials']
 
   private readonly triggers: NotifyTrigger[] = []
   private readonly mailer: Mailer

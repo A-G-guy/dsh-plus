@@ -12,7 +12,11 @@ import { NotifyEmailService } from './service.ts'
 
 export const name = 'dsh-plus-notify-email'
 
-export const inject = ['agents', 'tools'] as const
+// 行级 inject：loader 须等这些服务激活后才应用本行。credentials 必须在列：
+// 服务构造期即读取 credentials seam（行级 inject 是 fiber 链上属性解析的
+// 声明来源，服务类 static inject 在 cordis 4.0.2 的类插件挂载里同样生效，
+// 两处同声明互为兜底）。
+export const inject = ['agents', 'tools', 'credentials'] as const
 
 export { NotifyEmailService } from './service.ts'
 

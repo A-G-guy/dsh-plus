@@ -13,7 +13,8 @@
  * 红线：值只流经「端点 → 本服务 → dshEnv」，任何日志/事件/返回值不带值。
  * @module secret-env/service
  */
-import { Context, Service } from '@deepseek-ai/cordis'
+import type { Context } from '@deepseek-ai/cordis'
+import { Service } from '@deepseek-ai/cordis'
 import { type CredentialInfo, credentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-settings'
@@ -50,7 +51,9 @@ interface SettingsLike {
 }
 
 export class SecretEnvService extends Service {
-  static [Context.inject] = ['credentials', 'shellEnv']
+  // 普通 static inject：cordis 4.0.2 不存在 Context.inject 符号（computed key
+  // 会失效为 'undefined' 使声明无效）；构造期读 ctx.shellEnv/credentials 依赖此声明。
+  static inject = ['credentials', 'shellEnv']
 
   /** 全局值镜像（seam resolve 为异步，contributor 同步读这里）。 */
   private readonly globalMirror = new Map<string, string>()

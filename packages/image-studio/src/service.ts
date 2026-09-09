@@ -7,7 +7,8 @@
  * 红线：开发测试仅指向本地 mock，严禁真实调用产生费用。
  * @module image-studio/service
  */
-import { Context, type Context as ContextT, Service } from '@deepseek-ai/cordis'
+import type { Context as ContextT } from '@deepseek-ai/cordis'
+import { Service } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-settings'
 import { registerImageStudioApi } from './api.ts'
@@ -66,7 +67,9 @@ interface TaskOutcome {
 }
 
 export class ImageStudioService extends Service {
-  static [Context.inject] = ['credentials']
+  // 普通 static inject：cordis 4.0.2 不存在 Context.inject 符号（computed key
+  // 会失效为 'undefined' 使声明无效）；credentials 时序由该声明保证。
+  static inject = ['credentials']
 
   private current: () => ImageStudioConfig
   private readonly runner: TaskRunner<TaskSnapshot>
