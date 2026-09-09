@@ -1,18 +1,12 @@
 /**
- * 配置与 journal 单一事实源。
+ * 配置单一事实源。
  * - 行级 Config（cordis 组合层）：救生艇自身行为开关，dev/prod patch 层可覆盖。
- * - settings 命名空间 dsh-plus-lifeboat：运行期 journal 与 LLM 应急翻译状态，
- *   经 dsh-settings-file 持久化到 $DSH_HOME/settings.yaml，重启后可据此还原。
- * schema 刻意宽松：lifeboat 是最后防线，自身命名空间的数据问题绝不能让它起不来。
+ * - journal 与 LLM 应急翻译状态属运行期数据，按存储规范持久化到
+ *   $DSH_HOME/dsh-plus/lifeboat/state.json（见 state-file.ts），不进 settings。
  * @module lifeboat/config
  */
 
 import z from '@deepseek-ai/schemastery'
-
-import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
-
-/** settings 命名空间（字面量直供 settings 服务注册/读写，0.1.2-alpha.2 起编译期校验语法）。 */
-export const SETTINGS_NS = NS_LITERAL
 
 /** 行级配置：全部有默认值，正常部署零配置。 */
 export const Config = z.object({
@@ -32,33 +26,19 @@ export const Config = z.object({
 
 export type LifeboatConfig = Schemastery.TypeT<typeof Config>
 
-/** journal 单条记录。 */
-// biome-ignore lint/suspicious/noExplicitAny: dts 可移植性——嵌套 schema 精确类型经消费方断开 cosmokit 推断链
-const JournalEntry: any = z.object({
-  at: z.string(),
-  kind: z.string(),
-  detail: z.string(),
-})
+/** journal 单条记录（纯类型，磁盘收窄见 state-file.ts）。 */
+export interface JournalEntryT {
+  at: string
+  kind: string
+  detail: string
+}
 
-/** LLM 应急翻译的持久状态（还原依据）。 */
-const FallbackState = z.object({
-  active: z.boolean(),
-  originalProvider: z.string(),
-  originalModel: z.string(),
-  fallbackProvider: z.string(),
-  providers: z.array(z.string()),
-  at: z.string(),
-})
-
-/** 命名空间 schema：宽松承载 journal 与翻译状态，上限截断防膨胀。 */
-// biome-ignore lint/suspicious/noExplicitAny: dts 可移植性（同 JournalEntry；上次成功构建未触发是因旧 lockfile，现同 usage-panel 口径）
-export const JournalSchema: any = z.object({
-  journal: z.array(JournalEntry).description('救生艇操作日志（最新在尾，封顶 50 条）').default([]),
-  llmFallback: z
-    .union([FallbackState, z.const(null)])
-    .description('LLM 应急翻译状态；null 表示未处于降级')
-    .default(null),
-})
-
-export type JournalDoc = Schemastery.TypeT<typeof JournalSchema>
-export type FallbackStateT = Schemastery.TypeT<typeof FallbackState>
+/** LLM 应急翻译的持久状态（还原依据；纯类型，磁盘收窄见 state-file.ts）。 */
+export interface FallbackStateT {
+  active: boolean
+  originalProvider: string
+  originalModel: string
+  fallbackProvider: string
+  providers: string[]
+  at: string
+}
