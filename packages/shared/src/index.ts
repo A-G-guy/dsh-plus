@@ -25,3 +25,11 @@ export function transformText(text: string, op: TransformOp): string {
       return String([...text].length)
   }
 }
+
+export {
+  PLUGIN_DATA_ROOT,
+  ensurePluginDataDir,
+  pluginDataDir,
+  pluginDataPath,
+  writePluginDataFile,
+} from './plugin-data.ts'

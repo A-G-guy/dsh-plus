@@ -320,6 +320,9 @@ importers:
 
   packages/shared:
     dependencies:
+      '@deepseek-ai/dsh-home-paths':
+        specifier: 0.1.5-alpha.1
+        version: 0.1.5-alpha.1
       lucide-react:
         specifier: 1.38.0
         version: 1.38.0(react@18.2.0)
