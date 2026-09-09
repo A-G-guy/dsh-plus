@@ -9,9 +9,9 @@
  */
 import { mkdir } from 'node:fs/promises'
 import { type Context, Service } from '@deepseek-ai/cordis'
-import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type {} from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-settings'
+import { pluginDataPath } from '@dsh-plus/shared'
 import { registerUsageApi } from './api.ts'
 import {
   EMPTY_CACHE,
@@ -63,8 +63,8 @@ const MIN_INTERVAL_MINUTES = 1
 export class UsagePanelService extends Service {
   static inject = ['sessions']
 
-  private readonly cachePath = dshHomePath('usage-panel', 'cache.json')
-  private readonly catalogPath = dshHomePath('usage-panel', 'models-dev.json')
+  private readonly cachePath = pluginDataPath('usage-panel', 'cache.json')
+  private readonly catalogPath = pluginDataPath('usage-panel', 'models-dev.json')
   private cache: UsageCache = { ...EMPTY_CACHE, sessions: {} }
   private current: () => UsagePanelConfig
   private syncState: SyncState = { ...IDLE_SYNC }
