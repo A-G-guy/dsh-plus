@@ -3,6 +3,7 @@
  * 请求参数回放、衍生链源图、下载/删除/二次编辑）。
  * @module image-studio/client/panel/gallery
  */
+import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { IconDownload, IconRefreshOutline16, IconTrashOutline16 } from '@dsh-plus/shared/client'
 import { type ReactElement, useState } from 'react'
 import type { GalleryItem } from '../../gallery/store.ts'
@@ -52,18 +53,17 @@ function GalleryDetail(props: {
   }
 
   const paramRows = Object.entries(item.params)
+  // 官方 Modal 承载（嵌套 portal：层级高于工作台，遮罩/Escape 由 Modal 处理）。
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: 背板点击关闭是指针便利交互，键盘用户走关闭/取消按钮（同 web-terminal 既有约定）
-    <div className="ims-detailBackdrop" role="presentation" onClick={onClose}>
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: 阻断冒泡仅防误触背板关闭，无实际点击行为 */}
-      <div
-        className="ims-detail"
-        role="dialog"
-        aria-modal="true"
-        aria-label={item.prompt.slice(0, 40)}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="ims-detailHead">
+    <Modal
+      open
+      onClose={onClose}
+      title={item.prompt.slice(0, 40)}
+      headless
+      className="ims-detailModal"
+    >
+      <div className="ims-sub">
+        <div className="ims-subHead">
           <span className="ims-detailMeta">
             {t('gallery.detail.model')}：{item.model} · {t('gallery.detail.endpoint')}：
             {item.endpoint} · {t('gallery.detail.time')}：{fmtTime(item.createdAt)}
@@ -127,7 +127,7 @@ function GalleryDetail(props: {
             )}
           </div>
         </div>
-        <div className="ims-detailFoot">
+        <div className="ims-subFoot">
           {error !== null ? (
             <p className="ims-status ims-statusError" role="alert">
               {error}
@@ -156,7 +156,7 @@ function GalleryDetail(props: {
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 

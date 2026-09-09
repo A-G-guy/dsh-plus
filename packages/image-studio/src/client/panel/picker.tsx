@@ -3,6 +3,7 @@
  * 扁平化全部画廊条目的图片，倒序排列；底部确认条显示已选数量。
  * @module image-studio/client/panel/picker
  */
+import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { type ReactElement, useState } from 'react'
 import type { GalleryItem } from '../../gallery/store.ts'
 import { imageUrl } from '../api.ts'
@@ -56,19 +57,12 @@ export function ImagePicker(props: ImagePickerProps): ReactElement {
     setSelected((current) => (current.includes(imageId) ? [] : [imageId]))
   }
 
+  // 官方 Modal 承载（嵌套 portal：层级高于工作台，遮罩/Escape 由 Modal 处理）。
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: 背板点击关闭是指针便利交互，键盘用户走关闭/取消按钮（同 web-terminal 既有约定）
-    <div className="ims-pickerBackdrop" role="presentation" onClick={onClose}>
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: 阻断冒泡仅防误触背板关闭，无实际点击行为 */}
-      <div
-        className="ims-picker"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="ims-pickerHead">
-          <h3 className="ims-pickerTitle">{title}</h3>
+    <Modal open onClose={onClose} title={title} headless className="ims-pickerModal">
+      <div className="ims-sub">
+        <div className="ims-subHead">
+          <h3 className="ims-subTitle">{title}</h3>
           <button type="button" className="ims-btn ims-btnGhost" onClick={onClose}>
             {t('common.close')}
           </button>
@@ -98,7 +92,7 @@ export function ImagePicker(props: ImagePickerProps): ReactElement {
             })}
           </div>
         )}
-        <div className="ims-pickerFoot">
+        <div className="ims-subFoot">
           <button
             type="button"
             className="ims-btn ims-btnPrimary"
@@ -112,6 +106,6 @@ export function ImagePicker(props: ImagePickerProps): ReactElement {
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

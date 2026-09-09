@@ -7,6 +7,7 @@
  * 响应式：桌面居中模态（≤1100px），≤767px 全屏抽屉（见 styles.ts）。
  * @module image-studio/client/panel/panel
  */
+import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { NamespaceSettingsApi, Scope } from '@dsh-plus/shared/client'
 import { IconBrush, IconCloseOutline16, IconImage, IconSparkles } from '@dsh-plus/shared/client'
 import {
@@ -103,8 +104,6 @@ export function StudioPanel(props: StudioPanelProps): ReactElement | null {
     return () => clearInterval(timer)
   }, [open, providers, reloadPresets, reloadGallery, reloadTasks])
 
-  if (!open) return null
-
   // wire 的 params 与 ParamEntry 结构同源（kind 宽化为 string），边界处一次性窄化。
   const catalog = (providers?.params ?? []) as unknown as readonly ParamEntry[]
   const protocols = providers?.protocols ?? []
@@ -115,17 +114,17 @@ export function StudioPanel(props: StudioPanelProps): ReactElement | null {
     { key: 'gallery', label: t('tab.gallery'), icon: <IconImage size={15} /> },
   ]
 
+  // 官方 Modal 承载：portal 到 body（z-index 1000，移动端层叠/开关与外壳一致），
+  // 遮罩点击与 Escape 关闭由 Modal 处理；headless 模式自绘头部标签条。
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: 背板点击关闭是指针便利交互，键盘用户走关闭/取消按钮（同 web-terminal 既有约定）
-    <div className="ims-backdrop" role="presentation" onClick={() => studio.setOpen(false)}>
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: 阻断冒泡仅防误触背板关闭，无实际点击行为 */}
-      <div
-        className="ims-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('panel.title')}
-        onClick={(event) => event.stopPropagation()}
-      >
+    <Modal
+      open={open}
+      onClose={() => studio.setOpen(false)}
+      title={t('panel.title')}
+      headless
+      className="ims-modal"
+    >
+      <div className="ims-panel">
         <header className="ims-head">
           <div className="ims-tabs" role="tablist" aria-label={t('panel.title')}>
             {tabs.map((item) => (
@@ -215,6 +214,6 @@ export function StudioPanel(props: StudioPanelProps): ReactElement | null {
           }}
         />
       </div>
-    </div>
+    </Modal>
   )
 }
