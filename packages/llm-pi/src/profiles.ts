@@ -568,6 +568,11 @@ export function resolveProfilesFallback(
     // 模型物化：全显式条目 + route 级 api/baseURL（官方 resolveRouteModels 镜像，
     // 无目录继承——归一化已把继承值落定在条目里）
     const configuredMaxTokens = new Map<string, number>()
+    // 官方 0.1.5-alpha.2（llm-pi-ai）adapter 读取 profile.modelErrors/catalogError：
+    // 本 fallback 对条目严格校验、坏条目整体拒绝（不产生"条目级不可服务"的
+    // deferred 诊断），故补空表保持与官方 profile 形状一致——缺失会让
+    // PiAiAdapter.modelOf 读 modelErrors.get 时以 TypeError 打崩。
+    const modelErrors = new Map<string, string>()
     const seen = new Set<string>()
     const models = (source.models ?? []).map((entry) => {
       if (entry.id.length === 0) invalid(provider, '存在空 id 的模型条目')
@@ -617,6 +622,7 @@ export function resolveProfilesFallback(
         ? {}
         : { thinkingBudgets: { ...rest.thinkingBudgets } }),
       configuredMaxTokens,
+      modelErrors,
       piProvider: deps.createProvider({
         id: provider,
         name: displayName,
