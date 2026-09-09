@@ -173,9 +173,10 @@ test('提交生图任务：排队 → 执行 → 成功入画廊（凭据即时 
     }
     assert.equal(wire?.state, 'succeeded', `任务应成功：${wire?.error ?? ''}`)
     assert.ok(wire?.galleryItemId)
-    // 上游收到 JSON 请求体（generations），含 Authorization。
+    // 上游收到 JSON 请求体（generations），含 Authorization 与 model。
     const body = harness.upstreamBodies[0] ?? ''
     assert.match(body, /\/v1\/images\/generations/)
+    assert.match(body, /"model":"gpt-image-2"/, 'model 必须随请求体发送')
     assert.match(body, /"prompt":"一只橘猫"/)
     assert.match(body, /"size":"1024x1024"/)
     assert.equal(harness.credentials.resolveCount, 1, '凭据在任务执行时即时 resolve')
@@ -321,6 +322,7 @@ test('edit 请求携带源图（multipart）且画廊记录 sourceIds', async ()
     assert.equal(harness.service.taskWire(editTask)?.state, 'succeeded')
     const editBody = harness.upstreamBodies[before] ?? ''
     assert.match(editBody, /\/v1\/images\/edits/)
+    assert.match(editBody, /name="model"\r\n\r\ngpt-image-2/, 'edit multipart 必须带 model')
     assert.match(editBody, /name="image"/, 'edit 请求应为 multipart 且含 image 字段')
     assert.match(editBody, /name="input_fidelity"/)
     const itemsAfter = await harness.service.gallery()

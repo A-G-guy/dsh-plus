@@ -53,8 +53,9 @@ test('endpointPath 映射官方路径', () => {
   assert.equal(endpointPath('edit'), '/images/edits')
 })
 
-test('generations 请求体为 JSON：prompt/n/启用参数', () => {
+test('generations 请求体为 JSON：model/prompt/n/启用参数', () => {
   const body = JSON.parse(buildGenerationBody(request('http://x', 'generation')))
+  assert.equal(body.model, 'gpt-image-2', 'model 是请求基础，必须进请求体（缺省上游会落到 dall-e）')
   assert.equal(body.prompt, '一只橘猫')
   assert.equal(body.n, 1)
   assert.equal(body.size, '1024x1024')
@@ -62,7 +63,7 @@ test('generations 请求体为 JSON：prompt/n/启用参数', () => {
   assert.ok(!('stream' in body), '未启用参数不得出现')
 })
 
-test('edits 请求体为 multipart：prompt/n/参数/image/mask', () => {
+test('edits 请求体为 multipart：model/prompt/n/参数/image/mask', () => {
   const { headers, body } = buildEditBody(
     request('http://x', 'edit', {
       images: [{ data: PNG_1PX, mime: 'image/png' }],
@@ -73,6 +74,7 @@ test('edits 请求体为 multipart：prompt/n/参数/image/mask', () => {
   assert.match(headers['content-type'], /^multipart\/form-data; boundary=BOUNDARY$/)
   // 文本字段断言用 utf8 解码（中文 prompt）；文件头 ASCII 兼容同解码。
   const text = body.toString('utf8')
+  assert.match(text, /name="model"\r\n\r\ngpt-image-2/, 'model 应作为表单字段入体')
   assert.match(text, /name="prompt"\r\n\r\n一只橘猫/)
   assert.match(text, /name="n"\r\n\r\n1/)
   assert.match(text, /name="size"\r\n\r\n1024x1024/)
@@ -106,6 +108,7 @@ test('b64_json 响应解码；revised_prompt 透传', async () => {
       assert.equal(req.url, '/v1/images/generations')
       assert.equal(req.headers.authorization, 'Bearer sk-test')
       const parsed = JSON.parse(body) as { prompt: string; model?: string }
+      assert.equal(parsed.model, 'gpt-image-2', 'model 应随 JSON 请求体发送')
       assert.equal(parsed.prompt, '一只橘猫')
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(
@@ -177,9 +180,32 @@ test('上游错误：HTTP 状态与响应摘要结构化上抛', async () => {
     const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`
     await assert.rejects(
       () => generateViaOpenAIImages(request(url, 'generation'), new AbortController().signal),
-      (error: Error & { status?: number }) => {
+      (error: Error & { status?: number; upstreamBody?: string }) => {
         assert.equal(error.status, 429)
         assert.match(error.upstreamBody, /rate limited/)
+        assert.match(error.message, /rate limited/, '错误消息应携带上游摘要，供任务条直接展示')
+        return true
+      },
+    )
+  } finally {
+    server.close()
+  }
+})
+
+test('上游 200 空响应：给出 baseUrl 诊断提示（网关对错误路径回空体）', async () => {
+  const server = createServer((_req, res) => {
+    // 网关对不存在的路由（如缺 /v1 的路径）返回 200 空 body。
+    res.writeHead(200, {})
+    res.end()
+  })
+  await listen(server)
+  try {
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    await assert.rejects(
+      () => generateViaOpenAIImages(request(url, 'generation'), new AbortController().signal),
+      (error: Error & { status?: number }) => {
+        assert.equal(error.status, 502)
+        assert.match(error.message, /baseUrl 是否包含 \/v1/)
         return true
       },
     )
@@ -195,6 +221,7 @@ test('multipart 端到端：edits 请求被 mock 端以 form 解析', async () =
     req.on('end', () => {
       const text = Buffer.concat(chunks).toString('latin1')
       assert.equal(req.url, '/v1/images/edits')
+      assert.match(text, /name="model"\r\n\r\ngpt-image-2/, 'edits multipart 也应带 model')
       assert.match(text, /name="image"; filename="image-0\.png"/)
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(

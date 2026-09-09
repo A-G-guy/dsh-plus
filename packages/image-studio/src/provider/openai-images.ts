@@ -54,9 +54,18 @@ function formFileHead(name: string, index: number, file: InputImage): string {
   )
 }
 
-/** 构造 generations JSON 请求体（纯函数；params 已由 spec 层裁剪）。 */
+/**
+ * 构造 generations JSON 请求体（纯函数；params 已由 spec 层裁剪）。
+ * model 是请求基础（target 承载，spec 层剥离），必须由本适配器拼回请求体：
+ * 缺省时上游（one-api 系）会落到默认模型 dall-e → 503 model_not_found。
+ */
 export function buildGenerationBody(request: NormalizedRequest): string {
-  return JSON.stringify({ prompt: request.prompt, n: request.n, ...request.params })
+  return JSON.stringify({
+    model: request.target.model,
+    prompt: request.prompt,
+    n: request.n,
+    ...request.params,
+  })
 }
 
 /** 构造 edits multipart 请求体（纯函数；image 官方上限 ≤16 张由边界校验）。 */
@@ -66,6 +75,7 @@ export function buildEditBody(request: NormalizedRequest): {
 } {
   const chunks: Buffer[] = []
   const pushText = (text: string): void => chunks.push(Buffer.from(text, 'utf8'))
+  pushText(formField('model', request.target.model))
   pushText(formField('prompt', request.prompt))
   pushText(formField('n', String(request.n)))
   for (const [key, value] of Object.entries(request.params)) {
@@ -199,7 +209,12 @@ async function parseImagesReply(
   try {
     doc = JSON.parse(bodyText) as ImagesReply
   } catch {
-    throw new ProviderError(502, bodyText.slice(0, 500), '上游响应不是合法 JSON')
+    // 空 body/非 JSON：多为网关对错误路径返回 200 空体（如 baseUrl 缺 /v1）。
+    const hint =
+      bodyText.trim().length === 0
+        ? '上游返回 200 空响应：请检查 baseUrl 是否包含 /v1'
+        : '上游响应不是合法 JSON'
+    throw new ProviderError(502, bodyText.slice(0, 500), hint)
   }
   const images: GeneratedImage[] = []
   for (const item of doc.data ?? []) {
@@ -219,6 +234,26 @@ async function parseImagesReply(
   if (images.length === 0)
     throw new ProviderError(502, bodyText.slice(0, 500), '上游未返回任何图片')
   return { images, createdAt: typeof doc.created === 'number' ? doc.created : null }
+}
+
+/** 从上游错误响应提取可读摘要（JSON error.message / error 字符串 / 原始截断）。 */
+function upstreamErrorMessage(raw: string): string {
+  const trimmed = raw.trim()
+  if (trimmed.length === 0) return '上游返回空响应'
+  try {
+    const doc = JSON.parse(trimmed) as {
+      error?: { message?: string } | string
+      message?: string
+    }
+    if (typeof doc.error === 'string' && doc.error.length > 0) return doc.error
+    if (typeof doc.error?.message === 'string' && doc.error.message.length > 0) {
+      return doc.error.message
+    }
+    if (typeof doc.message === 'string' && doc.message.length > 0) return doc.message
+  } catch {
+    // 非 JSON 响应（网关错误页等）：退回原始截断。
+  }
+  return trimmed.slice(0, 300)
 }
 
 /** 适配器主入口：构造请求 → 执行 → 解析。 */
@@ -254,7 +289,12 @@ export async function generateViaOpenAIImages(
           signal,
         })
   if (reply.status !== 200) {
-    throw new ProviderError(reply.status, reply.body.toString('utf8').slice(0, 2000))
+    const raw = reply.body.toString('utf8').slice(0, 2000)
+    throw new ProviderError(
+      reply.status,
+      raw,
+      `上游返回 HTTP ${reply.status}：${upstreamErrorMessage(raw)}`,
+    )
   }
   return parseImagesReply(
     reply.body.toString('utf8'),
