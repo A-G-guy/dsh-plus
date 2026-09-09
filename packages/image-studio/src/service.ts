@@ -7,7 +7,7 @@
  * 红线：开发测试仅指向本地 mock，严禁真实调用产生费用。
  * @module image-studio/service
  */
-import { type Context, Service } from '@deepseek-ai/cordis'
+import { Context, type Context as ContextT, Service } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-settings'
 import { registerImageStudioApi } from './api.ts'
@@ -37,7 +37,7 @@ import { TaskRunner } from './task/runner.ts'
 
 interface SettingsLike {
   installSection(
-    ownerCtx: Context,
+    ownerCtx: ContextT,
     ns: string,
     schema: unknown,
     base: unknown,
@@ -66,11 +66,13 @@ interface TaskOutcome {
 }
 
 export class ImageStudioService extends Service {
+  static [Context.inject] = ['credentials']
+
   private current: () => ImageStudioConfig
   private readonly runner: TaskRunner<TaskSnapshot>
   private readonly log: (message: string) => void
 
-  constructor(ctx: Context, config: ImageStudioConfig) {
+  constructor(ctx: ContextT, config: ImageStudioConfig) {
     super(ctx, 'imageStudio')
     this.current = () => config
     this.log = (message) => ctx.logger('image-studio').warn(message)
@@ -86,7 +88,7 @@ export class ImageStudioService extends Service {
       })
     })
     ctx.inject(['webServer'], (webCtx) => {
-      registerImageStudioApi(webCtx as Context, this)
+      registerImageStudioApi(webCtx as ContextT, this)
     })
   }
 
@@ -146,7 +148,7 @@ export class ImageStudioService extends Service {
     await credentials.unset(credentialRef(credentialRefNameOf(presetId)))
   }
 
-  /** credentials seam 可选探测（缺席返回 null）。 */
+  /** credentials seam（inject 硬声明保证时序，见类声明；缺席即组合缺服务）。 */
   private async credentialsSeam(): Promise<CredentialsFace | null> {
     const found = (this.ctx as unknown as { get?(key: 'credentials'): unknown }).get?.(
       'credentials',
