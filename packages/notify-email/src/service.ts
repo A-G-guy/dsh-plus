@@ -24,14 +24,14 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** credentials seam 最小面提取（缺席返回 undefined；Mailer 自行降级行级密码）。 */
-function credentialsOf(ctx: Context): CredentialsSeamLike | undefined {
-  const found = (ctx as unknown as { get?(key: string): unknown }).get?.('credentials')
-  return found !== null && typeof found === 'object' ? (found as CredentialsSeamLike) : undefined
+/** credentials seam 最小面：inject 硬声明保证时序（credentials-local init 为异步，
+ * 构造期探测 get() 可能早于其激活而拿到 undefined，导致密码解析静默降级）。 */
+function credentialsOf(ctx: Context): CredentialsSeamLike {
+  return (ctx as unknown as { credentials: CredentialsSeamLike }).credentials
 }
 
 export class NotifyEmailService extends Service {
-  static [Context.inject] = ['agents', 'tools']
+  static [Context.inject] = ['agents', 'tools', 'credentials']
 
   private readonly triggers: NotifyTrigger[] = []
   private readonly mailer: Mailer
