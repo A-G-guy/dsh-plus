@@ -27,8 +27,8 @@ export function transformText(text: string, op: TransformOp): string {
 }
 
 export {
-  PLUGIN_DATA_ROOT,
   ensurePluginDataDir,
+  PLUGIN_DATA_ROOT,
   pluginDataDir,
   pluginDataPath,
   writePluginDataFile,

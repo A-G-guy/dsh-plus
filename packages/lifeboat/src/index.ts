@@ -15,17 +15,13 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 
-import {
-  Config,
-  type FallbackStateT,
-  type LifeboatConfig,
-} from './config.ts'
+import { Config, type FallbackStateT, type LifeboatConfig } from './config.ts'
 import { installLlmFallback } from './fallback-llm.ts'
 import { registerHealthApi } from './health-api.ts'
 import { installAlerter } from './notify.ts'
 import { createQuarantine, installHostWatch } from './quarantine.ts'
 import { registerQuarantineApi } from './quarantine-api.ts'
-import { appendJournal, loadState, saveState, type StateDoc } from './state-file.ts'
+import { appendJournal, loadState, type StateDoc, saveState } from './state-file.ts'
 
 export const name = 'dsh-plus-lifeboat'
 

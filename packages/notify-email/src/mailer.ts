@@ -3,9 +3,9 @@
  * Transport 抽象为函数注入，单元测试以假 transport 断言参数，零网络。
  * @module notify-email/mailer
  */
-import nodemailer from 'nodemailer'
 
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
+import nodemailer from 'nodemailer'
 
 import { type AuditSink, buildAuditRecord } from './audit.ts'
 import { type NotifyEmailConfig, SMTP_PASS_REF } from './config.ts'
