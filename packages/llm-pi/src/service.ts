@@ -11,11 +11,11 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
-import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import type {} from '@deepseek-ai/dsh-settings'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
+import { pluginDataPath } from '@dsh-plus/shared'
 
 import { ModelsDevSource } from './catalog/models-dev.ts'
 import { Config, type LlmPiConfig, SETTINGS_NS } from './config.ts'
@@ -81,7 +81,7 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
   logger.info(`运行时套件来源：${kit.source}`)
 
   const modelsDev = new ModelsDevSource(
-    dshHomePath('storages', 'dsh-plus-llm-pi', 'models-dev.json'),
+    pluginDataPath('llm-pi', 'models-dev.json'),
     config.catalogUrl,
     config.catalogRefreshHours,
     (message) => logger.warn(message),
