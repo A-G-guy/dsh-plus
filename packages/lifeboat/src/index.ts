@@ -10,6 +10,10 @@
  *    notify-email 发邮件（缺席降级为日志）。
  *
  * 零 dsh-plus 内部依赖铁律：不 import 本仓库任何其他包，防止共享代码故障团灭。
+ *
+ * 接线约束：inject 声明须覆盖本模块全部 ctx.<service> 直接访问（fallback-llm
+ * 读 settings 命名空间与 llm.listProviders），漏掉任一即运行期
+ * "cannot get property without inject" → 插件树加载失败 → dsh boot 中止。
  * @module @dsh-plus/lifeboat
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -25,7 +29,7 @@ import { appendJournal, loadState, type StateDoc, saveState } from './state-file
 
 export const name = 'dsh-plus-lifeboat'
 
-export const inject = ['llm'] as const
+export const inject = ['settings', 'llm'] as const
 
 export { Config }
 
