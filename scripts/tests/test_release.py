@@ -115,5 +115,87 @@ class TestWaitPublished(unittest.TestCase):
         self.assertIsNone(cmd_release.PUBLISH_CONFLICT_RE.search("npm ERR! network timeout"))
 
 
+class TestPublishLayers(unittest.TestCase):
+    """并发分层：workspace 依赖落入更早的层，层内包互不依赖。"""
+
+    def test_dependency_gets_earlier_layer(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            shared = _make_pkg(root, "shared", "@dsh-plus/shared")
+            plugin = _make_pkg(root, "plugin", "@dsh-plus/plugin",
+                               {"@dsh-plus/shared": "workspace:*"})
+            bundle = _make_pkg(root, "bundle", "@dsh-plus/bundle",
+                               {"@dsh-plus/plugin": "workspace:*"})
+            layers = cmd_release.publish_layers([bundle, plugin, shared])
+            self.assertEqual([[p.name for p in layer] for layer in layers],
+                             [["shared"], ["plugin"], ["bundle"]])
+
+    def test_independent_packages_share_layer(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            a = _make_pkg(root, "a", "@dsh-plus/a")
+            b = _make_pkg(root, "b", "@dsh-plus/b")
+            layers = cmd_release.publish_layers([a, b])
+            self.assertEqual(len(layers), 1)
+            self.assertEqual(sorted(p.name for p in layers[0]), ["a", "b"])
+
+    def test_empty_pending(self):
+        self.assertEqual(cmd_release.publish_layers([]), [])
+
+
+class TestSplitPending(unittest.TestCase):
+    """并发预筛：registry 已有版本的包落入已发组，其余落入待发组（保拓扑序）。"""
+
+    def test_pending_and_done_partitioned(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            shared = _make_pkg(root, "shared", "@dsh-plus/shared")
+            plugin = _make_pkg(root, "plugin", "@dsh-plus/plugin",
+                               {"@dsh-plus/shared": "workspace:*"})
+            docs = {"@dsh-plus/shared": {"versions": {"0.1.0": {}}},
+                    "@dsh-plus/plugin": None}
+            with mock.patch.object(cmd_release, "registry_document",
+                                   side_effect=lambda name: docs[name]):
+                pending, done = cmd_release.split_pending([plugin, shared])
+            self.assertEqual([p.name for p in pending], ["plugin"])
+            self.assertEqual([p.name for p in done], ["shared"])
+
+
+class TestPublishMany(unittest.TestCase):
+    """并发发布编排：跳过的不再调用 publish_one；依赖方在被依赖方之后启动。"""
+
+    def test_dependency_publishes_before_dependent(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            shared = _make_pkg(root, "shared", "@dsh-plus/shared")
+            plugin = _make_pkg(root, "plugin", "@dsh-plus/plugin",
+                               {"@dsh-plus/shared": "workspace:*"})
+            started: list[str] = []
+
+            def fake_publish(pkg, *, token=None, prechecked=False):
+                started.append(pkg.name)
+                return "published"
+
+            with mock.patch.object(cmd_release, "registry_document",
+                                   return_value=None), \
+                    mock.patch.object(cmd_release, "publish_one",
+                                      side_effect=fake_publish):
+                published = cmd_release.publish_many([plugin, shared], token="t")
+            self.assertEqual([p.name for p in published], ["shared", "plugin"])
+            self.assertLess(started.index("shared"), started.index("plugin"))
+
+    def test_skipped_packages_not_republished(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _make_pkg(root, "a", "@dsh-plus/a")
+            doc = {"versions": {"0.1.0": {}}}
+            with mock.patch.object(cmd_release, "registry_document",
+                                   return_value=doc), \
+                    mock.patch.object(cmd_release, "publish_one") as publish:
+                published = cmd_release.publish_many([root / "a"], token="t")
+            self.assertEqual(published, [])
+            publish.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

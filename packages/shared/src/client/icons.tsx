@@ -12,10 +12,15 @@
 import type { LucideProps } from 'lucide-react'
 // 深路径直连 ESM 单图标文件：主入口是 CJS barrel，经它导入会让打包器
 // 纳入全部图标（约 1.8k 个）；深路径 + 本地通配类型声明保持 tree-shake 精确。
+import Brush from 'lucide-react/dist/esm/icons/brush.mjs'
+import Download from 'lucide-react/dist/esm/icons/download.mjs'
 import Eye from 'lucide-react/dist/esm/icons/eye.mjs'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off.mjs'
+import Image from 'lucide-react/dist/esm/icons/image.mjs'
+import Layers from 'lucide-react/dist/esm/icons/layers.mjs'
 import Maximize from 'lucide-react/dist/esm/icons/maximize.mjs'
 import Minimize from 'lucide-react/dist/esm/icons/minimize.mjs'
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles.mjs'
 import type { ReactElement } from 'react'
 
 export {
@@ -63,4 +68,29 @@ export function IconFullscreen(props: IconProps): ReactElement {
 /** 退出全屏语义。 */
 export function IconFullscreenExit(props: IconProps): ReactElement {
   return <Minimize {...lucideProps(props)} />
+}
+
+/** 单图语义（图像工作室入口/画廊标签）。 */
+export function IconImage(props: IconProps): ReactElement {
+  return <Image {...lucideProps(props)} />
+}
+
+/** 文生图（灵感/生成）语义。 */
+export function IconSparkles(props: IconProps): ReactElement {
+  return <Sparkles {...lucideProps(props)} />
+}
+
+/** 图生图（画笔编辑）语义。 */
+export function IconBrush(props: IconProps): ReactElement {
+  return <Brush {...lucideProps(props)} />
+}
+
+/** 下载语义（画廊条目导出）。 */
+export function IconDownload(props: IconProps): ReactElement {
+  return <Download {...lucideProps(props)} />
+}
+
+/** 叠加/源图语义（二次编辑、源图选择）。 */
+export function IconLayers(props: IconProps): ReactElement {
+  return <Layers {...lucideProps(props)} />
 }

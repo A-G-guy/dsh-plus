@@ -23,6 +23,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from .common import (REPO_ROOT, _local_value, fail, find_package, package_dirs,
@@ -35,6 +36,9 @@ REGISTRY_TIMEOUT = 15
 # 发布后可见性确认：轮询次数与间隔（npm 官方最终一致性窗口通常秒级）。
 PUBLISH_CONFIRM_ATTEMPTS = 6
 PUBLISH_CONFIRM_INTERVAL = 2.0
+# 并发度：registry 只读查询轻量放宽；真实发布（构建+上传）收敛防拥塞。
+PUBLISH_QUERY_WORKERS = 8
+PUBLISH_WORKERS = 4
 # npm publish 对已存在版本的典型拒绝特征（同步窗口内重发/误判"未发布"）。
 PUBLISH_CONFLICT_RE = re.compile(
     r"EPUBLISHCONFLICT|cannot publish over|publish over the", re.I)
@@ -233,11 +237,17 @@ def wait_published(name: str, version: str,
     return False
 
 
-def publish_one(pkg: Path, *, token: str | None = None) -> str:
-    """构建并发布单包；registry 已有同版本则跳过。返回 published/skipped。"""
+def publish_one(pkg: Path, *, token: str | None = None,
+                prechecked: bool = False) -> str:
+    """构建并发布单包；registry 已有同版本则跳过。返回 published/skipped。
+
+    prechecked=True 跳过发布前的 registry 查询（调用方已并发预筛，见
+    publish_many），只省查询不省守门：scope/private/access 校验照常。
+    """
     meta = read_json(pkg / "package.json")
     _guard_publishable(meta)
-    if meta["version"] in published_versions(registry_document(meta["name"])):
+    if not prechecked and meta["version"] in published_versions(
+            registry_document(meta["name"])):
         print(f"[release] 跳过 {meta['name']}@{meta['version']}（registry 已存在）")
         return "skipped"
     run(["pnpm", "--filter", meta["name"], "build"], cwd=REPO_ROOT)
@@ -262,15 +272,81 @@ def publish_one(pkg: Path, *, token: str | None = None) -> str:
     return "published"
 
 
+def split_pending(dirs: list[Path]) -> tuple[list[Path], list[Path]]:
+    """并发查询 registry，按拓扑序拆出（待发, 已发）两组。
+
+    串行版每包一次 registry 往返是发版链路的最大耗时（十余包全量巡查时
+    尤甚）；只读查询无副作用，全并发安全。
+    """
+    ordered = publish_order(dirs)
+    metas = {d: read_json(d / "package.json") for d in ordered}
+
+    def needs_publish(pkg: Path) -> bool:
+        meta = metas[pkg]
+        return meta["version"] not in published_versions(
+            registry_document(meta["name"]))
+
+    if not ordered:
+        return [], []
+    with ThreadPoolExecutor(
+            max_workers=min(PUBLISH_QUERY_WORKERS, len(ordered))) as pool:
+        flags = list(pool.map(needs_publish, ordered))
+    pending = [d for d, flag in zip(ordered, flags) if flag]
+    done = [d for d, flag in zip(ordered, flags) if not flag]
+    return pending, done
+
+
+def publish_layers(pending: list[Path]) -> list[list[Path]]:
+    """待发包按 workspace:* 依赖分层：被依赖者所在层先发，层内互不依赖可并发。"""
+    by_name = {read_json(d / "package.json")["name"]: d for d in pending}
+    depth: dict[str, int] = {}
+
+    def depth_of(name: str) -> int:
+        if name in depth:
+            return depth[name]
+        meta = read_json(by_name[name] / "package.json")
+        deps = [dep for dep, spec in meta.get("dependencies", {}).items()
+                if spec == "workspace:*" and dep in by_name]
+        depth[name] = 0 if not deps else 1 + max(depth_of(dep) for dep in deps)
+        return depth[name]
+
+    layers: dict[int, list[Path]] = {}
+    for name in sorted(by_name):
+        layers.setdefault(depth_of(name), []).append(by_name[name])
+    return [layers[level] for level in sorted(layers)]
+
+
+def publish_many(dirs: list[Path], token: str | None = None) -> list[Path]:
+    """并发发布全部待发版本；返回本次真实发布的包目录（拓扑序）。
+
+    - 预筛（split_pending）：全部包 registry 查询并发；
+    - 发布：按 workspace 依赖分层，层内并发构建+发布，层间串行等待——
+      保证 registry 上依赖始终先于依赖方可解析。
+    任一包失败即整体 fail（工作线程的 SystemExit 经 future 重抛到主线程）。
+    """
+    pending, done = split_pending(dirs)
+    for pkg in done:
+        meta = read_json(pkg / "package.json")
+        print(f"[release] 跳过 {meta['name']}@{meta['version']}（registry 已存在）")
+    published: list[Path] = []
+    for layer in publish_layers(pending):
+        with ThreadPoolExecutor(max_workers=min(PUBLISH_WORKERS, len(layer))) as pool:
+            # map 保序且在首个异常处重抛（工作线程 SystemExit → 主线程干净退出）
+            list(pool.map(lambda pkg: publish_one(pkg, token=token, prechecked=True),
+                          layer))
+        published.extend(layer)
+    return published
+
+
 def cmd_release_publish(args) -> None:
     token = guard_npm_auth()
     targets = publish_order(_resolve_targets(args.packages))
     if not args.skip_tests:
         from .cmd_doctor import cmd_test
         cmd_test(args)  # 发版守门：构建 + 全部单测（无网络、零费用）
-    results = [publish_one(p, token=token) for p in targets]
-    published = results.count("published")
-    print(f"[release] 完成：{published} 个发布，{results.count('skipped')} 个跳过")
+    total = len(targets)
+    published = len(publish_many(targets, token))
+    print(f"[release] 完成：{published} 个发布，{total - published} 个跳过")
     if published:
         print("[release] 后续：提交并推送 git；生产更新走 "
               "install-prod <包> --restart（vendor tarball 机制不变）")

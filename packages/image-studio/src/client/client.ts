@@ -1,20 +1,35 @@
 /**
- * 浏览器半入口（本次预留空壳，不做界面设计与编码）：
- * - 注册独立设置页占位（settings.section），声明画廊/生图页后续挂载点；
- * - 注册 settings.plugin.item 配置卡片占位（key = settings 命名空间）。
- * 数据通道与插槽契约见 docs/README.md「前端接入点」。
+ * 浏览器半入口：
+ * - sidebar.footer.action：侧栏底部入口按钮（与文件/终端入口 flex 等分行宽）；
+ * - shell.overlay：图像工作室面板（文生图/图生图/画廊 + 任务条）；
+ * - settings.plugin.item：配置卡片（三组预设 + 凭据 + 高级项，key = settings 命名空间）。
+ * 模式与 web-files/web-terminal 一致：CJS factory 产物、data-plugin-css 样式
+ * 约定、slot 失配静默降级；配置读写经 ctx.remote.settings 直连（远程域名可用）。
  * @module @dsh-plus/image-studio/client
  */
 import type { Context } from '@deepseek-ai/cordis'
+import {
+  cardCss,
+  createNamespaceApi,
+  createSettingsScope,
+  injectCardStyle,
+  type ScopeHostContext,
+} from '@dsh-plus/shared/client'
+
+import { SETTINGS_NS } from '../ns.ts'
 import { StudioConfigCard } from './card.tsx'
-import { en, NS, zh } from './i18n.ts'
-import { StudioSection } from './section.tsx'
-import { injectCardStyles, injectSectionStyle } from './styles.ts'
+import { en, NS, type Translate, zh } from './i18n.ts'
+import { createPanelController } from './panel/controller.ts'
+import { StudioEntryButton } from './panel/entry.tsx'
+import { StudioPanel } from './panel/panel.tsx'
+import { injectStudioStyles } from './styles.ts'
 
 export const name = 'dsh-plus-image-studio'
 
-/** 浏览器半需要的 cordis 服务 key（loader 据此注入）。 */
+/** 浏览器半需要的 cordis 服务 key（loader 据此注入；package.json 的 dsh.client.inject 管包加载顺序）。 */
 export const inject = ['slots', 'locale', 'remote', 'remote.settings'] as const
+
+const PLUGIN_ID = '@dsh-plus/image-studio'
 
 interface SlotsLike {
   inject(key: string, callback: () => unknown): unknown
@@ -26,50 +41,68 @@ interface LocaleLike {
   bind(ns: string): (key: string) => string
 }
 
-interface ClientContext {
+/** createSettingsScope 要求的宿主窄面 + 本插件用到的 slots/locale 服务。 */
+interface ClientContext extends ScopeHostContext {
   slots: SlotsLike
   locale: LocaleLike
-  effect(execute: () => () => void, label?: string): unknown
 }
 
 export function apply(ctx: Context): void {
   const c = ctx as unknown as ClientContext
-  const sectionTag = injectSectionStyle()
-  const cardTag = injectCardStyles()
-  c.effect(
-    () => () => {
-      sectionTag?.remove()
-      cardTag?.remove()
-    },
-    'image-studio: style',
-  )
+  const panelTag = injectStudioStyles()
+  const cardTag = injectCardStyle(PLUGIN_ID, cardCss('imsc'))
+  const controller = createPanelController()
   c.effect(() => c.locale.register(NS, { zh, en }), 'image-studio: locale')
-  const t = c.locale.bind(NS)
+  const t = c.locale.bind(NS) as Translate
 
-  // 独立设置页占位（画廊 + 生图工作台后续版本替换占位组件）。
-  c.slots.inject('settings.section', () =>
-    c.slots.register(
-      {
-        name: 'settings.section',
-        id: 'dsh-plus-image-studio',
-        order: 16,
-        label: () => t('nav'),
-        inject: () => ({ t }),
-      },
-      StudioSection,
-    ),
+  c.effect(
+    () =>
+      c.slots.inject('sidebar.footer.action', () =>
+        c.slots.register(
+          {
+            name: 'sidebar.footer.action',
+            id: 'image-studio-entry',
+            locale: NS,
+            inject: () => ({ studio: controller, t }),
+          },
+          StudioEntryButton,
+        ),
+      ),
+    'image-studio: entry slot',
   )
-
-  // 配置卡片占位（settings.plugin.item：keyed 槽位，key = settings 命名空间）。
+  const scope = createSettingsScope(c, SETTINGS_NS, 'image-studio: settings scope')
+  const api = createNamespaceApi(c.get('remote').settings, SETTINGS_NS)
+  c.effect(
+    () =>
+      c.slots.inject('shell.overlay', () =>
+        c.slots.register(
+          {
+            name: 'shell.overlay',
+            id: 'image-studio-panel',
+            locale: NS,
+            inject: () => ({ studio: controller, t, scope, api }),
+          },
+          StudioPanel,
+        ),
+      ),
+    'image-studio: overlay slot',
+  )
   c.slots.inject('settings.plugin.item', () =>
     c.slots.register(
       {
         name: 'settings.plugin.item',
-        key: 'dsh-plus-image-studio',
+        key: SETTINGS_NS,
         locale: NS,
-        inject: () => ({ t }),
+        inject: () => ({ t, scope, api }),
       },
       StudioConfigCard,
     ),
+  )
+  c.effect(
+    () => () => {
+      panelTag?.remove()
+      cardTag?.remove()
+    },
+    'image-studio: cleanup',
   )
 }

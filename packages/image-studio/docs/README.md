@@ -1,13 +1,14 @@
 ---
-last_modified: "2026-09-09 18:25"
+last_modified: "2026-09-09 20:36"
 ---
 
 # @dsh-plus/image-studio
 
 图像工作室：OpenAI Images 协议文生图/图生图。官方全参数开关化（未启用参数
 不进请求体，用上游默认值），双预设体系（提示词/参数/提供商），并发生图任务，
-画廊持久化并支持从画廊二次编辑（衍生链）。service+ui 混合插件；本版本仅交付
-后端与前端接口预留，不做前端设计。
+画廊持久化并支持从画廊二次编辑（衍生链）。service+ui 混合插件：node 半承载
+任务编排与画廊存储，浏览器半为侧栏 footer 入口 + overlay 工作台（文生图/
+图生图/画廊三标签 + 任务条）+ settings.plugin.item 配置卡片。
 
 ## 能力总览
 
@@ -34,7 +35,12 @@ last_modified: "2026-09-09 18:25"
   images/，原子写）。
 - `src/service.ts` — 编排：预设解析 → 参数归一化 → 凭据即时 resolve → 任务执行 → 入库。
 - `src/api.ts` — 同源 webServer 路由（见下表）。
-- `src/client/` — 浏览器半空壳（占位组件 + 数据通道 + i18n key），接口见下文。
+- `src/client/` — 浏览器半：`client.ts` 入口（sidebar.footer.action 入口按钮 +
+  shell.overlay 工作台 + settings.plugin.item 配置卡片）；`panel/` 面板组件
+  （panel 根、generator 双端点表单、params-form 目录驱动参数面、picker 源图
+  选择、gallery 画廊与详情、tasks 任务条、controller 开合与二次编辑种子、
+  param-state 表单态⇄ParamSpecMap 纯函数）；`card.tsx` 三组预设与凭据管理；
+  `api.ts` 数据通道、`i18n.ts` zh/en 字典、`styles.ts` 全量样式（767px 断点）。
 
 ## 配置
 
@@ -64,7 +70,25 @@ UI 只 describe 不回传值）。
 | `/providers` | GET | 协议 registry + 参数目录 |
 | `/presets` | GET | 预设只读快照（读写走官方 settings RPC） |
 
-## 前端接入点（预留接口清单，后续版本实施 UI 时直接消费）
+## 前端界面
+
+- **入口**：左侧栏底部 `sidebar.footer.action`（与文件/终端入口 flex 等分行宽，
+  rail 折叠态退化为圆形图标），点击打开 overlay 工作台。
+- **工作台**（`shell.overlay`）：文生图 / 图生图 / 画廊三标签；两个生图表单
+  常驻挂载（hidden 切换保留表单态）；底部任务条 2s 轮询（活跃可取消，完成
+  一键跳画廊详情，侦测成功自动刷画廊）。
+  - 生图表单：提供商预设 + 凭据状态徽标 + inline 覆盖（协议/地址/模型，凭据
+    沿用预设）；提示词编辑 + 预设插入/另存；目录驱动参数表单（kind 决定控件，
+    advanced 默认收起，代际标记）；图生图追加源图（≤16，画廊多选）与可选
+    遮罩（单选）。
+  - 画廊：缩略网格 + 详情模态（多图、改写提示词、请求参数回放、源图衍生链、
+    逐图下载、两段确认删除）；「二次编辑」回填图生图表单并切标签。
+- **配置卡片**（设置 → 插件）：提供商预设（含逐条 API Key 设置/删除/状态徽标，
+  值永不回显）、提示词预设、参数预设（JSON + validateParamSpecs 本地校验）、
+  高级项（并发/超时/代理/画廊上限）；staged draft + revision fencing。
+- 响应式断点 767px（移动端面板全屏、表单单列、画廊两列、44px 热区）。
+
+## 前端接入点（组件实现直接消费）
 
 ### 包导出
 
@@ -80,12 +104,13 @@ UI 只 describe 不回传值）。
 - `@dsh-plus/image-studio/src/params/spec` — `ParamSpec` 类型与
   `validateParamSpecs`（提交前本地校验）。
 
-### 插槽（client.ts 已声明，占位组件待替换）
+### 插槽（client.ts 已注册）
 
 | 插槽 | key/id | 用途 |
 |---|---|---|
-| `settings.section` | `dsh-plus-image-studio`，order 16 | 独立设置页（生图工作台 + 画廊，`StudioSection` 占位） |
-| `settings.plugin.item` | key = `dsh-plus-image-studio` | 配置卡片（三组预设 + 凭据管理，`StudioConfigCard` 占位） |
+| `sidebar.footer.action` | `image-studio-entry` | 侧栏底部入口按钮（`StudioEntryButton`） |
+| `shell.overlay` | `image-studio-panel` | 工作台面板（`StudioPanel`） |
+| `settings.plugin.item` | key = `dsh-plus-image-studio` | 配置卡片（`StudioConfigCard`） |
 
 ### 配置读写
 

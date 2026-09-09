@@ -8,7 +8,8 @@
                 包的插件（bundle 内嵌依赖源码，不重发则线上仍是旧 bundle）
   3. commit     git add -A + Conventional Commits 提交（pre-commit 链照常生效）
   4. push       git push origin HEAD
-  5. publish    cmd_release.publish_one 按依赖拓扑序发 npm，已发版本幂等跳过
+  5. publish    cmd_release.publish_many 并发发 npm：registry 预筛全并发，
+                发布按依赖分层（层内并发、层间串行），已发版本幂等跳过
   6. install    cmd_pack.install_one 把目标包（∪ 本次发布包）vendor 装进生产 profile
 
 铁律：重启不在收尾链路内——dsh-web 重启会中断在用 GUI，必须用户显式确认后
@@ -235,16 +236,12 @@ def _step_commit(args, plan: list[tuple[str, str, str]]) -> None:
 
 
 def _step_publish() -> list[Path]:
-    """按拓扑序发布全部待发版本；返回本次真实发布的包目录。"""
+    """并发发布全部待发版本（registry 查询全并发 + 依赖分层并发）；返回真实发布的包目录。"""
     token = cmd_release.guard_npm_auth()
-    published: list[Path] = []
-    skipped = 0
-    for pkg in cmd_release.publish_order(package_dirs()):
-        if cmd_release.publish_one(pkg, token=token) == "published":
-            published.append(pkg)
-        else:
-            skipped += 1
-    print(f"[finish] npm 发布完成：{len(published)} 个发布，{skipped} 个跳过")
+    targets = cmd_release.publish_order(package_dirs())
+    published = cmd_release.publish_many(targets, token)
+    print(f"[finish] npm 发布完成：{len(published)} 个发布，"
+          f"{len(targets) - len(published)} 个跳过")
     return published
 
 
