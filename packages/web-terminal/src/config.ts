@@ -11,8 +11,43 @@ import { NS_LITERAL } from './ns.ts'
 /** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
 export const SETTINGS_NS = NS_LITERAL
 
-// biome-ignore lint/suspicious/noExplicitAny: dts 可移植性——顶层 schema 的精确类型经 TypeT 消费，显式断掉 cosmokit 推断链
-const ConfigSchema: any = z.object({
+/** 配置入参形态（schema 各字段均有 default，故组合与 settings 层可省略任意字段）。 */
+export interface WebTerminalConfigInput {
+  enabled?: boolean
+  shellPath?: string
+  shellArgs?: string[]
+  cwd?: string
+  env?: Record<string, string>
+  initialCols?: number
+  initialRows?: number
+  scrollbackLines?: number
+  scrollbackMaxKb?: number
+  maxSessions?: number
+  idleTimeoutMs?: number
+  killGraceMs?: number
+}
+
+/** 解析后形态（default 补齐，字段必填）。 */
+export interface WebTerminalConfigResolved {
+  enabled: boolean
+  shellPath: string
+  shellArgs: string[]
+  cwd: string
+  env: Record<string, string>
+  initialCols: number
+  initialRows: number
+  scrollbackLines: number
+  scrollbackMaxKb: number
+  maxSessions: number
+  idleTimeoutMs: number
+  killGraceMs: number
+}
+
+// 显式标注而非 `any`：z.object() 的推断类型含 cosmokit 的 `& Dict` 索引签名，
+// 直接导出会触发 TS2883（inferred type cannot be named / not portable）并使
+// tsdown 的 dts 生成失败。此处若退回 `any`，WebTerminalConfig 会整体失去结构，
+// 未知键与错类型赋值全部静默通过——scripts/contract/contract.ts 有对应断言兜底。
+export const Config: z<WebTerminalConfigInput, WebTerminalConfigResolved> = z.object({
   enabled: z.boolean().description('总开关（false 时端点 503、WS 升级拒绝）').default(true),
   shellPath: z.string().description('shell 可执行文件路径（空 = $SHELL 或 /bin/bash）').default(''),
   shellArgs: z.array(z.string()).description('附加 shell 参数').default([]),
@@ -34,6 +69,4 @@ const ConfigSchema: any = z.object({
   killGraceMs: z.natural().description('会话清理 TERM→KILL 宽限毫秒数').default(2000),
 })
 
-export const Config = ConfigSchema as ReturnType<typeof z.object>
-
-export type WebTerminalConfig = Schemastery.TypeT<typeof ConfigSchema>
+export type WebTerminalConfig = Schemastery.TypeT<typeof Config>

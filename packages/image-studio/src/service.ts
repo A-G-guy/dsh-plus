@@ -126,11 +126,11 @@ export class ImageStudioService extends Service {
   }
 
   private paramPresets(): ParamPresetEntry[] {
-    return this.current().paramPresets as ParamPresetEntry[]
+    return this.current().paramPresets
   }
 
   private providerPresets(): ProviderPresetEntry[] {
-    return this.current().providerPresets as ProviderPresetEntry[]
+    return this.current().providerPresets
   }
 
   /** 预设快照（端点投影）。 */

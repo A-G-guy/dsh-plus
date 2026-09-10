@@ -1,20 +1,48 @@
 /**
  * 费用估算数学（纯函数）：按 per-Mtok 价目把 token 行折算为费用。
  * 价目缺省（未配置该 provider/model）→ null（UI 显示「—」，不臆造价格）。
+ *
+ * 价目 schema 与类型同源在此维护（config.ts 复用本文件的 PriceEntrySchema），
+ * 避免「schema 一份、类型一份」两处漂移。浏览器半不引用本模块，schemas 不会
+ * 进入客户端 bundle。
  * @module usage-panel/pricing
  */
+import z from '@deepseek-ai/schemastery'
+
 import type { UsageRow } from './usage-fold.ts'
 
-/** 单条价目：每百万 token 单价（货币单位由配置的 currency 决定）。 */
-export interface PriceEntry {
-  provider: string
-  model: string
-  /** 每 1M input tokens 价格；缺省视为 0（免费）。 */
+/** 单条价目入参形态（schema 各字段有 default，故调用方可省略）。 */
+export interface PriceEntryInput {
+  provider?: string
+  model?: string
   inputPerMtok?: number
   outputPerMtok?: number
   cacheReadPerMtok?: number
   cacheWritePerMtok?: number
 }
+
+/** 单条价目：每百万 token 单价（货币单位由配置的 currency 决定）。 */
+export interface PriceEntry {
+  provider: string
+  model: string
+  /** 每 1M input tokens 价格；0 视为免费。 */
+  inputPerMtok: number
+  outputPerMtok: number
+  cacheReadPerMtok: number
+  cacheWritePerMtok: number
+}
+
+// 显式标注而非 `any`：z.object() 的推断类型含 cosmokit 的 `& Dict` 索引签名，
+// 直接导出会触发 TS2883（inferred type cannot be named / not portable）并使
+// tsdown 的 dts 生成失败。标注成具名契约后既保住类型、又让产物可移植。
+export const PriceEntrySchema: z<PriceEntryInput, PriceEntry> = z.object({
+  provider: z.string().min(1).description('provider 路由键（与 llm 路由一致）').default(''),
+  model: z.string().min(1).description('provider 内模型 id').default(''),
+  inputPerMtok: z.number().min(0).description('每 1M 输入 tokens 单价').default(0),
+  outputPerMtok: z.number().min(0).description('每 1M 输出 tokens 单价').default(0),
+  cacheReadPerMtok: z.number().min(0).description('每 1M 缓存读 tokens 单价').default(0),
+  cacheWritePerMtok: z.number().min(0).description('每 1M 缓存写 tokens 单价').default(0),
+})
 
 export interface PriceTable {
   currency: string

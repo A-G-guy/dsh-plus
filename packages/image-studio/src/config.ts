@@ -12,26 +12,56 @@ import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 /** settings 命名空间（字面量即合法命名空间，编译期校验）。 */
 export const SETTINGS_NS = NS_LITERAL
 
-// dts 可移植性：嵌套 schema 精确类型经 TypeT 消费，显式断掉推断链
-// （同 usage-panel/config 的既有约定）。
-/* biome-ignore lint/suspicious/noExplicitAny: 嵌套 schema 的 dts 可移植性 */
-const PromptPreset: any = z.object({
+/** 提示词预设（解析后视图）。 */
+export interface PromptPresetEntry {
+  id: string
+  name: string
+  text: string
+}
+
+/** 参数预设（解析后视图）。 */
+export interface ParamPresetEntry {
+  id: string
+  name: string
+  endpoint: 'generation' | 'edit'
+  paramSpecs: unknown
+}
+
+/** 提供商预设（解析后视图）。 */
+export interface ProviderPresetEntry {
+  id: string
+  name: string
+  protocol: string
+  baseUrl: string
+  model: string
+  credentialRef: string
+  extraHeaders: Record<string, string>
+}
+
+// 显式标注而非 `any`：z.object() 推断类型含 cosmokit 的 `& Dict` 索引签名，
+// 直接导出会触发 TS2883（inferred type cannot be named / not portable）并使
+// tsdown 的 dts 生成失败。标注成具名契约后既保住类型、又让产物可移植——
+// 退回 `any` 会让三个预设数组元素全部退化为 any。
+const PromptPreset: z<PromptPresetEntry, PromptPresetEntry> = z.object({
   id: z.string().required().description('预设 id（稳定标识，删除级联引用）'),
   name: z.string().required().description('预设名称'),
   text: z.string().required().description('提示词模板'),
 })
 
-/* biome-ignore lint/suspicious/noExplicitAny: 嵌套 schema 的 dts 可移植性 */
-const ParamPreset: any = z.object({
+const ParamPreset: z<ParamPresetEntry, ParamPresetEntry> = z.object({
   id: z.string().required().description('预设 id'),
   name: z.string().required().description('预设名称'),
-  endpoint: z.string().required().description('适用端点：generation | edit'),
+  // 用字面量联合而非 z.string()：endpoint 只有两个合法取值，收窄后与
+  // ParamPresetEntry['endpoint'] 对齐，拼错端点会在编译期暴露。
+  endpoint: z
+    .union([z.const('generation'), z.const('edit')])
+    .required()
+    .description('适用端点：generation | edit'),
   /** 参数表结构由 params/spec 校验，settings 层存原始 JSON。 */
   paramSpecs: z.any().required().description('参数开关表（ParamSpecMap JSON）'),
 })
 
-/* biome-ignore lint/suspicious/noExplicitAny: 嵌套 schema 的 dts 可移植性 */
-const ProviderPreset: any = z.object({
+const ProviderPreset: z<ProviderPresetEntry, ProviderPresetEntry> = z.object({
   id: z.string().required().description('预设 id'),
   name: z.string().required().description('预设名称'),
   protocol: z.string().required().description('协议 id（如 openai-images）'),
@@ -68,29 +98,3 @@ export const Config = z.object({
 })
 
 export type ImageStudioConfig = Schemastery.TypeT<typeof Config>
-
-/** 提示词预设（解析后视图）。 */
-export interface PromptPresetEntry {
-  id: string
-  name: string
-  text: string
-}
-
-/** 参数预设（解析后视图）。 */
-export interface ParamPresetEntry {
-  id: string
-  name: string
-  endpoint: 'generation' | 'edit'
-  paramSpecs: unknown
-}
-
-/** 提供商预设（解析后视图）。 */
-export interface ProviderPresetEntry {
-  id: string
-  name: string
-  protocol: string
-  baseUrl: string
-  model: string
-  credentialRef: string
-  extraHeaders: Record<string, string>
-}

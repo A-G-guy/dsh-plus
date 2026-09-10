@@ -64,20 +64,32 @@ type _SmEnabled = Expect<Equal<SubagentModelConfig['enabled'], boolean>>
 type UsagePanelConfig = Schemastery.TypeT<typeof UsagePanelSchema>
 type _UpCurrency = Expect<Equal<UsagePanelConfig['currency'], string>>
 type _UpAutoSync = Expect<Equal<UsagePanelConfig['autoSyncMinutes'], number>>
+type _UpPriceProvider = Expect<Equal<UsagePanelConfig['prices'][number]['provider'], string>>
+type _UpPriceInput = Expect<Equal<UsagePanelConfig['prices'][number]['inputPerMtok'], number>>
 
 // ── secret-env（顶层形状）─────────────────────────────────────────────────
 type SecretEnvConfig = Schemastery.TypeT<typeof SecretEnvSchema>
 type _SeMasked = Expect<Equal<SecretEnvConfig['masked'], string[]>>
+type _SeSecretName = Expect<Equal<SecretEnvConfig['secrets'][number]['name'], string>>
 
 // ── image-studio（顶层形状）───────────────────────────────────────────────
 type ImageStudioConfig = Schemastery.TypeT<typeof ImageStudioSchema>
 type _IsMaxConcurrent = Expect<Equal<ImageStudioConfig['maxConcurrent'], number>>
+// 元素级：三个预设数组曾退化为 any[]，这里钉住元素结构防复发
+type _IsPromptId = Expect<Equal<ImageStudioConfig['promptPresets'][number]['id'], string>>
+type _IsPresetEndpoint = Expect<
+  Equal<ImageStudioConfig['paramPresets'][number]['endpoint'], 'generation' | 'edit'>
+>
+type _IsProviderModel = Expect<Equal<ImageStudioConfig['providerPresets'][number]['model'], string>>
 type _IsProxy = Expect<Equal<ImageStudioConfig['proxy'], string>>
 type _IsGalleryMax = Expect<Equal<ImageStudioConfig['galleryMaxItems'], number>>
 
-// ── web-terminal（顶层形状；整体 any 退化的断言待阶段四修复后补）────────────
+// ── web-terminal：曾整体退化为 any（ConfigSchema: any），断言防复发 ──────────
 type WebTerminalConfig = Schemastery.TypeT<typeof WebTerminalSchema>
-type _WtReserved = WebTerminalConfig
+type _WtEnabled = Expect<Equal<WebTerminalConfig['enabled'], boolean>>
+type _WtMaxSessions = Expect<Equal<WebTerminalConfig['maxSessions'], number>>
+type _WtShellArgs = Expect<Equal<WebTerminalConfig['shellArgs'], string[]>>
+type _WtEnv = Expect<Equal<WebTerminalConfig['env'], Record<string, string>>>
 
 export type {
   _AgAllowedIps,
@@ -85,6 +97,9 @@ export type {
   _AgTrustFwd,
   _IsGalleryMax,
   _IsMaxConcurrent,
+  _IsPresetEndpoint,
+  _IsPromptId,
+  _IsProviderModel,
   _IsProxy,
   _LbCooldown,
   _LbEnabled,
@@ -99,8 +114,14 @@ export type {
   _RlGrace,
   _RlUnitName,
   _SeMasked,
+  _SeSecretName,
   _SmEnabled,
   _UpAutoSync,
   _UpCurrency,
-  _WtReserved,
+  _UpPriceInput,
+  _UpPriceProvider,
+  _WtEnabled,
+  _WtEnv,
+  _WtMaxSessions,
+  _WtShellArgs,
 }
