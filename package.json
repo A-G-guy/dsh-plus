@@ -14,7 +14,8 @@
     "build": "pnpm --filter './packages/*' -r build",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "test": "node --test \"packages/*/tests/*.test.ts\""
+    "typecheck": "python3 scripts/dshctl.py typecheck",
+    "test": "python3 scripts/dshctl.py test"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",

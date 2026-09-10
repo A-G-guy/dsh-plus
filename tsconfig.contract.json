@@ -1,0 +1,30 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // 契约检查以「产物视角」消费各包 package.json exports 指向的 lib/*.d.ts，
+    // 而非源码：逐包 tsconfig 的 include 只含 src/tests，产物退化（如导出类型
+    // 退化成 any）时逐包 tsc 看不见。此项目专盯这一盲区。
+    //
+    // baseUrl/paths 直接钉到 lib/index.d.ts——根 node_modules 无 @dsh-plus 链接，
+    // 走 package exports 解析不到；且契约检查本就要求核对产物本身。
+    // 各包 .d.ts 内部对 @deepseek-ai/* 的导入按文件位置向上查找，能命中各包
+    // 自己的 node_modules，无需在此声明。
+    // 注：TS 7 已移除 baseUrl，paths 无 baseUrl 时相对本 tsconfig 所在目录解析。
+    "declaration": false,
+    "noEmit": true,
+    "paths": {
+      "@dsh-plus/shared": ["./packages/shared/lib/index.d.ts"],
+      "@dsh-plus/web-terminal": ["./packages/web-terminal/lib/index.d.ts"],
+      "@dsh-plus/usage-panel": ["./packages/usage-panel/lib/index.d.ts"],
+      "@dsh-plus/secret-env": ["./packages/secret-env/lib/index.d.ts"],
+      "@dsh-plus/image-studio": ["./packages/image-studio/lib/index.d.ts"],
+      "@dsh-plus/llm-pi": ["./packages/llm-pi/lib/index.d.ts"],
+      "@dsh-plus/subagent-model": ["./packages/subagent-model/lib/index.d.ts"],
+      "@dsh-plus/access-gate": ["./packages/access-gate/lib/index.d.ts"],
+      "@dsh-plus/notify-email": ["./packages/notify-email/lib/index.d.ts"],
+      "@dsh-plus/lifeboat": ["./packages/lifeboat/lib/index.d.ts"],
+      "@dsh-plus/reload": ["./packages/reload/lib/index.d.ts"]
+    }
+  },
+  "include": ["scripts/contract"]
+}

@@ -68,10 +68,33 @@ def cmd_typecheck(args) -> None:
     run_typecheck(getattr(args, "packages", None) or None)
 
 
-def run_typecheck(names: list[str] | None = None) -> None:
-    """逐包类型检查；失败包打印原文错误行并汇总后非零退出。
+def run_contract_check(tsc: Path) -> tuple[bool, list[str]]:
+    """公共契约检查（第二阶段）：核对 lib/*.d.ts 的导出类型未退化。
 
-    直接以 names 调用即可复用（cmd_test 的闸门步骤不需要伪造 args 对象）。
+    逐包 tsc 的 include 只含 src/tests，读不到 lib/；skipLibCheck 又让 .d.ts
+    内部问题沉默，故产物类型退化在逐包检查下全绿。此步以「产物视角」消费各包
+    lib/index.d.ts 并断言关键契约（见 scripts/contract/contract.ts）。
+
+    返回 (是否通过, 错误行)。缺 tsconfig.contract.json 时视为未启用（通过）。
+    """
+    project = REPO_ROOT / "tsconfig.contract.json"
+    if not project.exists():
+        return True, []
+    proc = subprocess.run(
+        [str(tsc), "-p", str(project), "--noEmit", "--pretty", "false"],
+        cwd=REPO_ROOT, text=True, capture_output=True)
+    output = (proc.stdout or "") + (proc.stderr or "")
+    errors = _error_lines(output)
+    if proc.returncode == 0 and not errors:
+        return True, []
+    return False, errors or output.splitlines()[-20:]
+
+
+def run_typecheck(names: list[str] | None = None) -> None:
+    """逐包类型检查 + 公共契约检查；失败则打印原文错误行并非零退出。
+
+    直接以 names 调用即可复用（cmd_test 的闸门步骤不需要伪造 args 对象）；
+    指定包名时只跑这些包，契约检查属全仓性质，仅在全量运行时执行。
     """
     tsc = tsc_bin()
     targets = typecheck_targets(names)
@@ -90,7 +113,17 @@ def run_typecheck(names: list[str] | None = None) -> None:
         # tsc 退出码非零但无 "error TS" 行 = 配置/崩溃类问题，原文照打。
         failed.append((pkg, errors or output.splitlines()[-20:]))
 
-    if not failed:
+    contract_lines: list[str] = []
+    if not failed and names is None:
+        ok, contract_lines = run_contract_check(tsc)
+        if ok:
+            print("✔ 公共契约（lib/*.d.ts 导出类型）")
+        else:
+            contract_lines = contract_lines
+    else:
+        contract_lines = []
+
+    if not failed and not contract_lines:
         print(f"[typecheck] {len(targets)} 个包类型检查通过")
         return
 
@@ -98,5 +131,11 @@ def run_typecheck(names: list[str] | None = None) -> None:
         print(f"\n✖ {pkg.name}", file=sys.stderr)
         for line in lines:
             print(line, file=sys.stderr)
-    total = sum(len(lines) for _, lines in failed)
-    fail(f"typecheck 失败：{len(failed)}/{len(targets)} 个包共 {total} 条错误")
+    if contract_lines:
+        print("\n✖ 公共契约检查失败（scripts/contract/contract.ts）", file=sys.stderr)
+        for line in contract_lines:
+            print(line, file=sys.stderr)
+
+    total = sum(len(lines) for _, lines in failed) + len(contract_lines)
+    fail(f"typecheck 失败：{len(failed)}/{len(targets)} 个包"
+         f"{' + 公共契约' if contract_lines else ''} 共 {total} 条错误")

@@ -178,9 +178,14 @@ def cmd_test(_args) -> None:
 
     run(biome_check_cmd(), cwd=REPO_ROOT)
     print("[test] biome check 通过（lint + format + import 整理）")
-    # 类型检查置于构建之前：tsdown 只转译不校验类型，官方契约漂移必须在此拦住。
-    run_typecheck()
+    # 构建先于类型检查：`@dsh-plus/shared` 经 package.json exports 把 `.` 指向
+    # lib/index.d.ts，而 lib/ 不入库；干净克隆下若先跑类型检查，7 处裸包名导入
+    # 会因产物尚未生成而报 TS2307（假失败）。pnpm -r 按依赖拓扑序构建，shared
+    # 必先于消费方。顺序调整不削弱检查力：tsc 的 include 只含 src/tests，
+    # 不读 lib/，构建产物不会掩盖源码类型错误。
     run(["pnpm", "-r", "build"], cwd=REPO_ROOT)
+    # 类型检查置于测试之前：tsdown 只转译不校验类型，官方契约漂移必须在此拦住。
+    run_typecheck()
     tests = sorted(REPO_ROOT.glob("packages/*/tests/*.test.ts"))
     if tests:
         run(["node", "--test", *[str(t) for t in tests]], cwd=REPO_ROOT)

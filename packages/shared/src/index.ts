@@ -33,3 +33,6 @@ export {
   pluginDataPath,
   writePluginDataFile,
 } from './plugin-data.ts'
+
+// 编译期断言工具（纯类型）：供各包 tests 与公共契约检查复用。
+export type { Equal, Expect } from './types/assert.ts'
