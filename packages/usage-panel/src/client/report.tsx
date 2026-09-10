@@ -7,9 +7,10 @@ import type { ReactElement } from 'react'
 import { type DayTotal, type ModelTotal, totalsByModel } from '../ranges.ts'
 import type { UsageWireRow } from './api.ts'
 import { fmtCost, fmtTokens } from './format.ts'
+import type { Translate } from './i18n.ts'
 
 export interface ReportTextProps {
-  t(key: string): string
+  t: Translate
 }
 
 /** 按日柱状图（纯 CSS，点击展开单日明细）。 */
@@ -57,7 +58,7 @@ export function DayDetail(props: {
   date: string
   rows: UsageWireRow[]
   currency: string
-  t(key: string): string
+  t: Translate
 }): ReactElement {
   const { date, rows, currency, t } = props
   const merged: ModelTotal[] = totalsByModel(rows)
@@ -130,7 +131,7 @@ export function DayDetail(props: {
 export function ModelTable(props: {
   rows: UsageWireRow[]
   currency: string
-  t(key: string): string
+  t: Translate
 }): ReactElement {
   const { rows, currency, t } = props
   const merged: ModelTotal[] = totalsByModel(rows)

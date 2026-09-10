@@ -17,13 +17,14 @@ import {
 } from '../constants.ts'
 import type { ProviderDraft } from '../draft.ts'
 import { SelectField, TextField } from '../fields.tsx'
+import type { Translate } from '../i18n.ts'
 import { pruneCompatForApi } from './compat.tsx'
 
 export interface ProviderScalarFieldsProps {
   id: string
   draft: ProviderDraft
   disabled?: boolean
-  t(key: string): string
+  t: Translate
   onPatch(patch: Partial<ProviderDraft>): void
 }
 

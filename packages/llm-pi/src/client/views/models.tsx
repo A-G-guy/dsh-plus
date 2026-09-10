@@ -11,11 +11,12 @@ import { fetchCatalog, type WireModelsDevStatus } from '../api.ts'
 import { MODALITIES, THINKING_LEVELS } from '../constants.ts'
 import { emptyModelDraft, type ModelDraft, type ReasoningDraft } from '../draft.ts'
 import { TextField } from '../fields.tsx'
+import type { Translate } from '../i18n.ts'
 import { CompatEditor } from './compat.tsx'
 
 type CatalogSource = 'builtin' | 'models-dev'
 
-function catalogNote(status: WireModelsDevStatus | undefined, t: (key: string) => string): string {
+function catalogNote(status: WireModelsDevStatus | undefined, t: Translate): string {
   if (status === undefined) return ''
   if (status.error !== null) return `${t('modelsDevError')}${status.error}`
   return `${t('modelsDevStatusLine')}：${status.providers} 个 provider，快照 ${status.fetchedAt ?? '-'}`
@@ -29,7 +30,7 @@ export interface ModelsTableProps {
   models: ModelDraft[]
   epoch: number
   disabled?: boolean
-  t(key: string): string
+  t: Translate
   onModels(next: ModelDraft[]): void
 }
 
@@ -158,7 +159,7 @@ export interface ModelRowProps {
   listId: string
   epoch: number
   disabled?: boolean
-  t(key: string): string
+  t: Translate
   onPatch(patch: Partial<ModelDraft>): void
   onRemove(): void
 }
@@ -268,7 +269,7 @@ export interface ReasoningEditorProps {
   idPrefix: string
   value: ReasoningDraft
   disabled?: boolean
-  t(key: string): string
+  t: Translate
   onEdit(next: ReasoningDraft): void
 }
 

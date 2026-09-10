@@ -43,7 +43,7 @@ const ownZh = {
   testDryRun: '已按 dry-run 记录日志（未真实发送）。',
   testFailed: '测试发送失败：',
   incomplete: 'SMTP 配置不完整（服务器/发件地址/收件人必填）。',
-}
+} as const
 
 const ownEn = {
   title: 'Email notifications',
@@ -81,7 +81,13 @@ const ownEn = {
   testDryRun: 'Logged in dry-run mode (not sent).',
   testFailed: 'Test send failed: ',
   incomplete: 'SMTP config incomplete (host/from/recipients required).',
-}
+} as const
 
-export const zh: Record<string, string> = mergeDict(commonZh, ownZh)
-export const en: Record<string, string> = mergeDict(commonEn, ownEn)
+export type DictKey = keyof typeof commonZh | keyof typeof ownZh
+
+/** 卡片/面板共用的翻译函数类型（slot 注入的 bind 结果按此消费）。 */
+export type Translate = (key: DictKey) => string
+
+// 标注为 Record<DictKey, string>：en 缺任一键即编译期报错（中英强制对齐）。
+export const zh: Record<DictKey, string> = mergeDict(commonZh, ownZh)
+export const en: Record<DictKey, string> = mergeDict(commonEn, ownEn)

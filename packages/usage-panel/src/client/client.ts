@@ -13,6 +13,7 @@ import {
   createSettingsScope,
   type SettingsRemoteFace,
 } from '@dsh-plus/shared/client'
+import type { Translate } from './i18n.ts'
 import { en, NS, zh } from './i18n.ts'
 import { UsagePriceCard } from './price-card.tsx'
 import { UsageSection } from './section.tsx'
@@ -30,7 +31,7 @@ interface SlotsLike {
 
 interface LocaleLike {
   register(ns: string, dict: { zh: Record<string, string>; en: Record<string, string> }): () => void
-  bind(ns: string): (key: string) => string
+  bind(ns: string): Translate
 }
 
 interface RemoteLike {

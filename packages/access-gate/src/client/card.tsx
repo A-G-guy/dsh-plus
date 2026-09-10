@@ -21,9 +21,10 @@ import {
   type Scope,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import type { DictKey, Translate } from './i18n.ts'
 
 export interface CardProps {
-  t(key: string): string
+  t: Translate
   scope: Scope
   api: NamespaceSettingsApi
 }
@@ -77,14 +78,20 @@ function toPatch(draft: Draft): Record<string, unknown> {
   }
 }
 
-/** reason 枚举 → 文案 key。 */
-const REASON_KEYS: Record<string, string> = {
+/** reason 枚举 → 文案 key（未知 reason 原样展示服务端文本，不当作文案键）。 */
+const REASON_KEYS: Record<string, DictKey | undefined> = {
   local: 'diagLocal',
   cookie: 'diagCookie',
   'trusted-ip': 'diagTrustedIp',
 }
 
-function verdictLabel(t: (key: string) => string, diag: Diag): string {
+/** reason → 展示文本：已知枚举走本地化，未知回落服务端原串。 */
+function reasonText(t: Translate, reason: string): string {
+  const key = REASON_KEYS[reason]
+  return key === undefined ? reason : t(key)
+}
+
+function verdictLabel(t: Translate, diag: Diag): string {
   if (!diag.enabled) return t('diagOff')
   if (diag.verdict === 'pass') return t('diagPass')
   if (diag.verdict === 'token-page') return t('diagTokenPage')
@@ -251,7 +258,7 @@ export function AccessGateCard(props: CardProps): ReactElement | null {
           <div className="dag-diagRow">
             <span className="dag-diagKey">{t('diagReason')}</span>
             <span className="dag-diagVal">
-              {diag.reason !== null ? t(REASON_KEYS[diag.reason] ?? diag.reason) : '—'}
+              {diag.reason !== null ? reasonText(t, diag.reason) : '—'}
             </span>
           </div>
           <div className="dag-diagRow">

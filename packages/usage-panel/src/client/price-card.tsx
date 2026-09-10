@@ -16,9 +16,10 @@ import {
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 import { fetchCatalogState, importPricesFromModelsDev, refreshCatalog } from './api.ts'
+import type { Translate } from './i18n.ts'
 
 export interface CardProps {
-  t(key: string): string
+  t: Translate
   scope: Scope
   api: NamespaceSettingsApi
 }

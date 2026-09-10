@@ -16,13 +16,14 @@ import {
 } from '../ranges.ts'
 import { fetchUsageData, type UsageData, type UsageWireRow } from './api.ts'
 import { fmtCost, fmtTokens, todayLocal } from './format.ts'
+import type { DictKey, Translate } from './i18n.ts'
 import { DayChart, DayDetail, ModelTable } from './report.tsx'
 
 export interface SectionProps {
-  t(key: string): string
+  t: Translate
 }
 
-const RANGES: Array<{ key: RangeKey; labelKey: string }> = [
+const RANGES: Array<{ key: RangeKey; labelKey: DictKey }> = [
   { key: '7d', labelKey: 'range7d' },
   { key: '30d', labelKey: 'range30d' },
   { key: 'month', labelKey: 'rangeMonth' },
@@ -47,7 +48,7 @@ const INITIAL_FILTERS: Filters = {
 }
 
 /** 同步状态行（进行中显示进度条，否则显示最近完成/错误）。 */
-function SyncStatus(props: { data: UsageData; t(key: string): string }): ReactElement | null {
+function SyncStatus(props: { data: UsageData; t: Translate }): ReactElement | null {
   const { data, t } = props
   const sync = data.sync
   if (!sync.running && sync.lastFinishedAt === null && sync.lastError === null) {

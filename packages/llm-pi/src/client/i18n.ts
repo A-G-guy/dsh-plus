@@ -7,7 +7,7 @@ import { commonEn, commonZh, mergeDict } from '@dsh-plus/shared/client'
 
 export const NS = 'dsh-plus-llm-pi'
 
-const ownZh: Record<string, string> = {
+const ownZh = {
   title: 'LLM 路由（llm-pi）',
   description: '自定义 LLM 路由：协议、compat、模型目录与 models.dev 目录兜底。',
   enabled: '启用插件',
@@ -86,9 +86,9 @@ const ownZh: Record<string, string> = {
   catalogFailed: '目录加载失败。',
   saveOk: '已保存。',
   saveFailed: '保存失败：',
-}
+} as const
 
-const ownEn: Record<string, string> = {
+const ownEn = {
   title: 'LLM routes (llm-pi)',
   description: 'Custom LLM routes: protocol, compat, model catalog and models.dev fallback.',
   enabled: 'Enable plugin',
@@ -169,7 +169,13 @@ const ownEn: Record<string, string> = {
   catalogFailed: 'Failed to load catalog.',
   saveOk: 'Saved.',
   saveFailed: 'Save failed: ',
-}
+} as const
 
-export const zh: Record<string, string> = mergeDict(commonZh, ownZh)
-export const en: Record<string, string> = mergeDict(commonEn, ownEn)
+export type DictKey = keyof typeof commonZh | keyof typeof ownZh
+
+/** 卡片/面板共用的翻译函数类型（slot 注入的 bind 结果按此消费）。 */
+export type Translate = (key: DictKey) => string
+
+// 标注为 Record<DictKey, string>：en 缺任一键即编译期报错（中英强制对齐）。
+export const zh: Record<DictKey, string> = mergeDict(commonZh, ownZh)
+export const en: Record<DictKey, string> = mergeDict(commonEn, ownEn)

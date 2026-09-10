@@ -27,6 +27,7 @@ import {
   unsetGlobal,
 } from './api.ts'
 import { copyText, errorText, liveName, nameErrorOf } from './common.ts'
+import type { Translate } from './i18n.ts'
 import { SessionSecretsPanel } from './panel.tsx'
 
 /** sessions 服务的列表快照面（结构子集；ObservableSnapshot 契约）。 */
@@ -39,7 +40,7 @@ export interface SessionsListLike {
 }
 
 export interface SectionProps {
-  t(key: string): string
+  t: Translate
   sessions?: SessionsListLike
 }
 
@@ -52,7 +53,7 @@ interface FormState {
 const EMPTY_FORM: FormState = { name: '', value: '', description: '' }
 
 /** 复制按钮（复制成功短暂亮勾）。 */
-function CopyButton(props: { t(key: string): string; text: string }): ReactElement {
+function CopyButton(props: { t: Translate; text: string }): ReactElement {
   const { t } = props
   const [copied, setCopied] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)

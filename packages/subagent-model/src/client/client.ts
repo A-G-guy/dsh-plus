@@ -22,6 +22,7 @@ import {
 } from '@dsh-plus/shared/client'
 import { SETTINGS_NS } from '../ns.ts'
 import { SubagentModelCard } from './card.tsx'
+import type { Translate } from './i18n.ts'
 import { en, NS, zh } from './i18n.ts'
 import { injectStyle } from './styles.ts'
 
@@ -37,7 +38,7 @@ interface SlotsLike {
 
 interface LocaleLike {
   register(ns: string, dict: { zh: Record<string, string>; en: Record<string, string> }): () => void
-  bind(ns: string): (key: string) => string
+  bind(ns: string): Translate
 }
 
 interface RemoteLike {

@@ -28,10 +28,11 @@ import {
   unsetSession,
 } from './api.ts'
 import { copyText, errorText, liveName, nameErrorOf } from './common.ts'
+import type { Translate } from './i18n.ts'
 
 export interface SessionSecretsPanelProps {
   sessionId: string
-  t(key: string): string
+  t: Translate
   /** 提供时渲染头栏（标题/刷新/关闭），供 overlay 弹层模式使用。 */
   onClose?(): void
 }
@@ -46,7 +47,7 @@ interface FormState {
 const EMPTY_FORM: FormState = { name: '', value: '', description: '', once: false }
 
 /** 复制按钮（复制成功短暂亮勾）。 */
-function CopyButton(props: { t(key: string): string; text: string }): ReactElement {
+function CopyButton(props: { t: Translate; text: string }): ReactElement {
   const { t } = props
   const [copied, setCopied] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -77,11 +78,7 @@ function CopyButton(props: { t(key: string): string; text: string }): ReactEleme
 }
 
 /** 会话内屏蔽开关（眼睛语义：可见=注入，划掉=本会话屏蔽）。 */
-function MaskToggle(props: {
-  t(key: string): string
-  masked: boolean
-  onToggle(): void
-}): ReactElement {
+function MaskToggle(props: { t: Translate; masked: boolean; onToggle(): void }): ReactElement {
   const { t, masked } = props
   return (
     <button

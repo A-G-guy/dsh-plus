@@ -10,6 +10,7 @@ import { type ReactElement, useState } from 'react'
 
 import type { ProviderDraft } from '../draft.ts'
 import { CollapseSection, JsonField, KeyValueEditor } from '../fields.tsx'
+import type { Translate } from '../i18n.ts'
 import { CompatEditor } from './compat.tsx'
 import { ModelsTable } from './models.tsx'
 import { ProviderScalarFields, ProviderSelectFields } from './provider-fields.tsx'
@@ -18,7 +19,7 @@ export interface ProvidersSectionProps {
   providers: Record<string, ProviderDraft>
   epoch: number
   disabled?: boolean
-  t(key: string): string
+  t: Translate
   onAddRoute(key: string): void
   onRemoveRoute(route: string): void
   onPatchProvider(route: string, patch: Partial<ProviderDraft>): void
@@ -86,7 +87,7 @@ export interface ProviderSectionProps {
   draft: ProviderDraft
   epoch: number
   disabled?: boolean
-  t(key: string): string
+  t: Translate
   onRemove(): void
   onPatch(patch: Partial<ProviderDraft>): void
 }

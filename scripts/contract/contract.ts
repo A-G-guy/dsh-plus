@@ -32,6 +32,7 @@ import type { Config as WebTerminalSchema } from '@dsh-plus/web-terminal'
 type _EqDifferent = Equal<string, number>
 type _SelfTestDifferent = Expect<[_EqDifferent] extends [false] ? true : false>
 
+/* biome-ignore lint/suspicious/noExplicitAny: 自检必须真的传入 any 才能验证判别力 */
 type _EqAny = Equal<any, { a: 1 }>
 type _SelfTestAny = Expect<[_EqAny] extends [false] ? true : false>
 

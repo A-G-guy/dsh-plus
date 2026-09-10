@@ -74,7 +74,7 @@ const ownZh = {
   'error.no-session': '缺少会话标识，请刷新后重试。',
   'error.method': '请求方法不允许。',
   'error.internal': '服务内部错误，请查看宿主日志。',
-}
+} as const
 
 const ownEn = {
   nav: 'Env Variables',
@@ -140,7 +140,19 @@ const ownEn = {
   'error.no-session': 'Missing session id; refresh and retry.',
   'error.method': 'Method not allowed.',
   'error.internal': 'Internal error; check the host log.',
+} as const
+
+export type DictKey = keyof typeof commonZh | keyof typeof ownZh
+
+/** 卡片/面板共用的翻译函数类型（slot 注入的 bind 结果按此消费）。 */
+export type Translate = (key: DictKey) => string
+
+/** 服务端错误码 → 文案键的运行期收窄：码来自端点响应，不可当作编译期已知键。 */
+export function errorKeyOf(code: string): DictKey | null {
+  const key = `error.${code}`
+  return Object.hasOwn(ownZh, key) ? (key as DictKey) : null
 }
 
-export const zh: Record<string, string> = mergeDict(commonZh, ownZh)
-export const en: Record<string, string> = mergeDict(commonEn, ownEn)
+// 标注为 Record<DictKey, string>：en 缺任一键即编译期报错（中英强制对齐）。
+export const zh: Record<DictKey, string> = mergeDict(commonZh, ownZh)
+export const en: Record<DictKey, string> = mergeDict(commonEn, ownEn)

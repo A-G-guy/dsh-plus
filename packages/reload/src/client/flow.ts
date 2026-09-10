@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ApiError, fetchHealth, postCancel, postConfirm, postPrepare } from './api.ts'
+import type { Translate } from './i18n.ts'
 
 /** 多标签页联动的 localStorage 键。 */
 const RESTART_FLAG = 'dsh-plus-reload:restarting'
@@ -47,8 +48,9 @@ export interface Flow {
   retry: () => void
 }
 
-/** 文案翻译面：组件注入 locale bind 结果，hook 不感知 locale 机制。 */
-export type Translate = (key: string) => string
+// 文案翻译面：组件注入 locale bind 结果，hook 不感知 locale 机制。
+// Translate 从 i18n 复用（键为 DictKey 字面量联合，拼错键编译期报错）。
+export type { Translate }
 
 function readFlag(): RestartFlag | null {
   try {

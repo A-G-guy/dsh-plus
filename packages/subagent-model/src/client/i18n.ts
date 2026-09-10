@@ -31,7 +31,7 @@ const ownZh = {
   catalogLoading: '目录加载中…',
   unknownValue: '目录外',
   invalidModel: '模型不能脱离提供商单独配置。',
-}
+} as const
 
 const ownEn = {
   title: 'Subagent model config',
@@ -59,7 +59,13 @@ const ownEn = {
   catalogLoading: 'Loading catalog\u2026',
   unknownValue: 'outside catalog',
   invalidModel: 'Model cannot be set without a provider.',
-}
+} as const
 
-export const zh: Record<string, string> = mergeDict(commonZh, ownZh)
-export const en: Record<string, string> = mergeDict(commonEn, ownEn)
+export type DictKey = keyof typeof commonZh | keyof typeof ownZh
+
+/** 卡片/面板共用的翻译函数类型（slot 注入的 bind 结果按此消费）。 */
+export type Translate = (key: DictKey) => string
+
+// 标注为 Record<DictKey, string>：en 缺任一键即编译期报错（中英强制对齐）。
+export const zh: Record<DictKey, string> = mergeDict(commonZh, ownZh)
+export const en: Record<DictKey, string> = mergeDict(commonEn, ownEn)

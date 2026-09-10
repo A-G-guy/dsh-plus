@@ -9,6 +9,7 @@ import type { ReactElement } from 'react'
 
 import { COMPAT_FALLBACK_API, compatFieldSpec, compatFieldsOf } from '../constants.ts'
 import { CollapseSection, JsonField, SelectField } from '../fields.tsx'
+import type { Translate } from '../i18n.ts'
 
 /** api 变更后裁剪 compat：只保留新渲染组的字段，避免保存时被后端拒绝。 */
 export function pruneCompatForApi(
@@ -31,7 +32,7 @@ export interface CompatEditorProps {
   epoch: number
   disabled?: boolean
   wide?: boolean
-  t(key: string): string
+  t: Translate
   onEdit(next: Record<string, unknown>): void
 }
 

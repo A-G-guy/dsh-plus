@@ -26,15 +26,16 @@ import {
   type ProviderDraft,
   toPatch,
 } from './draft.ts'
+import type { Translate } from './i18n.ts'
 import { ProvidersSection } from './views/providers.tsx'
 
 export interface CardProps {
-  t(key: string): string
+  t: Translate
   scope: Scope
   api: NamespaceSettingsApi
 }
 
-function modelsDevText(status: WireModelsDevStatus | null, t: (key: string) => string): string {
+function modelsDevText(status: WireModelsDevStatus | null, t: Translate): string {
   if (status === null) return t('modelsDevEmpty')
   if (status.error !== null) return `${t('modelsDevError')}${status.error}`
   if (status.fetchedAt === null) return t('modelsDevEmpty')

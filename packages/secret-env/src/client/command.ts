@@ -7,7 +7,7 @@
  * @module secret-env/client/command
  */
 import type { CommandContribution } from '@deepseek-ai/dsh-client-ui-commands/client'
-
+import type { Translate } from './i18n.ts'
 import { requestOpenSessionPanel } from './panel-bus.ts'
 
 /**
@@ -37,7 +37,7 @@ interface SessionsAvailabilityLike {
 export function registerVarCommand(
   ctx: CommandHostContext,
   sessions: SessionsAvailabilityLike,
-  t: (key: string) => string,
+  t: Translate,
 ): void {
   ctx.inject(['commandUi'], (scope) => {
     scope.effect(

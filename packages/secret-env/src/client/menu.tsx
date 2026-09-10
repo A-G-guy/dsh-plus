@@ -10,6 +10,7 @@
 import { type ReactElement, useEffect, useRef, useState } from 'react'
 
 import { fetchSecrets, type SecretList } from './api.ts'
+import type { Translate } from './i18n.ts'
 import {
   applyChipCorrection,
   type ChipCorrection,
@@ -38,7 +39,7 @@ export interface TokenSpanLike {
 export interface SecretMenuProps {
   /** 插槽 inject 工厂注入的当前会话 id。 */
   sessionId: string
-  t(key: string): string
+  t: Translate
   /** 框架标准钩子：输入状态快照订阅（SnapshotSelectorHook）。 */
   useInput?<S>(selector: (state: InputStateLike) => S): S
   /** inject 面注入：经官方 scoped bail 通道替换令牌文本；返回是否被编辑器应用。 */

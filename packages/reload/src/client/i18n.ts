@@ -5,7 +5,7 @@
 
 export const NS = 'dsh-plus-reload'
 
-export const zh: Record<string, string> = {
+export const zh = {
   title: '重新加载',
   description: '重启 dsh-web 服务使插件变更生效；服务恢复后本页自动刷新，会话不丢失。',
   action: '重新加载',
@@ -27,9 +27,15 @@ export const zh: Record<string, string> = {
   preflightFailed: '重启预检未通过：',
   confirmFailed: '确认失败：',
   tokenExpired: '确认已过期，请重新发起。',
-}
+} as const
 
-export const en: Record<string, string> = {
+export type DictKey = keyof typeof zh
+
+/** 重新加载行的翻译函数类型。 */
+export type Translate = (key: DictKey) => string
+
+// 标注为 Record<DictKey, string>：en 缺任一键即编译期报错（中英强制对齐）。
+export const en: Record<DictKey, string> = {
   title: 'Reload',
   description:
     'Restart the dsh-web service to apply plugin changes; this page refreshes automatically once the service is back. Sessions persist.',

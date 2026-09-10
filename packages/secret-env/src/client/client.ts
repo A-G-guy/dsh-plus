@@ -11,6 +11,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 
 import { registerVarCommand } from './command.ts'
+import type { Translate } from './i18n.ts'
 import { en, NS, zh } from './i18n.ts'
 import { SecretMenu, type TokenSpanLike } from './menu.tsx'
 import { SessionPanelHost } from './panel-host.tsx'
@@ -29,7 +30,7 @@ interface SlotsLike {
 
 interface LocaleLike {
   register(ns: string, dict: { zh: Record<string, string>; en: Record<string, string> }): () => void
-  bind(ns: string): (key: string) => string
+  bind(ns: string): Translate
 }
 
 /** 会话作用域句柄的结构子集（dsh-api-session-controller 客户端 sessions 服务）。 */

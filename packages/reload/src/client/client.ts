@@ -11,7 +11,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 
 import { fetchHealth } from './api.ts'
-import { en, NS, zh } from './i18n.ts'
+import { en, NS, type Translate, zh } from './i18n.ts'
 import { ReloadRow } from './row.tsx'
 import { injectStyle } from './styles.ts'
 import { startRestartWatchdog } from './watchdog.ts'
@@ -31,7 +31,7 @@ interface SlotsLike {
 
 interface LocaleLike {
   register(ns: string, dict: { zh: Record<string, string>; en: Record<string, string> }): () => void
-  bind(ns: string): (key: string) => string
+  bind(ns: string): Translate
 }
 
 interface ClientContext {

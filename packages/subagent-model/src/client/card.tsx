@@ -28,9 +28,10 @@ import {
   EMPTY_ROW,
   toPatch,
 } from './draft.ts'
+import type { Translate } from './i18n.ts'
 
 export interface CardProps {
-  t(key: string): string
+  t: Translate
   scope: Scope
   api: NamespaceSettingsApi
 }
@@ -45,7 +46,7 @@ function unknownOption(value: string, label: string): SelectOption {
 function providerOptions(
   catalog: ModelCatalog | null,
   row: DraftRow,
-  t: (k: string) => string,
+  t: Translate,
 ): SelectOption[] {
   const options: SelectOption[] = [{ value: '', label: t('inheritProvider') }]
   for (const provider of catalog?.providers ?? [])
@@ -56,11 +57,7 @@ function providerOptions(
   return options
 }
 
-function modelOptions(
-  catalog: ModelCatalog | null,
-  row: DraftRow,
-  t: (k: string) => string,
-): SelectOption[] {
+function modelOptions(catalog: ModelCatalog | null, row: DraftRow, t: Translate): SelectOption[] {
   const options: SelectOption[] = [{ value: '', label: t('inheritModel') }]
   const provider = catalog?.providers.find((p) => p.id === row.provider)
   for (const model of provider?.models ?? []) options.push({ value: model.id, label: model.name })
@@ -70,11 +67,7 @@ function modelOptions(
   return options
 }
 
-function effortOptions(
-  catalog: ModelCatalog | null,
-  row: DraftRow,
-  t: (k: string) => string,
-): SelectOption[] {
+function effortOptions(catalog: ModelCatalog | null, row: DraftRow, t: Translate): SelectOption[] {
   const options: SelectOption[] = [
     { value: EFFORT_INHERIT, label: t('effortInherit') },
     { value: EFFORT_DEFAULT, label: t('effortDefault') },
@@ -94,7 +87,7 @@ interface RowBlockProps {
   row: DraftRow
   catalog: ModelCatalog | null
   disabled: boolean
-  t(key: string): string
+  t: Translate
   onEdit(row: DraftRow): void
 }
 

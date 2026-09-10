@@ -61,7 +61,7 @@ const ownZh = {
   outputPrice: '输出价 /Mtok',
   cacheReadPrice: '缓存读价 /Mtok',
   cacheWritePrice: '缓存写价 /Mtok',
-}
+} as const
 
 const ownEn = {
   nav: 'Usage',
@@ -119,7 +119,13 @@ const ownEn = {
   outputPrice: 'Output /Mtok',
   cacheReadPrice: 'Cache read /Mtok',
   cacheWritePrice: 'Cache write /Mtok',
-}
+} as const
 
-export const zh: Record<string, string> = mergeDict(commonZh, ownZh)
-export const en: Record<string, string> = mergeDict(commonEn, ownEn)
+export type DictKey = keyof typeof commonZh | keyof typeof ownZh
+
+/** 卡片/面板共用的翻译函数类型（slot 注入的 bind 结果按此消费）。 */
+export type Translate = (key: DictKey) => string
+
+// 标注为 Record<DictKey, string>：en 缺任一键即编译期报错（中英强制对齐）。
+export const zh: Record<DictKey, string> = mergeDict(commonZh, ownZh)
+export const en: Record<DictKey, string> = mergeDict(commonEn, ownEn)

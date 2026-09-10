@@ -5,13 +5,14 @@
  */
 import { type NameError, normalizeSuffix, validateSuffix } from '../names.ts'
 import { ApiError } from './api.ts'
+import { errorKeyOf, type Translate } from './i18n.ts'
 
 /** 端点错误 → 本地化文案（未知码回落 internal）。 */
-export function errorText(t: (key: string) => string, error: unknown): string {
+export function errorText(t: Translate, error: unknown): string {
   const code = error instanceof ApiError ? error.code : 'internal'
-  const text = t(`error.${code}`)
-  // locale.bind 对缺失键原样回显键名，据此判断回落。
-  return text === `error.${code}` ? t('error.internal') : text
+  // 错误码来自端点响应，运行期收窄到字典已知键；未知码回落 internal。
+  const key = errorKeyOf(code)
+  return key === null ? t('error.internal') : t(key)
 }
 
 /** 名称输入的实时规范化：键入即转大写（去空白交给保存时的 normalizeSuffix）。 */

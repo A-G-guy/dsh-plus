@@ -6,14 +6,14 @@
  * @module secret-env/client/panel-host
  */
 import { type ReactElement, useEffect, useRef, useState } from 'react'
-
+import type { Translate } from './i18n.ts'
 import { SessionSecretsPanel } from './panel.tsx'
 import { onOpenSessionPanel } from './panel-bus.ts'
 
 export interface SessionPanelHostProps {
   /** 插槽 inject 工厂注入的当前会话 id。 */
   sessionId: string
-  t(key: string): string
+  t: Translate
 }
 
 export function SessionPanelHost(props: SessionPanelHostProps): ReactElement | null {
