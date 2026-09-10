@@ -9,6 +9,10 @@ import type { GalleryItem } from './gallery/store.ts'
 import type { ImageEndpoint } from './provider/types.ts'
 import type { TaskState } from './task/runner.ts'
 
+// GalleryItem 由 gallery/store 定义，但属 wire 视图的一部分（GalleryListWire 及
+// 客户端半 fetchGalleryItem 都用它）；在此转出，dto 保持「前后端共享类型单一门面」。
+export type { GalleryItem }
+
 /** 任务提交请求体。 */
 export interface GenerateRequest {
   /** 提供商预设 id 与 inline 二选一（都传时 inline 优先）。 */

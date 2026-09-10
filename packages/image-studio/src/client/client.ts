@@ -32,7 +32,8 @@ export const inject = ['slots', 'locale', 'remote', 'remote.settings'] as const
 const PLUGIN_ID = '@dsh-plus/image-studio'
 
 interface SlotsLike {
-  inject(key: string, callback: () => unknown): unknown
+  /** 官方 slots 服务：回调返回 disposer；inject 返回等待/生效 effect 的幂等 disposer。 */
+  inject(key: string, callback: () => unknown): () => void
   register(options: Record<string, unknown>, component: unknown): () => void
 }
 

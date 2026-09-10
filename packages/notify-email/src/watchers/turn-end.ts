@@ -7,6 +7,8 @@
  * @module notify-email/watchers/turn-end
  */
 import type { Context } from '@deepseek-ai/cordis'
+// 平台声明导入：把 agent 服务面（ctx.agents）与 Inbox 契约合进 program。
+import type { Inbox } from '@deepseek-ai/dsh-agent'
 import type { Session, TurnEndReason } from '@deepseek-ai/dsh-session'
 
 import type { NotifyEmailConfig } from '../config.ts'
@@ -44,6 +46,18 @@ function extractErrorMessage(reason: unknown): string | undefined {
   return typeof message === 'string' ? message : undefined
 }
 
+/**
+ * agent 是否仍留有已接收但未认领的工作。
+ * `hasPending` 未进 Inbox 契约面——它只是 dsh-agent-loop 的 ReactLoopInbox
+ * 实现 getter（官方唯一的 `agent.inbox` 赋值点），故按「实现面存在才读」
+ * 收窄：实现缺席即视为无待处理工作；存在时读到的正是该 getter，取值与
+ * 契约面的 nextTurn/nextStep 非空判定一致。
+ */
+function hasPendingWork(inbox: Inbox): boolean {
+  if (!('hasPending' in inbox)) return false
+  return inbox.hasPending === true
+}
+
 export function installTurnEndWatcher(
   ctx: Context,
   service: NotifyEmailService,
@@ -64,7 +78,7 @@ export function installTurnEndWatcher(
   const fire = (session: Session, turn: number, kind: string, errorMessage?: string): void => {
     const agent = ctx.agents.get(session.id)
     if (agent === undefined) return
-    if (agent.status !== 'idle' || agent.inbox.hasPending) return
+    if (agent.status !== 'idle' || hasPendingWork(agent.inbox)) return
     if (!ctx.agents.roots().includes(agent)) return
     const watch = watchOf(session.id)
     const key = `${turn}:${kind}`

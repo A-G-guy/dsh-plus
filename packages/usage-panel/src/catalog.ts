@@ -10,9 +10,10 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import type { IncomingMessage } from 'node:http'
 import { request as httpRequest } from 'node:http'
-import { request as httpsRequest } from 'node:https'
+import { request as httpsRequest, type RequestOptions } from 'node:https'
 import { dirname } from 'node:path'
 import type { Duplex } from 'node:stream'
+import type { ConnectionOptions } from 'node:tls'
 
 /** 目录文档最小投影（只关心形状，不解析字段）。 */
 export type CatalogDocument = Record<string, unknown>
@@ -111,35 +112,35 @@ export function fetchJsonVia(
           return
         }
         // 隧道建立：目标请求经同一 socket 发出（TLS 在隧道内协商）。
-        const req = httpsRequest(
-          url,
-          {
-            socket,
-            agent: false,
-            timeout: timeoutMs,
-            headers: { accept: 'application/json' },
-            servername: target.hostname,
-          },
-          (response: IncomingMessage) => {
-            const chunks: Buffer[] = []
-            let size = 0
-            response.on('data', (chunk: Buffer) => {
-              size += chunk.length
-              if (size > maxBytes) {
-                req.destroy(new Error(`响应超过 ${Math.round(maxBytes / 1024 / 1024)}MB 上限`))
-                return
-              }
-              chunks.push(chunk)
+        // socket 是 tls.connect 的选项（https.request 建连时原样透传，已在本地
+        // 实测经 CONNECT 隧道完成 TLS 请求）；@types/node 的 RequestOptions 未
+        // 收录该字段，故与 tls.ConnectionOptions 求交补上，运行期行为不变。
+        const tunnelOptions: RequestOptions & Pick<ConnectionOptions, 'socket'> = {
+          socket,
+          agent: false,
+          timeout: timeoutMs,
+          headers: { accept: 'application/json' },
+          servername: target.hostname,
+        }
+        const req = httpsRequest(url, tunnelOptions, (response: IncomingMessage) => {
+          const chunks: Buffer[] = []
+          let size = 0
+          response.on('data', (chunk: Buffer) => {
+            size += chunk.length
+            if (size > maxBytes) {
+              req.destroy(new Error(`响应超过 ${Math.round(maxBytes / 1024 / 1024)}MB 上限`))
+              return
+            }
+            chunks.push(chunk)
+          })
+          response.on('end', () => {
+            done({
+              status: response.statusCode ?? 0,
+              body: Buffer.concat(chunks).toString('utf8'),
             })
-            response.on('end', () => {
-              done({
-                status: response.statusCode ?? 0,
-                body: Buffer.concat(chunks).toString('utf8'),
-              })
-            })
-            response.on('error', fail)
-          },
-        )
+          })
+          response.on('error', fail)
+        })
         req.on('timeout', () => req.destroy(new Error(`请求超时（${timeoutMs}ms）`)))
         req.on('error', fail)
         req.end()

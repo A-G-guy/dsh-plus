@@ -74,6 +74,9 @@ export class ImageStudioService extends Service {
   private current: () => ImageStudioConfig
   private readonly runner: TaskRunner<TaskSnapshot>
   private readonly log: (message: string) => void
+  // settings 服务窄面（settingsCtx.inject 回调内落存）。declare：不参与类字段
+  // 初始化 emit，保持实例运行期形状与既有产物一致（不因声明而多出 undefined 字段）。
+  private declare settingsRef: SettingsLike | undefined
 
   constructor(ctx: ContextT, config: ImageStudioConfig) {
     super(ctx, 'imageStudio')

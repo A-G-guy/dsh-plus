@@ -131,7 +131,12 @@ function assertKitShape(kit: DshKit, origin: string): void {
       'prepareCall',
       'providerRetryPolicy',
     ] as const) {
-      if (typeof (kit.PiAiAdapter.prototype as Record<string, unknown>)[method] !== 'function') {
+      // 原型方法存在性自检：类实例的原型在运行期是普通对象，按方法名索引读取安全
+      // （类类型本身无索引签名，故经 unknown 转字典视图；形状由本函数逐项断言）。
+      if (
+        typeof (kit.PiAiAdapter.prototype as unknown as Record<string, unknown>)[method] !==
+        'function'
+      ) {
         problems.push(`PiAiAdapter.prototype.${method} 缺失`)
       }
     }
@@ -164,7 +169,9 @@ function checkDeepseekShape(kit: DeepSeekKit): string[] {
   const problems: string[] = []
   if (typeof kit.DeepSeekAdapter !== 'function') problems.push('DeepSeekAdapter 不是类')
   else if (
-    typeof (kit.DeepSeekAdapter.prototype as Record<string, unknown>)['stream'] !== 'function'
+    // 同 assertKitShape：原型方法存在性自检，经 unknown 转字典视图读取。
+    typeof (kit.DeepSeekAdapter.prototype as unknown as Record<string, unknown>)['stream'] !==
+    'function'
   ) {
     problems.push('DeepSeekAdapter.prototype.stream 缺失')
   }

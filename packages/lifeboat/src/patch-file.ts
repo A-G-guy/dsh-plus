@@ -17,7 +17,7 @@
  */
 import { copyFile, readFile, rename, writeFile } from 'node:fs/promises'
 
-import { parseDocument } from 'yaml'
+import { isSeq, parseDocument } from 'yaml'
 
 /** patch 文件顶层条目（松散视图：只关心 id/disabled/insert 三个键）。 */
 export interface PatchEntry {
@@ -144,12 +144,16 @@ export async function removeDisable(patchFile: string, targetId: string): Promis
     const root = doc.toJS() as unknown
     if (!Array.isArray(root)) throw new Error(`patch 文件顶层不是数组: ${patchFile}`)
     let removed = false
-    const items = doc.contents
-    if (items?.items !== undefined && Array.isArray(items.items)) {
+    // 空值/形状防御与原实现等价：上面已确认 doc.toJS() 是数组，顶层数组文档的
+    // contents 必为 YAMLSeq（标量/别名/映射节点都不满足该条）；isSeq 同时对
+    // null（空文档）与其它节点返回 false，不会让后续访问落到无 items 的节点上。
+    const contents = doc.contents
+    if (isSeq(contents)) {
       // 头注释挂在首个条目的 commentBefore 上：被移除项若为首项，注释迁移给
       // 新的首项，避免整文件头注释丢失。
-      const headComment = (items.items[0] as unknown as { commentBefore?: string })?.commentBefore
-      doc.contents.items = items.items.filter((item) => {
+      const headComment = (contents.items[0] as unknown as { commentBefore?: string })
+        ?.commentBefore
+      contents.items = contents.items.filter((item) => {
         const value = (item as unknown as { toJS?(doc: unknown): unknown }).toJS?.(doc) as
           | PatchEntry
           | undefined
@@ -164,8 +168,8 @@ export async function removeDisable(patchFile: string, targetId: string): Promis
         }
         return true
       })
-      if (removed && headComment !== undefined && doc.contents.items.length > 0) {
-        const next = doc.contents.items[0] as unknown as { commentBefore?: string }
+      if (removed && headComment !== undefined && contents.items.length > 0) {
+        const next = contents.items[0] as unknown as { commentBefore?: string }
         if (next.commentBefore === undefined) next.commentBefore = headComment
       }
     }

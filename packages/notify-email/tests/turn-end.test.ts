@@ -88,12 +88,22 @@ function assistantMessage(text: string) {
   return { message: { content: [{ type: 'text', text }] } }
 }
 
+/** 测试输入块：extractDeliveryText 只读 type/text，工具块另带 name（与官方块同构）。 */
+interface TestContentBlock {
+  type: string
+  text?: string
+  name?: string
+}
+
 test('given text and tool blocks, when extracting delivery, then only text blocks join', () => {
-  const text = extractDeliveryText([
+  // 被测函数只读 type/text；显式标注输入块形状（工具块另带 name），
+  // 避免字面量数组被参数类型按过量属性检查拒绝。
+  const content: TestContentBlock[] = [
     { type: 'text', text: '第一段' },
     { type: 'tool_call', name: 'bash' },
     { type: 'text', text: '第二段' },
-  ])
+  ]
+  const text = extractDeliveryText(content)
   assert.equal(text, '第一段\n第二段')
   assert.equal(extractDeliveryText([{ type: 'tool_call' }]), undefined)
 })

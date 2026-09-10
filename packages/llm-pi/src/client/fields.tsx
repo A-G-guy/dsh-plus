@@ -6,7 +6,7 @@
  */
 
 import { ChevronDownIcon } from '@dsh-plus/shared/client'
-import { type ReactElement, useEffect, useState } from 'react'
+import { type ReactElement, type ReactNode, useEffect, useState } from 'react'
 
 import type { HeaderPair } from './draft.ts'
 
@@ -20,7 +20,7 @@ export interface CollapseSectionProps {
   /** 默认展开态；复杂项传 false（默认折叠）。 */
   defaultOpen: boolean
   disabled?: boolean
-  children: ReactElement | ReactElement[] | null
+  children: ReactNode
 }
 
 export function CollapseSection(props: CollapseSectionProps): ReactElement {

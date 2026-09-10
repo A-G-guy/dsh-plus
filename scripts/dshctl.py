@@ -6,7 +6,8 @@
   init-hooks             部署 pre-commit 链
   new-plugin <名>        脚手架新插件（--type tool/service/persona/ui）
   lint [--write]         biome 静态检查；--write 自动修复
-  test                   静态检查 + 构建 + 全部单测（无网络、零费用）
+  typecheck [包...]      逐包 tsc --noEmit 类型契约检查（零网络）
+  test                   静态检查 + 类型检查 + 构建 + 全部单测（无网络、零费用）
   smoke                  headless 工具调用冒烟（mock LLM，零费用）
   smoke-prod             生产布局回归（scratch home + tgz 安装，不碰生产）
   dev up|down|restart    dev 实例一键启停（~/.dsh-dev + mock LLM + :3082）
@@ -61,6 +62,7 @@ from dshctl.cmd_seed import cmd_dev_seed
 from dshctl.cmd_session import (cmd_chat, cmd_session_list, cmd_session_new,
                                 cmd_session_open, cmd_session_send)
 from dshctl.cmd_smoke import cmd_smoke, cmd_smoke_prod
+from dshctl.cmd_typecheck import cmd_typecheck
 from dshctl.cmd_url import cmd_url
 from dshctl.common import DEV_PORT
 from dshctl.pwcli import DEFAULT_SESSION
@@ -82,6 +84,11 @@ def build_parser() -> argparse.ArgumentParser:
                       help="自动修复并格式化（biome check --write）")
     lint.set_defaults(func=cmd_lint)
     sub.add_parser("test").set_defaults(func=cmd_test)
+    typeck = sub.add_parser("typecheck",
+                            help="逐包 tsc --noEmit 类型契约检查（零网络）")
+    typeck.add_argument("packages", nargs="*",
+                        help="留空检查全部包；可给目录名或 @dsh-plus/xxx")
+    typeck.set_defaults(func=cmd_typecheck)
     sub.add_parser("smoke").set_defaults(func=cmd_smoke)
     smp = sub.add_parser("smoke-prod",
                          help="生产布局回归：scratch home + tgz 安装 + bash 工具调用")

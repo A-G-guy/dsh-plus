@@ -60,6 +60,13 @@ function route(displayName: string, retryPolicy?: unknown): ResolvedDeepseekRout
   return { route: 'chatds', displayName, connection: { retryPolicy } as never }
 }
 
+/** 取首个注册记录（每个用例同步注册后应恰有一个 handle）。 */
+function firstHandle(handles: FakeHandle[]): FakeHandle {
+  const handle = handles[0]
+  assert.ok(handle, '应有注册记录')
+  return handle
+}
+
 function setup(displayName: string) {
   const { ctx, handles } = fakeCtx()
   const current = new Map([['chatds', route(displayName)]])
@@ -78,7 +85,7 @@ test('providerInfo 返回路由 displayName 而非官方硬编码的 "DeepSeek"'
   // When —— 同步注册
   registrar.sync(current)
   // Then —— 模型目录分组名与 deepseek-official 可区分
-  assert.deepEqual(handles[0].adapter.providerInfo('chatds'), {
+  assert.deepEqual(firstHandle(handles).adapter.providerInfo('chatds'), {
     id: 'chatds',
     name: 'newapi(chatds)',
   })
@@ -92,9 +99,10 @@ test('displayName 变化触发 replace，分组名热更新', () => {
   current.set('chatds', route('改名(chatds)'))
   registrar.sync(current)
   // Then —— 原地 replace，providerInfo 读到新名
-  assert.equal(handles[0].replaceCount, 1)
-  assert.equal(handles[0].disposed, false)
-  assert.deepEqual(handles[0].adapter.providerInfo('chatds'), {
+  const handle = firstHandle(handles)
+  assert.equal(handle.replaceCount, 1)
+  assert.equal(handle.disposed, false)
+  assert.deepEqual(handle.adapter.providerInfo('chatds'), {
     id: 'chatds',
     name: '改名(chatds)',
   })
@@ -107,7 +115,7 @@ test('注册事实未变化时不 replace', () => {
   // When —— 同名同策略再次同步
   registrar.sync(new Map([['chatds', route('newapi(chatds)')]]))
   // Then —— 无 replace
-  assert.equal(handles[0].replaceCount, 0)
+  assert.equal(firstHandle(handles).replaceCount, 0)
 })
 
 test('retryPolicy 变化仍触发 replace（回归）', () => {
@@ -118,5 +126,5 @@ test('retryPolicy 变化仍触发 replace（回归）', () => {
   current.set('chatds', route('newapi(chatds)', { maxRetries: 3 }))
   registrar.sync(current)
   // Then —— replace 一次
-  assert.equal(handles[0].replaceCount, 1)
+  assert.equal(firstHandle(handles).replaceCount, 1)
 })

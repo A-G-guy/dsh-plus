@@ -11,6 +11,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { Service } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-settings'
 
 import { Config, SETTINGS_NS, type SubagentModelConfig, validateEntries } from './config.ts'
 import { registerCatalogApi } from './config-api.ts'

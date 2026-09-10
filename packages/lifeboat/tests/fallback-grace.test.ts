@@ -13,6 +13,9 @@ function fakeCtx(providers: string[]) {
   const rootListeners = new Map<string, (payload?: unknown) => void>()
   const listeners = new Map<string, (payload?: unknown) => void>()
   const disposers: Array<() => void> = []
+  const ctxOn = (type: string, fn: (payload?: unknown) => void) => {
+    listeners.set(type, fn)
+  }
   return {
     logger: () => ({ warn: () => {} }),
     settings: { get: () => undefined },
@@ -22,9 +25,10 @@ function fakeCtx(providers: string[]) {
         rootListeners.set(type, fn)
       },
     },
-    on: (type: string, fn: (payload?: unknown) => void) => {
-      listeners.set(type, fn)
-    },
+    // 'ready' 经 ctx.events.on 注册（平台 events 的字符串重载，'ready' 非声明事件）；
+    // ctx.on 是同一批方法混入 ctx 的别名，两个面都提供以贴合真实 ctx 形状。
+    events: { on: ctxOn },
+    on: ctxOn,
     effect: (fn: () => () => void): (() => void) => {
       const dispose = fn()
       disposers.push(dispose)

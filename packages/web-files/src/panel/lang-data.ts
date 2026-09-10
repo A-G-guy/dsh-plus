@@ -18,7 +18,7 @@ import { rust } from '@codemirror/lang-rust'
 import { sql } from '@codemirror/lang-sql'
 import { xml } from '@codemirror/lang-xml'
 import { yaml } from '@codemirror/lang-yaml'
-import { LanguageDescription, type LanguageSupport, StreamLanguage } from '@codemirror/language'
+import { LanguageDescription, LanguageSupport, StreamLanguage } from '@codemirror/language'
 import { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile'
 import { shell } from '@codemirror/legacy-modes/mode/shell'
 import { toml } from '@codemirror/legacy-modes/mode/toml'
@@ -57,7 +57,7 @@ export const supportedLanguages = [
     extensions: ['md', 'markdown'],
     load: ready(() => markdown()),
   }),
-  LanguageDescription.of({ name: 'SQL', extensions: ['sql'], load: ready(sql()) }),
+  LanguageDescription.of({ name: 'SQL', extensions: ['sql'], load: ready(sql) }),
   LanguageDescription.of({ name: 'XML', extensions: ['xml', 'svg'], load: ready(xml) }),
   LanguageDescription.of({ name: 'PHP', extensions: ['php'], load: ready(() => php()) }),
   LanguageDescription.of({

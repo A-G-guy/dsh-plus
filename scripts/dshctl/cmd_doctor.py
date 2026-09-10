@@ -30,6 +30,10 @@ def _check_toolchain() -> None:
            (REPO_ROOT / "biome.json").exists()
            and (REPO_ROOT / "node_modules/.bin/biome").exists(),
            "缺 biome.json 或 node_modules/.bin/biome（pnpm install）")
+    _check("tsc 与根 @types/node 在位",
+           (REPO_ROOT / "node_modules/.bin/tsc").exists()
+           and (REPO_ROOT / "node_modules/@types/node").is_dir(),
+           "缺 tsc 或 @types/node（pnpm install）——dshctl typecheck 会失败")
 
 
 def _node_major() -> int:
@@ -170,9 +174,12 @@ def cmd_doctor(args) -> None:
 
 def cmd_test(_args) -> None:
     from .cmd_lint import biome_check_cmd
+    from .cmd_typecheck import run_typecheck
 
     run(biome_check_cmd(), cwd=REPO_ROOT)
     print("[test] biome check 通过（lint + format + import 整理）")
+    # 类型检查置于构建之前：tsdown 只转译不校验类型，官方契约漂移必须在此拦住。
+    run_typecheck()
     run(["pnpm", "-r", "build"], cwd=REPO_ROOT)
     tests = sorted(REPO_ROOT.glob("packages/*/tests/*.test.ts"))
     if tests:

@@ -12,6 +12,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import type { DirectoryRegistrationHandle } from '@deepseek-ai/dsh-llm'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import type {} from '@deepseek-ai/dsh-settings'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
@@ -237,7 +238,7 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
     registeredFacts = facts
   }
 
-  let directory: { replace: (entries: unknown[]) => void } | undefined
+  let directory: DirectoryRegistrationHandle | undefined
   let directoryFacts: unknown
   /** 草稿路由（无模型占位）从原始配置直读——它们不进 adapter profiles。 */
   const draftRoutes = (): { route: string; displayName: string }[] => {
@@ -263,8 +264,7 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
     }
     commitDirectory(
       (batch: DirectoryEntry[]) => {
-        if (directory === undefined)
-          directory = ctx.llm.registerConfigurableProviders(batch as never)
+        if (directory === undefined) directory = ctx.llm.registerConfigurableProviders(batch)
         else directory.replace(batch)
       },
       entries,

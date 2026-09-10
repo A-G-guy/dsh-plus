@@ -64,6 +64,10 @@ export function toPatch(draft: Draft): Record<string, unknown> {
   // （先 entries 后补目录空行）与 draftFrom（先目录后 entries）键序不同，
   // 不排序会出现「未改动却永久 dirty」的假阳性。
   const entries: Record<string, DraftRow> = {}
-  for (const name of Object.keys(draft.rows).sort()) entries[name] = draft.rows[name]
+  for (const name of Object.keys(draft.rows).sort()) {
+    const row = draft.rows[name]
+    if (row === undefined) continue
+    entries[name] = row
+  }
   return { enabled: draft.enabled, entries }
 }

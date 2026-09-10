@@ -331,10 +331,19 @@ export function installLlmFallback(
   // 覆盖后续变化；宽限内的 settings/llm 事件同样被时间闸跳过，由收尾评估兜底。
   const bootTimer = setTimeout(run, graceMs)
   ctx.effect(() => () => clearTimeout(bootTimer), 'lifeboat: fallback boot timer')
-  ctx.on('ready' as never, run)
+  // 走 events 的字符串重载而非 ctx.on：'ready' 不是平台声明的事件
+  // （cordis 4.0.2 内置仅 internal/*，dsh 0.1.5-rc.1 全树无任何声明或派发点），
+  // ctx.on 要求 keyof Events，只能靠 as never 硬塞。events.on(name: string|symbol)
+  // 是平台给动态事件名的正统入口，运行期同一事件总线、同一 fiber 归属、随 fiber
+  // 卸载自动移除（已实测）。注意：该监听目前**无生产者**，属遗留死监听，保留是
+  // 为不动运行期行为，待人工确认后决定是否删除。
+  ctx.events.on('ready', run)
   // 只响应与本判定相关的命名空间变化：journal 写自身命名空间，不过滤会自触发循环。
   const WATCHED_NS = new Set(['agent-default-model', 'llm-pi-ai', RAW_NS_LLM_PI])
-  ctx.root.on('settings/updated' as never, (ns: unknown) => {
+  // settings/updated 由 @deepseek-ai/dsh-settings 声明（本文件已导入该包），
+  // 参数类型是品牌化的 SettingsNamespace；监听器按 unknown 收，保留原有
+  // typeof 字符串防御。
+  ctx.root.on('settings/updated', (ns: unknown) => {
     if (typeof ns === 'string' && WATCHED_NS.has(ns)) run()
   })
   // 事件名已核对：0.1.2-alpha.2 的 dsh-llm 保留 'llm/adapters-updated'

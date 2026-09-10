@@ -5,7 +5,7 @@
  */
 import { ImageStudioError } from '../errors.ts'
 import { generateViaOpenAIImages } from './openai-images.ts'
-import type { ImageEndpoint, ImageProvider, NormalizedRequest } from './types.ts'
+import type { ImageEndpoint, ImageProvider, NormalizedRequest, ProviderResult } from './types.ts'
 
 type GenerateFn = (request: NormalizedRequest, signal: AbortSignal) => Promise<ProviderResult>
 

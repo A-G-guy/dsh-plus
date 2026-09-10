@@ -206,8 +206,8 @@ const KNOWN_PROVIDER_KEYS = new Set([
   'models',
 ])
 
-/** 摘出 wire 对象里卡片未认识的字段（undefined 值不保留）。 */
-function extraOf(wire: Record<string, unknown>, known: Set<string>): Record<string, unknown> {
+/** 摘出 wire 对象里卡片未认识的字段（undefined 值不保留；入参只要求是普通对象）。 */
+function extraOf(wire: object, known: Set<string>): Record<string, unknown> {
   const out: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(wire)) {
     if (!known.has(key) && value !== undefined) out[key] = value
@@ -225,7 +225,7 @@ function modelDraftFromWire(model: WireModel): ModelDraft {
     input: inputFromWire(model.input),
     reasoningEfforts: reasoningFromWire(model.reasoningEfforts),
     compat: { ...(model.compat ?? {}) },
-    extra: extraOf(model as Record<string, unknown>, KNOWN_MODEL_KEYS),
+    extra: extraOf(model, KNOWN_MODEL_KEYS),
   }
 }
 
@@ -268,7 +268,7 @@ function providerDraftFromWire(provider: WireProvider): ProviderDraft {
     maxRequestImageBytes: numToText(provider.maxRequestImageBytes),
     retryPolicy: provider.retryPolicy,
     models: (provider.models ?? []).map(modelDraftFromWire),
-    extra: extraOf(provider as Record<string, unknown>, KNOWN_PROVIDER_KEYS),
+    extra: extraOf(provider, KNOWN_PROVIDER_KEYS),
   }
 }
 
@@ -357,10 +357,14 @@ export function draftFromValue(value: ConfigValue): Draft {
 
 /** 提交补丁：完整配置对象，providers 全量替换；空值一律剔除。 */
 export function toPatch(draft: Draft): ConfigPatch {
+  const refreshHours = toNum(draft.catalogRefreshHours)
   return {
     enabled: draft.enabled,
     catalogUrl: draft.catalogUrl.trim(),
-    catalogRefreshHours: toNum(draft.catalogRefreshHours),
+    // 保存动作在文本非法时不可用（card.tsx 的 invalid 门控），故写入路径必为合法数字；
+    // dirty 比较路径可能拿到非法文本的 undefined（JSON.stringify 时同键被丢弃），
+    // 此处仅把"保存前已校验"的运行期事实带到类型层，取值不变。
+    catalogRefreshHours: refreshHours as unknown as number,
     catalogProxy: draft.catalogProxy.trim(),
     providers: Object.fromEntries(
       Object.entries(draft.providers).map(([route, provider]) => [route, providerToWire(provider)]),

@@ -1,13 +1,31 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import type { ProviderProfileConfig } from '../src/config.ts'
+import type { LlmPiConfig, LlmPiConfigInput, ProviderProfileConfig } from '../src/config.ts'
 import { Config } from '../src/config.ts'
 import { buildDeepseekRoutes } from '../src/profiles-deepseek.ts'
 import { loadVendoredKit } from '../src/resolve-dsh.ts'
 
 const kit = loadVendoredKit()
 const deps = { kit }
+
+/** schema 的 standard-schema 校验结果（dsh-settings 投递路径的返回形状）。 */
+type ConfigValidationResult = Awaited<ReturnType<(typeof Config)['~standard']['validate']>>
+
+/**
+ * 走 dsh-settings 同款投递路径（`~standard`.validate）解析一份用户配置。
+ *
+ * standard-schema 的 Props 不携带泛型，Output 只能标成 unknown；这里补回 schema
+ * 自己声明的输出契约（Config: z<LlmPiConfigInput, LlmPiConfig>），运行期形状由
+ * 同一 schema 保证，故断言安全。
+ */
+async function validateConfig(input: LlmPiConfigInput): Promise<LlmPiConfig> {
+  const result: ConfigValidationResult = await Config['~standard'].validate(input)
+  if (result.issues !== undefined) {
+    assert.fail(`schema 校验失败：${result.issues.map((issue) => issue.message).join('；')}`)
+  }
+  return result.value as unknown as LlmPiConfig
+}
 
 function routeConfig(
   profile: Partial<ProviderProfileConfig>,
@@ -67,8 +85,10 @@ test('条目显式字段逐字段覆盖官方继承值', () => {
 })
 
 test('imageDetail 已随 0.1.2-alpha.1 移除：写时拒绝并提示迁移', () => {
+  // 单独声明旧字段（不在 ModelEntryConfig 上）：复现 schema 透传陷阱的旧配置形状
+  const legacyModel = { id: 'deepseek-v4-flash-vision-exp', imageDetail: 'low' }
   assert.throws(
-    () => buildOne({ models: [{ id: 'deepseek-v4-flash-vision-exp', imageDetail: 'low' }] }),
+    () => buildOne({ models: [legacyModel] }),
     /imageDetail 已随 0.1.2-alpha.1 移除；请改用 imagePixelBudget\/imageMaxBytes/,
   )
 })
@@ -245,10 +265,10 @@ test('重试策略透传并经官方解析（注册期事实）', () => {
   assert.equal(built.connection.retryPolicy.maxRetries, 3)
 })
 
-test('settings 投递路径：schema 物化的空 dict/数组不触发误拒，官方继承不丢失', () => {
+test('settings 投递路径：schema 物化的空 dict/数组不触发误拒，官方继承不丢失', async () => {
   // Given —— 模拟 dsh-settings 投递：用户原始配置先过 Config schema，
   // schemastery 会把 dict 物化为 {}、defaultInput 物化为 ['text']、模型 input 物化为 []
-  const parsed = Config['~standard'].validate({
+  const parsed = await validateConfig({
     providers: {
       relay: {
         adapter: 'deepseek',
@@ -258,13 +278,13 @@ test('settings 投递路径：schema 物化的空 dict/数组不触发误拒，�
       },
     },
   })
-  assert.equal(parsed.issues, undefined)
-  const materialized = parsed.value.providers['relay']
+  const materialized = parsed.providers['relay']
   assert.ok(materialized)
   assert.deepEqual(materialized.compat, {}) // 确认物化噪声存在（防测试随上游行为漂移而失效）
+  assert.ok(materialized.models)
   assert.deepEqual(materialized.models[1]?.input, [])
   // When —— 走 settings validate 钩子同款严格构建
-  const routes = buildDeepseekRoutes(parsed.value.providers, deps)
+  const routes = buildDeepseekRoutes(parsed.providers, deps)
   // Then —— 不误拒，且视觉模型的官方 image 模态未被物化空数组覆盖
   const built = routes.get('relay')
   assert.ok(built)
@@ -272,8 +292,8 @@ test('settings 投递路径：schema 物化的空 dict/数组不触发误拒，�
   assert.deepEqual(vision?.inputModalities, ['text', 'image'])
 })
 
-test('显式写出非空 pi 专有字段经 schema 投递仍被拒绝', () => {
-  const parsed = Config['~standard'].validate({
+test('显式写出非空 pi 专有字段经 schema 投递仍被拒绝', async () => {
+  const parsed = await validateConfig({
     providers: {
       relay: {
         adapter: 'deepseek',
@@ -284,9 +304,5 @@ test('显式写出非空 pi 专有字段经 schema 投递仍被拒绝', () => {
       },
     },
   })
-  assert.equal(parsed.issues, undefined)
-  assert.throws(
-    () => buildDeepseekRoutes(parsed.value.providers, deps),
-    /headers 仅 adapter: pi 可用/,
-  )
+  assert.throws(() => buildDeepseekRoutes(parsed.providers, deps), /headers 仅 adapter: pi 可用/)
 })

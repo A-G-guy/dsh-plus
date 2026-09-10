@@ -17,7 +17,7 @@ interface Fake {
 }
 
 function fakeWatchdog(first: HealthLike): Fake {
-  let next = first
+  let next: HealthLike | Error = first
   let timerFn: (() => void) | null = null
   const fake: Fake = {
     reloads: 0,

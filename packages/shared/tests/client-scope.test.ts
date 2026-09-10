@@ -15,12 +15,13 @@ function fakeRemote(views: Array<{ ns: string; value: unknown }>) {
     namespaces: views.map((v, i) => ({ ...v, revision: i + 1, secrets: [] })),
   }
   return {
+    // `ok: true` 需 as const：否则涨宽为 boolean，与 RemoteResult 判别联合不兼容。
     settings: {
       describe: async () => {
         if (fail) throw new Error('network down')
-        return { ok: true, value: view }
+        return { ok: true as const, value: view }
       },
-      update: async () => ({ ok: true, value: {} }),
+      update: async () => ({ ok: true as const, value: {} }),
     },
     setFail(next: boolean): void {
       fail = next

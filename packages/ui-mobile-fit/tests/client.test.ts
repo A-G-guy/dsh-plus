@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import type { Context } from '@deepseek-ai/cordis'
 import { attachAcceptFor, IME_ACTIVE_ATTR, installBehaviors } from '../src/behaviors.ts'
 import { apply, name } from '../src/client.ts'
 import { mobileFitCss } from '../src/styles.ts'
@@ -85,9 +86,74 @@ test('given the attach picker, then media keeps the official no-accept behavior 
   )
 })
 
-function createFakeEnv() {
-  const listeners = new Map()
-  const tag = {
+/** 事件监听器替身：被测代码只把事件对象透传给回调，测试不约束载荷结构。 */
+type Listener = (payload?: unknown) => void
+
+/** 以下 Fake* 只声明被测代码（behaviors/client）实际访问的成员，作为替身的最小
+ *  结构类型；挂到 globalThis 时再经 unknown 断言成平台类型（见 installFakeDom 处注释）。 */
+interface FakeStyle {
+  vars: Record<string, string>
+  setProperty: (name: string, value: string) => void
+  removeProperty: (name: string) => void
+}
+
+interface FakeDocumentElement {
+  style: FakeStyle
+  attrs: Record<string, string>
+  lang?: string
+  setAttribute: (name: string, value: string) => void
+  removeAttribute: (name: string) => void
+}
+
+interface FakeTag {
+  dataset: Record<string, string>
+  textContent: string
+  removed: boolean
+  remove: () => void
+}
+
+interface FakeMeta {
+  content: string
+  getAttribute: () => string
+  setAttribute: (name: string, value: string) => void
+}
+
+interface FakeVisualViewport {
+  height: number
+  offsetTop: number
+  addEventListener: (type: string, fn: Listener) => void
+  removeEventListener: (type: string) => void
+}
+
+interface FakeDocument {
+  head: { appendChild: (node: unknown) => unknown }
+  body: { children: unknown[]; appendChild: (node: unknown) => unknown }
+  querySelector: (selector: string) => unknown
+  querySelectorAll: (selector: string) => unknown[]
+  createElement: (tagName: string) => unknown
+  activeElement: unknown
+  documentElement: FakeDocumentElement
+  addEventListener: (type: string, fn: Listener) => void
+  removeEventListener: (type: string) => void
+}
+
+interface FakeWindow {
+  matchMedia: (query: string) => { matches: boolean }
+  visualViewport: FakeVisualViewport | undefined
+  innerHeight?: number
+}
+
+interface FakeEnv {
+  document: FakeDocument
+  window: FakeWindow
+  tag: FakeTag
+  meta: FakeMeta
+  listeners: Map<string, Listener>
+}
+
+function createFakeEnv(): FakeEnv {
+  const listeners = new Map<string, Listener>()
+  const tag: FakeTag = {
     dataset: {},
     textContent: '',
     removed: false,
@@ -95,22 +161,22 @@ function createFakeEnv() {
       this.removed = true
     },
   }
-  const meta = {
+  const meta: FakeMeta = {
     content: 'width=device-width, initial-scale=1',
     getAttribute: () => meta.content,
     setAttribute: (_k, v) => {
       meta.content = v
     },
   }
-  const document = {
+  const document: FakeDocument = {
     head: { appendChild: () => {} },
-    body: {},
+    body: { children: [], appendChild: () => {} },
     querySelector: (sel) => (sel.includes('meta') ? meta : null),
     querySelectorAll: () => [],
     createElement: () => tag,
     activeElement: null,
     documentElement: {
-      style: { setProperty: () => {}, removeProperty: () => {} },
+      style: { vars: {}, setProperty: () => {}, removeProperty: () => {} },
       attrs: {},
       setAttribute(k, v) {
         this.attrs[k] = v
@@ -122,23 +188,35 @@ function createFakeEnv() {
     addEventListener: (type, fn) => listeners.set(type, fn),
     removeEventListener: (type) => listeners.delete(type),
   }
-  const window = {
+  const window: FakeWindow = {
     matchMedia: () => ({ matches: false }),
     visualViewport: undefined,
   }
   return { document, window, tag, meta, listeners }
 }
 
-test('given a DOM, when apply runs, then style injected, viewport meta patched, cleanup restores', () => {
-  const { document, window, tag, meta, listeners } = createFakeEnv()
-  const disposers = []
-  const ctx = { effect: (fn) => disposers.push(fn()) }
+/** 把 DOM 替身挂到 globalThis 并返回还原函数：替身只实现被测代码真正访问的成员，
+ *  调用点全部落在这些成员上（不触达平台类型的其余 250+ 成员），故断言安全。 */
+function installFakeDom(fakeDocument: FakeDocument, fakeWindow: FakeWindow): () => void {
   const prevDoc = globalThis.document
   const prevWin = globalThis.window
-  globalThis.document = document
-  globalThis.window = window
+  globalThis.document = fakeDocument as unknown as Document
+  globalThis.window = fakeWindow as unknown as Window & typeof globalThis
+  return () => {
+    globalThis.document = prevDoc
+    globalThis.window = prevWin
+  }
+}
+
+test('given a DOM, when apply runs, then style injected, viewport meta patched, cleanup restores', () => {
+  const { document, window, tag, meta, listeners } = createFakeEnv()
+  const disposers: Array<() => void> = []
+  // apply 只调用 ctx.effect（回调返回清理函数），替身满足该调用契约
+  const ctx = { effect: (fn: () => () => void): number => disposers.push(fn()) }
+  const restoreDom = installFakeDom(document, window)
   try {
-    apply(ctx)
+    // 替身只提供 apply 用到的 effect 成员，经 unknown 断言成 Context 安全
+    apply(ctx as unknown as Context)
     assert.equal(tag.dataset.plugin, '@dsh-plus/ui-mobile-fit')
     assert.equal(tag.textContent, mobileFitCss)
     // IME 适配：viewport meta 已追加 interactive-widget
@@ -147,20 +225,21 @@ test('given a DOM, when apply runs, then style injected, viewport meta patched, 
     assert.ok(listeners.has('focusin'))
     assert.ok(listeners.has('click'))
     assert.ok(listeners.has('pointerup'))
-    disposers[0]()
+    disposers[0]?.()
     assert.equal(tag.removed, true)
     assert.equal(listeners.size, 0)
   } finally {
-    globalThis.document = prevDoc
-    globalThis.window = prevWin
+    restoreDom()
   }
 })
 
 test('given no DOM, when apply runs, then it is a safe no-op', () => {
   const prev = globalThis.document
-  delete globalThis.document
+  // 与 delete 运算符等价，且不会触发"操作数必须可选"的类型错误
+  Reflect.deleteProperty(globalThis, 'document')
   try {
-    apply({ effect: () => {} })
+    // 无 DOM 分支不会触达 effect，替身只需形状可接受 → 断言安全
+    apply({ effect: () => {} } as unknown as Context)
   } finally {
     globalThis.document = prev
   }
@@ -168,18 +247,14 @@ test('given no DOM, when apply runs, then it is a safe no-op', () => {
 
 test('given behaviors installed twice, when meta already patched, then it is idempotent', () => {
   const { document, window, meta } = createFakeEnv()
-  const prevDoc = globalThis.document
-  const prevWin = globalThis.window
-  globalThis.document = document
-  globalThis.window = window
+  const restoreDom = installFakeDom(document, window)
   try {
     const dispose = installBehaviors()
     installBehaviors()
-    assert.equal(meta.content.match(/interactive-widget/g).length, 1)
+    assert.equal(meta.content.match(/interactive-widget/g)?.length, 1)
     dispose()
   } finally {
-    globalThis.document = prevDoc
-    globalThis.window = prevWin
+    restoreDom()
   }
 })
 
@@ -187,8 +262,8 @@ test('given the keyboard opens and closes, when the visual viewport shrinks then
   // 键盘弹出置 data-dsh-ime + --dsh-ime-inset，收起即移除——transform 不常驻
   class FakeInput {}
   class FakeTextarea {}
-  const vvHandlers = new Map()
-  const vv = {
+  const vvHandlers = new Map<string, Listener>()
+  const vv: FakeVisualViewport = {
     height: 500,
     offsetTop: 0,
     addEventListener: (t, fn) => vvHandlers.set(t, fn),
@@ -206,27 +281,24 @@ test('given the keyboard opens and closes, when the visual viewport shrinks then
   window.matchMedia = () => ({ matches: true })
   window.visualViewport = vv
   window.innerHeight = 800
-  const prevDoc = globalThis.document
-  const prevWin = globalThis.window
+  const restoreDom = installFakeDom(document, window)
   const prevInput = globalThis.HTMLInputElement
   const prevTextarea = globalThis.HTMLTextAreaElement
-  globalThis.document = document
-  globalThis.window = window
-  globalThis.HTMLInputElement = FakeInput
-  globalThis.HTMLTextAreaElement = FakeTextarea
+  // 构造器替身只供被测代码做 instanceof 判定，实例上不访问任何平台成员 → 断言安全
+  globalThis.HTMLInputElement = FakeInput as unknown as typeof HTMLInputElement
+  globalThis.HTMLTextAreaElement = FakeTextarea as unknown as typeof HTMLTextAreaElement
   try {
     const dispose = installBehaviors()
-    vvHandlers.get('resize')()
+    vvHandlers.get('resize')?.()
     assert.equal(document.documentElement.attrs[IME_ACTIVE_ATTR], '')
     assert.equal(document.documentElement.style.vars['--dsh-ime-inset'], '300px')
     vv.height = 800
-    vvHandlers.get('resize')()
+    vvHandlers.get('resize')?.()
     assert.equal(IME_ACTIVE_ATTR in document.documentElement.attrs, false)
     assert.equal('--dsh-ime-inset' in document.documentElement.style.vars, false)
     dispose()
   } finally {
-    globalThis.document = prevDoc
-    globalThis.window = prevWin
+    restoreDom()
     globalThis.HTMLInputElement = prevInput
     globalThis.HTMLTextAreaElement = prevTextarea
   }
@@ -242,7 +314,8 @@ test('given the composer is a contenteditable host, when a session switch focuse
     isContentEditable = true
     blurred = 0
     closest(selector: string) {
-      return selector.includes('_composerSeat') ? ({ marker: 'seat' } as Element) : null
+      // 返回值只被被测代码做非 null 判定、不访问任何 DOM 成员 → 断言成 Element 安全
+      return selector.includes('_composerSeat') ? ({ marker: 'seat' } as unknown as Element) : null
     }
     blur() {
       this.blurred += 1
@@ -251,32 +324,29 @@ test('given the composer is a contenteditable host, when a session switch focuse
   const { document, window, listeners } = createFakeEnv()
   window.matchMedia = () => ({ matches: true })
   const composer = new FakeComposer()
-  const prevDoc = globalThis.document
-  const prevWin = globalThis.window
+  const restoreDom = installFakeDom(document, window)
   const prevInput = globalThis.HTMLInputElement
   const prevTextarea = globalThis.HTMLTextAreaElement
   const prevHtmlel = globalThis.HTMLElement
   const prevElement = globalThis.Element
-  globalThis.document = document
-  globalThis.window = window
-  globalThis.HTMLInputElement = FakeHTMLElement
-  globalThis.HTMLTextAreaElement = FakeHTMLElement
-  globalThis.HTMLElement = FakeHTMLElement
-  globalThis.Element = FakeElement
+  // 构造器替身只供被测代码做 instanceof 判定，实例上不访问任何平台成员 → 断言安全
+  globalThis.HTMLInputElement = FakeHTMLElement as unknown as typeof HTMLInputElement
+  globalThis.HTMLTextAreaElement = FakeHTMLElement as unknown as typeof HTMLTextAreaElement
+  globalThis.HTMLElement = FakeHTMLElement as unknown as typeof HTMLElement
+  globalThis.Element = FakeElement as unknown as typeof Element
   try {
     const dispose = installBehaviors()
     // 无近期手势：程序化聚焦 contenteditable composer → 必须 blur
-    listeners.get('focusin')({ target: composer })
+    listeners.get('focusin')?.({ target: composer })
     assert.equal(composer.blurred, 1)
     // 有近期手势（真实点按 composer 内部）：放行
     const pointerTarget = new FakeComposer()
-    listeners.get('pointerdown')({ target: pointerTarget })
-    listeners.get('focusin')({ target: pointerTarget })
+    listeners.get('pointerdown')?.({ target: pointerTarget })
+    listeners.get('focusin')?.({ target: pointerTarget })
     assert.equal(pointerTarget.blurred, 0)
     dispose()
   } finally {
-    globalThis.document = prevDoc
-    globalThis.window = prevWin
+    restoreDom()
     globalThis.HTMLInputElement = prevInput
     globalThis.HTMLTextAreaElement = prevTextarea
     globalThis.HTMLElement = prevHtmlel
@@ -377,23 +447,21 @@ test('given a coarse pointer, when tapping the attachment button, then a picker 
   const row = new FakeRow()
   const button = new FakeButton('添加附件')
   button.parent = row
-  const prevDoc = globalThis.document
-  const prevWin = globalThis.window
+  const restoreDom = installFakeDom(document, window)
   const prevInput = globalThis.HTMLInputElement
   const prevHtmlel = globalThis.HTMLElement
   const prevElement = globalThis.Element
-  globalThis.document = document
-  globalThis.window = window
-  globalThis.HTMLInputElement = FakeInput
-  globalThis.HTMLElement = FakeElement
-  globalThis.Element = FakeElement
+  // 构造器替身只供被测代码做 instanceof 判定，实例上不访问任何平台成员 → 断言安全
+  globalThis.HTMLInputElement = FakeInput as unknown as typeof HTMLInputElement
+  globalThis.HTMLElement = FakeElement as unknown as typeof HTMLElement
+  globalThis.Element = FakeElement as unknown as typeof Element
   try {
     const dispose = installBehaviors()
     // 注意：createFakeEnv 的 listeners 按 type 单槽，click 注册顺序靠后的是
     // installAttachPicker；tapOutsideClose 在非窄屏直接返回。
     const capture = listeners.get('click')
     // 第一次点按：打开选择层（不设置 accept、不触发官方 input）
-    capture({ target: button, preventDefault: () => {}, stopPropagation: () => {} })
+    capture?.({ target: button, preventDefault: () => {}, stopPropagation: () => {} })
     assert.equal(row.input.accept, null)
     assert.equal(row.input.clicks, 0)
     const layer = created.find((n) => n.className === 'dsh-mobile-attach-picker')
@@ -413,8 +481,7 @@ test('given a coarse pointer, when tapping the attachment button, then a picker 
     assert.equal((layer as { removed: boolean }).removed, true)
     dispose()
   } finally {
-    globalThis.document = prevDoc
-    globalThis.window = prevWin
+    restoreDom()
     globalThis.HTMLInputElement = prevInput
     globalThis.HTMLElement = prevHtmlel
     globalThis.Element = prevElement
@@ -509,28 +576,26 @@ test('given the picker is open, when tapping outside, then it closes without swa
   const row = new FakeRow()
   const button = new FakeButton('Add attachment')
   button.parent = row
-  const prevDoc = globalThis.document
-  const prevWin = globalThis.window
+  const restoreDom = installFakeDom(document, window)
   const prevInput = globalThis.HTMLInputElement
   const prevHtmlel = globalThis.HTMLElement
   const prevElement = globalThis.Element
-  globalThis.document = document
-  globalThis.window = window
-  globalThis.HTMLInputElement = FakeInput
-  globalThis.HTMLElement = FakeElement
-  globalThis.Element = FakeElement
+  // 构造器替身只供被测代码做 instanceof 判定，实例上不访问任何平台成员 → 断言安全
+  globalThis.HTMLInputElement = FakeInput as unknown as typeof HTMLInputElement
+  globalThis.HTMLElement = FakeElement as unknown as typeof HTMLElement
+  globalThis.Element = FakeElement as unknown as typeof Element
   try {
     const dispose = installBehaviors()
     const capture = listeners.get('click')
     const noop = () => {}
     // 打开选择层
-    capture({ target: button, preventDefault: noop, stopPropagation: noop })
+    capture?.({ target: button, preventDefault: noop, stopPropagation: noop })
     const layer = created.find((n) => n.className === 'dsh-mobile-attach-picker')
     assert.ok(layer !== undefined)
     // 层外点按：关闭层、不吞事件（未 preventDefault/stopPropagation）
     let stopped = false
     const outside = new FakeElement()
-    capture({
+    capture?.({
       target: outside,
       preventDefault: noop,
       stopPropagation: () => {
@@ -545,8 +610,7 @@ test('given the picker is open, when tapping outside, then it closes without swa
     assert.equal(items[1]?.textContent, 'Choose file')
     dispose()
   } finally {
-    globalThis.document = prevDoc
-    globalThis.window = prevWin
+    restoreDom()
     globalThis.HTMLInputElement = prevInput
     globalThis.HTMLElement = prevHtmlel
     globalThis.Element = prevElement

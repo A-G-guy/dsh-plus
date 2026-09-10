@@ -28,14 +28,21 @@ export interface ModelBase {
   headers?: Record<string, string>
 }
 
+/** 内置目录的 provider id 字面量联合（pi-ai 生成目录的键集）。 */
+export type BuiltinProviderId = ReturnType<DshKit['getBuiltinProviders']>[number]
+
 /** 内置 provider 的端点（provider 级 extends 的 baseURL 缺省值）。 */
 export function builtinProviderBaseUrl(kit: DshKit, provider: string): string | undefined {
   return kit.builtinProviders().find((p) => p.id === provider)?.baseUrl
 }
 
-/** 内置目录是否存在该 provider。 */
-export function hasBuiltinProvider(kit: DshKit, provider: string): boolean {
-  return kit.getBuiltinProviders().includes(provider)
+/**
+ * 内置目录是否存在该 provider；同时把运行期配置里的 provider 字符串
+ * 收窄为目录键字面量（调用方随后可直调 getBuiltinModels）。
+ */
+export function hasBuiltinProvider(kit: DshKit, provider: string): provider is BuiltinProviderId {
+  const ids: readonly string[] = kit.getBuiltinProviders()
+  return ids.includes(provider)
 }
 
 /** 内置 provider 的全部模型 id（UI extends 选择器用）。 */

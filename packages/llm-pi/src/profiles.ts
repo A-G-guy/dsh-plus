@@ -628,7 +628,10 @@ export function resolveProfilesFallback(
         name: displayName,
         ...(source.baseURL === undefined ? {} : { baseUrl: source.baseURL }),
         auth: { apiKey: harnessApiKeyAuth(displayName) },
-        models,
+        // 物化条目的 compat 是开放字典（写时经 validateCompat 按 api 门控校验），
+        // 与 pi-ai Model 的逐协议 compat 类型不同构；运行期仅由 pi-ai 按字段读取，
+        // 形状与官方 resolveProfiles 产物一致，故此处按目标契约收窄。
+        models: models as unknown as Parameters<DshKit['createProvider']>[0]['models'],
         api: factory() as never,
       }),
     } as ResolvedPiAiProviderProfile)

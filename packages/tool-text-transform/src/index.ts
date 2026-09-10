@@ -46,7 +46,7 @@ export function apply(ctx: Context): void {
       },
       timeoutMs: 5_000,
       isConcurrencySafe: () => true,
-      execute(args: { text: string; op: string }) {
+      async execute(args: { text: string; op: string }) {
         if (!isTransformOp(args.op)) {
           throw new Error(`text_transform: unknown op ${JSON.stringify(args.op)}`)
         }

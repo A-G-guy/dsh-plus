@@ -8,6 +8,7 @@
  * @module lifeboat/client/health-tab
  */
 
+import type { Context } from '@deepseek-ai/cordis'
 import { getJson, postJson } from '@dsh-plus/shared/client'
 import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react'
 

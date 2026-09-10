@@ -15,7 +15,8 @@ export interface OfficialModelBase {
   contextWindow?: number
   maxTokens?: number
   input?: ('text' | 'image')[]
-  imagePixelBudget?: number
+  /** 官方目录取值为像素数或 'low' 预设（DeepSeekCatalogModel 同域；透传给官方 schema 校验）。 */
+  imagePixelBudget?: number | 'low'
   imageMaxBytes?: number
 }
 

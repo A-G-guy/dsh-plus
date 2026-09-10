@@ -2,11 +2,12 @@
  * 「重新加载」设置行：渲染面。状态机逻辑在 flow.ts，这里只做映射。
  * @module reload/client/row
  */
-import type { ReactElement } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 
 import { type Flow, type Translate, useReloadFlow } from './flow.ts'
 
-function Overlay({ children }: { children: ReactElement[] | ReactElement }): ReactElement {
+/** children 按 React 自身契约声明为 ReactNode：条件渲染会产出 false/null。 */
+function Overlay({ children }: { children: ReactNode }): ReactElement {
   return (
     <div className="drl-overlay" role="dialog" aria-modal="true">
       <div className="drl-dialog">{children}</div>

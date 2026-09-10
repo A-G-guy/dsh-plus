@@ -56,6 +56,8 @@ export function CompatEditor(props: CompatEditorProps): ReactElement {
         <div className="lpc-grid">
           {fields.map((field) => {
             const spec = compatFieldSpec(effective, field)
+            // 键取自同一张表（compatFieldsOf），spec 不可能为 undefined；此处仅收窄类型
+            if (spec === undefined) return null
             if (spec === 'boolean') {
               return (
                 <SelectField

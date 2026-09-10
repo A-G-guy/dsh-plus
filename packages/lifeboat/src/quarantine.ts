@@ -17,8 +17,12 @@ const EXCLUDED = new Set(['dsh-plus-lifeboat', 'dsh-plus-bundle-main'])
 
 const GUARD_RE = /^dsh-plus-[a-z0-9-]+$/
 
-/** 名字是否属于可隔离的 dsh-plus 兄弟插件（entry id 与插件 name 同字面量是本仓库约定）。 */
-export function isGuardedPlugin(name: unknown): name is string {
+/**
+ * 名字是否属于可隔离的 dsh-plus 兄弟插件（entry id 与插件 name 同字面量是本仓库约定）。
+ * 返回布尔而非 `name is string`：后者会把「正则不匹配」的否定分支收窄成 never，
+ * 让调用方在 `||` 右侧失去 string 上的方法（health-api 已踩到）。
+ */
+export function isGuardedPlugin(name: unknown): boolean {
   return typeof name === 'string' && GUARD_RE.test(name) && !EXCLUDED.has(name)
 }
 
@@ -98,9 +102,14 @@ export function createQuarantine(ctx: Context, deps: QuarantineDeps): Quarantine
  * fiber.name 对 loader 条目即插件 display name（模块导出的 name 字段）。
  */
 export function installHostWatch(ctx: Context, q: Quarantine): void {
-  ctx.root.on('internal/status', (fiber: { state: number; name: string; _error?: unknown }) => {
+  // 结构化类型只声明本函数真正读取的两个字段；Fiber 上 state 是 FiberState
+  // 字面量枚举，按 number 读取与既有 FIBER_FAILED 镜像常量比较。
+  ctx.root.on('internal/status', (fiber: { state: number; name: string }) => {
     if (fiber.state !== FIBER_FAILED) return
     if (!isGuardedPlugin(fiber.name)) return
-    void q.quarantine(fiber.name, 'host', fiber._error)
+    // cordis 把加载错误挂在 fiber._error 上：类型声明为 private（类型层不可见），
+    // 运行期确实存在，故按运行期形状读取。
+    const reason = (fiber as unknown as { _error?: unknown })._error
+    void q.quarantine(fiber.name, 'host', reason)
   })
 }

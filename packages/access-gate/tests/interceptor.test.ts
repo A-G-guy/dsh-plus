@@ -70,22 +70,38 @@ function makeRes(): { res: ServerResponse; done: Promise<Captured> } {
   const done = new Promise<Captured>((resolve) => {
     resolveDone = resolve
   })
-  const res = {
+  // 该假响应最终经 unknown 断言成 ServerResponse；先显式标注字面量形状，
+  // 否则 this 落到空对象类型，方法体里的 this.headersSent 无法通过检查。
+  const fake: {
+    headersSent: boolean
+    writeHead(code: number, head?: Record<string, string | string[]>): void
+    end(payload?: string): void
+  } = {
     headersSent: false,
-    writeHead(code: number, head?: Record<string, string | string[]>) {
+    writeHead(code, head) {
       status = code
       if (head !== undefined) Object.assign(headers, head)
       this.headersSent = true
     },
-    end(payload?: string) {
+    end(payload) {
       resolveDone({ status, body: payload ?? '', headers })
     },
-  } as unknown as ServerResponse
+  }
+  const res = fake as unknown as ServerResponse
   return { res, done }
 }
 
+/** fake server 额外暴露的 register（生产 interceptor 不消费，测试脚手架自用）。 */
+type TestWebServer = GateWebServer & {
+  register(route: {
+    kind: 'exact' | 'prefix'
+    path: string
+    handler: (req: IncomingMessage, res: ServerResponse) => unknown
+  }): () => void
+}
+
 /** 官方 webserver 同构的最小 fake：match 分发 + upgrades 表 + fallback。 */
-function makeServer(options: { withFallback?: boolean } = {}): GateWebServer {
+function makeServer(options: { withFallback?: boolean } = {}): TestWebServer {
   const exact = new Map<
     string,
     { kind: 'exact'; path: string; handler: (req: IncomingMessage, res: ServerResponse) => unknown }
@@ -102,7 +118,7 @@ function makeServer(options: { withFallback?: boolean } = {}): GateWebServer {
     string,
     { path: string; handler: (req: IncomingMessage, socket: unknown, head: Buffer) => unknown }
   >()
-  const server: GateWebServer = {
+  const server: TestWebServer = {
     exact,
     prefixes,
     upgrades: upgrades as unknown as GateWebServer['upgrades'],

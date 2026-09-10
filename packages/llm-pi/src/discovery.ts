@@ -6,7 +6,7 @@
  * GET {baseURL}/models、4MB 上限、署名头）与官方一致。结果不落盘。
  * @module llm-pi/discovery
  */
-import { builtinModelIds, hasBuiltinProvider } from './catalog/builtin.ts'
+import { type BuiltinProviderId, builtinModelIds, hasBuiltinProvider } from './catalog/builtin.ts'
 import { officialModelIds } from './catalog/official.ts'
 import type { ProviderProfileConfig } from './config.ts'
 import type { DshKit } from './resolve-dsh.ts'
@@ -129,8 +129,8 @@ function deepseekCatalogAnswer(kit: DshKit, route: ProviderProfileConfig): Disco
   return models
 }
 
-/** 内置目录直答（route 配了 provider 级 extends 时）。 */
-function catalogAnswer(kit: DshKit, source: string): DiscoveryEntry[] {
+/** 内置目录直答（route 配了 provider 级 extends 时；入参已由 hasBuiltinProvider 收窄）。 */
+function catalogAnswer(kit: DshKit, source: BuiltinProviderId): DiscoveryEntry[] {
   return builtinModelIds(kit, source).map((id) => {
     const models = kit.getBuiltinModels(source)
     const model = models.find((m) => m.id === id)
@@ -155,7 +155,9 @@ export async function discoverModels(
   const { kit } = deps
   const route: ProviderProfileConfig | undefined =
     request.provider === undefined ? undefined : deps.configProviders()[request.provider]
-  if ((route?.adapter ?? 'pi') === 'deepseek') {
+  // route 为空时 (route?.adapter ?? 'pi') 恒为 'pi'，故显式判空不改变分支结果，
+  // 只用于把 route 收窄为已定义（供 deepseekCatalogAnswer 使用）。
+  if (route !== undefined && (route.adapter ?? 'pi') === 'deepseek') {
     return deepseekCatalogAnswer(kit, route)
   }
   if (route?.extends !== undefined && hasBuiltinProvider(kit, route.extends)) {

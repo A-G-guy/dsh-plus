@@ -10,6 +10,14 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+
+    // ── 类型检查专用（dshctl typecheck：tsc --noEmit -p packages/<pkg>）────────
+    // 本仓源码一律带 .ts/.tsx 扩展名导入（bundler 解析 + tsdown 打苞约定），
+    // 类型检查必须开 allowImportingTsExtensions，否则每个内部导入都报 TS5097。
+    // 该选项要求 noEmit/emitDeclarationOnly：声明产物由 tsdown 生成，tsc 只做检查。
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "noEmit": true
   }
 }

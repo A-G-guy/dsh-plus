@@ -426,7 +426,6 @@ export function FilePanel({ files, t }: FilePanelProps) {
         open={open}
         onClose={closePanel}
         title={t('panel.title')}
-        closeLabel={t('panel.close')}
         headless
         className={`wf-modal${fullscreen ? ' wf-modal-fullscreen' : ''}`}
       >
@@ -592,6 +591,7 @@ export function FilePanel({ files, t }: FilePanelProps) {
         description={`${deleteTarget?.path ?? ''} — ${t('dialog.delete.description')}`}
         acknowledgeLabel={t('dialog.delete.acknowledge')}
         cancelLabel={t('dialog.cancel')}
+        closeLabel={t('dialog.cancel')}
         confirmLabel={t('view.delete')}
         acknowledged={deleteAck}
         onAcknowledgedChange={setDeleteAck}
@@ -606,6 +606,7 @@ export function FilePanel({ files, t }: FilePanelProps) {
           description={`${file?.entry.path ?? ''} — ${t('dialog.overwrite.description')}`}
           acknowledgeLabel={t('dialog.overwrite.acknowledge')}
           cancelLabel={t('dialog.cancel')}
+          closeLabel={t('dialog.cancel')}
           confirmLabel={t('dialog.overwrite.confirm')}
           acknowledged={conflictAck}
           onAcknowledgedChange={setConflictAck}
@@ -690,7 +691,9 @@ function FileView({
   registerDocGetter,
 }: FileViewProps) {
   const editable = file.read !== null && !file.read.truncated
-  const image = file.imageUrl !== null
+  // 图片判定改为对 imageUrl 本身收窄：布尔量无法让 TS 收窄 file.imageUrl 的属性访问。
+  const imageUrl = file.imageUrl
+  const image = imageUrl !== null
   return (
     <div className="wf-fileview">
       <header className="wf-filehead">
@@ -745,9 +748,9 @@ function FileView({
           )}
         </span>
       </header>
-      {image ? (
+      {imageUrl !== null ? (
         <div className="wf-image-host">
-          <img src={file.imageUrl} alt={file.entry.name} />
+          <img src={imageUrl} alt={file.entry.name} />
         </div>
       ) : (
         <>

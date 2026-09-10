@@ -6,8 +6,8 @@
  * 开发测试指向本地 mock，严禁真实调用产生费用。
  * @module image-studio/provider/openai-images
  */
-import { request as httpRequest } from 'node:http'
-import { request as httpsRequest, type IncomingMessage } from 'node:https'
+import { request as httpRequest, type IncomingMessage } from 'node:http'
+import { request as httpsRequest } from 'node:https'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import type { GeneratedImage, InputImage, NormalizedRequest, ProviderResult } from './types.ts'
 import { ProviderError } from './types.ts'
@@ -74,7 +74,9 @@ export function buildEditBody(request: NormalizedRequest): {
   body: Buffer
 } {
   const chunks: Buffer[] = []
-  const pushText = (text: string): void => chunks.push(Buffer.from(text, 'utf8'))
+  const pushText = (text: string): void => {
+    chunks.push(Buffer.from(text, 'utf8'))
+  }
   pushText(formField('model', request.target.model))
   pushText(formField('prompt', request.prompt))
   pushText(formField('n', String(request.n)))
@@ -246,8 +248,10 @@ function upstreamErrorMessage(raw: string): string {
       message?: string
     }
     if (typeof doc.error === 'string' && doc.error.length > 0) return doc.error
-    if (typeof doc.error?.message === 'string' && doc.error.message.length > 0) {
-      return doc.error.message
+    // error 是 string | { message? } 联合：先收窄到对象再读 message（直接访问不合法）。
+    if (typeof doc.error === 'object' && doc.error !== null) {
+      const message = doc.error.message
+      if (typeof message === 'string' && message.length > 0) return message
     }
     if (typeof doc.message === 'string' && doc.message.length > 0) return doc.message
   } catch {

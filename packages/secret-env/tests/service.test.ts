@@ -97,7 +97,7 @@ function createFakeCtx(
       handlers[event] = listener
     },
   }
-  const service = new SecretEnvService(ctx as unknown as Context, { secrets: meta })
+  const service = new SecretEnvService(ctx as unknown as Context, { secrets: meta, masked: [] })
   return { contributors, credentials: store, handlers, service, settings }
 }
 
@@ -164,7 +164,7 @@ test('given a session with secrets, when the session is disposed, then its secre
   const fake = createFakeCtx()
   fake.service.setSession('s1', 'A_KEY', 'test-only-a', '', false)
   fake.service.setSession('s2', 'B_KEY', 'test-only-b', '', false)
-  fake.handlers['session/disposed']({ id: 's1' } as never)
+  fake.handlers['session/disposed']?.({ id: 's1' } as never)
   assert.equal(collect(fake, 's1')[envNameOf('A_KEY')], undefined)
   assert.equal(collect(fake, 's2')[envNameOf('B_KEY')], 'test-only-b')
   // A_KEY 为 s1 独占，contributor 应已回收。

@@ -74,11 +74,29 @@ function validSignature(value: string, secret: Buffer): boolean {
   return actual.byteLength === expected.byteLength && timingSafeEqual(actual, expected)
 }
 
+/** cookie 载荷的三字段（官方 encodeCookie 的键集；version 由形状守卫单判）。 */
+interface CookiePayload {
+  authority: string
+  issuedAt: number
+  expiresAt: number
+}
+
+/**
+ * 载荷形状守卫（类型谓词）：version 必须等于 PAYLOAD_VERSION，三字段类型正确。
+ * 逐字段 `in` + typeof 收窄取代裸断言——JSON.parse 回来的是 unknown，
+ * 只有守卫通过后才允许按 CookiePayload 访问。
+ */
+function isCookiePayload(value: unknown): value is CookiePayload {
+  if (typeof value !== 'object' || value === null) return false
+  if (!('version' in value) || value.version !== PAYLOAD_VERSION) return false
+  if (!('authority' in value) || typeof value.authority !== 'string') return false
+  if (!('issuedAt' in value) || typeof value.issuedAt !== 'number') return false
+  if (!('expiresAt' in value) || typeof value.expiresAt !== 'number') return false
+  return Number.isSafeInteger(value.issuedAt) && Number.isSafeInteger(value.expiresAt)
+}
+
 /** 解码 cookie 载荷（返回 null = 值损坏/签名不符/字段缺失，语义与官方一致）。 */
-export function decodeCookiePayload(
-  value: string,
-  secret: Buffer,
-): { authority: string; issuedAt: number; expiresAt: number } | null {
+export function decodeCookiePayload(value: string, secret: Buffer): CookiePayload | null {
   if (!validSignature(value, secret)) return null
   const body = value.split('.')[1]
   if (body === undefined) return null
@@ -88,22 +106,8 @@ export function decodeCookiePayload(
   } catch {
     return null
   }
-  if (
-    typeof decoded !== 'object' ||
-    decoded === null ||
-    !('version' in decoded) ||
-    (decoded as { version?: unknown }).version !== PAYLOAD_VERSION ||
-    typeof (decoded as { authority?: unknown }).authority !== 'string' ||
-    !Number.isSafeInteger((decoded as { issuedAt?: unknown }).issuedAt) ||
-    !Number.isSafeInteger((decoded as { expiresAt?: unknown }).expiresAt)
-  ) {
-    return null
-  }
-  const { authority, issuedAt, expiresAt } = decoded as {
-    authority: string
-    issuedAt: number
-    expiresAt: number
-  }
+  if (!isCookiePayload(decoded)) return null
+  const { authority, issuedAt, expiresAt } = decoded
   const now = Date.now()
   if (issuedAt > now || expiresAt <= now || expiresAt <= issuedAt) return null
   if (expiresAt - issuedAt > COOKIE_MAX_AGE_MS) return null

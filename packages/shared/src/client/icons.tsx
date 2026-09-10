@@ -9,6 +9,9 @@
  * 消费方 tsdown 约定：neverBundle 必须含 '@deepseek-ai/dsh-client-ui-primitives'。
  * @module @dsh-plus/shared/client/icons
  */
+// 通配类型声明必须随本文件进程序：消费方经源码级打苞导入本文件时，
+// 兄弟 .d.ts 不会自动成为 program 根，缺此引用则深路径导入退化为 any（TS7016）。
+/// <reference path="./lucide-deep.d.ts" />
 import type { LucideProps } from 'lucide-react'
 // 深路径直连 ESM 单图标文件：主入口是 CJS barrel，经它导入会让打包器
 // 纳入全部图标（约 1.8k 个）；深路径 + 本地通配类型声明保持 tree-shake 精确。

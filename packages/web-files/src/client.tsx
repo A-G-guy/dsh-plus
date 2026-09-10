@@ -17,7 +17,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
+// 插槽名的类型声明分散在各 shell 包：sidebar 声明 sidebar.footer.action，
+// layout 声明 shell.overlay；二者只提供类型，运行时经模块表解析。
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { useSyncExternalStore } from 'react'
 
 import { en, NS, zh } from './locales.ts'

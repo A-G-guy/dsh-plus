@@ -30,7 +30,8 @@ export interface CodeEditorProps {
 /** 按文件名解析语言支持；无匹配返回 null。 */
 async function loadLanguage(filename: string): Promise<LanguageSupport | null> {
   const description = LanguageDescription.matchFilename(supportedLanguages, filename)
-  if (description === undefined) return null
+  // 上游返回 LanguageDescription | null，undefined 一并防御（保留原判定）。
+  if (description === undefined || description === null) return null
   try {
     return await description.load()
   } catch {

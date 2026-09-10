@@ -5,6 +5,9 @@
  * @module notify-email/watchers/decision
  */
 import type { Context } from '@deepseek-ai/cordis'
+// 平台声明导入（无值消费）：把 dsh-tools 的 'tools/pre-execute' 事件与
+// ToolExecution 参数/next 签名合进 program（事件名真名即此，非拼写错误）。
+import type {} from '@deepseek-ai/dsh-tools'
 
 import type { NotifyEmailService } from '../service.ts'
 

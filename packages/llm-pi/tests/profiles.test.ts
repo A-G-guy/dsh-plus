@@ -16,7 +16,9 @@ const deps = { kit }
 function modelsOf(profiles: ReturnType<typeof buildProfiles>, route: string) {
   const profile = profiles.get(route)
   assert.ok(profile, `route ${route} 应存在`)
-  return { profile, models: profile.piProvider.getModels() }
+  const piProvider = profile.piProvider
+  assert.ok(piProvider, `route ${route} 的 piProvider 应已构建`)
+  return { profile, models: piProvider.getModels() }
 }
 
 /** 带 fixtures 的 models.dev 源（缓存文件即数据源，TTL 内不触网）。 */
@@ -258,6 +260,8 @@ test('0.1.2-alpha.1 必需字段：requestImagePixelBudget/requestImageMaxBytes 
 })
 
 test('pi 路由含 imageDetail 写时拒绝并提示迁移（schema 透传陷阱）', () => {
+  // 单独声明旧字段（不在 ModelEntryConfig 上）：复现 schema 透传陷阱的旧配置形状
+  const legacyModel = { id: 'm', imageDetail: 'low' }
   assert.throws(
     () =>
       buildProfiles(
@@ -265,7 +269,7 @@ test('pi 路由含 imageDetail 写时拒绝并提示迁移（schema 透传陷阱
           g: {
             api: 'openai-completions',
             baseURL: 'https://g.example/v1',
-            models: [{ id: 'm', imageDetail: 'low' as never }],
+            models: [legacyModel],
           },
         },
         deps,
@@ -298,8 +302,8 @@ test('继承 reasoning 能力物化为显式档位字典（与内置目录语义
   // 语义等价断言：支持档位集合与线值一致。builtin 缺省档位 = 支持且线值取档位名
   // （pi-ai dispatch 的 map?.[level] ?? level）；xhigh/max 缺省 = 不支持（null）。
   for (const level of THINKING_LEVELS) {
-    const expected = builtinMap[level]
-    const actual = pro.thinkingLevelMap?.[level]
+    const expected: string | null | undefined = builtinMap[level]
+    const actual: string | null | undefined = pro.thinkingLevelMap?.[level]
     if (expected === undefined) {
       if (level === 'xhigh' || level === 'max') assert.equal(actual, null)
       else assert.equal(actual, level)

@@ -74,6 +74,9 @@ function caretDraftOffset(
   const chips = root.querySelectorAll('[data-composer-chip]')
   for (let i = 0; i < chips.length; i++) {
     const el = chips[i]
+    // 索引访问在 noUncheckedIndexedAccess 下带 undefined；i < length 保证存在，
+    // 此分支不可达，仅为类型安全收窄。
+    if (el === undefined) continue
     // 光标位于芯片结束之后（含边界）才计入修正
     if (range.comparePoint(el, el.childNodes.length) > 0) continue
     const occurrence = occurrences[i]

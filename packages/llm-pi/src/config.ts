@@ -52,8 +52,18 @@ export const DEFAULT_REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 /** dsh-timeout 的定时器上限（与官方 MAX_TIMER_DELAY_MS 对齐）。 */
 export const MAX_TIMER_DELAY_MS = 2 ** 31 - 1
 
-/** 键为可选档位，值为线协议拼写；仅 off 可留空（支持但不发送参数）。 */
-const reasoningEfforts = z.dict(z.union([z.string(), z.const(null)]), z.union(THINKING_LEVELS))
+/**
+ * 键为可选档位，值为线协议拼写；仅 off 可留空（支持但不发送参数）。
+ *
+ * 类型收窄说明：schemastery 的 z.dict 把输出推断为"全部键必填"（cosmokit 的
+ * Dict 是不带可选修饰的映射类型），而运行期语义是"键可选"——profiles.ts 的
+ * validateReasoningEfforts 按缺键 = 未声明处理，schema 也只校验给出的键。
+ * 故此处只把该节点的类型标注回真实契约，schema 校验行为不变。
+ */
+const reasoningEfforts = z.dict(
+  z.union([z.string(), z.const(null)]),
+  z.union(THINKING_LEVELS),
+) as unknown as z<ReasoningEfforts>
 
 export type ThinkingLevel = (typeof THINKING_LEVELS)[number]
 export type Modality = (typeof MODALITIES)[number]
@@ -126,6 +136,12 @@ export interface LlmPiConfig {
   catalogProxy: string
   providers: Record<string, ProviderProfileConfig>
 }
+
+/**
+ * schema 的宽松输入面：cordis 行级 config 与 settings 用户层都可能只给部分键
+ * （5 个根字段均有 schema 默认值），解析输出仍是完整的 {@link LlmPiConfig}。
+ */
+export type LlmPiConfigInput = Partial<LlmPiConfig>
 
 const thinkingBudgets = z.object({
   minimal: z.number(),
@@ -302,7 +318,7 @@ const providerProfile = z.object({
     .description('本 route 的模型目录；缺省且 provider 有 extends 时继承该源全部模型'),
 })
 
-export const Config: z<LlmPiConfig> = z.object({
+export const Config: z<LlmPiConfigInput, LlmPiConfig> = z.object({
   enabled: z.boolean().description('总开关（关闭则不注册任何 route）').default(true),
   catalogUrl: z
     .string()

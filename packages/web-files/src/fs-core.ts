@@ -107,7 +107,8 @@ async function classify(
 export function buildCrumbs(path: string): CrumbDto[] {
   const crumbs: CrumbDto[] = [{ name: sep, path: sep }]
   const parts = path.split(sep).filter((part) => part.length > 0)
-  let current = sep
+  // 显式 string：sep 是 '/' | '\\' 字面量联合，逐段落拼接后不再是单个字面量。
+  let current: string = sep
   for (const part of parts) {
     current = current === sep ? `${sep}${part}` : `${current}${sep}${part}`
     crumbs.push({ name: part, path: current })

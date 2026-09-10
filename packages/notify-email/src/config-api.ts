@@ -7,6 +7,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import type { Context } from '@deepseek-ai/cordis'
+// 平台声明导入（无值消费）：把 webServer 服务面合进 program，ctx.webServer 方可解析。
+import type {} from '@deepseek-ai/dsh-host-webserver'
 
 import type { NotifyEmailService } from './service.ts'
 

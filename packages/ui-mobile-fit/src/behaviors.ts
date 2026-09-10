@@ -17,10 +17,18 @@ const COARSE_QUERY = '(pointer: coarse)'
 const isNarrow = (): boolean => window.matchMedia(NARROW_QUERY).matches
 const isCoarse = (): boolean => window.matchMedia(COARSE_QUERY).matches
 
+/** isEditableTarget 的命中类型：input/textarea 或 contenteditable 为真的 HTMLElement。 */
+type EditableHost =
+  | HTMLInputElement
+  | HTMLTextAreaElement
+  | (HTMLElement & { isContentEditable: true })
+
 /** 可编辑宿主：经典 input/textarea，或 contenteditable 宿主（上游 composer
  *  自 0.1.2-rc.1 起为 Lexical 编辑器，根元素是 div[contenteditable]——
- *  只认 input/textarea 会让守卫整体失效，切会话即弹输入法）。 */
-const isEditableTarget = (el: EventTarget | null): boolean => {
+ *  只认 input/textarea 会让守卫整体失效，切会话即弹输入法）。
+ *  这里返回类型谓词而非 boolean：命中分支的调用方可直接访问 closest/blur；
+ *  未命中分支仍保留"非编辑宿主的 HTMLElement"（Tooltip 复位要 blur 它们）。 */
+const isEditableTarget = (el: EventTarget | null): el is EditableHost => {
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return true
   return el instanceof HTMLElement && el.isContentEditable === true
 }
@@ -249,7 +257,9 @@ function installTooltipReset(): Dispose {
         new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.documentElement }),
       )
       const active = document.activeElement
-      if (active instanceof HTMLElement && !isTextField(active)) active.blur()
+      // 聚焦中的输入框（input/textarea/contenteditable）不 blur，否则会连带收起
+      // 键盘；复用 isEditableTarget 的同款判定，避免"文本框"定义在两处漂移。
+      if (active instanceof HTMLElement && !isEditableTarget(active)) active.blur()
     }, TOOLTIP_RESET_MS)
   }
   document.addEventListener('pointerup', onPointerUp, true)

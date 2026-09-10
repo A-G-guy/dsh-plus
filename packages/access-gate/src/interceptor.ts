@@ -293,7 +293,8 @@ export function installGateInterceptor(
   })
 
   const undo = (): void => {
-    for (let i = restores.length - 1; i >= 0; i -= 1) restores[i].undo()
+    // 逆序还原（后装先撤）；forEach 直接取项，免去索引访问的 undefined 分支。
+    for (const restore of [...restores].reverse()) restore.undo()
   }
   void ctx
   return undo

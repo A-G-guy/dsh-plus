@@ -137,6 +137,31 @@ export function apply(_ctx: Context): void {{
 
 TEMPLATES = {"tool": TOOL_SRC, "service": SERVICE_SRC, "persona": PERSONA_SRC, "ui": UI_SRC}
 
+# 新包必须自带 tsconfig.json：dshctl typecheck 以「含 tsconfig.json 的包」为检查目标，
+# 漏配会让该包静默逃过类型闸门（scripts/tests/test_typecheck.py 有兜底断言）。
+TSCONFIG_HOST = """\
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // host-only 包不给 DOM：host 代码误用 document/window 应在类型层被拦住。
+    // 若新增浏览器半（src/client.tsx），参照其他 UI 包的 tsconfig 补 jsx 与 DOM 项。
+    "lib": ["ES2022"]
+  },
+  "include": ["src", "tests", "tsdown.config.ts"]
+}
+"""
+
+TSCONFIG_CLIENT = """\
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src", "tests", "tsdown.config.ts"]
+}
+"""
+
 
 def _scaffold(pkg_dir: Path, kind: str, short: str) -> None:
     (pkg_dir / "src").mkdir(parents=True)
@@ -147,6 +172,8 @@ def _scaffold(pkg_dir: Path, kind: str, short: str) -> None:
     (pkg_dir / "package.json").write_text(PKG_JSON.format(dir=pkg_dir.name, kind=kind),
                                           encoding="utf-8")
     (pkg_dir / "src/index.ts").write_text(src, encoding="utf-8")
+    (pkg_dir / "tsconfig.json").write_text(
+        TSCONFIG_CLIENT if kind == "ui" else TSCONFIG_HOST, encoding="utf-8")
     docs = pkg_dir / "docs/README.md"
     docs.write_text(f"---\nlast_modified: \"1970-01-01 00:00\"\n---\n\n"
                     f"# @dsh-plus/{pkg_dir.name} 文档索引\n\n- （待补充：契约、配置项、使用示例）\n",

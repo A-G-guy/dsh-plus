@@ -71,7 +71,11 @@ test('edits 请求体为 multipart：model/prompt/n/参数/image/mask', () => {
       params: { size: '1024x1024', input_fidelity: 'high' },
     }),
   )
-  assert.match(headers['content-type'], /^multipart\/form-data; boundary=BOUNDARY$/)
+  // HeaderLike 是索引签名（noUncheckedIndexedAccess 下取值可能 undefined）：
+  // 先证存在再断言，保持断言语义不变。
+  const contentType = headers['content-type']
+  assert.ok(contentType !== undefined, 'multipart 请求头必须带 content-type')
+  assert.match(contentType, /^multipart\/form-data; boundary=BOUNDARY$/)
   // 文本字段断言用 utf8 解码（中文 prompt）；文件头 ASCII 兼容同解码。
   const text = body.toString('utf8')
   assert.match(text, /name="model"\r\n\r\ngpt-image-2/, 'model 应作为表单字段入体')
@@ -180,7 +184,7 @@ test('上游错误：HTTP 状态与响应摘要结构化上抛', async () => {
     const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`
     await assert.rejects(
       () => generateViaOpenAIImages(request(url, 'generation'), new AbortController().signal),
-      (error: Error & { status?: number; upstreamBody?: string }) => {
+      (error: Error & { status?: number; upstreamBody: string }) => {
         assert.equal(error.status, 429)
         assert.match(error.upstreamBody, /rate limited/)
         assert.match(error.message, /rate limited/, '错误消息应携带上游摘要，供任务条直接展示')

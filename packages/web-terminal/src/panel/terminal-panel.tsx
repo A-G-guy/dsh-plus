@@ -63,7 +63,7 @@ interface DragState {
   baseline: number
 }
 
-export function TerminalPanel(props: TerminalPanelProps): ReactElement {
+export function TerminalPanel(props: TerminalPanelProps): ReactElement | null {
   const { terminal, t } = props
   const { open } = useSyncExternalStore(terminal.subscribe, terminal.getSnapshot)
   const connection = useMemo(() => new TerminalConnection(), [])
@@ -241,7 +241,12 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
   if (!open) return null
   if (snapshot.state === 'disabled') {
     return (
-      <Modal open title={t('panel.title')} onClose={() => terminal.setOpen(false)}>
+      <Modal
+        open
+        title={t('panel.title')}
+        closeLabel={t('panel.close')}
+        onClose={() => terminal.setOpen(false)}
+      >
         {t('state.disabled')}
       </Modal>
     )
@@ -410,6 +415,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
           open
           title={t('tab.closeConfirm.title')}
           description={t('tab.closeConfirm.description')}
+          closeLabel={t('panel.close')}
           onClose={() => setCloseTarget(null)}
           footer={
             <>
@@ -430,7 +436,12 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement {
         />
       )}
       {renaming !== null && (
-        <Modal open title={t('tab.rename')} onClose={() => setRenaming(null)}>
+        <Modal
+          open
+          title={t('tab.rename')}
+          closeLabel={t('panel.close')}
+          onClose={() => setRenaming(null)}
+        >
           <input
             className="wt-rename-input"
             value={renaming.value}
