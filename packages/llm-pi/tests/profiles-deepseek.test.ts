@@ -167,7 +167,21 @@ test('缺 baseURL 且未 extends deepseek 写入即拒绝；extends 时继承官
       ),
     /需要 baseURL/,
   )
-  const built = buildOne({ extends: 'deepseek', baseURL: undefined })
+  // 直接构造不含 baseURL 的 profile：routeConfig 助手会注入默认 baseURL，
+  // 此处要验的正是「未提供 baseURL 时继承官方端点」。
+  // （exactOptionalPropertyTypes 下也不能用 `baseURL: undefined` 表达该意图。）
+  const built = buildDeepseekRoutes(
+    {
+      relay: {
+        adapter: 'deepseek',
+        apiKeyEnv: 'TEST_KEY',
+        extends: 'deepseek',
+        models: [{ id: 'deepseek-v4-flash' }],
+      },
+    },
+    deps,
+  ).get('relay')
+  assert.ok(built)
   assert.equal(built.connection.baseURL, 'https://api.deepseek.com')
 })
 

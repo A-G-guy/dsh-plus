@@ -37,7 +37,9 @@ export async function postJson<T>(
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'content-type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // 条件展开而非 body: undefined——exactOptionalPropertyTypes 下二者类型不同，
+      // 语义上「省略 body」也不等于「显式传 undefined」。
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     }),
     guard,
   )

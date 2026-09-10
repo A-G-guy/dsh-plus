@@ -18,8 +18,11 @@ import type { NotifyEmailService } from '../service.ts'
 const NOTIFY_KINDS = new Set(['completed', 'error', 'aborted'])
 
 interface SessionWatch {
-  lastDelivery?: string
-  timer?: ReturnType<typeof setTimeout>
+  // 显式并上 undefined：这些字段会被反复赋 undefined 以清空状态
+  // （如 `watch.timer = undefined` 取消定时器），exactOptionalPropertyTypes
+  // 下可选属性不允许该写法。
+  lastDelivery?: string | undefined
+  timer?: ReturnType<typeof setTimeout> | undefined
   readonly notified: Set<string>
 }
 

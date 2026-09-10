@@ -48,7 +48,8 @@ export interface MirrorSnapshot {
  * load() 为公开方法。两者均可选——上游属性缺失/语义变化即 no-op。
  */
 export interface MirrorLike {
-  persistence?: string
+  /** 并上 undefined：判定处按 `persistence === 'memory'` 取值，缺席与 undefined 等价。 */
+  persistence?: string | undefined
   getSnapshot(): MirrorSnapshot
   load?(): Promise<void>
 }

@@ -86,10 +86,13 @@ function wrap(ctx: Context, endpoint: string, handler: HttpHandler): HttpHandler
         } satisfies ApiErrorBody)
         return
       }
+      // 载荷声明 sessionId?: string；exactOptionalPropertyTypes 下不能显式传
+      // undefined，而「键缺席」本就是原语义，故按需展开。
+      const auditSessionId = url.searchParams.get('sessionId')
       await ctx.serial('web-terminal/access', {
         method: req.method ?? '?',
         endpoint,
-        sessionId: url.searchParams.get('sessionId') ?? undefined,
+        ...(auditSessionId === null ? {} : { sessionId: auditSessionId }),
       })
       await handler(req, res, url)
     } catch (error) {

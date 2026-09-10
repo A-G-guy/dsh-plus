@@ -20,7 +20,8 @@ export interface GlobalEntry {
   envName: string
   description: string
   configured: boolean
-  source?: string
+  /** 并上 undefined：构造处可能无来源（服务端），wire 上 JSON 会省略该键，故与缺席等价。 */
+  source?: string | undefined
   writable: boolean
   /** 会话视图：该变量在本会话被屏蔽（无 sessionId 的调用恒为 false）。 */
   masked: boolean

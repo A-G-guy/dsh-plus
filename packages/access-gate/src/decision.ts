@@ -29,12 +29,18 @@ export type GateVerdict =
 /** 判定输出。 */
 export interface GateDecision {
   verdict: GateVerdict
-  /** 还原出的客户端 IP（有 XFF 或非 loopback 直连时存在）。 */
-  clientIp?: string
+  /**
+   * 还原出的客户端 IP（有 XFF 或非 loopback 直连时存在）。
+   *
+   * 三个可选字段并上 `| undefined`：构造处用条件表达式直接给值
+   * （如 `const invalidEntries = ... ? x : undefined`），而消费方一律按
+   * 「缺席或 undefined 等价」处理（routes.ts 用 `?? []` 兜底）。
+   */
+  clientIp?: string | undefined
   /** 放行原因（诊断/日志用）：local / cookie / trusted-ip。 */
-  reason?: 'local' | 'cookie' | 'trusted-ip'
+  reason?: 'local' | 'cookie' | 'trusted-ip' | undefined
   /** 无效白名单条目（卡片诊断用，判定时忽略它们）。 */
-  invalidEntries?: string[]
+  invalidEntries?: string[] | undefined
 }
 
 /** 判定输入的请求事实（headers 小写键，node:http 原生形态）。 */
@@ -42,7 +48,9 @@ export interface GateRequest {
   readonly url: string
   readonly method: string
   readonly headers: Record<string, unknown>
-  readonly remoteAddress?: string
+  // 并上 undefined：来源是 `req.socket?.remoteAddress`（socket 可能缺席），
+  // 消费方 isLoopbackAddress 本就接受 string | undefined。
+  readonly remoteAddress?: string | undefined
 }
 
 /** 取 XFF 最左条目（serve 单跳覆盖语义下即真实客户端 IP）。 */

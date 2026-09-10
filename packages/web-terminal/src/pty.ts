@@ -21,7 +21,8 @@ export interface PtyLike {
   resize(cols: number, rows: number): void
   kill(signal?: string): void
   onData(listener: (data: string) => void): () => void
-  onExit(listener: (event: { exitCode: number; signal?: number }) => void): () => void
+  // 并上 undefined：node-pty 正常退出时 signal 缺席，适配层原样透传其值。
+  onExit(listener: (event: { exitCode: number; signal?: number | undefined }) => void): () => void
 }
 
 export type PtyFactory = (spec: PtySpawnSpec) => PtyLike

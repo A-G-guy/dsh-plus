@@ -89,10 +89,13 @@ function wrap(ctx: Context, endpoint: string, method: 'GET' | 'POST', handler: H
         sendJson(res, 405, { error: 'method not allowed' } satisfies ApiErrorBody)
         return
       }
+      // 载荷声明 path?: string；exactOptionalPropertyTypes 下不能显式传 undefined，
+      // 而「键缺席」本就是原语义，故按需展开。
+      const auditPath = url.searchParams.get('path') ?? url.searchParams.get('dir')
       await ctx.serial('web-files/access', {
         method,
         endpoint,
-        path: url.searchParams.get('path') ?? url.searchParams.get('dir') ?? undefined,
+        ...(auditPath === null ? {} : { path: auditPath }),
       })
       await handler(req, res, url)
     } catch (error) {

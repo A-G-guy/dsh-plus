@@ -155,7 +155,7 @@ async function call(
   harness: Harness,
   path: string,
   init?: RequestInit,
-): Promise<{ status: number; body: unknown; contentType?: string }> {
+): Promise<{ status: number; body: unknown; contentType?: string | undefined }> {
   const port = (harness.httpServer.address() as AddressInfo).port
   const res = await fetch(`http://127.0.0.1:${port}${BASE}${path}`, init)
   const contentType = res.headers.get('content-type') ?? undefined

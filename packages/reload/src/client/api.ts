@@ -21,9 +21,11 @@ export interface PrepareInfo {
 }
 
 export class ApiError extends Error {
+  // 构造期无条件赋值，故声明为「必需但可为 undefined」而非可选属性：
+  // exactOptionalPropertyTypes 下可选属性不允许显式赋 undefined。
   readonly status: number
-  readonly preflight?: PreflightInfo
-  readonly runningAgents?: number
+  readonly preflight: PreflightInfo | undefined
+  readonly runningAgents: number | undefined
 
   constructor(message: string, status: number, preflight?: PreflightInfo, runningAgents?: number) {
     super(message)

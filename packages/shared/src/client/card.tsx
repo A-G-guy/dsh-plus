@@ -31,14 +31,21 @@ export interface CardChromeProps {
   description: string
   open: boolean
   onToggle(open: boolean): void
-  /** 折叠态头部徽标（如「已启用/未启用」）；展开态窄屏隐藏。 */
-  statusBadge?: { text: string; on: boolean }
-  dirty?: boolean
+  /**
+   * 折叠态头部徽标（如「已启用/未启用」）；展开态窄屏隐藏。
+   *
+   * 以下可选属性显式并上 `| undefined`：本组件对它们一律按「缺席或 undefined
+   * 同等处理」（见下方 `!== undefined` 与真值判断），而调用方普遍写
+   * `prop={cond ? value : undefined}`。exactOptionalPropertyTypes 下二者类型
+   * 不同，故此处的并集是**如实表达契约**，而非放宽校验。
+   */
+  statusBadge?: { text: string; on: boolean } | undefined
+  dirty?: boolean | undefined
   /** 未保存标记文案（如 t('unsaved')）。 */
   dirtyLabel: string
   /** 只读提示（无 settings provider 部署）。 */
-  readOnlyNotice?: string
-  status?: CardStatusState
+  readOnlyNotice?: string | undefined
+  status?: CardStatusState | undefined
   actions: CardAction[]
   children: ReactNode
 }

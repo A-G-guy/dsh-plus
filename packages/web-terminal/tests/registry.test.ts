@@ -19,7 +19,8 @@ class FakePty implements PtyLike {
   killed: string[] = []
   exited = false
   private dataListeners: Array<(data: string) => void> = []
-  private exitListeners: Array<(event: { exitCode: number; signal?: number }) => void> = []
+  private exitListeners: Array<(event: { exitCode: number; signal?: number | undefined }) => void> =
+    []
 
   static nextPid = 1000
   constructor(pid: number) {
@@ -39,7 +40,7 @@ class FakePty implements PtyLike {
     this.dataListeners.push(listener)
     return () => {}
   }
-  onExit(listener: (event: { exitCode: number; signal?: number }) => void): () => void {
+  onExit(listener: (event: { exitCode: number; signal?: number | undefined }) => void): () => void {
     this.exitListeners.push(listener)
     return () => {}
   }

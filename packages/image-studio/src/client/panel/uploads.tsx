@@ -77,10 +77,13 @@ interface UploadButtonProps {
   onUploaded(entries: UploadEntry[]): void
   /** 允许多选（源图）或单选（遮罩）。 */
   multiple: boolean
-  /** 允许的文件类型（缺省四类位图；遮罩场景传 image/png）。 */
-  accept?: string
-  disabled?: boolean
-  className?: string
+  /**
+   * 允许的文件类型（缺省四类位图；遮罩场景传 image/png）。
+   * 并上 undefined：调用方按 `multiple ? undefined : 'image/png'` 直接透传。
+   */
+  accept?: string | undefined
+  disabled?: boolean | undefined
+  className?: string | undefined
   children: ReactNode
 }
 

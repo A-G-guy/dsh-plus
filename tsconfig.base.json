@@ -31,6 +31,11 @@
     "noUncheckedSideEffectImports": true,
     "erasableSyntaxOnly": true,
 
+    // exactOptionalPropertyTypes：区分「字段缺席」与「字段为 undefined」。
+    // 本仓大量 settings / HTTP DTO 可选字段，把 undefined 显式写进可选字段
+    // 在语义上与省略该键不等价（JSON 序列化、Object.keys、schema 校验都会分叉）。
+    "exactOptionalPropertyTypes": true,
+
     // ── 类型检查专用（dshctl typecheck：tsc --noEmit -p packages/<pkg>）────────
     // 本仓源码一律带 .ts/.tsx 扩展名导入（bundler 解析 + tsdown 打苞约定），
     // 类型检查必须开 allowImportingTsExtensions，否则每个内部导入都报 TS5097。

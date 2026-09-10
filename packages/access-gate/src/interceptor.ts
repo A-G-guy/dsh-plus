@@ -41,7 +41,9 @@ type UpgradeRoute = { path: string; handler: UpgradeHandler }
 export interface GateWebServer {
   match(pathname: string): unknown
   upgrades: Map<string, UpgradeRoute>
-  fallback?: HttpHandler
+  // 并上 undefined：本插件需在卸载时把 fallback 还原为「原本就没有」的状态
+  // （`server.fallback = originalFallback`，其值可能为 undefined）。
+  fallback?: HttpHandler | undefined
   registerFallback(handler: HttpHandler): unknown
   registerUpgrade(route: UpgradeRoute): unknown
   [key: string]: unknown

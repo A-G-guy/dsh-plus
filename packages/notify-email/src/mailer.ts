@@ -83,8 +83,10 @@ export class Mailer {
   private readonly resolveConfig: () => NotifyEmailConfig
   private readonly logger: MailLogger
   private readonly transport: Transport
-  private readonly audit?: AuditSink
-  private readonly credentials?: CredentialsSeamLike
+  // 构造期无条件赋值，故为「必需但可为 undefined」：exactOptionalPropertyTypes
+  // 下可选属性不允许显式赋 undefined。
+  private readonly audit: AuditSink | undefined
+  private readonly credentials: CredentialsSeamLike | undefined
 
   constructor(
     resolveConfig: () => NotifyEmailConfig,

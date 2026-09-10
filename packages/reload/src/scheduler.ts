@@ -27,7 +27,8 @@ export interface SchedulerDeps {
   confirmTokenTtlMs: number
   serverGraceMs: number
   spawnRestart?: (unitName: string) => void
-  now?: () => number
+  /** 并上 undefined：构造处按 `deps.now ?? Date.now` 处理，二者等价。 */
+  now?: (() => number) | undefined
   onError?: (message: string) => void
 }
 

@@ -78,14 +78,16 @@ export function takeOverOpenPath(
       // 上游访问器属性（configurable）→ 重定义替换；卸载时还原原 RPC 函数。
       Object.defineProperty(holder, 'openWorkspacePath', {
         configurable: true,
-        enumerable: descriptor.enumerable,
+        // 条件展开：PropertyDescriptor.enumerable 不接受显式 undefined，
+        // 且「省略该键」本就是原语义（保留描述符默认）。
+        ...(descriptor.enumerable === undefined ? {} : { enumerable: descriptor.enumerable }),
         writable: true,
         value: wrapped,
       })
       return () => {
         Object.defineProperty(holder, 'openWorkspacePath', {
           configurable: true,
-          enumerable: descriptor.enumerable,
+          ...(descriptor.enumerable === undefined ? {} : { enumerable: descriptor.enumerable }),
           writable: true,
           value: original,
         })

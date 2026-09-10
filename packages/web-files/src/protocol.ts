@@ -101,9 +101,14 @@ export interface CrumbDto {
 }
 
 export interface ListRequest {
-  /** 缺省列 home 目录。 */
-  path?: string
-  showHidden?: boolean
+  /**
+   * 缺省列 home 目录。
+   *
+   * 并上 undefined：客户端由 `path?: string` 变量直接构造该字段，服务端按
+   * `path === undefined` 判定缺省（fs-core listDirectory），二者语义等价。
+   */
+  path?: string | undefined
+  showHidden?: boolean | undefined
 }
 
 export interface ListResponse {
@@ -141,7 +146,8 @@ export interface WriteRequest {
   path: string
   content: string
   /** 乐观锁：客户端读取时拿到的 mtimeMs；与现值不符返回 409 mtime-conflict。 */
-  baseMtimeMs?: number
+  /** 并上 undefined：服务端按 `!== undefined` 判定是否启用乐观锁。 */
+  baseMtimeMs?: number | undefined
 }
 
 export interface WriteResponse {

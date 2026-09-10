@@ -90,6 +90,13 @@ export interface ProviderProfileConfig {
   extends?: string
   displayName?: string
   api?: ProtocolId
+  /**
+   * 端点；缺省继承 extends 源 provider 的端点。
+   *
+   * 不并 `| undefined`：schemastery 的输入契约用 null 表示「显式置空」，省略即未设置；
+   * 消费方按 `baseURL ?? 默认值` 处理。并上 undefined 会与 ObjectS 的 `string | null`
+   * 冲突（exactOptionalPropertyTypes 下二者不可互赋）。
+   */
   baseURL?: string
   apiKeyEnv?: string
   headers?: Record<string, string>
