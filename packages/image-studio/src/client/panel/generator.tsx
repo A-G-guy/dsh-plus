@@ -15,7 +15,13 @@ import {
   type Scope,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useRef, useState } from 'react'
-import type { GenerateRequest, PresetsWire, ProvidersWire, SourceRef } from '../../dto.ts'
+import type {
+  GenerateRequest,
+  PresetsWire,
+  ProvidersWire,
+  SourceRef,
+  UploadEntry,
+} from '../../dto.ts'
 import type { GalleryItem } from '../../gallery/store.ts'
 import { MAX_SOURCE_IMAGES } from '../../limits.ts'
 import type { ParamEntry } from '../../params/catalog.ts'
@@ -64,6 +70,12 @@ const IDLE: Status = { kind: 'idle', text: '' }
 /** 预设 id 生成（稳定唯一即可；provider 预设的 kebab 约束不适用此处）。 */
 function presetId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+}
+
+/** 单选上传结果 → 遮罩引用（无成功条目时保持原值）。 */
+function uploadRef(entries: UploadEntry[]): SourceRef | null {
+  const first = entries[0]
+  return first === undefined ? null : { kind: 'upload', id: first.id }
 }
 
 export function GeneratorForm(props: GeneratorProps): ReactElement {
@@ -433,12 +445,6 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
               </UploadButton>
             </div>
             <p className="ims-hint">{t('sources.count').replace('{n}', String(sources.length))}</p>
-            {uploads.error !== null ? (
-              <p className="ims-status ims-statusError" role="alert">
-                {t('upload.failed')}
-                {uploads.error}
-              </p>
-            ) : null}
             <h3 className="ims-blockTitle">{t('sources.mask')}</h3>
             <div className="ims-sources">
               {mask !== null ? (
@@ -458,8 +464,26 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
                 <IconLayers size={18} />
                 <span>{t('sources.maskPick')}</span>
               </button>
+              <UploadButton
+                t={t}
+                uploads={uploads}
+                multiple={false}
+                // 遮罩必须 PNG（官方要求带透明通道），文件选择器先行收窄。
+                accept="image/png"
+                className="ims-thumbAdd"
+                onUploaded={(entries) => setMask(uploadRef(entries))}
+              >
+                <IconPlusOutline16 size={18} />
+                <span>{t('upload.pick')}</span>
+              </UploadButton>
             </div>
             <p className="ims-hint">{t('sources.maskHint')}</p>
+            {uploads.error !== null ? (
+              <p className="ims-status ims-statusError" role="alert">
+                {t('upload.failed')}
+                {uploads.error}
+              </p>
+            ) : null}
           </section>
         ) : null}
       </div>
