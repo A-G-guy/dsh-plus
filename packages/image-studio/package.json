@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/image-studio",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "dsh-plus service+ui plugin: 图像工作室——OpenAI Images 协议文生图/图生图，全参数开关化，双预设体系，并发生图任务与可二次编辑画廊",
   "type": "module",
   "main": "lib/index.js",
