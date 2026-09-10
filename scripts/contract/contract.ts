@@ -26,6 +26,21 @@ import type { Config as SubagentModelSchema } from '@dsh-plus/subagent-model'
 import type { Config as UsagePanelSchema } from '@dsh-plus/usage-panel'
 import type { Config as WebTerminalSchema } from '@dsh-plus/web-terminal'
 
+// ── 断言工具自检：若 Equal 退化为恒真，下面全部断言会静默失效 ─────────────────
+// 关键：自检不能经由 Equal 自身判定（Equal 坏掉时 Equal<X,false> 也是 true，
+// 那样自检同样恒真）。故把 Equal 的结果钉到字面量上，再用独立的 extends 判据检查。
+type _EqDifferent = Equal<string, number>
+type _SelfTestDifferent = Expect<[_EqDifferent] extends [false] ? true : false>
+
+type _EqAny = Equal<any, { a: 1 }>
+type _SelfTestAny = Expect<[_EqAny] extends [false] ? true : false>
+
+type _EqWiden = Equal<string, string | undefined>
+type _SelfTestWiden = Expect<[_EqWiden] extends [false] ? true : false>
+
+type _EqSame = Equal<{ a: 1 }, { a: 1 }>
+type _SelfTestSame = Expect<[_EqSame] extends [true] ? true : false>
+
 // ── access-gate ───────────────────────────────────────────────────────────
 type AccessGateConfig = Schemastery.TypeT<typeof AccessGateSchema>
 type _AgEnabled = Expect<Equal<AccessGateConfig['enabled'], boolean>>
@@ -113,6 +128,10 @@ export type {
   _RlEnabled,
   _RlGrace,
   _RlUnitName,
+  _SelfTestAny,
+  _SelfTestDifferent,
+  _SelfTestSame,
+  _SelfTestWiden,
   _SeMasked,
   _SeSecretName,
   _SmEnabled,
