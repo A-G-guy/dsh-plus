@@ -2,6 +2,7 @@
  * image-studio HTTP 端点（同源 webServer，与 usage-panel 同一暴露面约定）：
  * - POST generate / GET tasks|tasks/<id> / POST tasks/<id>/cancel
  * - GET gallery|gallery/<id> / DELETE gallery/<id> / GET images/<id>
+ * - POST uploads（本地文件上传原图）/ GET uploads|uploads/<id>（列表/缩略图流）
  * - GET|POST|DELETE credentials（describe/set/unset，值永不回传）
  * - GET providers（协议 registry + 参数目录，前端表单依据）
  * @module image-studio/api
@@ -12,12 +13,17 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type { GenerateRequest } from './dto.ts'
 import { ImageStudioError, statusOfCode } from './errors.ts'
+import { detectImageMime, mimeOfExt } from './images/mime.ts'
+import { UPLOAD_MAX_BYTES } from './limits.ts'
 import { PARAM_CATALOG } from './params/catalog.ts'
 import { ParamValidationError } from './params/spec.ts'
 import { listProtocols } from './provider/registry.ts'
 import type { ImageStudioService } from './service.ts'
 
 const ROUTE_PREFIX = '/dsh-plus/image-studio'
+
+/** 上传文件名长度上限（仅展示用途，超长截断）。 */
+const UPLOAD_NAME_MAX = 200
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' })
@@ -29,6 +35,32 @@ function readBody(req: IncomingMessage): Promise<string> {
     const chunks: Buffer[] = []
     req.on('data', (chunk: Buffer) => chunks.push(chunk))
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    req.on('error', reject)
+  })
+}
+
+/**
+ * 读取二进制请求体（上传通道）：超限即中止并抛 upload-too-large。
+ * 限额内的字节在内存中聚合（魔数嗅探需完整头部判定，单文件 ≤50MB；
+ * 超限后不再累积，内存占用有界）。导出供单测用小限额直接驱动。
+ */
+export function readBinaryBody(
+  req: IncomingMessage,
+  maxBytes: number = UPLOAD_MAX_BYTES,
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = []
+    let size = 0
+    req.on('data', (chunk: Buffer) => {
+      size += chunk.length
+      if (size > maxBytes) {
+        // 不 destroy：让调用方统一结束响应（后续 data 事件继续被丢弃）。
+        reject(new ImageStudioError('upload-too-large', `文件超过 ${maxBytes} 字节上限`))
+        return
+      }
+      chunks.push(chunk)
+    })
+    req.on('end', () => resolve(Buffer.concat(chunks)))
     req.on('error', reject)
   })
 }
@@ -50,7 +82,15 @@ function sendError(res: ServerResponse, error: unknown): void {
 }
 
 /** 端点处理函数表（path 段 → handler）。 */
-type Handler = (req: IncomingMessage, res: ServerResponse, rest: string) => Promise<void>
+type Handler = (req: IncomingMessage, res: ServerResponse, rest: string, url: URL) => Promise<void>
+
+/** 上传文件名（query 参数，仅展示用）：去控制字符并截断。 */
+function uploadNameOf(url: URL): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: 清洗用户文件名中的控制字符
+  const raw = (url.searchParams.get('name') ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim()
+  if (raw === '') return 'upload'
+  return raw.slice(0, UPLOAD_NAME_MAX)
+}
 
 function buildHandlers(service: ImageStudioService): Record<string, Handler> {
   return {
@@ -128,8 +168,48 @@ function buildHandlers(service: ImageStudioService): Record<string, Handler> {
         sendJson(res, 404, { error: 'not-found' })
         return
       }
-      const mime = bytes.ext === 'jpg' ? 'image/jpeg' : `image/${bytes.ext}`
+      const mime = mimeOfExt(bytes.ext)
       res.writeHead(200, { 'content-type': mime, 'cache-control': 'private, max-age=3600' })
+      res.end(Buffer.from(bytes.data))
+    },
+    async uploads(req, res, rest, url) {
+      // POST /uploads（raw body 流，query 携带原文件名）；GET /uploads 列表；
+      // GET /uploads/<id> 缩略图流（源图预览，与 images 同构）。
+      const uploadId = rest.replace(/\/$/, '')
+      if (method(req) === 'POST') {
+        if (uploadId !== '') throw new ImageStudioError('invalid-request', '未知路径')
+        const data = new Uint8Array(await readBinaryBody(req))
+        // 魔数嗅探：不信任声明的 content-type，非白名单位图一律拒绝。
+        const mime = detectImageMime(data)
+        if (mime === null) {
+          throw new ImageStudioError('unsupported-media', '只支持 PNG/JPEG/WebP/GIF 图片')
+        }
+        const entry = await service.saveUpload({
+          name: uploadNameOf(url),
+          mime,
+          data,
+        })
+        sendJson(res, 201, entry)
+        return
+      }
+      if (method(req) !== 'GET') {
+        sendJson(res, 405, { error: 'GET or POST only' })
+        return
+      }
+      if (uploadId === '') {
+        const items = await service.listUploads()
+        sendJson(res, 200, { items, total: items.length })
+        return
+      }
+      const bytes = await service.uploadBytes(uploadId)
+      if (bytes === null) {
+        sendJson(res, 404, { error: 'not-found' })
+        return
+      }
+      res.writeHead(200, {
+        'content-type': mimeOfExt(bytes.ext),
+        'cache-control': 'private, max-age=3600',
+      })
       res.end(Buffer.from(bytes.data))
     },
     async credentials(_req, res, rest) {
@@ -206,7 +286,7 @@ export function registerImageStudioApi(ctx: Context, service: ImageStudioService
           sendJson(res, 404, { error: `unknown endpoint: ${head}` })
           return
         }
-        await handler(req, res, rest)
+        await handler(req, res, rest, url)
       })().catch((error: unknown) => sendError(res, error))
     },
   })

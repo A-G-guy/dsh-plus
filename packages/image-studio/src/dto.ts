@@ -8,10 +8,20 @@ import type { ParamPresetEntry, PromptPresetEntry, ProviderPresetEntry } from '.
 import type { GalleryItem } from './gallery/store.ts'
 import type { ImageEndpoint } from './provider/types.ts'
 import type { TaskState } from './task/runner.ts'
+import type { UploadEntry } from './uploads/store.ts'
 
 // GalleryItem 由 gallery/store 定义，但属 wire 视图的一部分（GalleryListWire 及
 // 客户端半 fetchGalleryItem 都用它）；在此转出，dto 保持「前后端共享类型单一门面」。
-export type { GalleryItem }
+export type { GalleryItem, UploadEntry }
+
+/**
+ * 源图引用：画廊已落盘图片（gallery）或本地文件上传的暂存图片（upload）。
+ * 两个 id 空间互不重叠，故引用必须显式带 kind（同一字符串在两边含义不同）。
+ */
+export interface SourceRef {
+  kind: 'gallery' | 'upload'
+  id: string
+}
 
 /** 任务提交请求体。 */
 export interface GenerateRequest {
@@ -29,9 +39,13 @@ export interface GenerateRequest {
   paramPresetId?: string
   /** 参数覆盖表（同 ParamSpecMap 形态）。 */
   paramSpecs?: Record<string, { enabled: boolean; value?: unknown }>
-  /** 图生图源图（本画廊 imageId；edit 必填 ≥1）。 */
+  /** 图生图源图（edit 必填 ≥1，≤16；画廊图片与本地文件上传混用）。 */
+  sources?: SourceRef[]
+  /** 可选遮罩（官方要求 PNG；与源图同一引用形态）。 */
+  mask?: SourceRef
+  /** @deprecated 旧客户端兼容：等价于 kind='gallery' 的 sources。 */
   sourceIds?: string[]
-  /** 可选 PNG mask（本画廊 imageId）。 */
+  /** @deprecated 旧客户端兼容：等价于 kind='gallery' 的 mask。 */
   maskId?: string
 }
 

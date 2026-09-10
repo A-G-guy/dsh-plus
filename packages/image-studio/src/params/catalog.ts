@@ -11,6 +11,9 @@ import type { ImageEndpoint } from '../provider/types.ts'
 /** 参数值类型（校验与前端控件形态的依据）。 */
 export type ParamKind = 'string' | 'integer' | 'enum' | 'boolean'
 
+/** 值域规则 id（目录声明、边界校验与前端提示共用同一实现）。 */
+export type ParamRuleId = 'image-size'
+
 /** 单个参数的目录条目。 */
 export interface ParamEntry {
   /** 请求体字段名（官方 API 参数名）。 */
@@ -23,6 +26,8 @@ export interface ParamEntry {
   min?: number
   /** integer 时的上界（含）。 */
   max?: number
+  /** 结构化值域规则（如尺寸的倍数/比例/像素约束）；无则仅按 kind 校验。 */
+  rules?: ParamRuleId
   /** 适用端点（new-array 是目录实现细节，不外泄）。 */
   applies: readonly ImageEndpoint[]
   /** 适用模型代际：current（GPT Image）| dall-e-3 | dall-e-2 | all。 */
@@ -56,20 +61,21 @@ const CATALOG_RAW: readonly ParamEntry[] = [
   {
     key: 'size',
     kind: 'string',
+    rules: 'image-size',
     applies: ['generation', 'edit'],
     generation: 'current',
     advanced: false,
     description:
-      '尺寸，如 1024x1024 / 1536x1024 / 1024x1536 / auto；宽高需为 16 的倍数、最大边 ≤3840、比例 ≤3:1（依模型限制）',
+      '尺寸：auto 或「宽x高」。推荐 1024x1024 / 1536x1024 / 1024x1536；自定义需宽高为 16 的倍数、长边 ≤3840、比例 ≤3:1、总像素 655360-8294400',
   },
   {
     key: 'quality',
     kind: 'enum',
-    values: ['auto', 'low', 'medium', 'high'],
+    values: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     applies: ['generation', 'edit'],
     generation: 'current',
     advanced: false,
-    description: '质量档位',
+    description: '质量档位（xhigh/max 为 image 2.5 新增高档位）',
   },
   {
     key: 'background',

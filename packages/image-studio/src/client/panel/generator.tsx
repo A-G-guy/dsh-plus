@@ -3,19 +3,25 @@
  * - 提供商预设选择 + 凭据状态徽标 + inline 覆盖（凭据沿用预设）；
  * - 提示词编辑 + 预设插入/另存；
  * - 目录驱动的参数表单 + 参数预设应用/另存；
- * - 图生图追加源图（≤16）与可选遮罩选择（画廊取图）；
+ * - 图生图追加源图（≤16，画廊选择与本地文件上传混用）与可选遮罩；
  * - 提交 generate → 202 taskId 交由面板任务条轮询。
  * 预设另存走 settings RPC（scope/api 注入），成功后经 onPresetSaved 刷新快照。
  * @module image-studio/client/panel/generator
  */
-import { IconLayers, type NamespaceSettingsApi, type Scope } from '@dsh-plus/shared/client'
+import {
+  IconLayers,
+  IconPlusOutline16,
+  type NamespaceSettingsApi,
+  type Scope,
+} from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useRef, useState } from 'react'
-import type { GenerateRequest, PresetsWire, ProvidersWire } from '../../dto.ts'
+import type { GenerateRequest, PresetsWire, ProvidersWire, SourceRef } from '../../dto.ts'
 import type { GalleryItem } from '../../gallery/store.ts'
+import { MAX_SOURCE_IMAGES } from '../../limits.ts'
 import type { ParamEntry } from '../../params/catalog.ts'
 import { type ParamSpecMap, validateParamSpecs } from '../../params/spec.ts'
 import type { ImageEndpoint } from '../../provider/types.ts'
-import { fetchCredentialStatus, generate, imageUrl } from '../api.ts'
+import { fetchCredentialStatus, generate } from '../api.ts'
 import type { Translate } from '../i18n.ts'
 import type { EditSeed } from './controller.ts'
 import {
@@ -26,7 +32,8 @@ import {
   type ParamFormState,
 } from './param-state.ts'
 import { ParamsForm } from './params-form.tsx'
-import { ImagePicker } from './picker.tsx'
+import { ImagePicker, refUrl } from './picker.tsx'
+import { UploadButton, useUploads } from './uploads.tsx'
 
 interface GeneratorProps {
   t: Translate
@@ -71,8 +78,8 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
   const [credentialOk, setCredentialOk] = useState<boolean | null>(null)
   const [prompt, setPrompt] = useState('')
   const [form, setForm] = useState<ParamFormState>({})
-  const [sourceIds, setSourceIds] = useState<string[]>([])
-  const [maskId, setMaskId] = useState<string | null>(null)
+  const [sources, setSources] = useState<SourceRef[]>([])
+  const [mask, setMask] = useState<SourceRef | null>(null)
   const [picker, setPicker] = useState<'sources' | 'mask' | null>(null)
   const [naming, setNaming] = useState<{ kind: 'prompt' | 'params'; name: string } | null>(null)
   const [status, setStatus] = useState<Status>(IDLE)
@@ -81,6 +88,7 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
   const formReadyRef = useRef(false)
   /** 已消费的种子 nonce（防重复回填）。 */
   const seedRef = useRef(0)
+  const uploads = useUploads()
 
   // 目录到达后初始化参数表单。
   useEffect(() => {
@@ -95,7 +103,7 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
     if (seed === null || seed.nonce === seedRef.current || !formReadyRef.current) return
     seedRef.current = seed.nonce
     setPrompt(seed.prompt)
-    setSourceIds(seed.sourceIds)
+    setSources(seed.sources)
     setForm(applyParams(catalog, endpoint, seed.params))
     if (seed.providerPresetId !== null) setProviderId(seed.providerPresetId)
     setStatus(IDLE)
@@ -208,7 +216,7 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
       setStatus({ kind: 'error', text: t('generate.needPrompt') })
       return
     }
-    if (endpoint === 'edit' && sourceIds.length === 0) {
+    if (endpoint === 'edit' && sources.length === 0) {
       setStatus({ kind: 'error', text: t('generate.needSources') })
       return
     }
@@ -233,8 +241,8 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
       }
     }
     if (endpoint === 'edit') {
-      request.sourceIds = sourceIds
-      if (maskId !== null) request.maskId = maskId
+      request.sources = sources
+      if (mask !== null) request.mask = mask
     }
     setSubmitting(true)
     setStatus(IDLE)
@@ -379,39 +387,68 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
           <section className="ims-block">
             <h3 className="ims-blockTitle">{t('sources.label')}</h3>
             <div className="ims-sources">
-              {sourceIds.map((imageId) => (
-                <span key={imageId} className="ims-thumb">
-                  <img src={imageUrl(imageId)} alt="" />
+              {sources.map((ref) => (
+                <span key={`${ref.kind}:${ref.id}`} className="ims-thumb">
+                  <img src={refUrl(ref)} alt="" />
                   <button
                     type="button"
                     className="ims-thumbRemove"
                     aria-label={t('common.delete')}
                     onClick={() =>
-                      setSourceIds((current) => current.filter((id) => id !== imageId))
+                      setSources((current) =>
+                        current.filter((item) => !(item.kind === ref.kind && item.id === ref.id)),
+                      )
                     }
                   >
                     ×
                   </button>
                 </span>
               ))}
-              <button type="button" className="ims-thumbAdd" onClick={() => setPicker('sources')}>
+              <button
+                type="button"
+                className="ims-thumbAdd"
+                disabled={sources.length >= MAX_SOURCE_IMAGES}
+                onClick={() => setPicker('sources')}
+              >
                 <IconLayers size={18} />
                 <span>{t('sources.pick')}</span>
               </button>
+              <UploadButton
+                t={t}
+                uploads={uploads}
+                multiple
+                disabled={sources.length >= MAX_SOURCE_IMAGES}
+                className="ims-thumbAdd"
+                onUploaded={(entries) =>
+                  setSources((current) =>
+                    [
+                      ...current,
+                      ...entries.map((entry) => ({ kind: 'upload' as const, id: entry.id })),
+                    ].slice(0, MAX_SOURCE_IMAGES),
+                  )
+                }
+              >
+                <IconPlusOutline16 size={18} />
+                <span>{t('upload.pick')}</span>
+              </UploadButton>
             </div>
-            <p className="ims-hint">
-              {t('sources.count').replace('{n}', String(sourceIds.length))}
-            </p>
+            <p className="ims-hint">{t('sources.count').replace('{n}', String(sources.length))}</p>
+            {uploads.error !== null ? (
+              <p className="ims-status ims-statusError" role="alert">
+                {t('upload.failed')}
+                {uploads.error}
+              </p>
+            ) : null}
             <h3 className="ims-blockTitle">{t('sources.mask')}</h3>
             <div className="ims-sources">
-              {maskId !== null ? (
+              {mask !== null ? (
                 <span className="ims-thumb">
-                  <img src={imageUrl(maskId)} alt="" />
+                  <img src={refUrl(mask)} alt="" />
                   <button
                     type="button"
                     className="ims-thumbRemove"
                     aria-label={t('sources.maskClear')}
-                    onClick={() => setMaskId(null)}
+                    onClick={() => setMask(null)}
                   >
                     ×
                   </button>
@@ -422,6 +459,7 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
                 <span>{t('sources.maskPick')}</span>
               </button>
             </div>
+            <p className="ims-hint">{t('sources.maskHint')}</p>
           </section>
         ) : null}
       </div>
@@ -506,11 +544,12 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
           t={t}
           title={t(picker === 'sources' ? 'sources.label' : 'sources.mask')}
           items={gallery}
+          uploads={uploads}
           multiple={picker === 'sources'}
-          initial={picker === 'sources' ? sourceIds : []}
-          onConfirm={(ids) => {
-            if (picker === 'sources') setSourceIds(ids)
-            else setMaskId(ids[0] ?? null)
+          initial={picker === 'sources' ? sources : mask === null ? [] : [mask]}
+          onConfirm={(refs) => {
+            if (picker === 'sources') setSources(refs)
+            else setMask(refs[0] ?? null)
             setPicker(null)
           }}
           onClose={() => setPicker(null)}

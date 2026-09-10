@@ -2,11 +2,13 @@
  * 参数表单：按参数目录动态渲染（kind → 控件形态，advanced 折叠）。
  * - boolean 参数的开关即取值（启用 = true）；
  * - 其余参数：开关 + 值控件（enum 下拉 / integer 数字框 / string 文本框）；
+ * - 声明了结构化规则的参数（size）追加预设快捷项与即时校验提示，自由输入不受限；
  * - 每项附中文说明与代际标记（GPT Image / dall-e-3 / dall-e-2）。
  * @module image-studio/client/panel/params-form
  */
 import type { ReactElement } from 'react'
 import type { ParamEntry } from '../../params/catalog.ts'
+import { checkImageSize, SIZE_PRESETS } from '../../params/size.ts'
 import type { ImageEndpoint } from '../../provider/types.ts'
 import type { Translate } from '../i18n.ts'
 import { type ParamFormState, paramEntriesFor } from './param-state.ts'
@@ -19,7 +21,14 @@ interface ParamsFormProps {
   onChange(next: ParamFormState): void
 }
 
-/** 单参数行：开关 + 名称/说明 + 值控件。 */
+/** 结构化规则的即时提示：规则通过或取值未填时不占位。 */
+function ruleHint(entry: ParamEntry, value: string): string | null {
+  if (entry.rules !== 'image-size' || value.trim() === '') return null
+  const checked = checkImageSize(value)
+  return checked.ok ? null : checked.message
+}
+
+/** 单参数行：开关 + 名称/说明 + 值控件（+ 预设与校验提示）。 */
 function ParamRow(props: {
   t: Translate
   entry: ParamEntry
@@ -30,6 +39,10 @@ function ParamRow(props: {
   const field = form[entry.key] ?? { enabled: false, value: '' }
   const patch = (next: Partial<typeof field>): void =>
     onChange({ ...form, [entry.key]: { ...field, ...next } })
+  const text = String(field.value)
+  const hint = field.enabled ? ruleHint(entry, text) : null
+  /** size 预设：快捷填写，仍可自由改动输入框。 */
+  const presets = entry.rules === 'image-size' ? SIZE_PRESETS : []
 
   const control = (() => {
     if (entry.kind === 'boolean') return null
@@ -37,7 +50,7 @@ function ParamRow(props: {
       return (
         <select
           className="ims-input ims-paramControl"
-          value={String(field.value)}
+          value={text}
           disabled={!field.enabled}
           onChange={(event) => patch({ value: event.target.value })}
         >
@@ -57,7 +70,7 @@ function ParamRow(props: {
           inputMode="numeric"
           min={entry.min}
           max={entry.max}
-          value={String(field.value)}
+          value={text}
           disabled={!field.enabled}
           onChange={(event) => patch({ value: event.target.value })}
         />
@@ -65,10 +78,12 @@ function ParamRow(props: {
     }
     return (
       <input
-        className="ims-input ims-paramControl"
+        className={`ims-input ims-paramControl${hint !== null ? ' ims-inputInvalid' : ''}`}
         type="text"
-        value={String(field.value)}
+        list={presets.length > 0 ? `ims-size-options-${entry.key}` : undefined}
+        value={text}
         disabled={!field.enabled}
+        aria-invalid={hint !== null}
         onChange={(event) => patch({ value: event.target.value })}
       />
     )
@@ -99,8 +114,37 @@ function ParamRow(props: {
           ) : null}
         </span>
         <span className="ims-paramDesc">{entry.description}</span>
+        {hint !== null ? (
+          <span className="ims-paramWarn" role="alert">
+            {hint}
+          </span>
+        ) : null}
       </div>
-      {control}
+      <div className="ims-paramValue">
+        {control}
+        {presets.length > 0 && field.enabled ? (
+          <span className="ims-paramPresets">
+            {presets.map((preset) => (
+              <button
+                key={preset.value}
+                type="button"
+                title={preset.label}
+                className={`ims-chip${preset.value === text ? ' ims-chipOn' : ''}`}
+                onClick={() => patch({ value: preset.value })}
+              >
+                {preset.value}
+              </button>
+            ))}
+          </span>
+        ) : null}
+      </div>
+      {presets.length > 0 ? (
+        <datalist id={`ims-size-options-${entry.key}`}>
+          {presets.map((preset) => (
+            <option key={preset.value} value={preset.value} label={preset.label} />
+          ))}
+        </datalist>
+      ) : null}
     </div>
   )
 }

@@ -11,6 +11,8 @@ import { appendFile, mkdir, readdir, readFile, rename, rm, writeFile } from 'nod
 import { join } from 'node:path'
 
 import { pluginDataPath } from '@dsh-plus/shared'
+import { isImageId } from '../images/id.ts'
+import { extOfMime } from '../images/mime.ts'
 import type { ImageEndpoint } from '../provider/types.ts'
 
 /** 画廊条目元数据（DTO 主体，端点原样投影）。 */
@@ -30,8 +32,10 @@ export interface GalleryItem {
   imageIds: string[]
   /** 每张图的 revised_prompt（与 imageIds 对齐，可为 null）。 */
   revisedPrompts: Array<string | null>
-  /** 图生图源图（本画廊内的 imageId）；文生图为空。 */
+  /** 图生图源图中的画廊图片（本画廊 imageId）；文生图为空。 */
   sourceIds: string[]
+  /** 图生图源图中的本地文件上传（uploads 暂存区 id）；上传被回收即失效。 */
+  sourceUploads: string[]
 }
 
 /**
@@ -49,21 +53,18 @@ function imagesDir(): string {
   return join(galleryRoot(), 'images')
 }
 
-/** 图片扩展名由 MIME 推导（仅白名单格式）。 */
-export function extOfMime(mime: string): string {
-  switch (mime) {
-    case 'image/jpeg':
-      return 'jpg'
-    case 'image/webp':
-      return 'webp'
-    default:
-      return 'png'
-  }
-}
-
 /** 确保目录存在。 */
 async function ensureDirs(): Promise<void> {
   await mkdir(imagesDir(), { recursive: true })
+}
+
+/** 旧条目补齐新增字段（sourceUploads 为后加字段，历史 JSONL 里不存在）。 */
+function normalizeItem(item: GalleryItem): GalleryItem {
+  return {
+    ...item,
+    sourceIds: item.sourceIds ?? [],
+    sourceUploads: item.sourceUploads ?? [],
+  }
 }
 
 /** 解析 JSONL 全量元数据（坏行跳过并告警；空文件返回空表）。 */
@@ -78,7 +79,7 @@ export async function loadGallery(log: (message: string) => void): Promise<Galle
   for (const line of text.split('\n')) {
     if (line.trim().length === 0) continue
     try {
-      items.push(JSON.parse(line) as GalleryItem)
+      items.push(normalizeItem(JSON.parse(line) as GalleryItem))
     } catch {
       log(`画廊元数据坏行跳过：${line.slice(0, 80)}`)
     }
@@ -94,7 +95,7 @@ async function appendIndex(item: GalleryItem): Promise<void> {
 
 /** 图片文件绝对路径。 */
 function imagePathOf(imageId: string, ext: string): string {
-  if (!/^[a-f0-9-]{36}$/.test(imageId) || !/^[a-z0-9]{2,4}$/.test(ext)) {
+  if (!isImageId(imageId) || !/^[a-z0-9]{2,4}$/.test(ext)) {
     throw new Error(`非法画廊图片标识：${imageId}.${ext}`)
   }
   return join(imagesDir(), `${imageId}.${ext}`)

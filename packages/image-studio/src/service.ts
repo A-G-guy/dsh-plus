@@ -1,9 +1,10 @@
 /**
  * image-studio 服务主体：
- * - settings installSection（三组预设 + 并发/超时/代理/画廊上限）；
+ * - settings installSection（三组预设 + 并发/超时/代理/画廊上限/上传保留时长）；
  * - TaskRunner 并发生图：提交即排队，成功自动入画廊（元数据 + 图片落盘）；
  * - 提供商预设按 id 即时 resolve credentials（不缓存）；
- * - 端点：generate/tasks/gallery/images/credentials/providers（api.ts 注册）。
+ * - 上传暂存区：本地文件上传的源图/遮罩，孤儿按 TTL 回收；
+ * - 端点：generate/tasks/gallery/images/uploads/credentials/providers（api.ts 注册）。
  * 红线：开发测试仅指向本地 mock，严禁真实调用产生费用。
  * @module image-studio/service
  */
@@ -20,7 +21,7 @@ import {
   SETTINGS_NS,
 } from './config.ts'
 import { credentialRefNameOf, isValidPresetId } from './credentials.ts'
-import type { GenerateRequest, TaskWire } from './dto.ts'
+import type { GenerateRequest, SourceRef, TaskWire } from './dto.ts'
 import { ImageStudioError } from './errors.ts'
 import type { GalleryItem } from './gallery/store.ts'
 import {
@@ -29,12 +30,22 @@ import {
   deleteGalleryItem as removeGalleryItem,
   saveGalleryItem,
 } from './gallery/store.ts'
+import { isImageId } from './images/id.ts'
+import { mimeOfExt } from './images/mime.ts'
+import { MAX_SOURCE_IMAGES } from './limits.ts'
 import type { ParamSpecMap } from './params/spec.ts'
 import { normalizeParamSpecs, validateParamSpecs } from './params/spec.ts'
 import { createProvider } from './provider/registry.ts'
 import type { ImageEndpoint, InputImage, ProviderTarget } from './provider/types.ts'
 import type { TaskRecord } from './task/runner.ts'
 import { TaskRunner } from './task/runner.ts'
+import type { UploadEntry } from './uploads/store.ts'
+import {
+  loadUploads,
+  pruneUploads,
+  readUploadBytes,
+  saveUpload as saveUploadEntry,
+} from './uploads/store.ts'
 
 interface SettingsLike {
   installSection(
@@ -74,6 +85,8 @@ export class ImageStudioService extends Service {
   private current: () => ImageStudioConfig
   private readonly runner: TaskRunner<TaskSnapshot>
   private readonly log: (message: string) => void
+  /** 进行中的孤儿回收（串行化：索引重写不能并发）。 */
+  private pruning: Promise<void> | null
   // settings 服务窄面（settingsCtx.inject 回调内落存）。declare：不参与类字段
   // 初始化 emit，保持实例运行期形状与既有产物一致（不因声明而多出 undefined 字段）。
   private declare settingsRef: SettingsLike | undefined
@@ -82,7 +95,10 @@ export class ImageStudioService extends Service {
     super(ctx, 'imageStudio')
     this.current = () => config
     this.log = (message) => ctx.logger('image-studio').warn(message)
+    this.pruning = null
     this.runner = new TaskRunner<TaskSnapshot>({ maxConcurrent: config.maxConcurrent })
+    // 启动回收一次：上次进程遗留的孤儿上传（未被画廊引用且超 TTL）。
+    this.schedulePrune()
     ctx.inject(['settings'], (settingsCtx) => {
       this.settingsRef = settingsCtx.settings as unknown as SettingsLike
       settingsCtx.settings.installSection(ctx, SETTINGS_NS, configSchemaRef, config, {
@@ -220,7 +236,7 @@ export class ImageStudioService extends Service {
 
   /**
    * 任务准备（边界校验集中地）：提供商预设/inline → target；
-   * 参数预设 + 覆盖 → 归一化参数表；sourceIds → 输入图字节。
+   * 参数预设 + 覆盖 → 归一化参数表；sources/mask 引用 → 输入图字节。
    */
   private async prepareTask(request: GenerateRequest): Promise<{
     target: ProviderTarget
@@ -231,6 +247,7 @@ export class ImageStudioService extends Service {
     mask: InputImage | null
     params: Record<string, unknown>
     sourceIds: string[]
+    sourceUploads: string[]
   }> {
     const target = await this.resolveTarget(request)
     const endpoint = request.endpoint
@@ -243,19 +260,57 @@ export class ImageStudioService extends Service {
     const params = await this.resolveParams(request, endpoint)
     const nValue = params.n
     const n = typeof nValue === 'number' ? nValue : 1
-    const sourceIds = request.sourceIds ?? []
-    const images = await this.loadSourceImages(sourceIds, endpoint)
-    const mask = request.maskId !== undefined ? await this.loadMask(request.maskId) : null
+    const refs = this.sourceRefsOf(request)
+    const maskRef = this.maskRefOf(request)
+    const sources = await this.loadSourceImages(refs, endpoint)
+    const mask = maskRef === null ? null : await this.loadMaskImage(maskRef)
     return {
       target,
       endpoint,
       prompt: request.prompt,
       n,
-      images,
+      images: sources.images,
       mask,
       params: stripHostParams(params),
-      sourceIds,
+      sourceIds: sources.galleryIds,
+      sourceUploads: sources.uploadIds,
     }
+  }
+
+  /** 源图引用规范化（sources 优先；旧 sourceIds 等价于全部 gallery 引用）。 */
+  private sourceRefsOf(request: GenerateRequest): SourceRef[] {
+    if (request.sources !== undefined) {
+      if (!Array.isArray(request.sources)) {
+        throw new ImageStudioError('invalid-request', 'sources 必须是数组')
+      }
+      return request.sources.map((ref) => this.assertRef(ref))
+    }
+    const legacy = request.sourceIds ?? []
+    if (!Array.isArray(legacy)) {
+      throw new ImageStudioError('invalid-request', 'sourceIds 必须是数组')
+    }
+    return legacy.map((id) => this.assertRef({ kind: 'gallery', id }))
+  }
+
+  /** 遮罩引用规范化（mask 优先；旧 maskId 等价于 gallery 引用）。 */
+  private maskRefOf(request: GenerateRequest): SourceRef | null {
+    if (request.mask !== undefined) return this.assertRef(request.mask)
+    if (request.maskId === undefined) return null
+    return this.assertRef({ kind: 'gallery', id: request.maskId })
+  }
+
+  /** 引用形态校验（请求体来自浏览器，kind 封闭集合 + id uuid 形态）。 */
+  private assertRef(ref: SourceRef): SourceRef {
+    if (ref === null || typeof ref !== 'object') {
+      throw new ImageStudioError('invalid-request', '源图引用必须是 { kind, id }')
+    }
+    if (ref.kind !== 'gallery' && ref.kind !== 'upload') {
+      throw new ImageStudioError('invalid-request', `未知源图类型：${String(ref.kind)}`)
+    }
+    if (!isImageId(ref.id)) {
+      throw new ImageStudioError('invalid-request', `非法源图标识：${String(ref.id)}`)
+    }
+    return { kind: ref.kind, id: ref.id }
   }
 
   /** 提供商预设 / inline → ProviderTarget（凭据即时 resolve）。 */
@@ -350,36 +405,58 @@ export class ImageStudioService extends Service {
     return this.providerPresets().find((item) => item.id === presetId)?.model ?? ''
   }
 
-  /** 源图字节加载（edit ≥1 张；单图上限 50MB 对齐官方）。 */
+  /**
+   * 源图字节加载（edit ≥1 张；单图上限 50MB 对齐官方）。
+   * 按引用来源分流读取，并把两类 id 分开回传（画廊衍生链 / 上传暂存区）。
+   */
   private async loadSourceImages(
-    sourceIds: string[],
+    refs: SourceRef[],
     endpoint: ImageEndpoint,
-  ): Promise<InputImage[]> {
-    if (endpoint === 'generation') return []
-    if (sourceIds.length === 0) {
-      throw new ImageStudioError('invalid-request', 'edit 端点必须提供至少一张源图（sourceIds）')
+  ): Promise<{ images: InputImage[]; galleryIds: string[]; uploadIds: string[] }> {
+    if (endpoint === 'generation') return { images: [], galleryIds: [], uploadIds: [] }
+    if (refs.length === 0) {
+      throw new ImageStudioError('invalid-request', 'edit 端点必须提供至少一张源图（sources）')
     }
-    if (sourceIds.length > 16) {
-      throw new ImageStudioError('invalid-request', '源图最多 16 张（官方 GPT Image 限制）')
+    if (refs.length > MAX_SOURCE_IMAGES) {
+      throw new ImageStudioError(
+        'invalid-request',
+        `源图最多 ${MAX_SOURCE_IMAGES} 张（官方 GPT Image 限制）`,
+      )
     }
     const images: InputImage[] = []
-    for (const imageId of sourceIds) {
-      images.push(await this.loadOneImage(imageId))
+    const galleryIds: string[] = []
+    const uploadIds: string[] = []
+    for (const ref of refs) {
+      images.push(await this.loadRefImage(ref))
+      if (ref.kind === 'gallery') galleryIds.push(ref.id)
+      else uploadIds.push(ref.id)
     }
-    return images
+    return { images, galleryIds, uploadIds }
   }
 
-  private async loadMask(maskId: string): Promise<InputImage> {
-    return this.loadOneImage(maskId)
+  /** 单个引用 → 输入图字节（两个 id 空间分别查，未知一律 unknown-source）。 */
+  private async loadRefImage(ref: SourceRef): Promise<InputImage> {
+    const found =
+      ref.kind === 'gallery' ? await this.imageBytes(ref.id) : await this.uploadBytes(ref.id)
+    if (found === null) {
+      throw new ImageStudioError('unknown-source', `源图不存在：${ref.kind}:${ref.id}`)
+    }
+    return { data: found.data, mime: mimeOfExt(found.ext) }
   }
 
-  private async loadOneImage(imageId: string): Promise<InputImage> {
-    try {
-      const { data, ext } = await readImageBytes(imageId)
-      return { data, mime: ext === 'jpg' ? 'image/jpeg' : `image/${ext}` }
-    } catch {
-      throw new ImageStudioError('unknown-source', `源图不存在：${imageId}`)
+  /**
+   * 遮罩加载：官方要求带透明通道的 PNG（其它格式上游必然拒绝），
+   * 在边界提前给出可读原因，避免白跑一次计费请求。
+   */
+  private async loadMaskImage(ref: SourceRef): Promise<InputImage> {
+    const image = await this.loadRefImage(ref)
+    if (image.mime !== 'image/png') {
+      throw new ImageStudioError(
+        'unsupported-media',
+        `遮罩必须是 PNG（当前 ${image.mime}）：请上传带透明区域的 PNG`,
+      )
     }
+    return image
   }
 
   /** 任务体：调协议适配器 → 成功入画廊。失败向上抛给 TaskRunner 记录。 */
@@ -415,6 +492,7 @@ export class ImageStudioService extends Service {
         prompt: snapshot.prompt,
         params: snapshot.params,
         sourceIds: snapshot.sourceIds,
+        sourceUploads: snapshot.sourceUploads,
       },
       images: result.images.map((image) => ({
         data: image.data,
@@ -422,6 +500,8 @@ export class ImageStudioService extends Service {
         revisedPrompt: image.revisedPrompt,
       })),
     })
+    // 入库后回收一次：本次引用的上传已被条目引用（保留），其余过期孤儿清理。
+    this.schedulePrune()
     return { galleryItemId: item.id }
   }
 
@@ -449,6 +529,55 @@ export class ImageStudioService extends Service {
     } catch {
       return null
     }
+  }
+
+  // ---------- 上传暂存区 ----------
+
+  /** 保存上传原图（端点边界已完成 MIME 嗅探与限额）。 */
+  async saveUpload(input: { name: string; mime: string; data: Uint8Array }): Promise<UploadEntry> {
+    const entry = await saveUploadEntry(input)
+    this.schedulePrune()
+    return entry
+  }
+
+  /** 上传列表（索引序，最新在后；前端自行倒序展示）。 */
+  async listUploads(): Promise<UploadEntry[]> {
+    return loadUploads(this.log)
+  }
+
+  /** 读取上传图片字节（缩略图端点；未知 id 返回 null）。 */
+  async uploadBytes(uploadId: string): Promise<{ data: Uint8Array; ext: string } | null> {
+    try {
+      return await readUploadBytes(uploadId)
+    } catch {
+      return null
+    }
+  }
+
+  /** 触发一次孤儿回收（并发调用合并为一次，失败不影响主流程）。 */
+  private schedulePrune(): void {
+    if (this.pruning !== null) return
+    this.pruning = this.pruneOrphans()
+      .catch((error: unknown) => {
+        this.log(`上传回收失败（忽略）：${error instanceof Error ? error.message : String(error)}`)
+      })
+      .finally(() => {
+        this.pruning = null
+      })
+  }
+
+  /** 保留被画廊条目引用的上传；其余超过 TTL 的回收（暂存区不无界增长）。 */
+  private async pruneOrphans(): Promise<void> {
+    const keepIds = new Set<string>()
+    for (const item of await this.gallery()) {
+      for (const id of item.sourceUploads) keepIds.add(id)
+    }
+    const removed = await pruneUploads({
+      keepIds,
+      ttlMs: this.current().uploadTtlHours * 3_600_000,
+      log: this.log,
+    })
+    if (removed > 0) this.log(`回收孤儿上传 ${removed} 个`)
   }
 
   dispose(): void {

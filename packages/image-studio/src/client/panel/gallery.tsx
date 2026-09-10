@@ -7,7 +7,7 @@ import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { IconDownload, IconRefreshOutline16, IconTrashOutline16 } from '@dsh-plus/shared/client'
 import { type ReactElement, useState } from 'react'
 import type { GalleryItem } from '../../gallery/store.ts'
-import { deleteGalleryItem, imageUrl } from '../api.ts'
+import { deleteGalleryItem, imageUrl, uploadImageUrl } from '../api.ts'
 import type { Translate } from '../i18n.ts'
 
 interface GalleryViewProps {
@@ -98,13 +98,18 @@ function GalleryDetail(props: {
           <div className="ims-detailInfo">
             <h4 className="ims-detailLabel">{t('gallery.detail.prompt')}</h4>
             <p className="ims-detailPrompt">{item.prompt}</p>
-            {item.sourceIds.length > 0 ? (
+            {item.sourceIds.length + item.sourceUploads.length > 0 ? (
               <>
                 <h4 className="ims-detailLabel">{t('gallery.detail.sources')}</h4>
                 <div className="ims-sources">
                   {item.sourceIds.map((imageId) => (
                     <span key={imageId} className="ims-thumb">
                       <img src={imageUrl(imageId)} alt="" />
+                    </span>
+                  ))}
+                  {item.sourceUploads.map((uploadId) => (
+                    <span key={uploadId} className="ims-thumb" title={t('sources.uploaded')}>
+                      <img src={uploadImageUrl(uploadId)} alt="" />
                     </span>
                   ))}
                 </div>

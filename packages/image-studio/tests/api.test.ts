@@ -1,6 +1,7 @@
 /**
  * HTTP 端点路由集成测：经真实 node:http 请求打 FakeWebServer 捕获的 handler，
- * 验证 generate/tasks/gallery/images/credentials/providers/presets 全路由与错误映射。
+ * 验证 generate/tasks/gallery/images/uploads/credentials/providers/presets
+ * 全路由与错误映射。
  */
 import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -10,6 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { Context, Service } from '@deepseek-ai/cordis'
+import { readBinaryBody } from '../src/api.ts'
 import { Config, type ImageStudioConfig } from '../src/config.ts'
 import { ImageStudioService } from '../src/service.ts'
 
@@ -97,6 +99,8 @@ interface Harness {
   httpServer: Server
   upstream: Server
   upstreamBase: string
+  /** 上游收到的原始请求（`url\0body`），断言请求形态用。 */
+  upstreamBodies: string[]
   dispose: () => void
 }
 
@@ -136,6 +140,7 @@ async function makeHarness(): Promise<Harness> {
     httpServer,
     upstream: upstream.server,
     upstreamBase: upstream.baseUrl,
+    upstreamBodies: upstream.bodies,
     dispose: () => {
       httpServer.close()
       upstream.server.close()
@@ -325,4 +330,182 @@ test('presets：只读快照端点', async () => {
   } finally {
     harness.dispose()
   }
+})
+
+/** 上传一张 PNG（raw body + query 文件名），返回响应体。 */
+async function uploadPng(
+  harness: Harness,
+  name = 'ref.png',
+  bytes: Uint8Array = PNG_1PX,
+): Promise<{ status: number; body: unknown }> {
+  return call(harness, `/uploads?name=${encodeURIComponent(name)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/octet-stream' },
+    // Buffer 视图满足 BodyInit（Uint8Array<ArrayBufferLike> 不被 DOM 类型接受）。
+    body: Buffer.from(bytes),
+  })
+}
+
+test('uploads：原图上传 → 列表/缩略图可达，非图片与超限被拒', async () => {
+  const harness = await makeHarness()
+  try {
+    const created = await uploadPng(harness, '参考图.png')
+    assert.equal(created.status, 201)
+    const entry = created.body as { id: string; name: string; mime: string; size: number }
+    assert.match(entry.id, /^[0-9a-f-]{36}$/)
+    assert.equal(entry.name, '参考图.png', '原始文件名经 query 保留')
+    assert.equal(entry.mime, 'image/png', 'MIME 由魔数嗅探决定')
+    assert.equal(entry.size, PNG_1PX.byteLength)
+
+    const list = await call(harness, '/uploads')
+    assert.equal(list.status, 200)
+    assert.equal((list.body as { total: number }).total, 1)
+
+    const thumb = await call(harness, `/uploads/${entry.id}`)
+    assert.equal(thumb.status, 200)
+    assert.match(thumb.contentType ?? '', /image\/png/)
+    assert.ok((thumb.body as Uint8Array).byteLength > 0)
+
+    // 伪装成图片的文本：魔数嗅探拒绝（415），不落盘。
+    const fake = await uploadPng(harness, 'fake.png', new TextEncoder().encode('not an image'))
+    assert.equal(fake.status, 415)
+    assert.equal((fake.body as { error: string }).error, 'unsupported-media')
+    const afterFake = await call(harness, '/uploads')
+    assert.equal((afterFake.body as { total: number }).total, 1, '被拒的上传不得进索引')
+
+    // 未知上传 id：404。
+    const missing = await call(harness, '/uploads/3f2504e0-4f89-11d3-9a0c-0305e82c3301')
+    assert.equal(missing.status, 404)
+  } finally {
+    harness.dispose()
+  }
+})
+
+test('edit：本地文件上传的源图可直接作为 edits 输入', async () => {
+  const harness = await makeHarness()
+  try {
+    const created = await uploadPng(harness, 'source.png')
+    const uploadId = (created.body as { id: string }).id
+    const before = harness.upstreamBodies.length
+    const accepted = await call(harness, '/generate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        providerPresetId: 'packy',
+        endpoint: 'edit',
+        prompt: '把背景换成海滩',
+        sources: [{ kind: 'upload', id: uploadId }],
+      }),
+    })
+    assert.equal(accepted.status, 202)
+    const { taskId } = accepted.body as { taskId: string }
+    let wire: { state: string } | null = null
+    for (let i = 0; i < 100; i += 1) {
+      await new Promise((r) => setTimeout(r, 20))
+      wire = (await call(harness, `/tasks/${taskId}`)).body as { state: string }
+      if (wire.state === 'succeeded' || wire.state === 'failed') break
+    }
+    assert.equal(wire?.state, 'succeeded')
+    const editBody = harness.upstreamBodies[before] ?? ''
+    assert.match(editBody, /\/v1\/images\/edits/)
+    assert.match(editBody, /name="image"/, '上传源图应作为 multipart image 字段发出')
+    // 衍生链：上传引用记入条目（画廊 imageId 未参与本任务）。
+    const items = (await call(harness, '/gallery')).body as {
+      items: Array<{ prompt: string; sourceIds: string[]; sourceUploads: string[] }>
+    }
+    const item = items.items.find((entry) => entry.prompt === '把背景换成海滩')
+    assert.deepEqual(item?.sourceUploads, [uploadId])
+    assert.deepEqual(item?.sourceIds, [])
+  } finally {
+    harness.dispose()
+  }
+})
+
+test('边界：源图引用形态非法（未知 kind / 非 uuid）拒绝', async () => {
+  const harness = await makeHarness()
+  try {
+    for (const sources of [
+      [{ kind: 'weird', id: '3f2504e0-4f89-11d3-9a0c-0305e82c3301' }],
+      [{ kind: 'gallery', id: '../../etc/passwd' }],
+      [{ kind: 'upload', id: 'nope' }],
+    ]) {
+      const res = await call(harness, '/generate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          providerPresetId: 'packy',
+          endpoint: 'edit',
+          prompt: 'x',
+          sources,
+        }),
+      })
+      assert.equal(res.status, 400, `${JSON.stringify(sources)} 应被拒绝`)
+      assert.equal((res.body as { error: string }).error, 'invalid-request')
+    }
+    // 非数组形态同样按 invalid-request 拒绝（不落到 500）。
+    for (const sources of ['not-an-array', null, 42]) {
+      const res = await call(harness, '/generate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ providerPresetId: 'packy', endpoint: 'edit', prompt: 'x', sources }),
+      })
+      assert.equal(res.status, 400, `${JSON.stringify(sources)} 应被拒绝`)
+      assert.equal((res.body as { error: string }).error, 'invalid-request')
+    }
+    // 不存在的上传 id：形态合法但查无此图。
+    const ghost = await call(harness, '/generate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        providerPresetId: 'packy',
+        endpoint: 'edit',
+        prompt: 'x',
+        sources: [{ kind: 'upload', id: '3f2504e0-4f89-11d3-9a0c-0305e82c3301' }],
+      }),
+    })
+    assert.equal(ghost.status, 400)
+    assert.equal((ghost.body as { error: string }).error, 'unknown-source')
+  } finally {
+    harness.dispose()
+  }
+})
+
+test('遮罩边界：非 PNG 遮罩在提交前拒绝（不用白跑一次计费请求）', async () => {
+  const harness = await makeHarness()
+  try {
+    // JP/WebP 遮罩（含上传通道）一律拒绝：官方 mask 必须是带透明的 PNG。
+    const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46])
+    const uploaded = await uploadPng(harness, 'mask.jpg', jpeg)
+    assert.equal(uploaded.status, 201)
+    const uploadId = (uploaded.body as { id: string; mime: string }).id
+    assert.equal((uploaded.body as { mime: string }).mime, 'image/jpeg')
+    const rejected = await call(harness, '/generate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        providerPresetId: 'packy',
+        endpoint: 'edit',
+        prompt: 'x',
+        sources: [{ kind: 'upload', id: uploadId }],
+        mask: { kind: 'upload', id: uploadId },
+      }),
+    })
+    assert.equal(rejected.status, 415)
+    assert.equal((rejected.body as { error: string }).error, 'unsupported-media')
+    assert.match((rejected.body as { message: string }).message, /PNG/)
+  } finally {
+    harness.dispose()
+  }
+})
+
+test('readBinaryBody：超过限额即中止（不依赖构造 50MB 负载）', async () => {
+  const { Readable } = await import('node:stream')
+  const chunks = [Buffer.alloc(64, 1), Buffer.alloc(64, 2)]
+  const stream = Readable.from(chunks) as unknown as IncomingMessage
+  await assert.rejects(
+    () => readBinaryBody(stream, 100),
+    (error: Error) => error.message.includes('上限'),
+  )
+  const ok = Readable.from([Buffer.alloc(32, 7)]) as unknown as IncomingMessage
+  assert.equal((await readBinaryBody(ok, 100)).byteLength, 32)
 })

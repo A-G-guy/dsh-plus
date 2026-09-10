@@ -13,6 +13,8 @@ export const ERROR_CODES = [
   'task-not-runnable',
   'credential-unavailable',
   'settings-unavailable',
+  'unsupported-media',
+  'upload-too-large',
   'provider-error',
 ] as const
 
@@ -41,6 +43,10 @@ export function statusOfCode(code: string): number {
     case 'credential-unavailable':
     case 'settings-unavailable':
       return 409
+    case 'unsupported-media':
+      return 415
+    case 'upload-too-large':
+      return 413
     default:
       return 500
   }

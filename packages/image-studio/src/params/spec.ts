@@ -5,7 +5,8 @@
  * @module image-studio/params/spec
  */
 import type { ImageEndpoint } from '../provider/types.ts'
-import { paramEntryOf } from './catalog.ts'
+import { type ParamRuleId, paramEntryOf } from './catalog.ts'
+import { checkImageSize, normalizeImageSize } from './size.ts'
 
 /** 单参数的开关 + 自定义值。 */
 export interface ParamSpec {
@@ -36,7 +37,7 @@ export function validateParamValue(key: string, value: unknown): unknown {
       if (typeof value !== 'string' || value.length === 0) {
         throw new ParamValidationError(key, '必须是非空字符串')
       }
-      return value
+      return validateRule(entry.rules, key, value)
     case 'enum':
       if (typeof value !== 'string' || !entry.values?.includes(value)) {
         throw new ParamValidationError(key, `必须是 ${entry.values?.join(' | ') ?? '枚举值'} 之一`)
@@ -58,6 +59,20 @@ export function validateParamValue(key: string, value: unknown): unknown {
       if (typeof value !== 'boolean') throw new ParamValidationError(key, '必须是布尔值')
       return value
   }
+}
+
+/**
+ * 结构化值域规则分派（目录声明 → 校验实现单一入口）。
+ * 无规则的参数原样返回；规则拒绝时错误消息即为面向用户的原因。
+ */
+function validateRule(rule: ParamRuleId | undefined, key: string, value: string): string {
+  if (rule === 'image-size') {
+    const checked = checkImageSize(value)
+    if (!checked.ok) throw new ParamValidationError(key, checked.message)
+    // 规范化落库/出站：小写 x、无空白（上游按字面解析尺寸串）。
+    return normalizeImageSize(value)
+  }
+  return value
 }
 
 /**

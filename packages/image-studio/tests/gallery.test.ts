@@ -12,12 +12,12 @@ import { test } from 'node:test'
 import { credentialRefNameOf, isValidPresetId } from '../src/credentials.ts'
 import {
   deleteGalleryItem,
-  extOfMime,
   itemOfImage,
   loadGallery,
   readImageBytes,
   saveGalleryItem,
 } from '../src/gallery/store.ts'
+import { extOfMime } from '../src/images/mime.ts'
 
 const PNG_1PX = Uint8Array.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -52,6 +52,7 @@ test('画廊保存与读取：图片落盘 + 元数据 JSONL 追加', async () =
         prompt: '一只橘猫',
         params: { size: '1024x1024', quality: 'high' },
         sourceIds: [],
+        sourceUploads: [],
       },
       images: [{ data: PNG_1PX, mime: 'image/png', revisedPrompt: '改写' }],
     })
@@ -88,6 +89,7 @@ test('画廊删除：图片文件与 JSONL 行一并移除', async () => {
         prompt: 'p1',
         params: {},
         sourceIds: [],
+        sourceUploads: [],
       },
       images: [{ data: PNG_1PX, mime: 'image/png', revisedPrompt: null }],
     })
@@ -100,6 +102,7 @@ test('画廊删除：图片文件与 JSONL 行一并移除', async () => {
         prompt: 'p2',
         params: {},
         sourceIds: [],
+        sourceUploads: [],
       },
       images: [{ data: PNG_1PX, mime: 'image/png', revisedPrompt: null }],
     })
@@ -129,6 +132,7 @@ test('imageId 反查条目（二次编辑定位）与未知图报错', async () 
         prompt: 'edit prompt',
         params: {},
         sourceIds: [],
+        sourceUploads: [],
       },
       images: [{ data: PNG_1PX, mime: 'image/jpeg', revisedPrompt: null }],
     })

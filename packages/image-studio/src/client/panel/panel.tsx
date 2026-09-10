@@ -188,7 +188,10 @@ export function StudioPanel(props: StudioPanelProps): ReactElement | null {
             onRefresh={reloadGallery}
             onEdit={(item) =>
               studio.seedEdit({
-                sourceIds: [...item.imageIds],
+                sources: [
+                  ...item.imageIds.map((id) => ({ kind: 'gallery' as const, id })),
+                  ...item.sourceUploads.map((id) => ({ kind: 'upload' as const, id })),
+                ],
                 prompt: item.prompt,
                 params: item.params,
                 providerPresetId: item.providerPresetId,

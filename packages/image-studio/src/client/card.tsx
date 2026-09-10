@@ -59,6 +59,7 @@ interface Draft {
   requestTimeoutMs: string
   proxy: string
   galleryMaxItems: string
+  uploadTtlHours: string
 }
 
 /** 配置值 → 编辑草稿。 */
@@ -83,6 +84,7 @@ function draftOf(value: ImageStudioConfig): Draft {
     requestTimeoutMs: String(value.requestTimeoutMs),
     proxy: value.proxy,
     galleryMaxItems: String(value.galleryMaxItems),
+    uploadTtlHours: String(value.uploadTtlHours),
   }
 }
 
@@ -122,6 +124,7 @@ function payloadOf(draft: Draft): Record<string, unknown> {
     requestTimeoutMs: Math.max(10_000, Math.floor(Number(draft.requestTimeoutMs) || 300_000)),
     proxy: draft.proxy,
     galleryMaxItems: Math.max(0, Math.floor(Number(draft.galleryMaxItems) || 0)),
+    uploadTtlHours: Math.max(1, Math.floor(Number(draft.uploadTtlHours) || 24)),
   }
 }
 
@@ -579,6 +582,15 @@ export function StudioConfigCard(props: CardProps): ReactElement | null {
           onEdit={(v) => patch({ galleryMaxItems: v })}
         />
       </div>
+      <TextField
+        prefix="imsc"
+        id="imsc-upload-ttl"
+        label={t('card.uploadTtlHours')}
+        numeric
+        value={draft.uploadTtlHours}
+        disabled={disabled}
+        onEdit={(v) => patch({ uploadTtlHours: v })}
+      />
     </CardChrome>
   )
 }

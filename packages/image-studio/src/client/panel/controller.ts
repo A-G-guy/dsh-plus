@@ -5,13 +5,15 @@
  * @module image-studio/client/panel/controller
  */
 
+import type { SourceRef } from '../../dto.ts'
+
 /** 面板标签页。 */
 export type StudioTab = 'generation' | 'edit' | 'gallery'
 
 /** 二次编辑种子（画廊条目 → 图生图表单回填）。 */
 export interface EditSeed {
-  /** 源图 imageId 列表（≤16）。 */
-  sourceIds: string[]
+  /** 源图引用（≤16；画廊图片与本地上传混用）。 */
+  sources: SourceRef[]
   /** 历史提示词回填。 */
   prompt: string
   /** 历史请求参数回填（画廊条目 params 快照）。 */

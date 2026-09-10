@@ -59,6 +59,12 @@ export const Config = z.object({
     .max(10_000)
     .description('画廊保留上限（条，0 = 不清理；超限按最旧删除）')
     .default(500),
+  uploadTtlHours: z
+    .number()
+    .min(1)
+    .max(720)
+    .description('上传原图保留时长（小时；未被画廊条目引用的超期即回收）')
+    .default(24),
 })
 
 export type ImageStudioConfig = Schemastery.TypeT<typeof Config>

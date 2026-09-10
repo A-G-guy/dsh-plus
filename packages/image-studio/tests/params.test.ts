@@ -106,3 +106,53 @@ test('paramKeysFor 按端点过滤', () => {
   assert.ok(!editKeys.includes('style'))
   assert.ok(paramEntryOf('style') !== null)
 })
+
+test('size 参数在边界按官方尺寸规则拒绝（目录 rules 驱动）', () => {
+  // 合法：auto 与 16 倍数的自定义尺寸。
+  assert.deepEqual(normalizeParamSpecs({ size: { enabled: true, value: 'auto' } }, 'generation'), {
+    size: 'auto',
+  })
+  assert.deepEqual(normalizeParamSpecs({ size: { enabled: true, value: '1536x1024' } }, 'edit'), {
+    size: '1536x1024',
+  })
+  // 非法：非 16 倍数 / 超长边 / 比例越界 / 畸形，均在提交前拦下并给出原因。
+  assert.throws(
+    () => normalizeParamSpecs({ size: { enabled: true, value: '1000x1000' } }, 'generation'),
+    /16 的倍数/,
+  )
+  assert.throws(
+    () => normalizeParamSpecs({ size: { enabled: true, value: '4096x2160' } }, 'generation'),
+    /长边/,
+  )
+  assert.throws(
+    () => normalizeParamSpecs({ size: { enabled: true, value: '3840x1024' } }, 'generation'),
+    /宽高比/,
+  )
+  assert.throws(
+    () => normalizeParamSpecs({ size: { enabled: true, value: '1024' } }, 'generation'),
+    /宽x高/,
+  )
+  // 两侧空白在归一化时裁剪（用户复制粘贴容错）。
+  assert.deepEqual(
+    normalizeParamSpecs({ size: { enabled: true, value: ' 2048X1152 ' } }, 'generation'),
+    { size: '2048x1152' },
+  )
+  // 参数预设同样受规则约束（另存前本地校验）。
+  assert.throws(
+    () => validateParamSpecs({ size: { enabled: true, value: '999x999' } }),
+    /16 的倍数/,
+  )
+})
+
+test('quality 目录覆盖 image 2.5 高档位（xhigh/max）', () => {
+  const entry = paramEntryOf('quality')
+  assert.deepEqual(entry?.values, ['auto', 'low', 'medium', 'high', 'xhigh', 'max'])
+  assert.deepEqual(
+    normalizeParamSpecs({ quality: { enabled: true, value: 'max' } }, 'generation'),
+    { quality: 'max' },
+  )
+  assert.throws(
+    () => normalizeParamSpecs({ quality: { enabled: true, value: 'ultra' } }, 'generation'),
+    /必须是/,
+  )
+})

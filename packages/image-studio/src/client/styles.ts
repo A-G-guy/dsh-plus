@@ -235,6 +235,32 @@ export const imageStudioCss = `
   white-space: nowrap;
 }
 .ims-paramControl { width: 132px; flex: none; min-height: 30px; padding: 4px 8px; }
+.ims-inputInvalid {
+  border-color: var(--dsw-alias-state-error-primary);
+}
+.ims-paramValue { display: grid; gap: 4px; justify-items: end; }
+.ims-paramPresets { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.ims-chip {
+  padding: 1px 6px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--ds-font-family-code);
+  font-size: 10px;
+  line-height: 16px;
+  cursor: pointer;
+}
+.ims-chip:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.ims-chipOn {
+  border-color: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-brand-primary);
+}
+.ims-paramWarn {
+  margin-top: 2px;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 11px;
+}
 .ims-adv { margin-top: 8px; }
 .ims-advSummary {
   cursor: pointer;
@@ -360,6 +386,30 @@ export const imageStudioCss = `
   border-top: 1px solid var(--dsw-alias-border-l3);
 }
 .ims-subFoot .ims-status { margin: 0 auto 0 0; }
+
+/* 选择器来源切换（画廊 / 本地上传） */
+.ims-seg {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  padding: 8px 14px 0;
+}
+.ims-segItem {
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.ims-segItem:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.ims-segItemOn {
+  border-color: var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+}
 
 /* 选择器网格 */
 .ims-pickerGrid {
