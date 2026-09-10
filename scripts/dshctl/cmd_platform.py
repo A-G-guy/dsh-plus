@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import time
@@ -22,8 +23,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from .common import (PACKAGES_DIR, PROD_WEB_SERVICE, fail, read_json, run,
-                     write_json)
+from .common import (PACKAGES_DIR, PROD_WEB_SERVICE, _local_value, fail,
+                     read_json, run, write_json)
 
 # dsh 版本线包名前缀（与 common.PLATFORM_DSH_LINE 同义，局部常量避免循环依赖误导）。
 DSH_LINE = "@deepseek-ai/dsh"
@@ -219,6 +220,13 @@ GATE_UNIT_DROPIN = "/etc/systemd/system/dsh-web.service.d/20-cli-upgrade-gate.co
 NPM_BIN = Path.home() / ".npm-global/bin/npm"
 DSH_BIN_PATH = Path.home() / ".npm-global/bin/dsh"
 
+# shell 环境单一来源（zsh/bash 共享）。闸门脚本是 20- drop-in 覆盖后的实际
+# ExecStart，10-shell-env.conf 里的 source 会被顶掉，故由闸门自行注入：
+# bash 工具继承 dsh 进程环境，不注入则只剩 systemd 默认 PATH。
+SHELL_ENV_FILE = Path(os.environ.get("DSHCTL_SHELL_ENV_FILE")
+                      or _local_value("SHELL_ENV_FILE")
+                      or Path.home() / ".config/shell/env.sh")
+
 # systemd drop-in：清空原 ExecStart 改走闸门 wrapper（升级完成/失败均直通启动
 # dsh），并放宽启动超时——npm 完整重装闭包可能耗时 1-3 分钟。
 GATE_DROPIN_TEMPLATE = """# dshctl upgrade-cli --defer 安装的 CLI 升级闸门（幂等，可安全删除以还原）：
@@ -229,13 +237,23 @@ ExecStart={gate} web --trusted-host miniserver.tail27b689.ts.net
 TimeoutStartSec=600
 """
 
-# 闸门脚本：存在标记 → npm 升级（失败保留标记待下次 reload 重试，不阻塞启动）
-# → dsh --version 校验 → 清标记；随后 exec 原 dsh 入口。绝对路径避免服务环境 PATH 差异。
+# 闸门脚本：先注入 shell 环境 → 存在标记则 npm 升级（失败保留标记待下次 reload
+# 重试，不阻塞启动）→ dsh --version 校验 → 清标记；随后 exec 原 dsh 入口。
+# 绝对路径避免服务环境 PATH 差异。
 GATE_SCRIPT_TEMPLATE = """#!/usr/bin/env bash
 # dshctl 安装的 CLI 升级闸门：dsh-web 服务启动前置钩子。
 # 存在 $DSH_HOME/pending-cli-upgrade.json 时先升级全局 CLI（此时无 dsh 进程，
 # 替换全局包文件安全），再启动 dsh。升级失败不阻塞启动（保留标记待重试）。
 set -u
+# 环境注入：本脚本是 20- drop-in 覆盖后的实际 ExecStart，10-shell-env.conf 的
+# source 已被顶掉，须在此恢复同一份 shell 环境来源——否则 dsh 进程只拿到 systemd
+# 默认 PATH，bash 工具随之缺 PATH/ANDROID_HOME 等变量。取源期间临时关闭 -u
+# （用户环境文件常引用未定义变量），任何失败都不阻塞启动。
+if [ -f "{env_file}" ]; then
+  set +u
+  . "{env_file}" || true
+  set -u
+fi
 GATE_FILE="$HOME/.dsh/pending-cli-upgrade.json"
 LOG="$HOME/.dsh/logs/cli-upgrade.log"
 if [ -f "$GATE_FILE" ]; then
@@ -267,11 +285,17 @@ def _current_cli_version() -> str:
     return (proc.stdout or proc.stderr or "").strip() or "unknown"
 
 
+def _gate_script_text() -> str:
+    """闸门脚本文本（模板填充的唯一入口，避免线上脚本与模板漂移）。"""
+    return GATE_SCRIPT_TEMPLATE.format(NPM=NPM_BIN, DSH=DSH_BIN_PATH,
+                                       env_file=SHELL_ENV_FILE)
+
+
 def _ensure_gate_installed() -> None:
     """确保闸门脚本与 systemd drop-in 就位（幂等）。"""
     GATE_SCRIPT.parent.mkdir(parents=True, exist_ok=True)
     GATE_LOG.parent.mkdir(parents=True, exist_ok=True)
-    script = GATE_SCRIPT_TEMPLATE.format(NPM=NPM_BIN, DSH=DSH_BIN_PATH)
+    script = _gate_script_text()
     if not GATE_SCRIPT.exists() or GATE_SCRIPT.read_text(encoding="utf-8") != script:
         GATE_SCRIPT.write_text(script, encoding="utf-8")
     GATE_SCRIPT.chmod(0o755)

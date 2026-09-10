@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -170,7 +171,8 @@ class TestDeferUpgradeGate(unittest.TestCase):
     def test_gate_script_template_uses_absolute_bins_and_exec(self):
         script = cmd_platform.GATE_SCRIPT_TEMPLATE.format(
             NPM="/home/agguy/.npm-global/bin/npm",
-            DSH="/home/agguy/.npm-global/bin/dsh")
+            DSH="/home/agguy/.npm-global/bin/dsh",
+            env_file="/home/agguy/.config/shell/env.sh")
         self.assertIn("npm install -g", script)
         self.assertIn("pending-cli-upgrade.json", script)
         self.assertIn("exec /home/agguy/.npm-global/bin/dsh", script)
@@ -183,6 +185,71 @@ class TestDeferUpgradeGate(unittest.TestCase):
         self.assertIn("ExecStart=\n", dropin)
         self.assertIn("ExecStart=/home/agguy/.dsh/scripts/dsh-web-cli-gate.sh", dropin)
         self.assertIn("TimeoutStartSec=600", dropin)
+
+
+def _render_gate_script(tmp: Path) -> tuple[Path, Path]:
+    """把闸门脚本渲染进临时目录，返回 (脚本路径, 隔离的 HOME)。
+
+    假 dsh 回显 PATH 与探针变量，用于断言环境是否真正传到了 exec 后的进程；
+    HOME 隔离后不存在待升级标记，闸门走直通分支，不会调用 npm。
+    """
+    home = tmp / "home"
+    home.mkdir()
+    env_file = tmp / "env.sh"
+    env_file.write_text(f'PATH="{tmp}/custom-bin:$PATH"\nexport PATH\n'
+                        "export DSH_GATE_PROBE=injected\n", encoding="utf-8")
+    fake_dsh = tmp / "dsh"
+    fake_dsh.write_text('#!/usr/bin/env bash\nprintf "PATH=%s\\n" "$PATH"\n'
+                        'printf "PROBE=%s\\n" "${DSH_GATE_PROBE:-unset}"\n',
+                        encoding="utf-8")
+    fake_dsh.chmod(0o755)
+    script = tmp / "gate.sh"
+    script.write_text(cmd_platform.GATE_SCRIPT_TEMPLATE.format(
+        NPM=tmp / "npm-must-not-run", DSH=fake_dsh, env_file=env_file),
+        encoding="utf-8")
+    script.chmod(0o755)
+    return script, home
+
+
+def _run_gate(script: Path, home: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(["bash", str(script)], capture_output=True, text=True,
+                          env={"HOME": str(home), "PATH": "/usr/bin:/bin"})
+
+
+class TestGateScriptShellEnv(unittest.TestCase):
+    """闸门覆盖了 10-shell-env.conf 的 ExecStart，须自行把 shell 环境送进 dsh 进程。
+
+    否则 bash 工具继承到的只有 systemd 默认 PATH，缺 ~/.npm-global/bin、
+    ~/.bun/bin、ANDROID_HOME 等，模型每次都得手动 export。
+    """
+
+    def test_shell_env_reaches_exec_dsh(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script, home = _render_gate_script(tmp)
+            proc = _run_gate(script, home)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertIn(f"PATH={tmp}/custom-bin:", proc.stdout)
+            self.assertIn("PROBE=injected", proc.stdout)
+
+    def test_undefined_variable_in_shell_env_does_not_block_start(self):
+        # set -u 下取源引用未定义变量会直接终止脚本，闸门到不了 exec，服务起不来
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script, home = _render_gate_script(tmp)
+            (tmp / "env.sh").write_text('echo "$DSH_GATE_UNDEFINED"\n', encoding="utf-8")
+            proc = _run_gate(script, home)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertIn("PROBE=unset", proc.stdout)
+
+    def test_missing_shell_env_file_still_starts(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            script, home = _render_gate_script(tmp)
+            (tmp / "env.sh").unlink()
+            proc = _run_gate(script, home)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertIn("PROBE=unset", proc.stdout)
 
 
 if __name__ == "__main__":
