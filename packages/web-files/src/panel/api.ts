@@ -22,13 +22,14 @@ import { ROUTE_PREFIX } from '../protocol.ts'
 
 /** 携带服务端错误码的 API 错误（客户端据 code 分支冲突/二进制等）。 */
 export class FilesApiError extends Error {
-  constructor(
-    message: string,
-    readonly code: FilesErrorCode | undefined,
-    readonly status: number,
-  ) {
+  readonly code: FilesErrorCode | undefined
+  readonly status: number
+
+  constructor(message: string, code: FilesErrorCode | undefined, status: number) {
     super(message)
     this.name = 'FilesApiError'
+    this.code = code
+    this.status = status
   }
 }
 

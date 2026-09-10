@@ -12,6 +12,25 @@
     "forceConsistentCasingInFileNames": true,
     "verbatimModuleSyntax": true,
 
+    // ── 严格性补强（均为零/近零存量违规，纯预防性收益）────────────────────
+    // noImplicitOverride：子类成员覆盖基类（cordis Service / Error）必须显式 override。
+    // noImplicitReturns：分支隐式返回 undefined 而非遗漏 return。
+    // noFallthroughCasesInSwitch：case 体非空却无 break/return/throw。
+    // noUnusedLocals/noUnusedParameters：biome 会豁免下划线前缀，tsc 补上该盲区。
+    // noUncheckedSideEffectImports：纯副作用导入路径写错时静态报错。
+    // erasableSyntaxOnly：禁止 enum/参数属性/namespace 等不可擦除语法——本仓
+    //   `node --test` 直接跑 .ts（依赖 Node 原生 type-stripping），这类语法会在
+    //   运行期直接抛错，而 tsc 默认不拦截。
+    // 说明：isolatedModules 与 strictBuiltinIteratorReturn 已随 verbatimModuleSyntax
+    //   与 strict 自动生效，无需（也不应）重复声明。
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedSideEffectImports": true,
+    "erasableSyntaxOnly": true,
+
     // ── 类型检查专用（dshctl typecheck：tsc --noEmit -p packages/<pkg>）────────
     // 本仓源码一律带 .ts/.tsx 扩展名导入（bundler 解析 + tsdown 打苞约定），
     // 类型检查必须开 allowImportingTsExtensions，否则每个内部导入都报 TS5097。

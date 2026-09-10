@@ -21,13 +21,15 @@ export interface PrepareInfo {
 }
 
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly preflight?: PreflightInfo,
-    readonly runningAgents?: number,
-  ) {
+  readonly status: number
+  readonly preflight?: PreflightInfo
+  readonly runningAgents?: number
+
+  constructor(message: string, status: number, preflight?: PreflightInfo, runningAgents?: number) {
     super(message)
+    this.status = status
+    this.preflight = preflight
+    this.runningAgents = runningAgents
   }
 }
 

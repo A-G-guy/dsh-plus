@@ -47,8 +47,11 @@ interface WriteResult {
 
 /** 端点错误：携带结构化错误码，UI 按码映射文案。 */
 export class ApiError extends Error {
-  constructor(readonly code: string) {
+  readonly code: string
+
+  constructor(code: string) {
     super(code)
+    this.code = code
   }
 }
 

@@ -23,13 +23,6 @@ const PNG_1PX = Uint8Array.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52,
 ])
 
-/** 每个用例独占进程级 DSH_HOME（store 模块在 import 期解析根路径，无法 per-case 切换）。 */
-function _useTempHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'image-studio-test-'))
-  process.env.DSH_HOME = home
-  return home
-}
-
 test('凭据引用名派生：kebab → 大写下划线，带属主前缀', () => {
   assert.equal(credentialRefNameOf('packy'), 'IMAGE_STUDIO_PRESET_PACKY')
   assert.equal(credentialRefNameOf('my-provider-2'), 'IMAGE_STUDIO_PRESET_MY_PROVIDER_2')
