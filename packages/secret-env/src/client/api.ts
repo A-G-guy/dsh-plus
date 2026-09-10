@@ -55,9 +55,16 @@ export class ApiError extends Error {
   }
 }
 
+/** 端点应答形状守卫：三个数组字段缺一即判非法（渲染期直接 map，不能靠断言）。 */
+function isSecretList(value: unknown): value is SecretList {
+  if (typeof value !== 'object' || value === null) return false
+  const list = value as { global?: unknown; session?: unknown; inherited?: unknown }
+  return Array.isArray(list.global) && Array.isArray(list.session) && Array.isArray(list.inherited)
+}
+
 export async function fetchSecrets(sessionId?: string): Promise<SecretList> {
   const query = sessionId === undefined ? '' : `?sessionId=${encodeURIComponent(sessionId)}`
-  return getJson<SecretList>(`/dsh-plus/secret-env/list${query}`)
+  return getJson<SecretList>(`/dsh-plus/secret-env/list${query}`, isSecretList)
 }
 
 async function write(path: string, body: Record<string, unknown>): Promise<void> {

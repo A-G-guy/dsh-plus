@@ -40,6 +40,12 @@ export {
   IconTrashOutline16,
   IconWarningOutline16,
 } from './icons.tsx'
+export type {
+  LocaleLike,
+  PluginClientContext,
+  RemoteLike,
+  SlotsLike,
+} from './plugin-context.ts'
 export {
   createNamespaceApi,
   createSettingsScope,

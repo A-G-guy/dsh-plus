@@ -34,6 +34,13 @@ interface StatusResponse {
   quarantined: string[]
 }
 
+/** 端点应答形状守卫：三字段缺一即判非法（渲染期直接 map journal/quarantined）。 */
+function isStatusResponse(value: unknown): value is StatusResponse {
+  if (typeof value !== 'object' || value === null) return false
+  const status = value as { journal?: unknown; quarantined?: unknown }
+  return Array.isArray(status.journal) && Array.isArray(status.quarantined)
+}
+
 interface InventoryRow {
   id: string
   enabled: boolean
@@ -130,7 +137,7 @@ function HealthTab(props: { t(key: string): string }): ReactElement {
   const [confirming, setConfirming] = useState<string | null>(null)
 
   const load = useCallback((): void => {
-    getJson<StatusResponse>(ROUTE_STATUS)
+    getJson<StatusResponse>(ROUTE_STATUS, isStatusResponse)
       .then((data) => {
         setStatus(data)
         setFailed(false)

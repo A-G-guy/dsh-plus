@@ -6,7 +6,9 @@
  * 收敛在本模块，组件只渲染。
  * @module web-terminal/panel/connection
  */
+
 import type { ClientMessage, ServerMessage, SessionDto } from '../protocol.ts'
+import { isServerMessage } from '../protocol.ts'
 
 export type ConnectionState = 'connecting' | 'open' | 'closed' | 'disabled'
 
@@ -161,9 +163,13 @@ export class TerminalConnection {
   }
 
   private handleMessage(raw: unknown): void {
+    // 解析与形状校验同处一个 try：畸形帧直接丢弃，不进 switch（缺 sessions
+    // 数组会在下面 .map() 抛未捕获异常，导致整面板失效）。
     let message: ServerMessage
     try {
-      message = JSON.parse(String(raw)) as ServerMessage
+      const parsed: unknown = JSON.parse(String(raw))
+      if (!isServerMessage(parsed)) return
+      message = parsed
     } catch {
       return
     }

@@ -41,8 +41,21 @@ export interface UsageData {
   rows: UsageWireRow[]
 }
 
+/** 端点应答形状守卫：rows 需为数组、sync/catalog 需为对象（渲染期直接消费）。 */
+function isUsageData(value: unknown): value is UsageData {
+  if (typeof value !== 'object' || value === null) return false
+  const data = value as { rows?: unknown; sync?: unknown; catalog?: unknown }
+  return (
+    Array.isArray(data.rows) &&
+    typeof data.sync === 'object' &&
+    data.sync !== null &&
+    typeof data.catalog === 'object' &&
+    data.catalog !== null
+  )
+}
+
 export async function fetchUsageData(): Promise<UsageData> {
-  return getJson<UsageData>('/dsh-plus/usage-panel/data')
+  return getJson<UsageData>('/dsh-plus/usage-panel/data', isUsageData)
 }
 
 export async function fetchCatalogState(): Promise<UsageCatalogState> {

@@ -18,12 +18,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import {
   createNamespaceApi,
   createSettingsScope,
-  type SettingsRemoteFace,
+  type PluginClientContext,
 } from '@dsh-plus/shared/client'
 import { SETTINGS_NS } from '../ns.ts'
 import { LlmPiCard } from './card.tsx'
-import type { Translate } from './i18n.ts'
-import { en, NS, zh } from './i18n.ts'
+import { type DictKey, en, NS, zh } from './i18n.ts'
 import { injectStyle } from './styles.ts'
 
 export const name = 'dsh-plus-llm-pi'
@@ -31,28 +30,8 @@ export const name = 'dsh-plus-llm-pi'
 /** 浏览器半需要的 cordis 服务 key（loader 据此注入；package.json 的 dsh.client.inject 管包加载顺序）。 */
 export const inject = ['slots', 'locale', 'remote', 'remote.settings'] as const
 
-interface SlotsLike {
-  inject(key: string, callback: () => unknown): unknown
-  register(options: Record<string, unknown>, component: unknown): () => void
-}
-
-interface LocaleLike {
-  register(ns: string, dict: { zh: Record<string, string>; en: Record<string, string> }): () => void
-  bind(ns: string): Translate
-}
-
-interface RemoteLike {
-  settings: SettingsRemoteFace
-  $on(event: string, listener: (payload?: unknown) => void): () => void
-}
-
-interface ClientContext {
-  slots: SlotsLike
-  locale: LocaleLike
-  get(key: 'remote'): RemoteLike
-  on(event: string, listener: () => void): () => void
-  effect(execute: () => () => void, label?: string): unknown
-}
+/** 宿主窄面收编在 @dsh-plus/shared/client；TKey 传入本包 DictKey 使键名受检。 */
+type ClientContext = PluginClientContext<DictKey>
 
 export function apply(ctx: Context): void {
   const c = ctx as unknown as ClientContext

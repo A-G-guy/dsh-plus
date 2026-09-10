@@ -38,9 +38,15 @@ export function cancelTask(taskId: string): Promise<{ ok: boolean }> {
   return postJson(`${BASE}/tasks/${taskId}/cancel`)
 }
 
+/** 画廊列表应答形状守卫：items 需为数组（渲染期直接 map）。 */
+function isGalleryList(value: unknown): value is GalleryListWire {
+  if (typeof value !== 'object' || value === null) return false
+  return Array.isArray((value as { items?: unknown }).items)
+}
+
 /** 画廊列表。 */
 export function fetchGallery(): Promise<GalleryListWire> {
-  return getJson(`${BASE}/gallery`)
+  return getJson(`${BASE}/gallery`, isGalleryList)
 }
 
 /** 画廊条目详情（含参数回放）。 */

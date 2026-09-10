@@ -114,3 +114,26 @@ export type ServerMessage =
   | { kind: 'exit'; sessionId: string; exitCode: number | null; signal: string | null }
   | { kind: 'sessions'; sessions: SessionDto[]; maxSessions: number }
   | { kind: 'error'; message: string; code?: TerminalErrorCode }
+
+/**
+ * 服务端帧运行期守卫：帧来自 WebSocket，畸形帧若仅靠断言带入 switch，
+ * 缺 sessions 数组会在 `.map()` 处抛未捕获异常而整面板失效。
+ * 只校验分发与解引用所依赖的最少字段，语义合法性仍由消费端负责。
+ */
+export function isServerMessage(value: unknown): value is ServerMessage {
+  if (typeof value !== 'object' || value === null) return false
+  const frame = value as { kind?: unknown; sessions?: unknown; session?: unknown }
+  switch (frame.kind) {
+    case 'attached':
+      return typeof frame.session === 'object' && frame.session !== null
+    case 'sessions':
+      return Array.isArray(frame.sessions)
+    case 'detached':
+    case 'output':
+    case 'exit':
+    case 'error':
+      return true
+    default:
+      return false
+  }
+}
