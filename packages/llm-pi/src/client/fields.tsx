@@ -84,6 +84,64 @@ export function TextField(props: TextFieldProps): ReactElement {
   )
 }
 
+export interface IntegerFieldProps {
+  id: string
+  label: string
+  hint?: string
+  invalidLabel: string
+  value: unknown
+  /** 放弃/保存后外部重置草稿时自增，驱动本地文本重新播种。 */
+  epoch: number
+  disabled?: boolean
+  wide?: boolean
+  /** 合法整数回调整数；空输入与非法输入回调 undefined。 */
+  onEdit(value: unknown): void
+}
+
+/**
+ * 整数字段：compat 的数值型开关（如 vllmPriority，官方 z.number().step(1)）。
+ * 本地保留文本态（与 JsonField 同款 epoch 播种），仅在解析为整数时回写草稿——
+ * 小数/非数字显示错误且不提交，与服务端 checkValue 的整数语义一致
+ * （后端仍做最终校验）。
+ */
+export function IntegerField(props: IntegerFieldProps): ReactElement {
+  const [text, setText] = useState(() => (props.value === undefined ? '' : String(props.value)))
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 仅在 epoch 递增（外部重置语义）时同步文本，避免编辑中被 value 回写打断
+  useEffect(() => {
+    setText(props.value === undefined ? '' : String(props.value))
+  }, [props.epoch])
+  const trimmed = text.trim()
+  const parsed = trimmed === '' ? undefined : Number(trimmed)
+  const ok = trimmed === '' || (parsed !== undefined && Number.isInteger(parsed))
+  return (
+    <div className={`lpc-field${props.wide === true ? ' lpc-wide' : ''}`}>
+      <div className="lpc-head">
+        <label className="lpc-label" htmlFor={props.id}>
+          {props.label}
+        </label>
+      </div>
+      <input
+        id={props.id}
+        className={`lpc-input${ok ? '' : ' lpc-inputInvalid'}`}
+        type="text"
+        inputMode="numeric"
+        aria-invalid={ok ? undefined : true}
+        value={text}
+        disabled={props.disabled === true}
+        onChange={(event) => {
+          const next = event.target.value
+          setText(next)
+          const value = next.trim() === '' ? undefined : Number(next.trim())
+          props.onEdit(value !== undefined && Number.isInteger(value) ? value : undefined)
+        }}
+      />
+      <p className={ok ? 'lpc-hint' : 'lpc-invalid'}>
+        {ok ? (props.hint ?? '') : props.invalidLabel}
+      </p>
+    </div>
+  )
+}
+
 export interface SelectFieldProps {
   id: string
   label: string

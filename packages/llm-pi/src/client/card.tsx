@@ -18,6 +18,7 @@ import {
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { type ConfigValue, fetchCatalog, refreshCatalog, type WireModelsDevStatus } from './api.ts'
+import { installCompatFields } from './constants.ts'
 import {
   type Draft,
   draftFromValue,
@@ -65,6 +66,7 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
   }, [value, draft])
 
   // 运行期诊断行（kitSource / models-dev 状态）来自模型目录端点，非配置数据。
+  // compat 字段表同批下发：安装后 UI 渲染与服务端校验同源（不再手抄镜像表）。
   useEffect(() => {
     let alive = true
     fetchCatalog('', 'models-dev')
@@ -72,6 +74,7 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
         if (!alive) return
         setKitSource(result.kitSource ?? null)
         setModelsDevStatus(result.status ?? null)
+        if (result.compat !== undefined) installCompatFields(result.compat.fields)
       })
       .catch(() => {})
     return () => {

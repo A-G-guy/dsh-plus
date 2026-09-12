@@ -27,69 +27,29 @@ export const TRANSPORT_OPTIONS = ['sse', 'websocket', 'websocket-cached', 'auto'
 /** thinkingBudgets 档位键（来源：config.ts thinkingBudgets）。 */
 export const BUDGET_KEYS = ['minimal', 'low', 'medium', 'high'] as const
 
-type CompatValue = 'boolean' | 'object' | readonly string[]
+export type CompatValue = 'boolean' | 'integer' | 'number' | 'object' | readonly string[]
 
 /**
- * 逐协议 compat 字段表（来源：compat.ts，逐字段镜像官方 catalog.ts COMPAT_GATES）。
- * 只列 offer 字段（withhold 字段官方写时拒绝，UI 不提供）；取值约束对齐官方
- * config.ts compatProfile schema。
+ * 逐协议 compat 字段表：**服务端推导结果经 /catalog 下发**，浏览器半不再手抄
+ * （手抄遗漏官方新增字段 = UI 不渲染 + 保存被后端拒绝；见 compat-gates.ts）。
+ * 未拿到服务端表时用 EMPTY（UI 只渲染提示行），不放内置副本兜底——宁可少画
+ * 控件，也不给出可能与官方不符的字段集。
  */
-const COMPAT_FIELDS: Record<string, Record<string, CompatValue>> = {
-  'openai-completions': {
-    supportsStore: 'boolean',
-    supportsDeveloperRole: 'boolean',
-    supportsReasoningEffort: 'boolean',
-    supportsUsageInStreaming: 'boolean',
-    supportsFinishReason: 'boolean',
-    maxTokensField: ['max_completion_tokens', 'max_tokens'],
-    requiresToolResultName: 'boolean',
-    requiresAssistantAfterToolResult: 'boolean',
-    requiresThinkingAsText: 'boolean',
-    requiresReasoningContentOnAssistantMessages: 'boolean',
-    thinkingFormat: [
-      'openai',
-      'deepseek',
-      'openrouter',
-      'together',
-      'baseten',
-      'zai',
-      'qwen',
-      'chat-template',
-      'qwen-chat-template',
-      'string-thinking',
-      'ant-ling',
-    ],
-    chatTemplateKwargs: 'object',
-    chatTemplateArgs: 'object',
-    supportsThinkingTokenBudget: 'boolean',
-    supportsStrictMode: 'boolean',
-    cacheControlFormat: ['anthropic'],
-    supportsLongCacheRetention: 'boolean',
-  },
-  'openai-responses': {
-    supportsDeveloperRole: 'boolean',
-    supportsStrictMode: 'boolean',
-    supportsLongCacheRetention: 'boolean',
-  },
-  'anthropic-messages': {
-    supportsEagerToolInputStreaming: 'boolean',
-    supportsLongCacheRetention: 'boolean',
-    supportsCacheControlOnTools: 'boolean',
-    supportsTemperature: 'boolean',
-    forceAdaptiveThinking: 'boolean',
-    allowEmptySignature: 'boolean',
-    supportsStrictTools: 'boolean',
-  },
+let compatTable: Record<string, Record<string, CompatValue>> = {}
+
+/** 安装服务端下发的字段表（card 挂载/刷新目录时调用）。 */
+export function installCompatFields(table: Record<string, Record<string, CompatValue>>): void {
+  compatTable = table
 }
 
 /** 某协议的全部合法 compat 键（与服务端 compatFieldsOf 一致）。 */
 export function compatFieldsOf(api: string): readonly string[] {
-  return Object.keys(COMPAT_FIELDS[api] ?? {})
+  return Object.keys(compatTable[api] ?? {})
 }
 
 /** 某协议某字段的取值约束（与服务端 compatFieldSpec 一致）。 */
 export function compatFieldSpec(api: string, field: string): CompatValue | undefined {
-  return COMPAT_FIELDS[api]?.[field]
+  return compatTable[api]?.[field]
 }
 
 /** api 未设置时的渲染回退组（最常见的协议；保存仍由后端按实际协议校验）。 */

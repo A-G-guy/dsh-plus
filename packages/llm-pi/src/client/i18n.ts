@@ -62,6 +62,7 @@ const ownZh = {
   retryPolicy: '重试策略（JSON）',
   retryPolicyHint: 'dsh-llm RetryPolicy 形状；非法 JSON 不会提交。',
   invalidJson: 'JSON 格式错误（该字段不会提交）。',
+  invalidInteger: '必须是整数（该字段不会提交）。',
   compatGroup: 'Compat 覆盖',
   compatApiHint: 'api 未设置时暂按 openai-completions 字段组渲染；保存时后端按实际协议校验。',
   compatUnset: '未设置',
@@ -144,6 +145,7 @@ const ownEn = {
   retryPolicy: 'Retry policy (JSON)',
   retryPolicyHint: 'dsh-llm RetryPolicy shape; invalid JSON is not submitted.',
   invalidJson: 'Invalid JSON (this field will not be submitted).',
+  invalidInteger: 'Must be an integer (this field will not be submitted).',
   compatGroup: 'Compat overrides',
   compatApiHint:
     'When api is unset, fields render per openai-completions; the backend validates per the effective protocol.',

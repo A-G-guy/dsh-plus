@@ -11,9 +11,35 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 
 import { builtinModelIds } from './catalog/builtin.ts'
+import { compatFieldSpec, compatFieldsOf, compatTableInfo } from './compat.ts'
+import { PROTOCOL_IDS } from './config.ts'
 import type { LlmPiRuntime } from './service.ts'
 
 const ROUTE_CATALOG = '/dsh-plus/llm-pi/catalog'
+
+/**
+ * 服务端推导的 compat 字段表（协议 → 字段 → 取值约束）。浏览器半读不到官方包，
+ * 由本端点下发，UI 渲染与服务端校验同源（不再各存一份手抄镜像表）。
+ */
+function compatTablePayload(): {
+  fields: Record<string, Record<string, unknown>>
+  source: string
+  problem?: string
+} {
+  const fields: Record<string, Record<string, unknown>> = {}
+  for (const api of PROTOCOL_IDS) {
+    const perField: Record<string, unknown> = {}
+    for (const field of compatFieldsOf(api)) {
+      const spec = compatFieldSpec(api, field)
+      if (spec !== undefined) perField[field] = spec
+    }
+    fields[api] = perField
+  }
+  const info = compatTableInfo()
+  return info.problem === undefined
+    ? { fields, source: info.source }
+    : { fields, source: info.source, problem: info.problem }
+}
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' })
@@ -32,12 +58,14 @@ function handleCatalog(runtime: LlmPiRuntime, req: IncomingMessage, res: ServerR
   const url = new URL(req.url ?? '', 'http://localhost')
   const provider = url.searchParams.get('provider') ?? ''
   const source = url.searchParams.get('source') ?? 'builtin'
+  const compat = compatTablePayload()
   if (source === 'models-dev') {
     sendJson(res, 200, {
       providers: runtime.modelsDev.providerIds(),
       models: provider.length > 0 ? runtime.modelsDev.modelIds(provider) : [],
       status: runtime.modelsDev.status(),
       kitSource,
+      compat,
     })
     return
   }
@@ -45,6 +73,7 @@ function handleCatalog(runtime: LlmPiRuntime, req: IncomingMessage, res: ServerR
     providers: runtime.kit.getBuiltinProviders(),
     models: provider.length > 0 ? builtinModelIds(runtime.kit, provider) : [],
     kitSource,
+    compat,
   })
 }
 

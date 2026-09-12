@@ -42,7 +42,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 
 - Node.js **≥ 22**（测试依赖 `node --test` 直接运行 TypeScript）
 - pnpm（经 corepack 启用）
-- 已安装 DSH（`@deepseek-ai/dsh`，基准版本 `0.1.2-alpha.2`）
+- 已安装 DSH（`@deepseek-ai/dsh`，基准版本 `0.1.5-rc.2`）
 
 ### 安装到 DSH
 

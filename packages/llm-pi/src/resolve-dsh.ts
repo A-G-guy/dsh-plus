@@ -21,9 +21,9 @@
  * （auth-inline.ts，recordKeyFor 自包根导出同源注入）——形状自检兜底。
  * @module llm-pi/resolve-dsh
  */
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { getOrCreateAnonymousUserId as getAnonIdType } from '@deepseek-ai/dsh-anonymous-user-id'
 import * as vendoredAnonId from '@deepseek-ai/dsh-anonymous-user-id'
@@ -53,6 +53,8 @@ import {
   authContextFrom as inlineAuthContextFrom,
   credentialStoreFrom as inlineCredentialStoreFrom,
 } from './auth-inline.ts'
+import { installCompatTable } from './compat.ts'
+import { deriveGates, deriveSpecs, FALLBACK_TABLE } from './compat-gates.ts'
 import type { ProtocolId } from './config.ts'
 import { type ResolverDeps, resolveProfilesFallback } from './profiles.ts'
 
@@ -295,6 +297,39 @@ function treeResolverDeps(
   }
 }
 
+/**
+ * 从官方安装副本推导 compat 门控表（bundle 文本给分型、Config schema 给取值约束），
+ * 并安装为插件生效表。任一环节失败回退 FALLBACK_TABLE 并给诊断——绝不因推导失败
+ * 弄挂插件启动（宁可放宽校验，也不误拒官方可配字段）。
+ */
+function installOfficialCompatTable(
+  bundlePath: string,
+  module: Record<string, unknown>,
+  diagnostics: string[],
+): void {
+  const label = 'compat 门控表'
+  try {
+    const bundle = readFileSync(bundlePath, 'utf8')
+    const gates = deriveGates(bundle)
+    if (gates === undefined) {
+      // 官方改打包形态导致 COMPAT_GATES 不可解析：用冻结快照并告警。
+      diagnostics.push(
+        `${label}未能从官方 bundle 解析 COMPAT_GATES（${bundlePath}）；` +
+          `使用内置快照（官方新增字段可能被误拒，请检查 dsh-llm-pi-ai 打包形态）`,
+      )
+      installCompatTable(FALLBACK_TABLE)
+      return
+    }
+    // 取值约束：推导值优先，内置快照补缺（官方 schema 未覆盖的字段保持可写）。
+    const specs = { ...FALLBACK_TABLE.specs, ...deriveSpecs(module) }
+    installCompatTable({ gates, specs, source: 'official' })
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    diagnostics.push(`${label}推导失败（${reason}）；使用内置快照`)
+    installCompatTable(FALLBACK_TABLE)
+  }
+}
+
 function kitFromTree(
   mods: TreeModules,
   auth: Record<string, unknown> | undefined,
@@ -351,9 +386,18 @@ function loadVendoredDeepseek(): DeepSeekKit | undefined {
 }
 
 /**
+ * vendored `dsh-llm-pi-ai` 的 bundle 绝对路径（compat 门控推导用）。
+ * 经包名解析拿到入口文件——npm/pnpm 各布局都适用，不硬编码 node_modules 结构。
+ */
+function vendoredAdapterBundlePath(): string {
+  return fileURLToPath(import.meta.resolve('@deepseek-ai/dsh-llm-pi-ai'))
+}
+
+/**
  * vendored 兜底副本套件（导出供单测直接使用，免走 dsh 树解析）。
  * npm 发布形态不携带 src/、lib 仅 index.js/invariant.js——resolveProfiles 与
- * auth 助手在此无条件走插件等价实现（内联/门控表对齐，见文件头说明）。
+ * auth 助手在此无条件走插件等价实现（内联，见文件头说明）；compat 门控表则
+ * 仍从 vendored 副本的 bundle + Config schema 现场推导（与 dsh 树同一推导链）。
  */
 export function loadVendoredKit(): DshKit {
   const deepseek = loadVendoredDeepseek()
@@ -362,6 +406,12 @@ export function loadVendoredKit(): DshKit {
     'openai-responses': vendoredResponses,
     'anthropic-messages': vendoredAnthropic,
   }
+  // 与 dsh 树路径同源推导：vendored 副本同样是官方发布包（lib/index.js + Config）
+  installOfficialCompatTable(
+    vendoredAdapterBundlePath(),
+    vendoredPiAiAdapter as unknown as Record<string, unknown>,
+    [],
+  )
   const kit: DshKit = {
     source: 'vendored',
     PiAiAdapter: vendoredPiAiAdapter.PiAiAdapter,
@@ -426,6 +476,7 @@ export async function resolveDshKit(): Promise<{
       ])
       const kit = kitFromTree(mods, auth, config)
       assertKitShape(kit, 'dsh-tree')
+      installOfficialCompatTable(join(treePkgDir, 'lib', 'index.js'), mods.piAiAdapter, diagnostics)
       if (auth === undefined) {
         diagnostics.push(
           'dsh 树不含 dsh-llm-pi-ai/src（npm 发布形态）；认证助手使用插件内联等价实现',

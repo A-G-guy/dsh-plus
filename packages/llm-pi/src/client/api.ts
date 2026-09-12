@@ -63,12 +63,20 @@ export interface ConfigValue {
 /** 保存提交形状：完整配置对象，providers 全量替换（settings.replace 语义）。 */
 export type ConfigPatch = ConfigValue
 
+/** compat 字段表（服务端从官方包推导后下发；浏览器半不手抄）。 */
+export interface WireCompatTable {
+  fields: Record<string, Record<string, 'boolean' | 'integer' | 'number' | 'object' | string[]>>
+  source: string
+  problem?: string
+}
+
 /** GET /catalog?provider=&source= 返回（kitSource 为运行期套件来源诊断）。 */
 export interface CatalogResult {
   providers: string[]
   models: string[]
   status?: WireModelsDevStatus
   kitSource?: string
+  compat?: WireCompatTable
 }
 
 const ROUTE_CATALOG = '/dsh-plus/llm-pi/catalog'

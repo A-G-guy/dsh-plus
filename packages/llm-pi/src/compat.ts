@@ -1,166 +1,92 @@
 /**
- * 逐协议 compat 门控表与校验（0.1.2-alpha.2 复核：官方门控表逐块一致，无需变更）。
+ * 逐协议 compat 校验：门控表与取值约束**从官方 dsh-llm-pi-ai 安装副本自动继承**
+ * （见 compat-gates.ts），不再手抄镜像。
  *
- * 适配决策：官方 dsh-llm-pi-ai 0.1.2-alpha.2 的 COMPAT_GATES（catalog.ts）
- * 是 compat 可配性的唯一事实源——按协议分型（offer/withhold），withhold 字段
- * （catalog 已为对应厂商设置，如 openRouterRouting/zaiToolStream/
- * sendSessionAffinityHeaders/supportsToolSearch 等）写时拒绝并提示以目录
- * provider 名为 route。官方门控表只在 src/catalog.ts 源码子路径内（npm 发布
- * 形态不携带 src/、包根也不导出该符号），插件在 dsh 树（npm 布局）与 vendored
- * 兜底两条路径都无法静态引用，故本文件按官方 catalog.ts 逐字段镜像门控表
- * （字段全集与分型随 pi-ai 升级同步维护，官方以 Record<keyof Compat> 编译期
- * 约束漂移，插件以本表 + 注释人工同步）。
+ * 语义：官方门控表是 compat 可配性的唯一事实源——按协议分型（offer/withhold），
+ * withhold 字段（官方内置目录已为对应厂商设置，如 openRouterRouting/zaiToolStream/
+ * sendSessionAffinityHeaders/supportsToolSearch/supportsMidConvoEffort 等）写时
+ * 拒绝并提示以目录 provider 名为 route；未知键拒绝；无值键（null/undefined）拒绝
+ * （对齐官方 assertOfferedCompatFields："写了但没生效"的表面状态不允许）。
  *
- * 与旧版字段表的差异（0.1.2-alpha.1 官方门控）：
- * - completions 新增 offer：supportsFinishReason/chatTemplateArgs/
- *   supportsThinkingTokenBudget；thinkingFormat 新增 baseten；
- * - 原表内 openRouterRouting/vercelGatewayRouting/zaiToolStream/
- *   sendSessionAffinityHeaders/deferredToolsMode/sessionAffinityFormat/
- *   supportsOpenAIGrammarTools（completions/responses）与 supportsToolSearch/
- *   supportsExplicitPromptCacheMode（responses）、supportsToolReferences
- *   （anthropic）改为 withhold → 写时拒绝；
- * - responses 不再 offer sessionAffinityFormat（withhold）。
+ * 历史：本表曾是手抄镜像，0.1.5-rc.1 官方扩容 offer 字段而旧表漏收，导致官方可配
+ * 字段被本插件**误拒**（静默功能缺失、无任何报错）。现改为现场推导：官方新增字段
+ * 即自动可用，`tests/compat-gates.test.ts` 直读官方 bundle 守门推导正确性。
  *
- * pi-ai 侧消费语义：getCompat 逐字段 `??` 覆盖 detectCompat 的
- * baseURL/名称猜测；undefined 视为未设置（无法显式清空检测值）。
+ * pi-ai 侧消费语义：getCompat 逐字段 `??` 覆盖 detectCompat 的 baseURL/名称猜测；
+ * undefined 视为未设置（无法显式清空检测值）。
  * @module llm-pi/compat
  */
+import type { CompatDisposition, CompatTable, CompatValue } from './compat-gates.ts'
+import { FALLBACK_TABLE } from './compat-gates.ts'
 import type { ProtocolId } from './config.ts'
 
-type CompatValue = 'boolean' | 'object' | readonly string[]
-type CompatDisposition = 'offer' | 'withhold'
+export type { CompatDisposition, CompatValue } from './compat-gates.ts'
 
 /**
- * 官方 COMPLETIONS_COMPAT_GATE（llm-pi-ai/src/catalog.ts）逐字段镜像。
- * offer 17 字段 / withhold 7 字段。
+ * 生效门控表：由 resolve-dsh 的套件加载流程经 {@link installCompatTable} 注入
+ * （与 PiAiAdapter 同源——即 dsh 树或 vendored 副本里**正在运行**的那份官方代码）。
+ * 未注入时用 FALLBACK_TABLE（纯函数测试路径/极端启动顺序下的保守兜底）。
  */
-const COMPLETIONS_COMPAT_GATE: Readonly<Record<string, CompatDisposition>> = {
-  supportsStore: 'offer',
-  supportsDeveloperRole: 'offer',
-  supportsReasoningEffort: 'offer',
-  supportsUsageInStreaming: 'offer',
-  supportsFinishReason: 'offer',
-  maxTokensField: 'offer',
-  requiresToolResultName: 'offer',
-  requiresAssistantAfterToolResult: 'offer',
-  requiresThinkingAsText: 'offer',
-  requiresReasoningContentOnAssistantMessages: 'offer',
-  thinkingFormat: 'offer',
-  chatTemplateKwargs: 'offer',
-  chatTemplateArgs: 'offer',
-  supportsThinkingTokenBudget: 'offer',
-  supportsStrictMode: 'offer',
-  cacheControlFormat: 'offer',
-  supportsLongCacheRetention: 'offer',
-  openRouterRouting: 'withhold',
-  vercelGatewayRouting: 'withhold',
-  zaiToolStream: 'withhold',
-  supportsOpenAIGrammarTools: 'withhold',
-  sendSessionAffinityHeaders: 'withhold',
-  deferredToolsMode: 'withhold',
-  sessionAffinityFormat: 'withhold',
+let active: CompatTable = FALLBACK_TABLE
+
+/** 注入推导结果（幂等；resolve-dsh 在套件加载后调用一次）。 */
+export function installCompatTable(table: CompatTable): void {
+  active = table
 }
 
-/**
- * 官方 RESPONSES_COMPAT_GATE 逐字段镜像（三协议共享同一 OpenAIResponsesCompat；
- * 本插件只服务 openai-responses）。offer 3 字段 / withhold 5 字段。
- */
-const RESPONSES_COMPAT_GATE: Readonly<Record<string, CompatDisposition>> = {
-  supportsDeveloperRole: 'offer',
-  supportsStrictMode: 'offer',
-  supportsLongCacheRetention: 'offer',
-  sessionAffinityFormat: 'withhold',
-  supportsOpenAIGrammarTools: 'withhold',
-  supportsAdditionalTools: 'withhold',
-  supportsToolSearch: 'withhold',
-  supportsExplicitPromptCacheMode: 'withhold',
-}
-
-/**
- * 官方 ANTHROPIC_COMPAT_GATE 逐字段镜像。offer 7 字段 / withhold 2 字段。
- */
-const ANTHROPIC_COMPAT_GATE: Readonly<Record<string, CompatDisposition>> = {
-  supportsEagerToolInputStreaming: 'offer',
-  supportsLongCacheRetention: 'offer',
-  supportsCacheControlOnTools: 'offer',
-  supportsTemperature: 'offer',
-  forceAdaptiveThinking: 'offer',
-  allowEmptySignature: 'offer',
-  supportsStrictTools: 'offer',
-  sendSessionAffinityHeaders: 'withhold',
-  supportsToolReferences: 'withhold',
-}
-
-const GATES_BY_PROTOCOL: Record<ProtocolId, Readonly<Record<string, CompatDisposition>>> = {
-  'openai-completions': COMPLETIONS_COMPAT_GATE,
-  'openai-responses': RESPONSES_COMPAT_GATE,
-  'anthropic-messages': ANTHROPIC_COMPAT_GATE,
+/** 当前生效表的来源诊断（状态行/日志）。 */
+export function compatTableInfo(): { source: CompatTable['source']; problem?: string } {
+  return active.problem === undefined
+    ? { source: active.source }
+    : { source: active.source, problem: active.problem }
 }
 
 /** 某协议某字段的可配性（'offer'/'withhold'；未列出 = 无此字段）。 */
-export function compatDispositionOf(api: ProtocolId, field: string): CompatDisposition | undefined {
-  return GATES_BY_PROTOCOL[api][field]
-}
-
-/**
- * 字段取值约束（对齐官方 config.ts compatProfile schema）：
- * boolean 字段 → 'boolean'；maxTokensField/thinkingFormat/cacheControlFormat
- * → 枚举；chatTemplateKwargs/chatTemplateArgs → 对象。
- */
-const VALUE_SPECS: Readonly<Record<string, CompatValue>> = {
-  supportsStore: 'boolean',
-  supportsDeveloperRole: 'boolean',
-  supportsReasoningEffort: 'boolean',
-  supportsUsageInStreaming: 'boolean',
-  supportsFinishReason: 'boolean',
-  maxTokensField: ['max_completion_tokens', 'max_tokens'],
-  requiresToolResultName: 'boolean',
-  requiresAssistantAfterToolResult: 'boolean',
-  requiresThinkingAsText: 'boolean',
-  requiresReasoningContentOnAssistantMessages: 'boolean',
-  thinkingFormat: [
-    // 官方 SUPPORTED_THINKING_FORMATS（含 baseten，随 chatTemplateArgs 使用）
-    'openai',
-    'deepseek',
-    'openrouter',
-    'together',
-    'baseten',
-    'zai',
-    'qwen',
-    'chat-template',
-    'qwen-chat-template',
-    'string-thinking',
-    'ant-ling',
-  ],
-  chatTemplateKwargs: 'object',
-  chatTemplateArgs: 'object',
-  supportsThinkingTokenBudget: 'boolean',
-  supportsStrictMode: 'boolean',
-  cacheControlFormat: ['anthropic'],
-  supportsLongCacheRetention: 'boolean',
-  supportsEagerToolInputStreaming: 'boolean',
-  supportsCacheControlOnTools: 'boolean',
-  supportsTemperature: 'boolean',
-  forceAdaptiveThinking: 'boolean',
-  allowEmptySignature: 'boolean',
-  supportsStrictTools: 'boolean',
+export function compatDispositionOf(api: string, field: string): CompatDisposition | undefined {
+  return active.gates[api]?.[field]
 }
 
 /** 某协议全部可配置（offer）的 compat 键（UI 渲染字段组与校验共用）。 */
-export function compatFieldsOf(api: ProtocolId): readonly string[] {
-  return Object.entries(GATES_BY_PROTOCOL[api]).flatMap(([field, disposition]) =>
+export function compatFieldsOf(api: ProtocolId | string): readonly string[] {
+  const gate = active.gates[api]
+  if (gate === undefined) return []
+  return Object.entries(gate).flatMap(([field, disposition]) =>
     disposition === 'offer' ? [field] : [],
   )
 }
 
 /** 某协议某 offer 字段的取值约束（UI 渲染开关/下拉用）。 */
-export function compatFieldSpec(api: ProtocolId, field: string): CompatValue | undefined {
-  return GATES_BY_PROTOCOL[api][field] === 'offer' ? VALUE_SPECS[field] : undefined
+export function compatFieldSpec(api: string, field: string): CompatValue | undefined {
+  return active.gates[api]?.[field] === 'offer' ? active.specs[field] : undefined
+}
+
+/** 官方声明的全部可配置字段（未知键报错时列出，对齐官方 allOfferedCompatFields）。 */
+function allOfferedFields(): string[] {
+  const out = new Set<string>()
+  for (const gate of Object.values(active.gates)) {
+    for (const [field, disposition] of Object.entries(gate)) {
+      if (disposition === 'offer') out.add(field)
+    }
+  }
+  return [...out]
 }
 
 function checkValue(field: string, spec: CompatValue, value: unknown, where: string): void {
   if (spec === 'boolean') {
     if (typeof value !== 'boolean') throw new Error(`${where}: compat.${field} 必须是布尔值`)
+    return
+  }
+  if (spec === 'integer') {
+    // 官方 z.number().step(1)：整数（小数/NaN/Infinity 均不合格）
+    if (typeof value !== 'number' || !Number.isInteger(value)) {
+      throw new Error(`${where}: compat.${field} 必须是整数`)
+    }
+    return
+  }
+  if (spec === 'number') {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error(`${where}: compat.${field} 必须是数字`)
+    }
     return
   }
   if (spec === 'object') {
@@ -178,10 +104,9 @@ function checkValue(field: string, spec: CompatValue, value: unknown, where: str
 
 /**
  * 校验一份 compat 字典对指定协议合法（对齐官方门控语义 + schema 值约束）：
- * - 未知键/withhold 字段拒绝（官方 0.1.2-alpha.1 写时拒绝，替代旧版静默丢弃）；
+ * - 未知键/withhold 字段拒绝（官方写时拒绝，替代旧版静默丢弃）；
  * - 值类型/枚举按官方 schema 校验；
- * - 无值键（null/undefined）拒绝（官方 assertOfferedCompatFields 同款：
- *   "写了但没生效" 的表面状态不允许）。
+ * - 无值键（null/undefined）拒绝（官方 assertOfferedCompatFields 同款）。
  */
 export function validateCompat(
   api: string,
@@ -189,13 +114,13 @@ export function validateCompat(
   where: string,
 ): void {
   if (compat === undefined) return
-  const gate = GATES_BY_PROTOCOL[api as ProtocolId]
+  const gate = active.gates[api]
   if (gate === undefined) {
     throw new Error(
-      `${where}: 协议 ${JSON.stringify(api)} 无 compat 字段表（支持：${Object.keys(GATES_BY_PROTOCOL).join(', ')}）`,
+      `${where}: 协议 ${JSON.stringify(api)} 无 compat 字段表（支持：${Object.keys(active.gates).join(', ')}）`,
     )
   }
-  const offered = compatFieldsOf(api as ProtocolId)
+  const offered = compatFieldsOf(api)
   for (const [key, value] of Object.entries(compat)) {
     const disposition = gate[key]
     if (disposition !== 'offer') {
@@ -206,13 +131,17 @@ export function validateCompat(
         )
       }
       throw new Error(
-        `${where}: compat.${key} 不是 ${api} 协议的合法字段（可配置字段：${offered.join(', ')}）`,
+        `${where}: compat.${key} 不是 ${api} 协议的合法字段（可配置字段：${offered.join(', ')}；` +
+          `官方全部可配字段：${allOfferedFields().join(', ')}）`,
       )
     }
     if (value === undefined || value === null) {
       throw new Error(`${where}: compat.${key} 未设置值；给出值或移除该键（留空不会生效）`)
     }
-    checkValue(key, VALUE_SPECS[key] as CompatValue, value, where)
+    // 官方 schema 未给出取值约束的字段（未来新增而推导未覆盖）跳过值校验，
+    // 由官方调用链自行裁决——宁可放行也不误拒。
+    const spec = active.specs[key]
+    if (spec !== undefined) checkValue(key, spec, value, where)
   }
 }
 

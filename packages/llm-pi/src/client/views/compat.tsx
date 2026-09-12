@@ -8,7 +8,7 @@
 import type { ReactElement } from 'react'
 
 import { COMPAT_FALLBACK_API, compatFieldSpec, compatFieldsOf } from '../constants.ts'
-import { CollapseSection, JsonField, SelectField } from '../fields.tsx'
+import { CollapseSection, IntegerField, JsonField, SelectField } from '../fields.tsx'
 import type { Translate } from '../i18n.ts'
 
 /** api 变更后裁剪 compat：只保留新渲染组的字段，避免保存时被后端拒绝。 */
@@ -90,6 +90,21 @@ export function CompatEditor(props: CompatEditorProps): ReactElement {
                 />
               )
             }
+            if (spec === 'integer' || spec === 'number') {
+              return (
+                <IntegerField
+                  key={field}
+                  id={`${props.idPrefix}-${field}`}
+                  label={field}
+                  value={props.compat[field]}
+                  epoch={props.epoch}
+                  invalidLabel={props.t('invalidInteger')}
+                  disabled={props.disabled === true}
+                  onEdit={(value) => setField(field, value)}
+                />
+              )
+            }
+            // 余下只有枚举（readonly string[]）：boolean/object/number 已在上方分支消化
             return (
               <SelectField
                 key={field}

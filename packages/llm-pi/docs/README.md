@@ -1,12 +1,12 @@
 ---
-last_modified: "2026-08-31 15:30"
+last_modified: "2026-09-12 17:26"
 ---
 
 # @dsh-plus/llm-pi 文档索引
 
 自定义 LLM 路由插件：在官方 `llm-pi-ai` 之外，以**自动跟随 dsh 上游**的方式提供
 pi-ai 全量能力——三协议自定义 route、官方内置 provider/model 继承 + 字段级覆盖、
-全量 compat（**compat 门控与官方 0.1.2-alpha.2 的 COMPAT_GATES 逐字段对齐，未知键
+全量 compat（**门控表与取值约束从官方 `dsh-llm-pi-ai` 安装副本自动推导**，未知键
 /withhold 字段写时拒绝**）、models.dev 目录兜底。
 另支持 `adapter: deepseek` 路由：直接复用官方 `DeepSeekAdapter`（视觉模型图片走
 Files API 文件通道、失败自动降级 base64），模型继承官方内置目录而非 pi-ai 目录。
@@ -61,7 +61,8 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
   `transport`/`reasoning` 等）在 deepseek 路由上**写时拒绝**（防误以为生效）。
   `apiKeyEnv` 必填（DeepSeekAdapter 无环境自发现）；`baseURL` 必填，除非
   `extends: deepseek`（继承官方端点）。
-- **运行时依赖**：0.1.2-alpha.2 基线（树内含 `dsh-llm-deepseek`）；旧版 dsh 树下
+- **运行时依赖**：0.1.2-alpha.2 起基线（树内含 `dsh-llm-deepseek`；当前基线
+  0.1.5-rc.2）；旧版 dsh 树下
   deepseek 路由在写入/启动时以明确错误拒绝，pi 路由不受影响（kit 诊断有日志）。
 - 配置卡片暂未提供 deepseek 专有字段的编辑控件，但未知字段会**原样往返保留**
   （卡片编辑不会丢 `adapter` 等手写字段）；deepseek 路由建议直接编辑 settings.yaml。
@@ -117,11 +118,25 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
 6. 自建条目的链式继承（extends 指向本插件另一条目）不支持——基座只来自两个目录源。
 
 compat 合并顺序：继承值（同协议才继承）→ route 级 → 模型级，逐字段后者胜出。
-字段门控以官方 0.1.2-alpha.2 catalog.ts COMPAT_GATES 为唯一事实源（completions
-17 / responses 3 / anthropic 7 个 offer 字段；`openRouterRouting`/`zaiToolStream`/
-`supportsToolSearch`/`sendSessionAffinityHeaders`/`supportsToolReferences` 等
-catalog 已内置厂商设置的字段官方 withhold——**写时拒绝**并提示以目录 provider 名
-为 route，不再静默丢弃；见 `src/compat.ts`）。
+字段门控以官方 `dsh-llm-pi-ai` 的 COMPAT_GATES 为唯一事实源，且**从官方安装副本
+现场推导、不再手抄**（`src/compat-gates.ts`）：从运行期 bundle 解析「协议 → 字段 →
+offer/withhold」分型，从官方导出的 Config schema 推导每个字段的取值约束
+（boolean / 整数 / 枚举 / 对象）。当前门控：completions 19 / responses 4 /
+anthropic 7 个 offer 字段；`openRouterRouting`/`zaiToolStream`/`supportsToolSearch`/
+`sendSessionAffinityHeaders`/`supportsToolReferences`/`supportsMidConvoEffort`/
+`allowedFallbackModels` 等官方为厂商内置的字段为 withhold——**写时拒绝**并提示以
+目录 provider 名为 route，不再静默丢弃。浏览器半的字段表也由服务端经
+`GET /catalog` 的 `compat` 字段下发（`installCompatFields`），UI 渲染与服务端校验
+**同源**，不存在第二份镜像。
+
+> **历史（0.1.5-rc.1 教训）**：该表曾是手工镜像，而官方表在 npm 发布形态下不可静态
+> 引用（包根不导出、`src/` 不随发布）。0.1.5-rc.1 官方扩容 offer 字段（completions 的
+> `thinkingTokenBudgetField`/`vllmPriority`、responses 的 `supportsMaxOutputTokens`、
+> anthropic 的 `supportsMidConvoEffort`/`allowedFallbackModels`）而旧表漏收，导致官方
+> 可配字段被本插件**误拒**（静默功能缺失、无任何报错）。改为现场推导后官方新增字段
+> 自动可用；`tests/compat-gates.test.ts` 独立复算官方 bundle 逐字段守门推导正确性
+> （含"必须来自现场推导而非内置快照"的断言）。推导失败时回退内置快照并告警，
+> 绝不因推导失败弄挂启动。
 
 ## 运行机制
 
@@ -178,6 +193,10 @@ catalog 已内置厂商设置的字段官方 withhold——**写时拒绝**并�
 corepack pnpm --filter @dsh-plus/llm-pi build   # node 半 ESM + 浏览器半 CJS
 node --test packages/llm-pi/tests/*.test.ts        # 单测（vendored 套件，零网络）
 ```
+
+新增模型走 `extends` 继承内置目录即可（本仓生产配置示例：newapi 中转的
+anthropic 路由在 `k3`/`k3-256k` 之外再挂 `kimi-for-coding`
+= `extends: kimi-coding/kimi-for-coding`，中转侧无需登记 ID）。
 
 联调建议：用独立 `DSH_HOME` 起一个 dev 实例，模型后端指向本机 mock（OpenAI 兼容
 假后端），避免产生真实 API 费用。
