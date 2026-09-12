@@ -7,11 +7,15 @@
 # access-gate 排第二：访问围栏需在 webserver 路由/升级注册稳定后包装拦截，
 # 且在 web-files 等兄弟插件之前就绪（包装与注册时序无关，但早注册自有
 # 豁免路由更稳）；自身失败由 lifeboat 隔离止损。
+# boot-retry 排第三：只注册 index 注入行，无端点、无服务、无时序依赖；
+# 靠前只为让「弱网重试」尽早进入注入表（注入行顺序不影响其正确性）。
 - insert:
     - id: dsh-plus-lifeboat
       name: '@dsh-plus/lifeboat'
     - id: dsh-plus-access-gate
       name: '@dsh-plus/access-gate'
+    - id: dsh-plus-boot-retry
+      name: '@dsh-plus/boot-retry'
     - id: dsh-plus-ui-mobile-fit
       name: '@dsh-plus/ui-mobile-fit'
     - id: dsh-plus-remote-settings

@@ -30,6 +30,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | [`@dsh-plus/reload`](packages/reload) | 0.1.0 | service + UI | 设置页「重新加载」按钮与 `/reload` 命令：两段确认+倒计时后重启 dsh-web，恢复后自动刷新 | [docs](packages/reload/docs/README.md) |
 | [`@dsh-plus/usage-panel`](packages/usage-panel) | 0.1.0 | service + UI | 全量会话 token 用量面板：实时+历史扫描双通道聚合，按日/模型报表，可选价目估算费用 | [docs](packages/usage-panel/docs/README.md) |
 | [`@dsh-plus/access-gate`](packages/access-gate) | 0.1.0 | service + UI | Web 访问围栏（已合并官方认证）：官方 cookie 为唯一凭据，未认证导航渲染 token 输入页（PWA 可恢复），可选 IP 附加围栏，loopback 管理通道取当前认证链接 | [docs](packages/access-gate/docs/README.md) |
+| [`@dsh-plus/boot-retry`](packages/boot-retry) | 0.1.0 | service | 弱网引导重试：经官方 `__DSH_TRANSPORT__.loadBundle` 缝注入零缓存重试加载器，消除一次抖动导致的「Failed to load plugins」；不改 URL/不缓存，HMR 语义不变 | [docs](packages/boot-retry/docs/README.md) |
 | [`@dsh-plus/subagent-model`](packages/subagent-model) | 0.2.0 | service | 子代理独立模型配置：按 provider 为 subagent/subagent_fork 注入 agentOptions（provider/model/思考程度），`default` 条目共享单条路由；主代理显式选择仍优先 | [docs](packages/subagent-model/docs/README.md) |
 | [`@dsh-plus/web-terminal`](packages/web-terminal) | 0.1.0 | service + UI | Web 终端工作台：多会话标签 + 桌面分屏（拖拽调宽）+ scrollback 回放，dsh 运行期间会话保活（类 tmux detach/attach） | [docs](packages/web-terminal/docs/README.md) |
 | [`@dsh-plus/tool-text-transform`](packages/tool-text-transform) | 0.1.0 | tool | 纯函数演示工具（uppercase / lowercase / reverse / length），插件链路参考实现 | [docs](packages/tool-text-transform/docs/README.md) |

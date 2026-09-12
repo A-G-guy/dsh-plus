@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/bundle-main",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "dsh-plus aggregate bundle: ordered cordis patch layer wiring all dsh-plus plugins",
   "type": "module",
   "main": "lib/index.js",
@@ -23,6 +23,7 @@
     "build": "tsdown src/index.ts -d lib --format esm --dts --no-fixed-extension"
   },
   "dependencies": {
+    "@dsh-plus/boot-retry": "workspace:*",
     "@dsh-plus/ui-mobile-fit": "workspace:*",
     "@dsh-plus/remote-settings": "workspace:*",
     "@dsh-plus/notify-email": "workspace:*",
