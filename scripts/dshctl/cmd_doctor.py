@@ -166,8 +166,10 @@ def cmd_doctor(args) -> None:
     print(f"\n[doctor] {len(CHECKS) - failed}/{len(CHECKS)} 项通过")
     if getattr(args, "release", False):
         from . import cmd_release
-        print("\n[doctor] release status 对照（npm registry 查询）：")
+        print("\n[doctor] release status 对照（npm registry 版本端点查询）：")
         cmd_release.cmd_release_status(type("A", (), {"packages": []})())
+        print("[doctor] 注：「待发布」是信息性状态（本地版本尚未在 registry 可见，"
+              "收尾链路中间态或发布传播延迟），不计入体检失败")
     if failed:
         sys.exit(1)
 

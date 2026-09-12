@@ -1,13 +1,33 @@
-"""release 纯逻辑单测：SemVer 递增、registry 版本解析、发布拓扑排序。"""
+"""release 纯逻辑单测：SemVer 递增、registry 存在性判定、发布拓扑排序。"""
 from __future__ import annotations
 
 import json
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
-from dshctl import cmd_release
+from dshctl import cmd_release, common
+
+
+class _FakeResponse:
+    """urlopen 的最小替身（上下文管理器 + status/read/headers）。"""
+
+    def __init__(self, status: int = 200, body: bytes = b"{}",
+                 headers: dict[str, str] | None = None):
+        self.status = status
+        self._body = body
+        self.headers = headers or {}
+
+    def read(self) -> bytes:
+        return self._body
+
+    def __enter__(self) -> "_FakeResponse":
+        return self
+
+    def __exit__(self, *_exc) -> bool:
+        return False
 
 
 def _make_pkg(root: Path, dirname: str, name: str, deps: dict[str, str] | None = None) -> Path:
@@ -38,13 +58,64 @@ class TestBumpVersion(unittest.TestCase):
                 cmd_release.bump_version("0.1.3", spec)
 
 
-class TestPublishedVersions(unittest.TestCase):
-    def test_unpublished_package_is_empty(self):
-        self.assertEqual(cmd_release.published_versions(None), set())
+class TestRegistryHasVersion(unittest.TestCase):
+    """存在性判定走版本端点（无 CDN 缓存）——200 已发布 / 404 未发布。"""
 
-    def test_versions_extracted_from_document(self):
-        doc = {"versions": {"0.1.0": {}, "0.1.1": {}}, "dist-tags": {"latest": "0.1.1"}}
-        self.assertEqual(cmd_release.published_versions(doc), {"0.1.0", "0.1.1"})
+    def setUp(self):
+        # 进程内备忘会跨用例串味（真实 common 缓存），每例前清空
+        common.clear_registry_cache()
+
+    def test_200_means_published(self):
+        with mock.patch("urllib.request.urlopen",
+                        return_value=_FakeResponse(200)):
+            self.assertTrue(cmd_release.registry_has_version("@dsh-plus/x", "0.1.0"))
+
+    def test_404_means_unpublished(self):
+        err = urllib.error.HTTPError("u", 404, "not found", {}, None)
+        with mock.patch("urllib.request.urlopen", side_effect=err):
+            self.assertFalse(cmd_release.registry_has_version("@dsh-plus/x", "9.9.9"))
+
+    def test_query_failure_is_fail_loud_not_unpublished(self):
+        # 查询故障绝不能退化成"未发布"——那会重复发布并撞 EPUBLISHCONFLICT
+        err = urllib.error.HTTPError("u", 503, "unavailable", {}, None)
+        with mock.patch("urllib.request.urlopen", side_effect=err):
+            with self.assertRaises(SystemExit):
+                cmd_release.registry_has_version("@dsh-plus/x", "0.1.0")
+
+    def test_document_query_is_cache_busted(self):
+        # 文档端点带 max-age=300：查询必须自带时间戳参数绕开缓存
+        with mock.patch("dshctl.cmd_release.urllib.request.urlopen",
+                        return_value=_FakeResponse(200, body=b'{"versions":{}}')) as op:
+            cmd_release.registry_document("@dsh-plus/x")
+        url = op.call_args[0][0].full_url
+        self.assertIn("?t=", url)
+
+    def test_repeated_query_hits_cache(self):
+        # 同一 (name, version) 在一次链路里被问多次：只应发一次网络请求
+        common.clear_registry_cache()
+        with mock.patch("urllib.request.urlopen",
+                        return_value=_FakeResponse(200)) as op:
+            for _ in range(3):
+                cmd_release.registry_has_version("@dsh-plus/x", "0.1.0")
+        self.assertEqual(op.call_count, 1)
+
+    def test_cached_false_bypasses_cache(self):
+        # 发布后确认可见必须绕过备忘（否则读到发布前的旧结论）
+        common.clear_registry_cache()
+        with mock.patch("urllib.request.urlopen",
+                        return_value=_FakeResponse(200)) as op:
+            cmd_release.registry_has_version("@dsh-plus/x", "0.1.0", cached=False)
+            cmd_release.registry_has_version("@dsh-plus/x", "0.1.0", cached=False)
+        self.assertEqual(op.call_count, 2)
+
+    def test_forget_invalidates_entry(self):
+        common.clear_registry_cache()
+        with mock.patch("urllib.request.urlopen",
+                        return_value=_FakeResponse(200)) as op:
+            cmd_release.registry_has_version("@dsh-plus/x", "0.1.0")
+            common.forget_registry_version("@dsh-plus/x", "0.1.0")
+            cmd_release.registry_has_version("@dsh-plus/x", "0.1.0")
+        self.assertEqual(op.call_count, 2)
 
 
 class TestPublishOrder(unittest.TestCase):
@@ -78,31 +149,29 @@ class TestPublishOrder(unittest.TestCase):
 
 
 class TestWaitPublished(unittest.TestCase):
-    """发布后可见性确认：覆盖官方 registry 对刚发布版本的最终一致性窗口。"""
+    """发布后可见性确认：轮询版本端点（无 CDN 缓存）直到可见。"""
 
     def test_confirms_once_visible(self):
-        # 前两次查询落在同步窗口内（不可见），随后可见 → 轮询必须返回 True
-        seen = iter([{"versions": {"0.1.0": {}}},
-                     {"versions": {"0.1.0": {}}},
-                     {"versions": {"0.1.0": {}, "0.2.0": {}}}])
-        with mock.patch.object(cmd_release, "registry_document",
-                               side_effect=lambda _name: next(seen)), \
+        # 前两次查询尚不可见（发布传播中），随后可见 → 轮询必须返回 True
+        seen = iter([False, False, True])
+        with mock.patch.object(cmd_release, "registry_has_version",
+                               side_effect=lambda _n, _v, **_kw: next(seen)), \
                 mock.patch("dshctl.cmd_release.time.sleep"):
             self.assertTrue(cmd_release.wait_published("@dsh-plus/x", "0.2.0",
                                                        attempts=6, interval=0))
 
     def test_timeout_reports_unconfirmed(self):
-        # 同步延迟超过轮询窗口 → 返回 False（发布本身已成功，由调用方警告）
-        with mock.patch.object(cmd_release, "registry_document",
-                               return_value={"versions": {"0.1.0": {}}}), \
+        # 传播超过轮询窗口 → 返回 False（发布本身已成功，仅未确认可见，非错误）
+        with mock.patch.object(cmd_release, "registry_has_version",
+                               return_value=False), \
                 mock.patch("dshctl.cmd_release.time.sleep"):
             self.assertFalse(cmd_release.wait_published("@dsh-plus/x", "0.2.0",
                                                         attempts=3, interval=0))
 
-    def test_empty_document_counts_as_unpublished(self):
-        # 包文档 404（从未发布）时轮询持续不可见
-        with mock.patch.object(cmd_release, "registry_document",
-                               return_value=None), \
+    def test_never_published_package_stays_unconfirmed(self):
+        # 从未发布（版本端点恒 404）→ 轮询持续不可见
+        with mock.patch.object(cmd_release, "registry_has_version",
+                               return_value=False), \
                 mock.patch("dshctl.cmd_release.time.sleep"):
             self.assertFalse(cmd_release.wait_published("@dsh-plus/x", "0.1.0",
                                                         attempts=2, interval=0))
@@ -152,10 +221,10 @@ class TestSplitPending(unittest.TestCase):
             shared = _make_pkg(root, "shared", "@dsh-plus/shared")
             plugin = _make_pkg(root, "plugin", "@dsh-plus/plugin",
                                {"@dsh-plus/shared": "workspace:*"})
-            docs = {"@dsh-plus/shared": {"versions": {"0.1.0": {}}},
-                    "@dsh-plus/plugin": None}
-            with mock.patch.object(cmd_release, "registry_document",
-                                   side_effect=lambda name: docs[name]):
+            published = {"@dsh-plus/shared"}
+            with mock.patch.object(
+                    cmd_release, "registry_has_version",
+                    side_effect=lambda name, _v: name in published):
                 pending, done = cmd_release.split_pending([plugin, shared])
             self.assertEqual([p.name for p in pending], ["plugin"])
             self.assertEqual([p.name for p in done], ["shared"])
@@ -176,8 +245,8 @@ class TestPublishMany(unittest.TestCase):
                 started.append(pkg.name)
                 return "published"
 
-            with mock.patch.object(cmd_release, "registry_document",
-                                   return_value=None), \
+            with mock.patch.object(cmd_release, "registry_has_version",
+                                   return_value=False), \
                     mock.patch.object(cmd_release, "publish_one",
                                       side_effect=fake_publish):
                 published = cmd_release.publish_many([plugin, shared], token="t")
@@ -188,9 +257,8 @@ class TestPublishMany(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _make_pkg(root, "a", "@dsh-plus/a")
-            doc = {"versions": {"0.1.0": {}}}
-            with mock.patch.object(cmd_release, "registry_document",
-                                   return_value=doc), \
+            with mock.patch.object(cmd_release, "registry_has_version",
+                                   return_value=True), \
                     mock.patch.object(cmd_release, "publish_one") as publish:
                 published = cmd_release.publish_many([root / "a"], token="t")
             self.assertEqual(published, [])

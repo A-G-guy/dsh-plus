@@ -19,20 +19,14 @@ import os
 import re
 import subprocess
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
-from .common import (PACKAGES_DIR, PROD_WEB_SERVICE, _local_value, fail,
+from .common import (NPM_REGISTRY, PACKAGES_DIR, PROD_WEB_SERVICE, _local_value, fail,
                      read_json, run, write_json)
+from .common import registry_has_version
 
 # dsh 版本线包名前缀（与 common.PLATFORM_DSH_LINE 同义，局部常量避免循环依赖误导）。
 DSH_LINE = "@deepseek-ai/dsh"
-
-# 官方 registry 固定直连——`npm view` 走用户配置的 registry（可能是镜像），
-# 刚发布的版本在镜像上有同步延迟，会把"已发布"误判为"不存在"。
-NPM_REGISTRY = "https://registry.npmjs.org"
-REGISTRY_TIMEOUT = 20
 
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+.*$")
 
@@ -58,19 +52,12 @@ def _used_dsh_packages() -> list[str]:
 
 
 def version_exists_on_registry(name: str, version: str) -> bool:
-    """直连官方 registry 核验 name@version 是否存在（404 = 不存在）。"""
-    url = f"{NPM_REGISTRY}/{name.replace('/', '%2f')}/{version}"
-    req = urllib.request.Request(url, headers={"Accept": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=REGISTRY_TIMEOUT) as resp:
-            return resp.status == 200
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            return False
-        fail(f"registry 查询失败 {name}@{version}: HTTP {exc.code}")
-    except urllib.error.URLError as exc:
-        fail(f"registry 不可达: {exc.reason}（需要代理时先 export HTTPS_PROXY）")
-    return False
+    """核验 name@version 在官方 registry 是否存在（委托 common，单一事实源）。
+
+    版本端点无 CDN 缓存，刚发布的版本立即可见；查询故障 fail-loud，绝不退化成
+    "不存在"（那会让升级被误拒）。
+    """
+    return registry_has_version(name, version)
 
 
 def _verify_on_npm(packages: list[str], version: str) -> None:

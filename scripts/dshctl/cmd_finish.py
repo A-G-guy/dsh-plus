@@ -23,12 +23,16 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import cmd_release
 from .cmd_doctor import cmd_test
 from .common import (REPO_ROOT, fail, find_package, package_dirs, read_json,
                      run, write_json)
+
+# bump 决策的 registry 只读查询并发度（与 cmd_release.PUBLISH_QUERY_WORKERS 同量级）。
+PUBLISH_QUERY_WORKERS = 8
 
 COMMIT_RE = re.compile(
     r"^(feat|fix|docs|style|refactor|test|chore)(\([\w./-]+\))?!?: .+")
@@ -145,13 +149,18 @@ def cascade_client_dependents(dirty: list[str], dirs: list[Path]) -> list[str]:
 
 
 def plan_bumps(metas: list[dict], spec: str, is_published) -> list[tuple[str, str, str]]:
-    """bump 计划：仅当本地版本已上 npm（再发必须递增）才递增。返回 (name, 旧, 新)。"""
-    plan = []
-    for meta in metas:
-        if is_published(meta["name"], meta["version"]):
-            plan.append((meta["name"], meta["version"],
-                         cmd_release.bump_version(meta["version"], spec)))
-    return plan
+    """bump 计划：仅当本地版本已上 npm（再发必须递增）才递增。返回 (name, 旧, 新)。
+
+    查询并发执行：每包一次 registry 往返，串行时十余包要等十几次 RTT；
+    只读查询无副作用，并发安全（调用方传入的 is_published 须线程安全）。
+    """
+    if not metas:
+        return []
+    with ThreadPoolExecutor(max_workers=min(PUBLISH_QUERY_WORKERS, len(metas))) as pool:
+        flags = list(pool.map(lambda m: is_published(m["name"], m["version"]), metas))
+    return [(meta["name"], meta["version"],
+             cmd_release.bump_version(meta["version"], spec))
+            for meta, published in zip(metas, flags) if published]
 
 
 def install_targets(targets: list[Path], published: list[Path]) -> list[Path]:
@@ -171,7 +180,12 @@ def _git(args: list[str], check: bool = True,
 
 
 def _is_published(name: str, version: str) -> bool:
-    return version in cmd_release.published_versions(cmd_release.registry_document(name))
+    """本地版本是否已上 npm——版本端点判定（无 CDN 缓存，刚发布即可见）。
+
+    不用包文档端点：它带 max-age=300，刚发布的版本会被读成"未发布"，
+    导致 bump 计划漏项（本地版本号已被占用却不再递增，重发必撞 EPUBLISHCONFLICT）。
+    """
+    return cmd_release.registry_has_version(name, version)
 
 
 def _target_dirs(packages: list[str]) -> list[Path]:

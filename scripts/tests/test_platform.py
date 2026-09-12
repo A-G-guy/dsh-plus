@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from dshctl import cmd_platform
+from dshctl import cmd_platform, common
 
 
 class _FakeResponse:
@@ -23,6 +23,11 @@ class _FakeResponse:
 
 
 class TestVersionExistsOnRegistry(unittest.TestCase):
+    """版本端点判定委托 common（单一事实源）；每例前清进程内备忘，避免串味。"""
+
+    def setUp(self):
+        common.clear_registry_cache()
+
     def test_existing_version_returns_true(self):
         with mock.patch("urllib.request.urlopen", return_value=_FakeResponse(200)):
             self.assertTrue(

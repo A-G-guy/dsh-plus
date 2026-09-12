@@ -10,30 +10,34 @@
 - workspace:* 依赖在 pnpm publish 时自动落成真实版本号；多包同发按 workspace
   依赖拓扑排序（被依赖者先发），保证 registry 上依赖始终可解析。
 - 幂等：registry 已存在 name@version 自动跳过，重跑安全。
-- registry 同步延迟：npm 官方 registry 对刚发布的版本有短暂最终一致性窗口
-  （用户本机镜像则可能延迟更久）。发布成功后轮询官方 registry 确认可见；
-  platform-sync 的版本核验同样直连官方 registry，不受本机镜像配置影响。
+- **存在性判定只走版本端点**（`/<name>/<version>`）：包文档端点带
+  `Cache-Control: public, max-age=300`，刚发布的版本在 CDN 缓存窗口内读不到，
+  据此判定会把"已发布"误判为"待发"——进而重复发布触发 EPUBLISHCONFLICT，
+  或在 `doctor --release` 里误报"待发布"（2026-09-12 实测踩中）。版本端点无缓存头
+  （Age 恒缺失）：200 = 已发布，404 = 未发布。文档端点仅用于展示 latest 标签，
+  且加时间戳查询参数绕过缓存。
+- 发布成功后轮询官方 registry 确认可见；platform-sync 的版本核验同样直连官方
+  registry，不受本机镜像配置影响。
 """
 from __future__ import annotations
 
 import json
 import os
 import re
-import sys
 import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from .common import (REPO_ROOT, _local_value, fail, find_package, package_dirs,
-                     read_json, run, write_json)
+from .common import (NPM_REGISTRY, REGISTRY_TIMEOUT, REPO_ROOT, _local_value, fail,
+                     find_package, forget_registry_version, package_dirs, read_json,
+                     run, write_json)
+from .common import registry_has_version as _registry_has_version
 
-NPM_REGISTRY = "https://registry.npmjs.org"
 SCOPE = "@dsh-plus/"
 VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
-REGISTRY_TIMEOUT = 15
-# 发布后可见性确认：轮询次数与间隔（npm 官方最终一致性窗口通常秒级）。
+# 发布后可见性确认：轮询次数与间隔（官方 registry 传播通常秒级）。
 PUBLISH_CONFIRM_ATTEMPTS = 6
 PUBLISH_CONFIRM_INTERVAL = 2.0
 # 并发度：registry 只读查询轻量放宽；真实发布（构建+上传）收敛防拥塞。
@@ -121,8 +125,15 @@ def bump_version(current: str, spec: str) -> str:
 
 
 def registry_document(name: str) -> dict | None:
-    """读取 registry 包文档；404（从未发布）返回 None。"""
-    url = f"{NPM_REGISTRY}/{name.replace('/', '%2f')}"
+    """读取 registry 包文档（用于展示 latest 标签）；404（从未发布）返回 None。
+
+    **不要用本文档判定"某版本是否已发布"**：该端点带 `Cache-Control:
+    public, max-age=300`，刚发布的版本在 CDN 缓存窗口内读不到（实测 Age 恒有值），
+    据此判定会误判。存在性判定一律走 {@link registry_has_version}（版本端点无缓存）。
+    查询自带时间戳参数，尽量绕开缓存拿到新鲜文档。
+    """
+    stamp = int(time.time())
+    url = f"{NPM_REGISTRY}/{name.replace('/', '%2f')}?t={stamp}"
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=REGISTRY_TIMEOUT) as resp:
@@ -136,11 +147,13 @@ def registry_document(name: str) -> dict | None:
     return None
 
 
-def published_versions(doc: dict | None) -> set[str]:
-    """从 registry 文档提取已发版本集合；None（未发布）为空集。"""
-    if not doc:
-        return set()
-    return set(doc.get("versions", {}))
+def registry_has_version(name: str, version: str, *, cached: bool = True) -> bool:
+    """`name@version` 是否已发布——委托 common 的版本端点判定（单一事实源）。
+
+    保留本模块同名包装：既有调用点与单测按 `cmd_release.registry_has_version`
+    打桩，转发不改变可测性。cached=False 绕过进程内备忘（发布后确认可见用）。
+    """
+    return _registry_has_version(name, version, cached=cached)
 
 
 def publish_order(dirs: list[Path]) -> list[Path]:
@@ -172,17 +185,18 @@ def _resolve_targets(names: list[str]) -> list[Path]:
 
 
 def cmd_release_status(args) -> None:
+    """版本对照表：已发布 / 待发布。
+
+    "待发布"只表示本地版本尚未在 registry 可见（版本端点判定，无缓存），
+    是**信息性状态而非异常**：收尾链路的正常中间态，或镜像/CDN 延迟所致。
+    故不计入 doctor 失败、不打警告。
+    """
     rows = []
     for pkg in publish_order(_resolve_targets(args.packages)):
         meta = read_json(pkg / "package.json")
-        doc = registry_document(meta["name"])
-        latest = (doc or {}).get("dist-tags", {}).get("latest", "-")
-        if doc is None:
-            state = "首发待发"
-        elif meta["version"] in published_versions(doc):
-            state = "已发布"
-        else:
-            state = "待发布"
+        latest = (registry_document(meta["name"]) or {}).get(
+            "dist-tags", {}).get("latest", "-")
+        state = "已发布" if registry_has_version(meta["name"], meta["version"]) else "待发布"
         rows.append((meta["name"], meta["version"], latest, state))
     width = max(len(r[0]) for r in rows)
     for name, local, latest, state in rows:
@@ -224,14 +238,15 @@ def guard_npm_auth() -> str:
 def wait_published(name: str, version: str,
                    attempts: int = PUBLISH_CONFIRM_ATTEMPTS,
                    interval: float = PUBLISH_CONFIRM_INTERVAL) -> bool:
-    """发布后轮询官方 registry 直到 name@version 可见（覆盖最终一致性窗口）。
+    """发布后轮询官方 registry 直到 name@version 可见（覆盖发布传播窗口）。
 
-    npm 官方 registry 对刚发布的版本有短暂可见性延迟（镜像则更久），
-    紧随其后的查询可能误判"未发布"。返回是否在超时前确认可见。
+    用版本端点（无 CDN 缓存）判定，避免"刚发布读不到"的假阴性；返回是否在超时前
+    确认可见。返回 False 不代表发布失败——npm publish 已成功，只是尚未确认可见，
+    调用方据此给提示（幂等重跑即跳过），不算错误。
     """
     for _ in range(max(1, attempts)):
-        doc = registry_document(name)
-        if doc is not None and version in published_versions(doc):
+        # 绕过备忘：刚发布，必须看 registry 的当前答案而非发布前的旧结论。
+        if registry_has_version(name, version, cached=False):
             return True
         time.sleep(interval)
     return False
@@ -246,8 +261,7 @@ def publish_one(pkg: Path, *, token: str | None = None,
     """
     meta = read_json(pkg / "package.json")
     _guard_publishable(meta)
-    if not prechecked and meta["version"] in published_versions(
-            registry_document(meta["name"])):
+    if not prechecked and registry_has_version(meta["name"], meta["version"]):
         print(f"[release] 跳过 {meta['name']}@{meta['version']}（registry 已存在）")
         return "skipped"
     run(["pnpm", "--filter", meta["name"], "build"], cwd=REPO_ROOT)
@@ -267,8 +281,12 @@ def publish_one(pkg: Path, *, token: str | None = None,
     if wait_published(meta["name"], meta["version"]):
         print(f"[release] ✔ 已发布并确认可见 {meta['name']}@{meta['version']}")
     else:
-        print(f"[release] ✔ 已发布 {meta['name']}@{meta['version']}，但 registry "
-              "尚未确认可见（同步延迟）；重跑 dshctl 幂等跳过", file=sys.stderr)
+        # 非错误：npm publish 已成功，只是官方 registry 尚未确认可见。
+        print(f"[release] ✔ 已发布 {meta['name']}@{meta['version']}"
+              "（registry 传播中，稍后可见；重跑 dshctl 幂等跳过）")
+    # 该版本此刻起必然已存在：失效发布前的备忘，后续阶段（如 finish 的安装判定）
+    # 不会读到"发布前 = 未发布"的旧结论。
+    forget_registry_version(meta["name"], meta["version"])
     return "published"
 
 
@@ -283,8 +301,7 @@ def split_pending(dirs: list[Path]) -> tuple[list[Path], list[Path]]:
 
     def needs_publish(pkg: Path) -> bool:
         meta = metas[pkg]
-        return meta["version"] not in published_versions(
-            registry_document(meta["name"]))
+        return not registry_has_version(meta["name"], meta["version"])
 
     if not ordered:
         return [], []

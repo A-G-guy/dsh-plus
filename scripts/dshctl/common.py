@@ -170,6 +170,71 @@ def fail(msg: str, code: int = 1) -> None:
     raise SystemExit(code)
 
 
+# ── npm registry 存在性判定（单一事实源）──────────────────────────────
+#
+# 官方 registry 固定直连：`npm view` 走用户配置的 registry（多为镜像），
+# 刚发布的版本在镜像上有同步延迟，会把"已发布"误判为"不存在"。
+NPM_REGISTRY = "https://registry.npmjs.org"
+REGISTRY_TIMEOUT = 20
+
+# 进程内结果备忘：一次收尾链路里 bump 决策与发布预筛会问同一批 (name, version)，
+# 答案在秒级内不变，重复查询纯属浪费 RTT（只读、无副作用）。
+_REGISTRY_CACHE: dict[tuple[str, str], bool] = {}
+
+
+def registry_has_version(name: str, version: str, *, cached: bool = True) -> bool:
+    """`name@version` 是否已发布——**版本端点**判定，结果即时。
+
+    必须用版本端点而非包文档端点：文档端点（`/<name>`）带
+    `Cache-Control: public, max-age=300`，刚发布的版本在 CDN 缓存窗口内读不到
+    （实测 Age 恒有值），据此判定会把"已发布"误判为"待发"——进而重复发布触发
+    EPUBLISHCONFLICT，或在 `doctor --release` 里误报。版本端点无任何缓存头：
+    200 = 已发布，404 = 未发布。
+
+    查询故障（非 404 的 HTTP 错误/网络不可达）一律 fail-loud，**绝不退化成
+    "未发布"**——静默降级会导致重复发布。
+
+    cached=True（默认）时按 (name, version) 进程内备忘。发布成功后调用方可
+    `forget_registry_version` 失效该条，避免后续阶段读到发布前的旧结论。
+    """
+    key = (name, version)
+    if cached and key in _REGISTRY_CACHE:
+        return _REGISTRY_CACHE[key]
+    result = _registry_query(name, version)
+    # 只缓存成功结论：查询故障已在 _registry_query 内 fail-loud
+    _REGISTRY_CACHE[key] = result
+    return result
+
+
+def forget_registry_version(name: str, version: str) -> None:
+    """失效某条备忘（发布成功后调用：该版本此刻起必然已存在）。"""
+    _REGISTRY_CACHE.pop((name, version), None)
+
+
+def clear_registry_cache() -> None:
+    """清空备忘（单测隔离用）。"""
+    _REGISTRY_CACHE.clear()
+
+
+def _registry_query(name: str, version: str) -> bool:
+    """实际发起版本端点查询（200 已发布 / 404 未发布 / 其他 fail-loud）。"""
+    import urllib.error
+    import urllib.request
+
+    url = f"{NPM_REGISTRY}/{name.replace('/', '%2f')}/{version}"
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=REGISTRY_TIMEOUT) as resp:
+            return resp.status == 200
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return False
+        fail(f"registry 查询失败 {name}@{version}: HTTP {exc.code}")
+    except urllib.error.URLError as exc:
+        fail(f"registry 不可达: {exc.reason}（需要代理时先 export HTTPS_PROXY）")
+    return False
+
+
 def port_open(port: int) -> bool:
     """127.0.0.1 回环端口连通性探测（仅用于本机 dev/mock 端口）。"""
     with socket.socket() as sock:
