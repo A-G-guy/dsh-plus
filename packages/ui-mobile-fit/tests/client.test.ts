@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Context } from '@deepseek-ai/cordis'
-import { attachAcceptFor, IME_ACTIVE_ATTR, installBehaviors } from '../src/behaviors.ts'
+import {
+  attachAcceptFor,
+  IME_ACTIVE_ATTR,
+  installBehaviors,
+  isAttachRow,
+  readRowLabel,
+} from '../src/behaviors.ts'
 import { apply, name } from '../src/client.ts'
 import { mobileFitCss } from '../src/styles.ts'
 
@@ -17,6 +23,15 @@ test('given the styles module, when aggregating, then all layers and the mobile 
   assert.match(mobileFitCss, /--dsh-ime-inset/)
   // 无未替换占位
   assert.doesNotMatch(mobileFitCss, /TODO|FIXME|\{\{/)
+  // CSS 以模板字符串承载：注释里若出现反引号会提前终止字符串（曾致解析失败），
+  // 这里连带断言模板完整（首尾无反引号、花括号配平）。
+  assert.doesNotMatch(mobileFitCss, /`/)
+  let depth = 0
+  for (const ch of mobileFitCss) {
+    if (ch === '{') depth += 1
+    if (ch === '}') depth -= 1
+  }
+  assert.equal(depth, 0, 'CSS 花括号必须配平')
 })
 
 test('given the layout layer, when inspecting IME float, then transform is gated behind the keyboard attribute', () => {
@@ -38,17 +53,27 @@ test('given the conversation layer, when inspecting composer takeover cards, the
   )
 })
 
-test('given the conversation layer, when inspecting the mobile header, then the session log capsule shrinks so jobs and subagent entries stay tappable', () => {
-  // 回归：顶栏 Session 日志胶囊（上游 min-width:111px）挤占横向空间，
-  // 后台任务/子代理入口被挤出视口无法点按。窄屏必须压缩胶囊（图标化 +
-  // 文案视觉隐藏保 a11y）、收紧工具区间距，并允许标题行换行兜底。
-  assert.match(mobileFitCss, /\[class\*="_sessionLogButton"\][^{]*\{[^}]*min-width: 0/)
-  assert.match(
-    mobileFitCss,
-    /\[class\*="_sessionLogButton"\] span[^{]*\{[^}]*clip-path: inset\(50%\)/,
-  )
+test('given the conversation layer, when inspecting the mobile header, then it wraps and tightens so jobs and subagent entries stay tappable', () => {
+  // 回归：顶栏横向空间被挤出视口时，后台任务/子代理入口无法点按。
+  // 0.1.6-alpha.1 起上游把 Session 日志胶囊改成 28px 图标按钮（_moreButton），
+  // 压缩胶囊的规则（_sessionLogButton）已成死选择器并被删除；此处锁住仍然
+  // 生效的兜底：标题行换行 + 工具区间距收紧。
   assert.match(mobileFitCss, /\[class\*="_headerUtilities"\][^{]*\{[^}]*margin-left: 8px/)
   assert.match(mobileFitCss, /\[class\*="_titleRow"\][^{]*\{[^}]*flex-wrap: wrap/)
+  // 死选择器不得作为选择器回归（注释里可以提到它，故只匹配"选择器后跟 {"的形态）
+  assert.doesNotMatch(mobileFitCss, /\[class\*="_sessionLogButton"\][^{]*\{/)
+})
+
+test('given the layout layer, when inspecting the right column, then it uses the 0.1.6 rightbar hooks and keeps no dead details selectors', () => {
+  // 0.1.6-alpha.1 上游把右列由 _detailsCol 更名为 _rightbarCol、data 钩子由
+  // data-details-collapsed 改为 data-rightbar-collapsed；旧规则在两个版本都是
+  // 死选择器（_detailsCol 自 0.1.5 起即不存在），必须清除以免误导。
+  assert.match(mobileFitCss, /\[class\*="_rightbarCol"\]/)
+  // 右面板的 drawer/全屏由上游自理（autoFullscreen = viewportWidth < 768，
+  // 与本插件断点重合），本插件不应再手写 position:absolute 接管面板本体
+  assert.doesNotMatch(mobileFitCss, /_rightbarCol"\]\s*\{[^}]*position: absolute/)
+  assert.doesNotMatch(mobileFitCss, /\[class\*="_detailsCol"\][^{]*\{/)
+  assert.doesNotMatch(mobileFitCss, /\[data-details-collapsed\][^{]*\{/)
 })
 
 test('given the overlays layer, when inspecting tooltip handling, then coarse-pointer bubbles auto-hide', () => {
@@ -84,6 +109,38 @@ test('given the attach picker, then media keeps the official no-accept behavior 
     mobileFitCss,
     /\.dsh-mobile-attach-picker button[^{]*\{[^}]*var\(--dsw-alias-label-primary\)/,
   )
+})
+
+test('given the attach row matcher, then only the localized File row is claimed', () => {
+  // 0.1.6-alpha.1 起官方文件入口是加号菜单的"文件"/"File"行；同菜单另有
+  // 目标/计划/反馈/指令等行，误命中会吞掉它们的点按。
+  assert.equal(isAttachRow('文件'), true)
+  assert.equal(isAttachRow('File'), true)
+  assert.equal(isAttachRow('  文件  '), true)
+  assert.equal(isAttachRow('目标'), false)
+  assert.equal(isAttachRow('Goal'), false)
+  assert.equal(isAttachRow('指令'), false)
+  assert.equal(isAttachRow(null), false)
+  // 旧版 aria-label 不应再命中（按钮已不存在，避免又变成死锚点）
+  assert.equal(isAttachRow('添加附件'), false)
+  assert.equal(isAttachRow('Add attachment'), false)
+})
+
+test('given a composer, when reading the file row label, then the label span wins over the detail text', () => {
+  // 行 DOM 为 [role=option] > span._label > span._labelText (+ detail)；直接读
+  // textContent 会把 detail 并进来导致匹配失败，故优先取 _labelText。
+  const labelText = { textContent: 'File' }
+  const row = {
+    querySelector: (sel: string) => (sel.includes('_labelText') ? labelText : null),
+    textContent: 'FileAdd files to the message',
+  }
+  assert.equal(readRowLabel(row as unknown as Element), 'File')
+  // 选择器失配（上游改类名）时退回 textContent，仍可命中
+  const fallbackRow = {
+    querySelector: () => null,
+    textContent: 'File',
+  }
+  assert.equal(readRowLabel(fallbackRow as unknown as Element), 'File')
 })
 
 /** 事件监听器替身：被测代码只把事件对象透传给回调，测试不约束载荷结构。 */
@@ -354,57 +411,71 @@ test('given the composer is a contenteditable host, when a session switch focuse
   }
 })
 
-test('given a coarse pointer, when tapping the attachment button, then a picker opens and the chosen kind drives the accept on the same official input', () => {
-  // 回归：官方附件按钮程序化 click 无 accept 的隐藏 file input，Android Photo
-  // Picker 只给拍照/录像/相册。移动端拦截按钮点击 → 二次选择层：
-  // - 相册：还原官方无 accept（媒体选择器）
-  // - 文件：补文件类型 accept 后触发同一 input（onChange 等其余流程保持官方）
-  class FakeElement {}
-  class FakeInput extends FakeElement {
-    accept: string | null = null
-    clicks = 0
-    getAttribute(name: string) {
-      return name === 'accept' ? this.accept : null
-    }
-    setAttribute(name: string, value: string) {
-      if (name === 'accept') this.accept = value
-    }
-    removeAttribute(name: string) {
-      if (name === 'accept') this.accept = null
-    }
-    click() {
-      this.clicks += 1
-    }
+/**
+ * 附件二次选择层的共享替身：官方 popupSelect 行的 DOM（0.1.6-alpha.1+）是
+ * `[role=option] > span._label > span._labelText`，隐藏 file input 由 composer
+ * 容器（[data-composer-seat]）渲染。这里用最小替身复现该结构：
+ * 只有被测代码真正访问的成员（closest/querySelector/textContent/getAttribute…）。
+ */
+class FakeElement {}
+
+class FakeInput extends FakeElement {
+  accept: string | null = null
+  clicks = 0
+  getAttribute(name: string) {
+    return name === 'accept' ? this.accept : null
   }
-  class FakeButton extends FakeElement {
-    ariaLabel: string
-    parent: FakeRow | null = null
-    constructor(label: string) {
-      super()
-      this.ariaLabel = label
-    }
-    get parentElement() {
-      return this.parent
-    }
-    getAttribute(name: string) {
-      return name === 'aria-label' ? this.ariaLabel : null
-    }
-    closest(selector: string) {
-      return selector.includes('button') ? this : null
-    }
+  setAttribute(name: string, value: string) {
+    if (name === 'accept') this.accept = value
   }
-  class FakeRow extends FakeElement {
-    input = new FakeInput()
-    querySelector(selector: string) {
-      return selector.includes('input') ? this.input : null
-    }
+  removeAttribute(name: string) {
+    if (name === 'accept') this.accept = null
   }
-  // 可 append 的选择层节点（behaviors 动态创建）
-  const created: Array<Record<string, unknown>> = []
-  const { document, window, listeners } = createFakeEnv()
-  window.matchMedia = () => ({ matches: true }) // coarse
-  document.documentElement.lang = 'zh-CN'
-  document.createElement = (tagName: string) => {
+  click() {
+    this.clicks += 1
+  }
+}
+
+/** composer 容器替身：仅实现 querySelector('input[type="file"]')。 */
+class FakeComposer extends FakeElement {
+  input = new FakeInput()
+  querySelector(selector: string) {
+    return selector.includes('input') ? this.input : null
+  }
+}
+
+/** popupSelect 行替身：命中 [role="option"] 与 _labelText 两层查询。 */
+class FakeOptionRow extends FakeElement {
+  composer: FakeComposer
+  labelText: string
+  constructor(composer: FakeComposer, labelText: string) {
+    super()
+    this.composer = composer
+    this.labelText = labelText
+  }
+  querySelector(selector: string) {
+    if (selector.includes('_labelText')) return { textContent: this.labelText }
+    return null
+  }
+  closest(selector: string) {
+    if (selector.includes('option')) return this
+    if (selector.includes('composer')) return this.composer
+    return null
+  }
+}
+
+/** 可 append/remove/contains 的选择层节点替身（behaviors 动态创建）。 */
+interface FakeLayerNode {
+  className: string
+  children: unknown[]
+  removed: boolean
+  listeners: Record<string, Array<(payload?: unknown) => void>>
+  textContent: string
+  append: (...kids: unknown[]) => void
+}
+
+function createFakeLayerFactory(created: FakeLayerNode[]) {
+  return (tagName: string) => {
     if (tagName === 'style') return { dataset: {}, textContent: '', remove() {} }
     const node = {
       tagName,
@@ -439,14 +510,26 @@ test('given a coarse pointer, when tapping the attachment button, then a picker 
     created.push(node)
     return node
   }
+}
+
+test('given a coarse pointer, when tapping the composer File menu row, then a picker opens and the chosen kind drives the accept on the same official input', () => {
+  // 回归：官方文件入口程序化 click 一个无 accept 的隐藏 file input，Android
+  // Photo Picker 只给拍照/录像/相册。0.1.6-alpha.1 起该入口是加号菜单的
+  // "文件"行（原独立回形针按钮已移除），接管点随之上移到 [role=option] 行：
+  // - 相册：还原官方无 accept（媒体选择器）
+  // - 文件：补文件类型 accept 后触发同一 input（onChange 等其余流程保持官方）
+  const created: FakeLayerNode[] = []
+  const { document, window, listeners } = createFakeEnv()
+  window.matchMedia = () => ({ matches: true }) // coarse
+  document.documentElement.lang = 'zh-CN'
+  document.createElement = createFakeLayerFactory(created)
   document.body.appendChild = (node: unknown) => {
     document.body.children.push(node)
     return node
   }
   document.body.children = [] as unknown[]
-  const row = new FakeRow()
-  const button = new FakeButton('添加附件')
-  button.parent = row
+  const composer = new FakeComposer()
+  const row = new FakeOptionRow(composer, '文件')
   const restoreDom = installFakeDom(document, window)
   const prevInput = globalThis.HTMLInputElement
   const prevHtmlel = globalThis.HTMLElement
@@ -461,24 +544,66 @@ test('given a coarse pointer, when tapping the attachment button, then a picker 
     // installAttachPicker；tapOutsideClose 在非窄屏直接返回。
     const capture = listeners.get('click')
     // 第一次点按：打开选择层（不设置 accept、不触发官方 input）
-    capture?.({ target: button, preventDefault: () => {}, stopPropagation: () => {} })
-    assert.equal(row.input.accept, null)
-    assert.equal(row.input.clicks, 0)
+    capture?.({ target: row, preventDefault: () => {}, stopPropagation: () => {} })
+    assert.equal(composer.input.accept, null)
+    assert.equal(composer.input.clicks, 0)
     const layer = created.find((n) => n.className === 'dsh-mobile-attach-picker')
     assert.ok(layer !== undefined, 'picker layer should be created')
-    const items = (layer as { children: unknown[] }).children as Array<{
-      textContent: string
-      listeners: Record<string, Array<(payload?: unknown) => void>>
-    }>
+    const items = layer.children as FakeLayerNode[]
     assert.equal(items.length, 2)
     assert.equal(items[0]?.textContent, '相册 / 拍照')
     assert.equal(items[1]?.textContent, '选择文件')
     // 选"文件"：accept 补文件类型并触发官方 input
     items[1]?.listeners['click']?.[0]?.()
-    assert.equal(row.input.accept, 'application/*,text/*')
-    assert.equal(row.input.clicks, 1)
+    assert.equal(composer.input.accept, 'application/*,text/*')
+    assert.equal(composer.input.clicks, 1)
     // 层已关闭
-    assert.equal((layer as { removed: boolean }).removed, true)
+    assert.equal(layer.removed, true)
+    dispose()
+  } finally {
+    restoreDom()
+    globalThis.HTMLInputElement = prevInput
+    globalThis.HTMLElement = prevHtmlel
+    globalThis.Element = prevElement
+  }
+})
+
+test('given a non-File menu row, when tapping, then the picker does not open and the tap is not swallowed', () => {
+  // 同菜单还有目标/计划/反馈/指令等行，误命中会吞掉它们。
+  const created: FakeLayerNode[] = []
+  const { document, window, listeners } = createFakeEnv()
+  window.matchMedia = () => ({ matches: true })
+  document.createElement = createFakeLayerFactory(created)
+  document.body.appendChild = (node: unknown) => {
+    document.body.children.push(node)
+    return node
+  }
+  document.body.children = [] as unknown[]
+  const composer = new FakeComposer()
+  const goalRow = new FakeOptionRow(composer, '目标')
+  const restoreDom = installFakeDom(document, window)
+  const prevInput = globalThis.HTMLInputElement
+  const prevHtmlel = globalThis.HTMLElement
+  const prevElement = globalThis.Element
+  globalThis.HTMLInputElement = FakeInput as unknown as typeof HTMLInputElement
+  globalThis.HTMLElement = FakeElement as unknown as typeof HTMLElement
+  globalThis.Element = FakeElement as unknown as typeof Element
+  try {
+    const dispose = installBehaviors()
+    const capture = listeners.get('click')
+    let stopped = false
+    capture?.({
+      target: goalRow,
+      preventDefault: () => {},
+      stopPropagation: () => {
+        stopped = true
+      },
+    })
+    assert.equal(
+      created.some((n) => n.className === 'dsh-mobile-attach-picker'),
+      false,
+    )
+    assert.equal(stopped, false)
     dispose()
   } finally {
     restoreDom()
@@ -489,93 +614,18 @@ test('given a coarse pointer, when tapping the attachment button, then a picker 
 })
 
 test('given the picker is open, when tapping outside, then it closes without swallowing the event', () => {
-  class FakeElement {}
-  class FakeInput extends FakeElement {
-    accept: string | null = null
-    clicks = 0
-    getAttribute(name: string) {
-      return name === 'accept' ? this.accept : null
-    }
-    setAttribute(name: string, value: string) {
-      if (name === 'accept') this.accept = value
-    }
-    removeAttribute(name: string) {
-      if (name === 'accept') this.accept = null
-    }
-    click() {
-      this.clicks += 1
-    }
-  }
-  class FakeButton extends FakeElement {
-    ariaLabel: string
-    parent: FakeRow | null = null
-    constructor(label: string) {
-      super()
-      this.ariaLabel = label
-    }
-    get parentElement() {
-      return this.parent
-    }
-    getAttribute(name: string) {
-      return name === 'aria-label' ? this.ariaLabel : null
-    }
-    closest(selector: string) {
-      return selector.includes('button') ? this : null
-    }
-  }
-  class FakeRow extends FakeElement {
-    input = new FakeInput()
-    querySelector(selector: string) {
-      return selector.includes('input') ? this.input : null
-    }
-  }
-  const created: Array<Record<string, unknown>> = []
+  const created: FakeLayerNode[] = []
   const { document, window, listeners } = createFakeEnv()
   window.matchMedia = () => ({ matches: true })
   document.documentElement.lang = 'en'
-  document.createElement = (tagName: string) => {
-    if (tagName === 'style') return { dataset: {}, textContent: '', remove() {} }
-    const node = {
-      tagName,
-      children: [] as unknown[],
-      attrs: {} as Record<string, string>,
-      textContent: '',
-      listeners: {} as Record<string, Array<(payload?: unknown) => void>>,
-      removed: false,
-      type: '',
-      className: '',
-      setAttribute(k: string, v: string) {
-        this.attrs[k] = v
-      },
-      getAttribute(k: string) {
-        return this.attrs[k] ?? null
-      },
-      addEventListener(t: string, fn: (payload?: unknown) => void) {
-        const bucket = this.listeners[t] ?? []
-        this.listeners[t] = bucket
-        bucket.push(fn)
-      },
-      append(...kids: unknown[]) {
-        this.children.push(...kids)
-      },
-      remove() {
-        this.removed = true
-      },
-      contains(node: unknown) {
-        return node === this || this.children.includes(node)
-      },
-    }
-    created.push(node)
-    return node
-  }
+  document.createElement = createFakeLayerFactory(created)
   document.body.appendChild = (node: unknown) => {
     document.body.children.push(node)
     return node
   }
   document.body.children = [] as unknown[]
-  const row = new FakeRow()
-  const button = new FakeButton('Add attachment')
-  button.parent = row
+  const composer = new FakeComposer()
+  const row = new FakeOptionRow(composer, 'File')
   const restoreDom = installFakeDom(document, window)
   const prevInput = globalThis.HTMLInputElement
   const prevHtmlel = globalThis.HTMLElement
@@ -589,7 +639,7 @@ test('given the picker is open, when tapping outside, then it closes without swa
     const capture = listeners.get('click')
     const noop = () => {}
     // 打开选择层
-    capture?.({ target: button, preventDefault: noop, stopPropagation: noop })
+    capture?.({ target: row, preventDefault: noop, stopPropagation: noop })
     const layer = created.find((n) => n.className === 'dsh-mobile-attach-picker')
     assert.ok(layer !== undefined)
     // 层外点按：关闭层、不吞事件（未 preventDefault/stopPropagation）
@@ -602,10 +652,10 @@ test('given the picker is open, when tapping outside, then it closes without swa
         stopped = true
       },
     })
-    assert.equal((layer as { removed: boolean }).removed, true)
+    assert.equal(layer.removed, true)
     assert.equal(stopped, false)
-    // 英文文案
-    const items = (layer as { children: unknown[] }).children as Array<{ textContent: string }>
+    // 英文文案（行文案为 File → 英文层）
+    const items = layer.children as FakeLayerNode[]
     assert.equal(items[0]?.textContent, 'Photos / Camera')
     assert.equal(items[1]?.textContent, 'Choose file')
     dispose()

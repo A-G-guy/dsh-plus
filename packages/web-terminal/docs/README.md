@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-08 12:21"
+last_modified: "2026-09-19 19:28"
 ---
 
 # @dsh-plus/web-terminal
@@ -18,6 +18,23 @@ PTY 接缝，对人类交互终端不可用：
   无此实体；
 - handle 无 resize（分屏必需）；
 - web profile 组合树根本没有这些行（仅 subprocess 底座在）。
+
+### 与官方侧栏终端（0.1.6-alpha.1+）的关系
+
+0.1.6-alpha.1 官方新增了**面向人**的交互式终端：客户端
+`@deepseek-ai/dsh-client-ui-sidebar-terminal` + 宿主 `dsh-api-terminal-controller`，
+且已进入 web bundle 默认组合（`ui-sidebar-terminal` 行）。它与本插件功能面重叠
+（多标签、刷新后恢复、折叠/切会话保活、跟随主题），选型复核结论：
+
+- 官方终端**不支持分屏**（无 dockkit 分割面），本插件的桌面分屏仍是差异化能力；
+- 官方终端受宿主 **Session 配额**约束（`maxTerminals`，超限报 `terminal/limit-reached`），
+  且以 Session 归属组织标签；本插件按自身 registry 管理会话，dsh 运行期保活；
+- 官方终端经 `api-terminal-controller` 复用宿主 PTY 底座（权限为系统用户、
+  不受 Agent 沙箱限制）；本插件经 `node-pty` 直连、加载用户 rc（`TERM=xterm-256color`）。
+
+两者可共存（不同侧栏入口/槽位），但功能重叠，用户可按需二选一。因官方能力已覆盖
+多数需求，本项目对此重叠**向用户二次确认**后再决定是否继续维护本插件（见 AGENTS
+「原生能力已覆盖用户需求则二次确认」）。
 
 因此本插件经 `node-pty` 直连孵化真实交互 shell（`TERM=xterm-256color`、
 加载用户 rc 文件），并以 peer 依赖复用宿主安装树的单实例

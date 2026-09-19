@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-12 17:26"
+last_modified: "2026-09-19 19:28"
 ---
 
 # @dsh-plus/llm-pi 文档索引
@@ -44,9 +44,14 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
   （配额清理、过期刷新、`file_id` 被拒后失效重传），上传失败自动降级 base64 内联——
   全套策略在官方适配器内部，本插件只喂配置。
 - **继承官方内置目录**：模型条目只写 `id` 即继承同名官方模型的模态/像素预算等
-  能力（如 `deepseek-v4-flash-vision-exp` 自动获得 image 模态）；route 级
+  能力（如 `deepseek-flash` 自动获得 image 模态 + `imageMaxBytes`）；route 级
   `extends: deepseek` 全量继承官方目录，模型级 `extends: 'deepseek/<id>'` 可起别名。
   官方目录取自 `resolveAdapterOptions({}, undefined)`，随 dsh 树升级自动更新。
+  注意**官方目录的模型代号会变**：0.1.6-alpha.2 移除了 `deepseek-v4-flash` 与
+  `deepseek-v4-flash-vision-exp`，改为 `deepseek-flash`（image 模态）与
+  `deepseek-v4-pro`（纯文本）。写死的旧代号未命中官方目录时按"手写条目"处理
+  （不报错，但拿不到继承能力）；显式 `extends: 'deepseek/<旧代号>'` 则会**写入即拒绝**。
+  另注意官方端点随协议切换变为 `https://api.deepseek.com/anthropic`（Messages 协议）。
   `imageDetail` 已随 0.1.2-alpha.1 移除（官方 llm-deepseek 对含该字段的目录模型
   直接抛错）——旧配置含 `imageDetail` 时**写时拒绝**并提示改用
   `imagePixelBudget`/`imageMaxBytes`。
@@ -62,7 +67,7 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
   `apiKeyEnv` 必填（DeepSeekAdapter 无环境自发现）；`baseURL` 必填，除非
   `extends: deepseek`（继承官方端点）。
 - **运行时依赖**：0.1.2-alpha.2 起基线（树内含 `dsh-llm-deepseek`；当前基线
-  0.1.5-rc.2）；旧版 dsh 树下
+  0.1.6-alpha.2）；旧版 dsh 树下
   deepseek 路由在写入/启动时以明确错误拒绝，pi 路由不受影响（kit 诊断有日志）。
 - 配置卡片暂未提供 deepseek 专有字段的编辑控件，但未知字段会**原样往返保留**
   （卡片编辑不会丢 `adapter` 等手写字段）；deepseek 路由建议直接编辑 settings.yaml。

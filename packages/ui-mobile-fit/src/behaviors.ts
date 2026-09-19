@@ -135,21 +135,70 @@ function installTapOutsideClose(): Dispose {
   return () => document.removeEventListener('click', onClick, true)
 }
 
-/** 触屏附件按钮二次选择：官方"添加附件"回形针（0.1.3-alpha.2 基线）程序化
- *  click 一个【无 accept】的隐藏 file input——Android（Photo Picker）与 iOS
- *  对无 accept 的文件框只给"拍照/录像/相册"，不给"选择文件"；accept 值对
- *  部分 ROM 也不可靠。移动端改为拦截按钮点击并弹出二次选择层：
+/** 触屏文件选择二次选择层。
+ *
+ * 背景：官方 composer 用程序化 click 一个【无 accept】的隐藏 file input 唤起
+ * 选择器——Android（Photo Picker）与 iOS 对无 accept 的文件框只给
+ * "拍照/录像/相册"，不给"选择文件"。移动端改为拦截该手势并弹出二次选择层：
  *  - 相册/拍照：还原官方无 accept 行为（系统媒体选择器，拍照/录像/相册）；
  *  - 选择文件：给同一官方 file input 补文件类型 accept 后触发（系统文件
  *    管理器；onChange→addFiles 等其余流程全部保持官方）。
- *  仅 coarse 指针生效；桌面与其余逻辑保持官方原生。 */
-const ATTACH_LABELS = ['添加附件', 'Add attachment']
+ *  仅 coarse 指针生效；桌面与其余逻辑保持官方原生。
+ *
+ * 0.1.6-alpha.1 上游把独立回形针按钮收进 composer 的加号菜单（+ → 添加 →
+ * 文件，`input.commands` / `input.file`），旧的 `file.attach`「添加附件」
+ * 按钮与 aria-label 一并移除。这里的锚点随之改为按【行文案 + 同 composer 内
+ * 隐藏 file input】判定，不再依赖按钮 aria-label：
+ * 官方 file input 始终由 InputBar 渲染在 composerSeat 内（`data-composer-seat`），
+ * 菜单行点击 → inputHub.pickFiles → 同一个 input.click()，因此"点菜单行"与
+ * 旧版"点回形针"是同一语义，接管点选在 [role="option"] 行上即可。
+ */
+
+/** 二次选择层要接管的"文件"菜单行文案（官方 command 命名空间 `input.file`）。 */
+const ATTACH_ROW_LABELS = ['文件', 'File']
 /** 文件选择的目标 accept：显式文件类型（不含 image/video，避免媒体选择器接管）。 */
 export const ATTACH_FILE_ACCEPT = 'application/*,text/*'
 
 /** 附件 file input 的目标 accept（纯函数）：media → 还原官方无 accept；file → 文件类型列表。 */
 export function attachAcceptFor(kind: 'media' | 'file'): string | null {
   return kind === 'file' ? ATTACH_FILE_ACCEPT : null
+}
+
+/** 命中"文件"菜单行的判定（纯函数，供行为层与单测共用）。 */
+export function isAttachRow(label: string | null): boolean {
+  return label !== null && ATTACH_ROW_LABELS.includes(label.trim())
+}
+
+/**
+ * 读取 popupSelect 行的标题文案。
+ *
+ * 行的 DOM 是 `[role=option] > span(._label) > span(._labelText)[ + sup._badge]`
+ * 外加可选 `span._detail`，故不能直接用 textContent（会并进 detail）。优先取
+ * `._labelText`，选择器失配时退回 textContent 兜底——两者都取不到就返回 null，
+ * 调用方按"不接管"处理（降级回官方原生行为，绝不误吞点按）。
+ * @param row - `[role="option"]` 行元素。
+ * @returns 行标题文本；无法确定时为 null。
+ */
+export function readRowLabel(row: Element): string | null {
+  const labelText = row.querySelector('[class*="_labelText"]')?.textContent
+  if (labelText !== undefined && labelText !== null && labelText.trim() !== '') {
+    return labelText
+  }
+  return row.textContent
+}
+
+/** composer 容器选择器：隐藏 file input 与加号菜单都落在其中。 */
+const COMPOSER_CONTAINER_SELECTOR = '[data-composer-seat], [class*="_composerSeat"]'
+
+/**
+ * 在点按目标所属的 composer 容器内定位官方隐藏 file input。
+ * @param target - 被点按的元素（菜单行或旧版按钮）。
+ * @returns 官方 file input；不在 composer 内或未渲染时返回 null。
+ */
+export function findComposerFileInput(target: Element): HTMLInputElement | null {
+  const container = target.closest(COMPOSER_CONTAINER_SELECTOR)
+  if (container === null) return null
+  return container.querySelector<HTMLInputElement>('input[type="file"]')
 }
 
 interface AttachPickerState {
@@ -214,18 +263,20 @@ function installAttachPicker(): Dispose {
       close()
       return
     }
-    const button = target.closest<HTMLElement>('button[aria-label]')
-    if (button === null) return
-    const label = button.getAttribute('aria-label')
-    if (label === null || !ATTACH_LABELS.includes(label)) return
-    const input = button.parentElement?.querySelector<HTMLInputElement>('input[type="file"]')
-    if (input === null || input === undefined) return
+    // 命中加号菜单的"文件"行（0.1.6-alpha.1+）。row 就是被点按元素本身或
+    // 其祖先，故从 target 向上找带 role=option 的最近祖先。
+    const row = target.closest('[role="option"]')
+    if (row === null) return
+    const label = readRowLabel(row)
+    if (!isAttachRow(label)) return
+    const input = findComposerFileInput(row)
+    if (input === null) return
     // 吞掉该次点按：官方 onClick（React 根委托冒泡）不再触发原生选择器，
-    // 改由二次选择层接管。语言跟随官方按钮的实际渲染文案（页面根标签的
-    // lang 属性不可靠，aria-label 即当前 locale 的事实源）。
+    // 改由二次选择层接管。语言跟随官方行文案（页面根标签的 lang 属性在
+    // 0.1.6 由 client-locale 维护，但行文案本身就是当前 locale 的事实源）。
     e.preventDefault()
     e.stopPropagation()
-    open(input, label === '添加附件')
+    open(input, label?.trim() === '文件')
   }
 
   document.addEventListener('click', onCapture, true)

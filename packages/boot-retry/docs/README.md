@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-12 23:08"
+last_modified: "2026-09-19 19:28"
 ---
 
 # @dsh-plus/boot-retry
@@ -41,7 +41,7 @@ el.addEventListener('error', () => reject(new Error(...)), { once: true })
 
 ### 时序：为什么一定被读到
 
-index.html 的 head 顺序（实测于 dsh 0.1.5-rc.2）：
+index.html 的 head 顺序（实测于 dsh 0.1.5-rc.2，0.1.6-alpha.2 复核结构不变）：
 模块表引导队列 → application 批次 `<link rel=preload>` → bootstrap 批次
 `<script src=/plugins/...>` → `__DSH_BOOT__` → **本插件注入行** → 外壳
 `<script type="module" src=assets/index-*.js>`。

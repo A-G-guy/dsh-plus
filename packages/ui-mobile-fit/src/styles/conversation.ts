@@ -67,25 +67,11 @@ export const conversationCss = /* css */ `
     gap: 6px;
   }
 
-  /* Session 日志胶囊（上游 min-width:111px）是顶栏最大的固定宽度消耗者，
-     窄屏收缩为图标按钮（文案视觉隐藏但保留可访问名），把横向空间让给
-     后台任务/子代理入口 */
-  [class*="_sessionLogButton"] {
-    min-width: 0 !important;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  [class*="_sessionLogButton"] span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
+  /* 旧版 Session 日志胶囊（dsh-session-log-export 的 HeaderAction，历史类名
+     _sessionLogButton、min-width:111px）曾是顶栏最大的固定宽度消耗者，此处
+     把它压缩成图标按钮。0.1.6-alpha.1 起上游已将该入口本身改为 28px 图标按钮
+     （_moreButton，"更多"菜单），胶囊不再存在——选择器在两个版本都失配，
+     属死规则，故删除；顶栏空间由上面的 titleRow 换行 + headerUtilities 收紧兜底。 */
 
   /* composer：占满窄屏宽度，附件/模式行允许换行。
      0.1.2-alpha.2 基线上游 composer 输入行（ui-conversation InputBar 的 .row）

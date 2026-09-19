@@ -70,7 +70,7 @@ export const layoutCss = /* css */ `
 
   /* ── 展开态：drawer 覆盖层，中列保持全宽 ── */
   [class*="_frame"]:not([data-sidebar-collapsed]),
-  [class*="_frame"]:not([data-details-collapsed]) {
+  [class*="_frame"]:not([data-rightbar-collapsed]) {
     grid-template-columns: 0px minmax(0px, 1fr) 0px !important;
   }
 
@@ -87,13 +87,15 @@ export const layoutCss = /* css */ `
     width: 100% !important;
   }
 
-  [class*="_frame"]:not([data-details-collapsed]) [class*="_detailsCol"] {
-    position: absolute;
-    inset: 0 0 0 auto;
-    width: min(92vw, 420px);
-    z-index: 30;
-    border-left: 1px solid var(--dsw-alias-border-l2);
-    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.18);
+  /* 右列（0.1.6-alpha.1 上游由 _detailsCol 更名为 _rightbarCol，data 钩子为
+     data-rightbar-collapsed）。上游把它做成"轨道"：面板自身 absolute 右贴边，
+     由 data-sidebar-right-open 控制滑入；且 SidebarRight 内
+     autoFullscreen = viewportWidth < 768 与本插件断点重合——窄屏下右面板
+     已由上游置为 position:fixed inset:0 全屏、轨道宽度归 0。故此处只做必要的
+     防御：轨道最小宽度归零（中列不被挤压）。旧版"手动 drawer 化列容器"的规则
+     一并删除——它锚定的 _detailsCol 自 0.1.5 起即不存在，属长期静默失效的死选择器。 */
+  [class*="_frame"] > [class*="_rightbarCol"] {
+    min-width: 0;
   }
 
   /* 列脱离文档流后 grid 自动放置会让后续列前移，必须显式钉回各自轨道 */
@@ -107,7 +109,7 @@ export const layoutCss = /* css */ `
     grid-row: 1;
   }
 
-  [class*="_frame"] > [class*="_detailsCol"] {
+  [class*="_frame"] > [class*="_rightbarCol"] {
     grid-column: 3;
     grid-row: 1;
   }

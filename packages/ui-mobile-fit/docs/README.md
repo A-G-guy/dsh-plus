@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-31 15:30"
+last_modified: "2026-09-19 19:28"
 ---
 
 # @dsh-plus/ui-mobile-fit
@@ -61,10 +61,16 @@ last_modified: "2026-08-31 15:30"
 
 ## 选择器稳定性策略
 
-上游（基准 0.1.2-alpha.2）CSS Modules 类名 = 哈希前缀 + 语义后缀（`pI_x6G_frame`），
+上游（基准 0.1.6-alpha.2）CSS Modules 类名 = 哈希前缀 + 语义后缀（`pI_x6G_frame`），
 shell 旧格式为 `_语义_哈希_序号`（`_remove_1hk8w_53`）。哈希随构建变化、语义后缀
 稳定，故一律用 `[class*="_语义后缀"]` 子串匹配；`!important` 仅用于对抗内联
 `grid-template-columns` 等内联样式，并就地注释说明。
+
+后缀**不随版本重命名**这一前提必须每次升级复核：0.1.6-alpha.1 就发生了
+`_detailsCol`→`_rightbarCol` 的更名（且旧名自 0.1.5 起已失效，属长期静默降级）。
+复核方法：把 CSS/behaviors 里全部 `class*="_x"` 与 `[data-*]` 抽出来，逐一在官方
+安装树（各 `dsh-client-ui-*` 包的 `lib/*.js` + `dsh-web-frontend/dist/assets/*.css`）
+里检索——**存活选择器必须命中，未命中的即为死规则，需改锚或删除**。
 
 ## 上游版本跟进记录
 
@@ -77,6 +83,10 @@ shell 旧格式为 `_语义_哈希_序号`（`_remove_1hk8w_53`）。哈希随�
 | 0.1.0-rc.8 | layout AppFrame 窄屏机制（1024 自动折叠 + narrowExpanded）与 rc.6/rc.7 相同，官方展开为挤压式（中列被挤至 ~95px） | drawer 化覆盖保持为必要增量 |
 | 0.1.2-alpha.1 | 选择器全量复核（工具卡 `_ioCard/_ioText/_codeBody/_terminalBody/_diffBody`、会话头 `_crumbs/_headerActions/_titleRow/_headerUtilities`、composer `_tools/_modes/_accessory`、布局 `_frame/_sidebarCol/_centerCol/_detailsCol/_handle/_toggle/_railMark/_panelIcon`、覆盖层 `_overlay/_panel/_nav/_navList/_content/_bubble`、设置 `_deleteDialog/_fetchDialog/_modelField/_modelRow/_modelCatalog/_modelList`）在 master 全部存在；data 钩子（`data-sidebar-collapsed`/`data-details-collapsed`/`data-plan-review-key`/`data-question-key`/`data-approval-key`）在列 | 零选择器改动（子串匹配命中，静默降级机制不变） |
 | 0.1.2-alpha.2 | layout/sidebar CSS Modules 局部名（`_frame/_sidebarCol/_centerCol/_detailsCol/_handle/_toggle/_railMark/_panelIcon`）与 data 钩子全部保留；hash 前缀变化对子串选择器免疫 | 零选择器改动 |
+| 0.1.6-alpha.1 | 右列更名：`_detailsCol` → `_rightbarCol`，`data-details-collapsed` → `data-rightbar-collapsed`；右列语义改为"轨道"（面板自身 absolute 右贴边滑入，`data-sidebar-right-open`；`autoFullscreen = viewportWidth < 768` 窄屏自动全屏） | 复核发现旧规则在 **0.1.5 起即已是死选择器**（`_detailsCol` 不存在）：删除死规则，grid 轨道锚改 `_rightbarCol`；右面板 drawer/全屏行为交还上游（上游断点与本插件一致），本插件只保留"轨道最小宽度归零"防御 |
+| 0.1.6-alpha.1 | Session 日志胶囊（`_sessionLogButton`，min-width:111px）被移除，上游把该入口改为 28px 图标按钮（`_moreButton`，"更多"菜单） | 删除失效的胶囊压缩规则；顶栏空间由 `_titleRow` 换行 + `_headerUtilities` 收紧兜底 |
+| 0.1.6-alpha.1 | composer 独立回形针按钮（`file.attach`「添加附件」）移除，文件入口收进 `+` 菜单的"添加"分组（`input.file` = "文件"/"File"） | 触屏二次选择层改锚 `[role="option"]` 行（`readRowLabel` 取 `_labelText`，失配回退 textContent），并新增"非 File 行不得误吞"的回归测试 |
+| 0.1.6-alpha.1 | `dsh-client-ui-slots` 新增 Component Factory 面；Session 作用域 `SessionProvider` 新增显式 `session` target | 本插件不使用 slots，无影响（其余插件的隐式 session 作用域注册按"缺省继承外围绑定"语义仍然有效） |
 
 ## 开发与验证
 
