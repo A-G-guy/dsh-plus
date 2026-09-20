@@ -10,6 +10,7 @@ export const NS = 'dsh-plus-llm-pi'
 const ownZh = {
   title: 'LLM 路由（llm-pi）',
   description: '自定义 LLM 路由：协议、compat、模型目录与 models.dev 目录兜底。',
+  summaryLine: '自定义 LLM 路由：协议、compat、模型目录与 models.dev 目录兜底。',
   enabled: '启用插件',
   catalogUrl: 'models.dev 目录数据端点',
   catalogUrlHint: '快照数据源；一般无需修改。',
@@ -92,6 +93,7 @@ const ownZh = {
 const ownEn = {
   title: 'LLM routes (llm-pi)',
   description: 'Custom LLM routes: protocol, compat, model catalog and models.dev fallback.',
+  summaryLine: 'Custom LLM routes: protocol, compat, model catalog and models.dev fallback.',
   enabled: 'Enable plugin',
   catalogUrl: 'models.dev catalog endpoint',
   catalogUrlHint: 'Snapshot data source; usually no change needed.',

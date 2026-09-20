@@ -1,5 +1,6 @@
 /**
- * 「子代理模型配置」配置卡片：注册进 settings.plugin.item 插槽（官方插件配置页）。
+ * 「子代理模型配置」配置卡片：经 injectPluginConfigCard 注册（legacy settings.plugin.item
+ * 与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config，view 分发 summary/page）。
  * 外壳与基础控件走 @dsh-plus/shared/client 套件（CardChrome/CheckRow/SelectField）。
  * 配置读写走官方 settingsScope 传输：value 为 schema 解析后的命名空间值
  * （enabled + entries），行集合 = 目录返回的已注册子代理 provider
@@ -14,6 +15,7 @@ import {
   CheckRow,
   IDLE_STATUS,
   type NamespaceSettingsApi,
+  type PluginConfigViewProps,
   type Scope,
   SelectField,
   type SelectOption,
@@ -30,7 +32,7 @@ import {
 } from './draft.ts'
 import type { Translate } from './i18n.ts'
 
-export interface CardProps {
+export interface CardProps extends PluginConfigViewProps {
   t: Translate
   scope: Scope
   api: NamespaceSettingsApi
@@ -144,14 +146,15 @@ function RowBlock(props: RowBlockProps): ReactElement {
   )
 }
 
-export function SubagentModelCard(props: CardProps): ReactElement | null {
+export function SubagentModelCard(props: CardProps): ReactElement | string | null {
   const { t, scope, api } = props
   const snapshot = useSyncExternalStore(
     (listener: () => void) => scope.subscribe(listener),
     () => scope.getSnapshot(),
   )
   const value = snapshot.value as ConfigValue | undefined
-  const [open, setOpen] = useState(false)
+  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
+  const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null)
   const [catalogFailed, setCatalogFailed] = useState(false)
@@ -206,6 +209,9 @@ export function SubagentModelCard(props: CardProps): ReactElement | null {
       Object.values(draft.rows).some((row) => row.model.length > 0 && row.provider.length === 0),
     [draft],
   )
+
+  // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
+  if (props.view === 'summary') return t('summaryLine')
 
   if (value === undefined || draft === null) {
     return (

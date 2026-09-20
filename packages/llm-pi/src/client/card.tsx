@@ -1,5 +1,7 @@
 /**
- * 「LLM 路由」配置卡片：注册进 settings.plugin.item 插槽（官方插件配置页）。
+ * 「LLM 路由」配置卡片：经 injectPluginConfigCard 注册（legacy settings.plugin.item
+ * 与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config，view 分发
+ * summary/page）。
  * 顶部：enabled / catalogUrl / catalogRefreshHours / 只读状态行（kitSource、
  * modelsDevStatus，来自模型目录端点）+ 保存（settings.update 全量深合并）与
  * 错误/成功提示；下方为 providers 路由列表（新增/删除/字段编辑/compat/模型
@@ -13,6 +15,7 @@ import {
   CheckRow,
   IDLE_STATUS,
   type NamespaceSettingsApi,
+  type PluginConfigViewProps,
   type Scope,
   TextField,
 } from '@dsh-plus/shared/client'
@@ -30,7 +33,7 @@ import {
 import type { Translate } from './i18n.ts'
 import { ProvidersSection } from './views/providers.tsx'
 
-export interface CardProps {
+export interface CardProps extends PluginConfigViewProps {
   t: Translate
   scope: Scope
   api: NamespaceSettingsApi
@@ -43,14 +46,15 @@ function modelsDevText(status: WireModelsDevStatus | null, t: Translate): string
   return `${t('modelsDevStatusLine')}：${status.providers} 个 provider，快照 ${status.fetchedAt}`
 }
 
-export function LlmPiCard(props: CardProps): ReactElement | null {
+export function LlmPiCard(props: CardProps): ReactElement | string | null {
   const { t, scope, api } = props
   const snapshot = useSyncExternalStore(
     (listener: () => void) => scope.subscribe(listener),
     () => scope.getSnapshot(),
   )
   const value = snapshot.value as ConfigValue | undefined
-  const [open, setOpen] = useState(false)
+  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
+  const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [epoch, setEpoch] = useState(0)
   const [kitSource, setKitSource] = useState<string | null>(null)
@@ -98,6 +102,9 @@ export function LlmPiCard(props: CardProps): ReactElement | null {
       )
     )
   }, [draft])
+
+  // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
+  if (props.view === 'summary') return t('summaryLine')
 
   if (value === undefined || draft === null) {
     return (

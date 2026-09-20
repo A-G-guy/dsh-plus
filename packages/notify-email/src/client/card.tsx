@@ -1,5 +1,7 @@
 /**
- * 「邮件通知」配置卡片：注册进 settings.plugin.item 插槽（官方插件配置页）。
+ * 「邮件通知」配置卡片：经 injectPluginConfigCard 注册（legacy settings.plugin.item
+ * 与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config，view 分发
+ * summary/page）。
  * 外壳与基础控件走 @dsh-plus/shared/client 套件（CardChrome/TextField/CheckRow），
  * 本文件只保留业务字段与保存/测试逻辑。交互对齐官方卡片：折叠/展开、
  * staged draft、未保存标记、保存/放弃；另加「发送测试邮件」。
@@ -16,6 +18,7 @@ import {
   CheckRow,
   IDLE_STATUS,
   type NamespaceSettingsApi,
+  type PluginConfigViewProps,
   type Scope,
   TextField,
 } from '@dsh-plus/shared/client'
@@ -24,7 +27,7 @@ import { SETTINGS_NS } from '../ns.ts'
 import { sendTest } from './api.ts'
 import type { Translate } from './i18n.ts'
 
-export interface CardProps {
+export interface CardProps extends PluginConfigViewProps {
   t: Translate
   scope: Scope
   api: NamespaceSettingsApi
@@ -113,14 +116,15 @@ function toPatch(draft: Draft): Record<string, unknown> {
 
 const TRIGGER_KEYS = ['onComplete', 'onError', 'onAborted', 'onQuestion', 'onPlanReview'] as const
 
-export function NotifyEmailCard(props: CardProps): ReactElement | null {
+export function NotifyEmailCard(props: CardProps): ReactElement | string | null {
   const { t, scope, api } = props
   const snapshot = useSyncExternalStore(
     (listener: () => void) => scope.subscribe(listener),
     () => scope.getSnapshot(),
   )
   const value = snapshot.value as ConfigValue | undefined
-  const [open, setOpen] = useState(false)
+  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
+  const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [passConfigured, setPassConfigured] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -169,6 +173,9 @@ export function NotifyEmailCard(props: CardProps): ReactElement | null {
         Number(draft.maxBodyChars) < 200),
     [draft],
   )
+
+  // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
+  if (props.view === 'summary') return t('summaryLine')
 
   if (value === undefined || draft === null) {
     return (

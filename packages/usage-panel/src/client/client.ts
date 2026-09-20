@@ -1,7 +1,8 @@
 /**
  * 浏览器半入口：
  * - settings.section 官方插槽注册「用量统计」独立设置页；
- * - settings.plugin.item keyed 槽位注册价目卡片（key = dsh-plus-usage-panel）。
+ * - 价目卡片经 injectPluginConfigCard 三槽位注册（legacy settings.plugin.item
+ *   与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config）。
  * 配置读写经 ctx.remote.settings 直连（0.1.2-alpha.1 起 connection.api.settings
  * 已移除；不复用 settingsScope 服务——非 loopback 页面下它固定 memory 模式无数据）。
  * @module @dsh-plus/usage-panel/client
@@ -11,6 +12,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import {
   createNamespaceApi,
   createSettingsScope,
+  injectPluginConfigCard,
   type PluginClientContext,
 } from '@dsh-plus/shared/client'
 import { type DictKey, en, NS, zh } from './i18n.ts'
@@ -54,18 +56,14 @@ export function apply(ctx: Context): void {
     ),
   )
 
-  // 价目卡片（settings.plugin.item：keyed 槽位，key = settings 命名空间）。
+  // 价目卡片（三槽位注册，key/rowId 见 @dsh-plus/shared/client/config-slots）。
   const scope = createSettingsScope(c, 'dsh-plus-usage-panel', 'usage-panel: settings scope')
   const api = createNamespaceApi(c.get('remote').settings, 'dsh-plus-usage-panel')
-  c.slots.inject('settings.plugin.item', () =>
-    c.slots.register(
-      {
-        name: 'settings.plugin.item',
-        key: 'dsh-plus-usage-panel',
-        locale: NS,
-        inject: () => ({ t, scope, api }),
-      },
-      UsagePriceCard,
-    ),
-  )
+  injectPluginConfigCard(c.slots, {
+    ns: 'dsh-plus-usage-panel',
+    rowId: 'dsh-plus-usage-panel',
+    pkg: '@dsh-plus/usage-panel',
+    component: UsagePriceCard,
+    inject: () => ({ t, scope, api }),
+  })
 }

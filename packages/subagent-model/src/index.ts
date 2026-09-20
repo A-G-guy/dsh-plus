@@ -5,8 +5,9 @@
  * 主代理显式选择的路由（官方 subagent-model-selection 的 model 字段）优先，
  * 本插件只补"未选择时的强制默认"。
  * 配置经 settings 用户层（$DSH_HOME/settings.yaml）持久化并热生效；
- * 配置 UI 位于 webui 设置-插件-插件配置（settings.plugin.item 卡片，
- * 模型目录经 host webServer 同源端点下发）。
+ * 配置 UI 位于 webui 插件页（0.1.6-alpha.2 起为侧边栏「插件」页 bundle 行配置；
+ * 旧版为 设置-插件-插件配置 的 settings.plugin.item 卡片，经三槽位注册兼容，
+ * 见 @dsh-plus/shared/client/config-slots），模型目录经 host webServer 同源端点下发。
  * @module @dsh-plus/subagent-model
  */
 import type { Context } from '@deepseek-ai/cordis'

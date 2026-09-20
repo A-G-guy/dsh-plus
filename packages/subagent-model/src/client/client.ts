@@ -1,5 +1,7 @@
 /**
- * 浏览器半入口：注册 locale 字典 + 向 settings.plugin.item 插槽注册「子代理模型配置」卡片。
+ * 浏览器半入口：注册 locale 字典 + 注册「子代理模型配置」卡片
+ * （injectPluginConfigCard 三槽位：legacy settings.plugin.item 与 0.1.6-alpha.2
+ * 独立插件页的 plugins.row.config / plugins.bundle.config）。
  * 构建产物为 window.__ModuleLoader__.load({id, factory}) 形式的 CJS factory
  * （包装见 tsdown.config.ts）；样式沿用官方 data-plugin-css 约定，HMR 据此卸载。
  *
@@ -8,9 +10,7 @@
  * 0.1.2-alpha.1 起配置读写统一走 ctx.remote.settings 直连
  * （connection.api.settings RPC 面已移除；不复用 settingsScope 服务——
  * 非 loopback 页面下它固定 memory 模式无数据）；自定义端点仅剩「模型目录」（api.ts）。
- * 插槽为 keyed 槽位：key 必须是卡片编辑的 settings 命名空间
- * （即服务端 SETTINGS_NS 注册的同一字面量，见 ../ns.ts），
- * 官方配置页按此 key 与 Host 已注册命名空间配对分发。
+ * 卡片 key/rowId 约定见 @dsh-plus/shared/client/config-slots。
  * @module @dsh-plus/subagent-model/client
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -18,6 +18,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import {
   createNamespaceApi,
   createSettingsScope,
+  injectPluginConfigCard,
   type PluginClientContext,
 } from '@dsh-plus/shared/client'
 import { SETTINGS_NS } from '../ns.ts'
@@ -45,15 +46,11 @@ export function apply(ctx: Context): void {
   c.effect(() => c.locale.register(NS, { zh, en }), 'subagent-model: locale')
   const scope = createSettingsScope(c, SETTINGS_NS, 'subagent-model: settings scope')
   const api = createNamespaceApi(c.get('remote').settings, SETTINGS_NS)
-  c.slots.inject('settings.plugin.item', () =>
-    c.slots.register(
-      {
-        name: 'settings.plugin.item',
-        key: SETTINGS_NS,
-        locale: NS,
-        inject: () => ({ t: c.locale.bind(NS), scope, api }),
-      },
-      SubagentModelCard,
-    ),
-  )
+  injectPluginConfigCard(c.slots, {
+    ns: SETTINGS_NS,
+    rowId: 'dsh-plus-subagent-model',
+    pkg: '@dsh-plus/subagent-model',
+    component: SubagentModelCard,
+    inject: () => ({ t: c.locale.bind(NS), scope, api }),
+  })
 }

@@ -96,6 +96,7 @@ export const zh = {
   // 配置卡片
   'card.title': '图像工作室',
   'card.description': '文生图/图生图：提供商与 API Key、参数/提示词预设',
+  'card.summary': '文生图/图生图：提供商与 API Key、参数/提示词预设。',
   'card.providers': '提供商预设',
   'card.prompts': '提示词预设',
   'card.params': '参数预设',
@@ -219,6 +220,7 @@ export const en: Record<DictKey, string> = {
   'gallery.edit': 'Edit again',
   'card.title': 'Image Studio',
   'card.description': 'Text/Image-to-image: providers & API keys, param/prompt presets',
+  'card.summary': 'Text/Image-to-image: providers & API keys, param/prompt presets.',
   'card.providers': 'Provider presets',
   'card.prompts': 'Prompt presets',
   'card.params': 'Parameter presets',

@@ -13,6 +13,12 @@ export {
   type CardStatusState,
   IDLE_STATUS,
 } from './card.tsx'
+export {
+  DSH_PLUS_BUNDLE,
+  injectPluginConfigCard,
+  type PluginConfigCardReg,
+  type PluginConfigViewProps,
+} from './config-slots.ts'
 export { getJson, postJson } from './fetch.ts'
 export { CheckRow, SelectField, type SelectOption, TextField } from './fields.tsx'
 export { type CommonDictKey, commonEn, commonZh, type Dict, mergeDict } from './i18n.ts'

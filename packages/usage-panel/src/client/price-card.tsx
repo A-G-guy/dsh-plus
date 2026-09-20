@@ -1,5 +1,7 @@
 /**
- * 价目配置卡片：注册进 settings.plugin.item 插槽（官方插件配置页）。
+ * 价目配置卡片：经 injectPluginConfigCard 注册（legacy settings.plugin.item
+ * 与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config，view 分发
+ * summary/page）。
  * 价目行编辑（provider/model/四价）+ models.dev 一键导入（host 后台拉取，
  * 前端轮询目录状态：refreshing 期间禁用按钮，完成后经缓存文档折算导入）。
  * @module usage-panel/client/price-card
@@ -10,6 +12,7 @@ import {
   type CardStatusState,
   IDLE_STATUS,
   type NamespaceSettingsApi,
+  type PluginConfigViewProps,
   type Scope,
   TextField,
 } from '@dsh-plus/shared/client'
@@ -18,7 +21,7 @@ import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore }
 import { fetchCatalogState, importPricesFromModelsDev, refreshCatalog } from './api.ts'
 import type { Translate } from './i18n.ts'
 
-export interface CardProps {
+export interface CardProps extends PluginConfigViewProps {
   t: Translate
   scope: Scope
   api: NamespaceSettingsApi
@@ -46,14 +49,15 @@ function numTextOk(text: string): boolean {
   return /^\d+(\.\d+)?$/.test(text.trim())
 }
 
-export function UsagePriceCard(props: CardProps): ReactElement | null {
+export function UsagePriceCard(props: CardProps): ReactElement | string | null {
   const { t, scope, api } = props
   const snapshot = useSyncExternalStore(
     (listener: () => void) => scope.subscribe(listener),
     () => scope.getSnapshot(),
   )
   const value = snapshot.value as ConfigValue | undefined
-  const [open, setOpen] = useState(false)
+  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
+  const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<ConfigValue | null>(null)
   const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -78,6 +82,9 @@ export function UsagePriceCard(props: CardProps): ReactElement | null {
       ),
     [draft],
   )
+
+  // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
+  if (props.view === 'summary') return t('cardSummary')
 
   if (value === undefined || draft === null) {
     return (

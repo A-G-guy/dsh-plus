@@ -1,5 +1,6 @@
 /**
- * 配置卡片（settings.plugin.item，key = settings 命名空间）：
+ * 配置卡片（injectPluginConfigCard 三槽位，legacy key = settings 命名空间，
+ * 0.1.6-alpha.2 起为插件页 row/bundle config，view 分发 summary/page）：
  * 三组预设（提供商/参数/提示词）+ 高级项（并发/超时/代理/画廊上限）的
  * staged draft 编辑；提供商预设逐条附 API Key 管理（凭据端点，值不回显）。
  * JSON 字段（extraHeaders/paramSpecs）以文本镜像编辑，保存时解析 +
@@ -11,6 +12,7 @@ import {
   type CardStatusState,
   IDLE_STATUS,
   type NamespaceSettingsApi,
+  type PluginConfigViewProps,
   type Scope,
   TextField,
 } from '@dsh-plus/shared/client'
@@ -22,7 +24,7 @@ import { validateParamSpecs } from '../params/spec.ts'
 import { fetchCredentialStatus, fetchProviders, setCredential, unsetCredential } from './api.ts'
 import type { Translate } from './i18n.ts'
 
-export interface CardProps {
+export interface CardProps extends PluginConfigViewProps {
   t: Translate
   scope: Scope
   api: NamespaceSettingsApi
@@ -197,14 +199,15 @@ function CredentialRow(props: { t: Translate; presetId: string; disabled: boolea
   )
 }
 
-export function StudioConfigCard(props: CardProps): ReactElement | null {
+export function StudioConfigCard(props: CardProps): ReactElement | string | null {
   const { t, scope, api } = props
   const snapshot = useSyncExternalStore(
     (listener: () => void) => scope.subscribe(listener),
     () => scope.getSnapshot(),
   )
   const value = snapshot.value as ImageStudioConfig | undefined
-  const [open, setOpen] = useState(false)
+  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
+  const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [baseline, setBaseline] = useState('')
   const [saving, setSaving] = useState(false)
@@ -228,6 +231,9 @@ export function StudioConfigCard(props: CardProps): ReactElement | null {
     () => draft !== null && JSON.stringify(draft) !== baseline,
     [draft, baseline],
   )
+
+  // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
+  if (props.view === 'summary') return t('card.summary')
 
   if (value === undefined || draft === null) {
     return (

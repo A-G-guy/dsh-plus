@@ -10,6 +10,7 @@ export const NS = 'dsh-plus-notify-email'
 const ownZh = {
   title: '邮件通知',
   description: '任务结束、等待决策或出错时向指定邮箱发送邮件。',
+  summaryLine: '任务结束、等待决策或出错时向指定邮箱发送邮件。',
   enabled: '启用通知',
   host: 'SMTP 服务器',
   hostHint: '如 smtp.qq.com、smtp.163.com。',
@@ -48,6 +49,7 @@ const ownZh = {
 const ownEn = {
   title: 'Email notifications',
   description: 'Email a mailbox when a task finishes, awaits a decision, or fails.',
+  summaryLine: 'Email a mailbox when a task finishes, awaits a decision, or fails.',
   enabled: 'Enable notifications',
   host: 'SMTP host',
   hostHint: 'e.g. smtp.qq.com, smtp.gmail.com.',

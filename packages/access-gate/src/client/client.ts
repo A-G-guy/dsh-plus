@@ -1,21 +1,22 @@
 /**
- * 浏览器半入口：注册 locale 字典 + 向 settings.plugin.item 插槽注册「访问控制」卡片。
+ * 浏览器半入口：注册 locale 字典 + 注册「访问控制」卡片
+ * （injectPluginConfigCard 三槽位：legacy settings.plugin.item 与 0.1.6-alpha.2
+ * 独立插件页的 plugins.row.config / plugins.bundle.config）。
  * 构建产物为 window.__ModuleLoader__.load({id, factory}) 形式的 CJS factory
  * （包装见 tsdown.config.ts）；样式沿用官方 data-plugin-css 约定，HMR 据此卸载。
  *
  * 类型说明：浏览器半只用到 slots/locale/remote 的很窄一面，
  * scope 与基础控件走 @dsh-plus/shared/client 套件（收编自本插件原实现）。
- * 该插槽为 keyed 槽位：key 必须是卡片编辑的 settings 命名空间
- * （即服务端注册的同一字面量，见 ../ns.ts），
- * 官方配置页按此 key 与 Host 已注册命名空间配对分发。
  * 配置读写经 ctx.remote.settings 直连（0.1.2-alpha.1 起 connection.api.settings
  * 已移除；不复用 settingsScope 服务——非 loopback 页面下它固定 memory 模式无数据）。
+ * 卡片 key/rowId 约定见 @dsh-plus/shared/client/config-slots。
  * @module @dsh-plus/access-gate/client
  */
 import type { Context } from '@deepseek-ai/cordis'
 import {
   createNamespaceApi,
   createSettingsScope,
+  injectPluginConfigCard,
   type PluginClientContext,
 } from '@dsh-plus/shared/client'
 import { SETTINGS_NS } from '../ns.ts'
@@ -43,15 +44,11 @@ export function apply(ctx: Context): void {
   c.effect(() => c.locale.register(NS, { zh, en }), 'access-gate: locale')
   const scope = createSettingsScope(c, SETTINGS_NS, 'access-gate: settings scope')
   const api = createNamespaceApi(c.get('remote').settings, SETTINGS_NS)
-  c.slots.inject('settings.plugin.item', () =>
-    c.slots.register(
-      {
-        name: 'settings.plugin.item',
-        key: SETTINGS_NS,
-        locale: NS,
-        inject: () => ({ t: c.locale.bind(NS), scope, api }),
-      },
-      AccessGateCard,
-    ),
-  )
+  injectPluginConfigCard(c.slots, {
+    ns: SETTINGS_NS,
+    rowId: 'dsh-plus-access-gate',
+    pkg: '@dsh-plus/access-gate',
+    component: AccessGateCard,
+    inject: () => ({ t: c.locale.bind(NS), scope, api }),
+  })
 }

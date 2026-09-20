@@ -10,6 +10,7 @@ export const NS = 'dsh-plus-subagent-model'
 const ownZh = {
   title: '子代理模型配置',
   description: '为 subagent / subagent_fork 等子代理单独指定提供商、模型与思考程度，或继承主代理。',
+  summaryLine: '为子代理单独指定提供商、模型与思考程度，或继承主代理。',
   enabled: '启用插件',
   rowEnabled: '启用该行',
   provider: '提供商',
@@ -37,6 +38,7 @@ const ownEn = {
   title: 'Subagent model config',
   description:
     'Pick a provider, model, and thinking effort for subagent / subagent_fork children, or inherit from the main agent.',
+  summaryLine: 'Pick a provider, model, and thinking effort for subagent children, or inherit.',
   enabled: 'Enable plugin',
   rowEnabled: 'Enable row',
   provider: 'Provider',

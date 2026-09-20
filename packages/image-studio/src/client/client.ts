@@ -2,7 +2,8 @@
  * 浏览器半入口：
  * - sidebar.footer.action：侧栏底部入口按钮（与文件/终端入口 flex 等分行宽）；
  * - shell.overlay：图像工作室面板（文生图/图生图/画廊 + 任务条）；
- * - settings.plugin.item：配置卡片（三组预设 + 凭据 + 高级项，key = settings 命名空间）。
+ * - 配置卡片：injectPluginConfigCard 三槽位（三组预设 + 凭据 + 高级项；
+ *   legacy settings.plugin.item 与 0.1.6-alpha.2 插件页 row/bundle config）。
  * 模式与 web-files/web-terminal 一致：CJS factory 产物、data-plugin-css 样式
  * 约定、slot 失配静默降级；配置读写经 ctx.remote.settings 直连（远程域名可用）。
  * @module @dsh-plus/image-studio/client
@@ -13,6 +14,7 @@ import {
   createNamespaceApi,
   createSettingsScope,
   injectCardStyle,
+  injectPluginConfigCard,
   type ScopeHostContext,
 } from '@dsh-plus/shared/client'
 
@@ -88,17 +90,13 @@ export function apply(ctx: Context): void {
       ),
     'image-studio: overlay slot',
   )
-  c.slots.inject('settings.plugin.item', () =>
-    c.slots.register(
-      {
-        name: 'settings.plugin.item',
-        key: SETTINGS_NS,
-        locale: NS,
-        inject: () => ({ t, scope, api }),
-      },
-      StudioConfigCard,
-    ),
-  )
+  injectPluginConfigCard(c.slots, {
+    ns: SETTINGS_NS,
+    rowId: 'dsh-plus-image-studio',
+    pkg: PLUGIN_ID,
+    component: StudioConfigCard,
+    inject: () => ({ t, scope, api }),
+  })
   c.effect(
     () => () => {
       panelTag?.remove()

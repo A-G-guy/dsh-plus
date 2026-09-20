@@ -1,6 +1,7 @@
 /**
  * 浏览器半入口：侧边栏 footer 入口按钮 + shell.overlay 终端面板 +
- * settings.plugin.item 配置卡片（key = settings 命名空间字面量）。
+ * 配置卡片（injectPluginConfigCard 三槽位：legacy settings.plugin.item
+ * 与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config）。
  * 模式与 web-files/notify-email 一致：CJS factory 产物、data-plugin-css
  * 样式约定、任一环节失配时静默降级。
  *
@@ -18,6 +19,7 @@ import {
   createNamespaceApi,
   createSettingsScope,
   injectCardStyle,
+  injectPluginConfigCard,
   type ScopeHostContext,
 } from '@dsh-plus/shared/client'
 import { useSyncExternalStore } from 'react'
@@ -136,17 +138,13 @@ export function apply(ctx: Context): void {
   )
   const scope = createSettingsScope(c, NS, 'web-terminal: settings scope')
   const api = createNamespaceApi(c.get('remote').settings, NS)
-  c.slots.inject('settings.plugin.item', () =>
-    c.slots.register(
-      {
-        name: 'settings.plugin.item',
-        key: NS,
-        locale: NS,
-        inject: () => ({ t: c.locale.bind(NS), scope, api }),
-      },
-      ConfigCard,
-    ),
-  )
+  injectPluginConfigCard(c.slots, {
+    ns: NS,
+    rowId: 'dsh-plus-web-terminal',
+    pkg: PLUGIN_ID,
+    component: ConfigCard,
+    inject: () => ({ t: c.locale.bind(NS), scope, api }),
+  })
   c.effect(
     () => () => {
       tag?.remove()

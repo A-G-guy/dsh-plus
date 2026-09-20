@@ -1,5 +1,7 @@
 /**
- * 「网页终端」配置卡片：settings.plugin.item 槽位（官方插件配置页）。
+ * 「网页终端」配置卡片：经 injectPluginConfigCard 注册（legacy settings.plugin.item
+ * 与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config，view 分发
+ * summary/page）。
  * 外壳与基础控件走 @dsh-plus/shared/client 套件；本文件只保留业务字段。
  * env 为 dict → 卡片内以 KEY=VALUE 多行文本编辑；保存经
  * NamespaceSettingsApi.update 深合并 + revision 乐观锁（对齐 access-gate
@@ -12,12 +14,13 @@ import {
   CheckRow,
   IDLE_STATUS,
   type NamespaceSettingsApi,
+  type PluginConfigViewProps,
   type Scope,
   TextField,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useState, useSyncExternalStore } from 'react'
 
-export interface CardProps {
+export interface CardProps extends PluginConfigViewProps {
   t(key: string): string
   scope: Scope
   api: NamespaceSettingsApi
@@ -97,7 +100,7 @@ function toPatch(draft: Draft): Record<string, unknown> {
   }
 }
 
-export function ConfigCard(props: CardProps): ReactElement {
+export function ConfigCard(props: CardProps): ReactElement | string {
   const { t, scope, api } = props
   const snapshot = useSyncExternalStore(
     (listener: () => void) => scope.subscribe(listener),
@@ -105,13 +108,17 @@ export function ConfigCard(props: CardProps): ReactElement {
   )
   const value = snapshot.value as ConfigValue | undefined
   const [draft, setDraft] = useState<Draft | null>(null)
-  const [open, setOpen] = useState(false)
+  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
+  const [open, setOpen] = useState(props.view === 'page')
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
 
   useEffect(() => {
     if (value !== undefined && draft === null) setDraft(draftFromValue(value))
   }, [value, draft])
+
+  // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
+  if (props.view === 'summary') return t('config.summary')
 
   if (snapshot.status === 'loading' || draft === null || value === undefined) {
     return <div className="wtc-loading">…</div>

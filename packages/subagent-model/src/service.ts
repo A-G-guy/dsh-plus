@@ -6,7 +6,7 @@
  * - 委托挂钩：包装 ctx.subagents.start/startContinuable，按 provider 名
  *   （未命中回落 default 条目）注入 agentOptions（provider/model/effort）。
  * - 自定义端点：ctx.webServer 仅注册模型目录路由（配置读写已走官方
- *   remote.settings 直连，settings.plugin.item 卡片见 client 半）。
+ *   remote.settings 直连，配置卡片（三槽位注册）见 client 半）。
  * @module @dsh-plus/subagent-model
  */
 import type { Context } from '@deepseek-ai/cordis'

@@ -11,6 +11,7 @@ const ownZh = {
   title: '访问控制',
   description:
     'Web 访问围栏：与官方登录合并——官方 cookie 为唯一凭据；未认证导航显示启动令牌输入页（PWA 内可用）；可选 IP 附加围栏。',
+  summaryLine: 'Web 访问围栏：官方登录合并、启动令牌页与可选 IP 白名单。',
   enabled: '启用访问围栏',
   enabledHint: '关闭即完全旁路（等价插件缺席）；启用后未认证流量被拦截到令牌输入页或拒绝。',
   mergedHint:
@@ -48,6 +49,7 @@ const ownEn = {
   title: 'Access Control',
   description:
     'Web access gate merged with official auth: the official cookie is the sole credential; unauthenticated navigations get a launch-token page (works inside the PWA); optional IP fence.',
+  summaryLine: 'Web access gate: merged official auth, launch-token page, optional IP allowlist.',
   enabled: 'Enable access gate',
   enabledHint:
     'Off means full bypass (as if absent); on, unauthenticated traffic hits the token page or is refused.',

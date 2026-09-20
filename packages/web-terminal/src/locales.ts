@@ -56,6 +56,7 @@ export const zh = {
   'sessions.attached': '已挂载',
   'config.title': '网页终端',
   'config.description': 'Web 终端工作台：多会话、分屏、scrollback 回放；会话在 dsh 运行期间保活。',
+  'config.summary': '多会话、分屏、scrollback 回放的 Web 终端工作台。',
   'config.enabled': '启用终端',
   'config.shellPath': 'Shell 路径',
   'config.shellPath.hint': '留空使用 $SHELL 或 /bin/bash',
@@ -122,6 +123,7 @@ export const en: Record<DictKey, string> = {
   'sessions.idleFor': 'Idle {duration}',
   'sessions.attached': 'Attached',
   'config.title': 'Web Terminal',
+  'config.summary': 'Multi-session, split-pane web terminal with scrollback replay.',
   'config.description':
     'Web terminal workbench: multi-session, split panes, scrollback replay; sessions stay alive while dsh runs.',
   'config.enabled': 'Enable terminal',
