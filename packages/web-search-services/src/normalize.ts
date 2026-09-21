@@ -1,9 +1,10 @@
 /**
  * search.py 输出 → dsh-web 标准 WebSearchResult 归一化（纯函数）。
  *
- * skill 各后端 payload 形状不同：tavily/exa 是原生 API 形状（results[]），
- * openai-chat 是生成式回答（data.answer）。按 selectedService 归一；
- * 字段缺失降级而非报错（对 skill 脚本版本漂移保持容差）。
+ * skill 各服务 request() 统一信封 {ok, service, status, data: <API 原始响应>}：
+ * tavily/exa 业务字段在 data 下（results/answer），openai-chat 回答在
+ * data.answer。按 selectedService 归一；字段缺失降级而非报错（对 skill
+ * 脚本版本漂移保持容差）。
  * @module web-search-services/normalize
  */
 import type { WebSearchResult, WebSearchSource } from '@deepseek-ai/dsh-web'
@@ -38,6 +39,13 @@ function makeSource(
   }
 }
 
+/** skill 各服务 request() 统一信封 {ok, service, status, data: <API 响应>}；
+ * 取 data 为业务 payload，data 缺失/空对象时回退顶层（旧形状容差）。 */
+function payloadOf(raw: JsonObject): JsonObject {
+  const data = asObject(raw.data)
+  return Object.keys(data).length > 0 ? data : raw
+}
+
 function finish(content: string | undefined, sources: WebSearchSource[]): WebSearchResult {
   const seen = new Set<string>()
   const deduped = sources.filter((source) => {
@@ -65,7 +73,8 @@ function sourcesFromResults(
 }
 
 function normalizeTavily(raw: JsonObject): WebSearchResult {
-  const sources = sourcesFromResults(raw.results, (item) => {
+  const payload = payloadOf(raw)
+  const sources = sourcesFromResults(payload.results, (item) => {
     const url = asNonEmptyString(item.url)
     if (url === undefined) return undefined
     return makeSource(
@@ -75,11 +84,12 @@ function normalizeTavily(raw: JsonObject): WebSearchResult {
       asNonEmptyString(item.published_date),
     )
   })
-  return finish(asNonEmptyString(raw.answer), sources)
+  return finish(asNonEmptyString(payload.answer), sources)
 }
 
 function normalizeExa(raw: JsonObject): WebSearchResult {
-  const sources = sourcesFromResults(raw.results, (item) => {
+  const payload = payloadOf(raw)
+  const sources = sourcesFromResults(payload.results, (item) => {
     const url = asNonEmptyString(item.url) ?? asNonEmptyString(item.id)
     if (url === undefined) return undefined
     const highlights = asArray(item.highlights)

@@ -3,22 +3,26 @@ import { test } from 'node:test'
 
 import { extractMarkdownLinks, normalizeSearchOutput } from '../src/normalize.ts'
 
-test('given tavily payload, when normalized, then sources carry content/published_date and answer becomes content', () => {
+test('given tavily envelope, when normalized, then sources carry content/published_date and answer becomes content', () => {
   const raw = {
     ok: true,
+    service: 'tavily',
     selectedService: 'tavily',
-    answer: 'Tavily 生成的回答',
-    results: [
-      {
-        title: 'T1',
-        url: 'https://a.example.com/1',
-        content: 'snippet-1',
-        published_date: '2026-09-01',
-      },
-      { title: 'T2', url: 'https://b.example.com/2', content: 'snippet-2' },
-      { url: 'https://no-title.example.com' },
-      { title: 'no-url 被丢弃' },
-    ],
+    status: 200,
+    data: {
+      answer: 'Tavily 生成的回答',
+      results: [
+        {
+          title: 'T1',
+          url: 'https://a.example.com/1',
+          content: 'snippet-1',
+          published_date: '2026-09-01',
+        },
+        { title: 'T2', url: 'https://b.example.com/2', content: 'snippet-2' },
+        { url: 'https://no-title.example.com' },
+        { title: 'no-url 被丢弃' },
+      ],
+    },
   }
   const result = normalizeSearchOutput(raw)
   assert.equal(result.content, 'Tavily 生成的回答')
@@ -33,19 +37,34 @@ test('given tavily payload, when normalized, then sources carry content/publishe
   assert.equal(first?.publishedAt, '2026-09-01')
 })
 
-test('given exa payload, when normalized, then id falls back to url and highlights join into snippet', () => {
+test('given legacy top-level tavily payload, when normalized, then still works (shape tolerance)', () => {
+  const result = normalizeSearchOutput({
+    ok: true,
+    selectedService: 'tavily',
+    answer: 'A',
+    results: [{ title: 'T', url: 'https://legacy.example.com' }],
+  })
+  assert.equal(result.content, 'A')
+  assert.equal(result.sources[0]?.url, 'https://legacy.example.com')
+})
+
+test('given exa envelope, when normalized, then id falls back to url and highlights join into snippet', () => {
   const raw = {
     ok: true,
+    service: 'exa',
     selectedService: 'exa',
-    results: [
-      {
-        id: 'https://exa.example.com/x',
-        title: 'E1',
-        highlights: ['h1', 'h2'],
-        publishedDate: '2026-08-30',
-      },
-      { url: 'https://exa.example.com/y', highlights: [] },
-    ],
+    status: 200,
+    data: {
+      results: [
+        {
+          id: 'https://exa.example.com/x',
+          title: 'E1',
+          highlights: ['h1', 'h2'],
+          publishedDate: '2026-08-30',
+        },
+        { url: 'https://exa.example.com/y', highlights: [] },
+      ],
+    },
   }
   const result = normalizeSearchOutput(raw)
   assert.equal(result.content, undefined)

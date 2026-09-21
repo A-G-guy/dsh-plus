@@ -61,10 +61,14 @@ function cannedSpawn(stdoutText: string, recorded: { args: string[]; env: NodeJS
 
 const TAVILY_JSON = JSON.stringify({
   ok: true,
+  service: 'tavily',
   selectedService: 'tavily',
-  results: [
-    { title: 'T', url: 'https://a.example.com', content: 's', published_date: '2026-09-01' },
-  ],
+  status: 200,
+  data: {
+    results: [
+      { title: 'T', url: 'https://a.example.com', content: 's', published_date: '2026-09-01' },
+    ],
+  },
 })
 
 test('given fixture script and envFile with tavily key, when available, then true', (t) => {
