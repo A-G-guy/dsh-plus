@@ -25,6 +25,14 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
 
+/** snippet 截断上限：官方 deepseek provider 的摘录是短引文；Tavily content /
+ *  Exa highlights 原始值可达整页文本，直接透传会撑爆工具结果上下文。 */
+const SNIPPET_MAX_CHARS = 500
+
+export function truncateSnippet(text: string): string {
+  return text.length <= SNIPPET_MAX_CHARS ? text : `${text.slice(0, SNIPPET_MAX_CHARS)}…`
+}
+
 function makeSource(
   url: string,
   title?: string,
@@ -76,11 +84,12 @@ function normalizeTavily(raw: JsonObject): WebSearchResult {
   const payload = payloadOf(raw)
   const sources = sourcesFromResults(payload.results, (item) => {
     const url = asNonEmptyString(item.url)
+    const content = asNonEmptyString(item.content)
     if (url === undefined) return undefined
     return makeSource(
       url,
       asNonEmptyString(item.title),
-      asNonEmptyString(item.content),
+      content !== undefined ? truncateSnippet(content) : undefined,
       asNonEmptyString(item.published_date),
     )
   })
@@ -98,7 +107,7 @@ function normalizeExa(raw: JsonObject): WebSearchResult {
     return makeSource(
       url,
       asNonEmptyString(item.title),
-      highlights.length > 0 ? highlights.join(' ') : undefined,
+      highlights.length > 0 ? truncateSnippet(highlights.join(' ')) : undefined,
       asNonEmptyString(item.publishedDate),
     )
   })

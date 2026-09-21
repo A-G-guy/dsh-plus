@@ -134,3 +134,25 @@ test('given markdown with duplicate/bare links, when extracted, then dedup by ur
   )
   assert.equal(extractMarkdownLinks(md, 2).length, 2)
 })
+
+test('given over-long tavily content, when normalized, then snippet capped with ellipsis', () => {
+  const longContent = 'x'.repeat(1200)
+  const result = normalizeSearchOutput({
+    ok: true,
+    selectedService: 'tavily',
+    data: { results: [{ title: 'T', url: 'https://a.example.com', content: longContent }] },
+  })
+  const snippet = result.sources[0]?.snippet
+  assert.ok(snippet !== undefined)
+  assert.equal(snippet.length, 501)
+  assert.ok(snippet.endsWith('…'))
+})
+
+test('given short tavily content, when normalized, then snippet passes through untouched', () => {
+  const result = normalizeSearchOutput({
+    ok: true,
+    selectedService: 'tavily',
+    data: { results: [{ title: 'T', url: 'https://a.example.com', content: 'short' }] },
+  })
+  assert.equal(result.sources[0]?.snippet, 'short')
+})
