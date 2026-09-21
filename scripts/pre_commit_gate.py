@@ -7,6 +7,8 @@
       可绕过 dshctl 直接发生，故在此独立补一道）。
 
 只检查暂存区（git staged）里的代码文件；node_modules/lib/dist 等产物跳过。
+vendored 外部脚本副本（packages/<包>/scripts/，刻意保持原样随包分发，见
+ADR 0003 与各包 scripts/README.md）不受行数规则约束。
 与 md-doc-timestamp 中央 hook 链式协作：本脚本作为 legacy hook 被其调用。
 应急旁路：环境变量 DSHCTL_SKIP_TYPECHECK=1。
 退出码：0 放行（可能有警告），1 拦截。
@@ -43,7 +45,12 @@ def _staged_files() -> list[Path]:
 def _is_code_file(path: Path) -> bool:
     if path.suffix.lower() not in CODE_SUFFIXES:
         return False
-    return not any(part in EXCLUDED_PARTS for part in path.parts)
+    if any(part in EXCLUDED_PARTS for part in path.parts):
+        return False
+    # packages/<包>/scripts/ 为 vendored 外部脚本副本（原样分发、单向同步），
+    # 行数拆分规则不适用；定向修改记录在该目录 README。
+    parts = path.parts
+    return not (len(parts) >= 3 and parts[0] == "packages" and parts[2] == "scripts")
 
 
 def _count_lines(path: Path) -> int | None:

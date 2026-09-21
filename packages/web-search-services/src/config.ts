@@ -13,7 +13,8 @@ import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
 export const SETTINGS_NS = NS_LITERAL
 
-export const DEFAULT_SCRIPT_PATH = '~/.dsh/skills/search-services/scripts/search.py'
+/** 空串表示使用随包内置脚本（本包 scripts/search.py，见 scripts/README.md）。 */
+export const DEFAULT_SCRIPT_PATH = ''
 export const DEFAULT_ENV_FILE = '~/.config/search-services/env'
 export const DEFAULT_TIMEOUT_MS = 55_000
 export const DEFAULT_PRIORITY: readonly SearchBackend[] = ['tavily', 'exa', 'openai-chat']
@@ -51,7 +52,7 @@ const KeysSchema = z.object({
 export const Config = z.object({
   scriptPath: z
     .string()
-    .description('search-services skill 的 search.py 路径（支持 ~ 展开）')
+    .description('search.py 路径（支持 ~ 展开）；空串 = 使用随包内置脚本副本')
     .default(DEFAULT_SCRIPT_PATH),
   envFile: z
     .string()

@@ -5,7 +5,12 @@ import { test } from 'node:test'
 import { WebError } from '@deepseek-ai/dsh-web'
 
 import { Config, type WebSearchServicesConfig } from '../src/config.ts'
-import { keyOverridesEnv, PROVIDER_ID, SearchServicesProvider } from '../src/provider.ts'
+import {
+  keyOverridesEnv,
+  PROVIDER_ID,
+  resolveScriptPath,
+  SearchServicesProvider,
+} from '../src/provider.ts'
 import type { SpawnFn } from '../src/runner.ts'
 
 const FIXTURE_DIR = new URL('./fixtures/', import.meta.url).pathname
@@ -143,4 +148,11 @@ test('given aborted signal, when search, then WebError WEB_ABORTED', async (t) =
     assert.equal(err.code, 'WEB_ABORTED')
     return true
   })
+})
+
+test('given empty scriptPath, when resolved, then vendored in-package script is used', (t) => {
+  withoutProcessKeys(t)
+  assert.match(resolveScriptPath(''), /scripts\/search\.py$/)
+  const provider = new SearchServicesProvider(() => cfg({ scriptPath: '' }))
+  assert.equal(provider.available(), false)
 })

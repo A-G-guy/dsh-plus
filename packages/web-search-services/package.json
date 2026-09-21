@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/web-search-services",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh-plus service plugin: web_search 免费后端聚合——经官方 ctx.web provider 扩展点桥接 search-services skill（Tavily/Exa/OpenAI Chat 免费额度，优先级+自动回退+key 配置），官方 web_search 工具与输出格式零修改",
   "type": "module",
   "main": "lib/index.js",
@@ -15,7 +15,8 @@
   },
   "files": [
     "lib",
-    "src"
+    "src",
+    "scripts"
   ],
   "scripts": {
     "build": "tsdown src/index.ts -d lib --format esm --dts --no-fixed-extension"

@@ -5,6 +5,8 @@
  * @module web-search-services/provider
  */
 import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import type { WebSearchProvider, WebSearchRequest, WebSearchResult } from '@deepseek-ai/dsh-web'
 import { WebError } from '@deepseek-ai/dsh-web'
 
@@ -15,6 +17,15 @@ import { normalizeSearchOutput } from './normalize.ts'
 import { isAbortError, runProcess, type SpawnFn } from './runner.ts'
 
 export const PROVIDER_ID = 'search-services'
+
+/**
+ * scriptPath 解析：空串 = 随包内置脚本副本（tgz 内 scripts/search.py，与 lib/
+ * 同级；src 直跑时为包根 scripts/）。非空按 ~ 展开。
+ */
+export function resolveScriptPath(scriptPath: string): string {
+  if (scriptPath.trim() !== '') return expandHome(scriptPath)
+  return fileURLToPath(new URL('../scripts/search.py', import.meta.url))
+}
 
 /** 各后端在合并环境（进程 env ⊕ envFile ⊕ 行级 keys）中的可用性判定变量。 */
 const BACKEND_KEY_VARS: Readonly<Record<SearchBackend, readonly string[]>> = {
@@ -60,7 +71,7 @@ export class SearchServicesProvider implements WebSearchProvider {
   /** 廉价本地检查：脚本存在 + 优先级内至少一个后端有 key；不做网络调用。 */
   available(): boolean {
     const cfg = this.current()
-    if (!existsSync(expandHome(cfg.scriptPath))) return false
+    if (!existsSync(resolveScriptPath(cfg.scriptPath))) return false
     const env = this.childEnv(cfg)
     return cfg.priority.some((backend) =>
       BACKEND_KEY_VARS[backend].some((name) => (env[name]?.trim() ?? '') !== ''),
@@ -87,7 +98,7 @@ export class SearchServicesProvider implements WebSearchProvider {
     try {
       return await runProcess({
         command: cfg.python,
-        args: [expandHome(cfg.scriptPath), ...argv],
+        args: [resolveScriptPath(cfg.scriptPath), ...argv],
         env: this.childEnv(cfg),
         timeoutMs: cfg.timeoutMs,
         ...(signal !== undefined ? { signal } : {}),
