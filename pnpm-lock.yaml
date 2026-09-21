@@ -108,6 +108,9 @@ importers:
       '@dsh-plus/web-files':
         specifier: workspace:*
         version: link:../web-files
+      '@dsh-plus/web-search-services':
+        specifier: workspace:*
+        version: link:../web-search-services
       '@dsh-plus/web-terminal':
         specifier: workspace:*
         version: link:../web-terminal
@@ -618,6 +621,21 @@ importers:
       react:
         specifier: ^18.3.1
         version: 18.3.1
+
+  packages/web-search-services:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2
+      '@deepseek-ai/dsh-settings':
+        specifier: 0.1.6-alpha.2
+        version: 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-brand@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-invariants@0.1.5-alpha.1(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-session@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-scope@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.5-alpha.1(@deepseek-ai/cordis@4.0.2))))(@deepseek-ai/schemastery@3.18.2)
+      '@deepseek-ai/dsh-web':
+        specifier: 0.1.6-alpha.2
+        version: 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-llm@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2))
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.2
+        version: 3.18.2
 
   packages/web-terminal:
     dependencies:
@@ -1381,6 +1399,12 @@ packages:
     resolution: {integrity: sha512-pYDmKxPUhKXy+VFcVSEJ+uRJBx54RtoEK6qhKM8i1h0G7GvbbeAuocnDdVBbAdZIriMMFdnKYxGXkLrI1nY94w==}
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.2
+
+  '@deepseek-ai/dsh-web@0.1.6-alpha.2':
+    resolution: {integrity: sha512-F34io/OpIHzjVwsiwc8ctePfeEvh1vYA9cbaCw0qGP9Fm+ELVC+8+/gi5jrk6Hvb4+MJxkcSinrkkf3NGnDkVg==}
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.2
+      '@deepseek-ai/dsh-llm': ^0.1.6-alpha.2
 
   '@deepseek-ai/dsh-workspace@0.1.5-alpha.1':
     resolution: {integrity: sha512-W8zmgJa/tzA2CzNSIHCVGWq8JB8UuP8CtRaAQs9nI+PGceUXnFMqVNLBIWf8gASfA6d6/5ASjK/f1z9mOKhzFQ==}
@@ -3344,6 +3368,12 @@ snapshots:
   '@deepseek-ai/dsh-util-workspace-path@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)':
     dependencies:
       '@deepseek-ai/cordis': 4.0.2
+
+  '@deepseek-ai/dsh-web@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-llm@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2))':
+    dependencies:
+      '@deepseek-ai/cordis': 4.0.2
+      '@deepseek-ai/dsh-llm': 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)
+      '@deepseek-ai/schemastery': 3.18.2
 
   '@deepseek-ai/dsh-workspace@0.1.5-alpha.1(9dcb0c8311b4825ba049d0a6bfc589f6)':
     dependencies:

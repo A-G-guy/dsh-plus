@@ -38,3 +38,5 @@
       name: '@dsh-plus/secret-env'
     - id: dsh-plus-image-studio
       name: '@dsh-plus/image-studio'
+    - id: dsh-plus-web-search-services
+      name: '@dsh-plus/web-search-services'
