@@ -40,3 +40,7 @@
       name: '@dsh-plus/image-studio'
     - id: dsh-plus-web-search-services
       name: '@dsh-plus/web-search-services'
+    # web-cache-headers 排末位：进程级 writeHead 增量补丁，无端点、无服务、
+    # 无时序依赖；补丁纯增量（已有 cache-control 优先），装上/卸下均安全。
+    - id: dsh-plus-web-cache-headers
+      name: '@dsh-plus/web-cache-headers'
