@@ -17,8 +17,9 @@ import { basename } from 'node:path'
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
+import { unwrapVolatile } from '@dsh-plus/shared'
 
-import { Config, SETTINGS_NS, type WebTerminalConfig } from './config.ts'
+import type { WebTerminalConfig, WebTerminalConfigFields } from './config.ts'
 import { NAME_MAX_CHARS, type SessionDto } from './protocol.ts'
 import { type PtyFactory, spawnNodePty } from './pty.ts'
 import type { SessionSink } from './scrollback.ts'
@@ -33,21 +34,17 @@ export class WebTerminalService extends Service {
   private current: () => WebTerminalConfig
   private disposed = false
 
-  constructor(ctx: Context, config: WebTerminalConfig, ptyFactory: PtyFactory = spawnNodePty) {
+  constructor(
+    ctx: Context,
+    config: WebTerminalConfig | WebTerminalConfigFields,
+    ptyFactory: PtyFactory = spawnNodePty,
+  ) {
     super(ctx, 'webTerminal')
     this.ptyFactory = ptyFactory
-    this.current = () => config
-    // 官方 installSection 范式（0.1.2-alpha.2）：settings 在时以行级 config 为
-    // base 注册用户层，缺席/detach 时回落行级 config。
-    ctx.inject(['settings'], (settingsCtx) => {
-      settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
-        setSource: (source) => {
-          this.current = source
-        },
-        onChange: () => {},
-      })
-    })
+    // 0.1.7 替代 installSection/setSource：活动引用原位提交，现取即热。
+    this.current = () => unwrapVolatile(config)
     this.armSweeper()
+
     ctx.effect(() => () => this.disposeAll(), 'web-terminal: sessions teardown')
     // 宿主同步退出兜底：无法 await 的路径上直接 KILL 全部 PTY。
     const onHostExit = () => {

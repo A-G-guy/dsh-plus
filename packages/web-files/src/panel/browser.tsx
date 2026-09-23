@@ -8,15 +8,15 @@ import type { FsEntryDto, ListResponse } from '../protocol.ts'
 import { IconHome16, IconUpload16 } from './icons.tsx'
 import {
   Button,
-  IconChevronLeftOutline14,
-  IconChevronRightOutline14,
-  IconCodeOutline16,
-  IconDownloadOutline16,
-  IconEditOutline16,
-  IconEllipsisOutline16,
-  IconFolderClose16,
-  IconRefreshOutline16,
-  IconTrashOutline16,
+  IconChevronLeftOutlineRegular,
+  IconChevronRightOutlineRegular,
+  IconCodeOutlineRegular,
+  IconDownloadOutlineRegular,
+  IconEditOutlineRegular,
+  IconEllipsisOutlineRegular,
+  IconFolderCloseRegular,
+  IconRefreshOutlineRegular,
+  IconTrashOutlineRegular,
   Menu,
   Tooltip,
 } from './primitives.ts'
@@ -90,7 +90,7 @@ function Crumbs({
     <nav className="wf-crumbs" aria-label="path">
       {listing.crumbs.map((crumb, index) => (
         <span className="wf-crumb" key={crumb.path}>
-          {index > 0 && <IconChevronRightOutline14 />}
+          {index > 0 && <IconChevronRightOutlineRegular />}
           <button type="button" className="wf-crumb-button" onClick={() => onNavigate(crumb.path)}>
             {crumb.name}
           </button>
@@ -112,11 +112,11 @@ interface RowMenuProps {
 function RowMenu({ entry, t, onRename, onDelete, onDownload }: RowMenuProps) {
   const [open, setOpen] = useState(false)
   const items = [
-    { id: 'rename', label: t('view.rename'), icon: <IconEditOutline16 /> },
+    { id: 'rename', label: t('view.rename'), icon: <IconEditOutlineRegular /> },
     ...(entry.kind === 'file'
-      ? [{ id: 'download', label: t('view.download'), icon: <IconDownloadOutline16 /> }]
+      ? [{ id: 'download', label: t('view.download'), icon: <IconDownloadOutlineRegular /> }]
       : []),
-    { id: 'delete', label: t('view.delete'), icon: <IconTrashOutline16 />, danger: true },
+    { id: 'delete', label: t('view.delete'), icon: <IconTrashOutlineRegular />, danger: true },
   ]
   return (
     <Menu
@@ -133,7 +133,7 @@ function RowMenu({ entry, t, onRename, onDelete, onDownload }: RowMenuProps) {
             setOpen((value) => !value)
           }}
         >
-          <IconEllipsisOutline16 />
+          <IconEllipsisOutlineRegular />
         </button>
       }
       items={items}
@@ -168,7 +168,7 @@ export function Browser(props: BrowserProps) {
             disabled={!props.canBack}
             aria-label={t('toolbar.back')}
           >
-            <IconChevronLeftOutline14 size={16} />
+            <IconChevronLeftOutlineRegular size={16} />
           </button>
         </Tooltip>
         <Tooltip label={t('toolbar.forward')} side="bottom">
@@ -179,7 +179,7 @@ export function Browser(props: BrowserProps) {
             disabled={!props.canForward}
             aria-label={t('toolbar.forward')}
           >
-            <IconChevronRightOutline14 size={16} />
+            <IconChevronRightOutlineRegular size={16} />
           </button>
         </Tooltip>
         <Tooltip label={t('toolbar.home')} side="bottom">
@@ -199,7 +199,7 @@ export function Browser(props: BrowserProps) {
             onClick={props.onRefresh}
             aria-label={t('toolbar.refresh')}
           >
-            <IconRefreshOutline16 />
+            <IconRefreshOutlineRegular />
           </button>
         </Tooltip>
         <SortControl
@@ -280,7 +280,8 @@ interface EntryRowProps {
 }
 
 function EntryRow({ entry, selected, t, onOpen, onRename, onDelete, onDownload }: EntryRowProps) {
-  const icon: ReactNode = entry.kind === 'dir' ? <IconFolderClose16 /> : <IconCodeOutline16 />
+  const icon: ReactNode =
+    entry.kind === 'dir' ? <IconFolderCloseRegular /> : <IconCodeOutlineRegular />
   return (
     <div className={`wf-row${selected ? ' wf-row-selected' : ''}`}>
       <button type="button" className="wf-row-main" onClick={onOpen}>

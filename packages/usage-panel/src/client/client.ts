@@ -4,7 +4,7 @@
  * - 价目卡片经 injectPluginConfigCard 三槽位注册（legacy settings.plugin.item
  *   与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config）。
  * 配置读写经 ctx.remote.settings 直连（0.1.2-alpha.1 起 connection.api.settings
- * 已移除；不复用 settingsScope 服务——非 loopback 页面下它固定 memory 模式无数据）。
+ * 已移除；0.1.7 起 settingsScope 服务亦删除——configForms 取代，自始直连）。
  * @module @dsh-plus/usage-panel/client
  */
 import type { Context } from '@deepseek-ai/cordis'

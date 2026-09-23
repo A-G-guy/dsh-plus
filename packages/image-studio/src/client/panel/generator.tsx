@@ -10,7 +10,7 @@
  */
 import {
   IconLayers,
-  IconPlusOutline16,
+  IconPlusOutlineMedium,
   type NamespaceSettingsApi,
   type Scope,
 } from '@dsh-plus/shared/client'
@@ -440,7 +440,7 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
                   )
                 }
               >
-                <IconPlusOutline16 size={18} />
+                <IconPlusOutlineMedium size={18} />
                 <span>{t('upload.pick')}</span>
               </UploadButton>
             </div>
@@ -473,7 +473,7 @@ export function GeneratorForm(props: GeneratorProps): ReactElement {
                 className="ims-thumbAdd"
                 onUploaded={(entries) => setMask(uploadRef(entries))}
               >
-                <IconPlusOutline16 size={18} />
+                <IconPlusOutlineMedium size={18} />
                 <span>{t('upload.pick')}</span>
               </UploadButton>
             </div>

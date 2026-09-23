@@ -39,9 +39,9 @@ import {
 import { ModifierStore } from './modifiers.ts'
 import {
   Button,
-  IconCloseOutline16,
-  IconEditOutline16,
-  IconPlusOutline16,
+  IconCloseOutlineMedium,
+  IconEditOutlineRegular,
+  IconPlusOutlineMedium,
   Menu,
   Modal,
 } from './primitives.ts'
@@ -280,7 +280,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement | null {
                   aria-label={t('tab.rename')}
                   onClick={() => setRenaming({ tabId: tab.id, value: tab.name })}
                 >
-                  <IconEditOutline16 size={12} />
+                  <IconEditOutlineRegular size={12} />
                 </button>
                 <button
                   type="button"
@@ -288,7 +288,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement | null {
                   aria-label={t('tab.close')}
                   onClick={() => setCloseTarget({ tab, session: paneIds(tab.tree)[0] ?? '' })}
                 >
-                  <IconCloseOutline16 size={12} />
+                  <IconCloseOutlineMedium size={12} />
                 </button>
               </div>
             ))}
@@ -299,7 +299,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement | null {
             aria-label={t('tab.new')}
             title={t('tab.new')}
           >
-            <IconPlusOutline16 />
+            <IconPlusOutlineMedium />
           </Button>
           {/* 退出按钮：headless Modal 无头部关闭钮，移动端全屏时这是唯一出口 */}
           <Button
@@ -308,7 +308,7 @@ export function TerminalPanel(props: TerminalPanelProps): ReactElement | null {
             aria-label={t('panel.exit')}
             title={t('panel.exit')}
           >
-            <IconCloseOutline16 />
+            <IconCloseOutlineMedium />
           </Button>
         </div>
 

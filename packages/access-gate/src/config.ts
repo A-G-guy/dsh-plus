@@ -11,38 +11,49 @@
  * @module access-gate/config
  */
 import z from '@deepseek-ai/schemastery'
+import type { UnwrapVolatile } from '@dsh-plus/shared'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
 /** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
 export const SETTINGS_NS = NS_LITERAL
 
+// 0.1.7：全部字段 `.volatile()`——loader 解析为活动引用（用户层 override 并入
+// 行级 config，GUI 写入原位提交热生效），同时使本条目进入 settings describe
+// 视图（配置卡片可读写）；缺 volatile 标记的条目会被 describe 跳过。
 export const Config = z.object({
   enabled: z
     .boolean()
     .description('访问围栏总开关（false = 一切放行，等价插件缺席）')
-    .default(false),
+    .default(false)
+    .volatile(),
   allowedIps: z
     .array(z.string())
     .description(
       '附加 IP 围栏：非空时仅白名单条目（精确 IP 或 CIDR，IPv4/IPv6 皆可）可通行与登录；空 = 不限制来源 IP（仅官方登录保护）',
     )
-    .default([]),
+    .default([])
+    .volatile(),
   trustForwardedFor: z
     .boolean()
     .description(
       '是否信任 x-forwarded-for 还原真实客户端 IP（仅当入口代理强制覆盖该头时开启；tailscale serve 满足）',
     )
-    .default(true),
+    .default(true)
+    .volatile(),
   autoLoginTrustedIps: z
     .boolean()
     .description(
       'IP 信任自动登录：来源命中 allowedIps 白名单且未认证时，服务端自动签发官方登录 cookie（免启动 token，仅对白名单来源生效）；默认关闭，需显式开启',
     )
-    .default(false),
+    .default(false)
+    .volatile(),
 })
 
-export type AccessGateConfig = Schemastery.TypeT<typeof Config>
+/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+export type AccessGateConfigFields = Schemastery.TypeT<typeof Config>
+/** 平面配置形态（服务与判定面的消费形态，由活动引用解包得到）。 */
+export type AccessGateConfig = UnwrapVolatile<AccessGateConfigFields>
 
 /** 判定所需的最小配置视图（测试与决策函数共用窄面）。 */
 export interface GatePolicy {

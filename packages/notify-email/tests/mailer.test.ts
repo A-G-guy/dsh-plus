@@ -1,15 +1,20 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+
+import { unwrapVolatile } from '@dsh-plus/shared'
+
 import { Config, type NotifyEmailConfig } from '../src/config.ts'
 import { Mailer } from '../src/mailer.ts'
 
 function cfgOf(overrides: Record<string, unknown>): NotifyEmailConfig {
-  return Config({
-    enabled: true,
-    smtp: { host: 'smtp.example.com', from: 'me@example.com' },
-    to: ['you@example.com'],
-    ...overrides,
-  })
+  return unwrapVolatile(
+    Config({
+      enabled: true,
+      smtp: { host: 'smtp.example.com', from: 'me@example.com' },
+      to: ['you@example.com'],
+      ...overrides,
+    }),
+  )
 }
 
 function fakeTransport(log: { cfg: NotifyEmailConfig; subject: string }[], failWith?: string) {

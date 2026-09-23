@@ -27,7 +27,7 @@ import { useSyncExternalStore } from 'react'
 import { en, NS, zh } from './locales.ts'
 import { takeOverOpenPath } from './open-path.ts'
 import { FilePanel } from './panel/panel.tsx'
-import { IconFolderOpenOutline16 } from './panel/primitives.ts'
+import { IconFolderOpenOutlineRegular } from './panel/primitives.ts'
 import { createPanelController, type PanelController, type Translate } from './panel/types.ts'
 import { webFilesCss } from './styles.ts'
 
@@ -75,7 +75,7 @@ function FilesEntryButton({ files, t, wide }: EntryProps) {
       aria-label={t('entry.label')}
       onClick={() => files.toggle()}
     >
-      <IconFolderOpenOutline16 size={rail ? 18 : 16} />
+      <IconFolderOpenOutlineRegular size={rail ? 18 : 16} />
       {!rail && <span className="wf-entry-label">{t('entry.label')}</span>}
     </button>
   )

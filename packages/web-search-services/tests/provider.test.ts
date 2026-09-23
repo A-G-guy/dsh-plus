@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events'
 import { test } from 'node:test'
 
 import { WebError } from '@deepseek-ai/dsh-web'
+import { unwrapVolatile } from '@dsh-plus/shared'
 
 import { Config, type WebSearchServicesConfig } from '../src/config.ts'
 import {
@@ -34,7 +35,7 @@ function withoutProcessKeys(t: { after: (fn: () => void) => void }): void {
 }
 
 function cfg(overrides: Partial<WebSearchServicesConfig> = {}): WebSearchServicesConfig {
-  return Config({ scriptPath: FIXTURE_SCRIPT, envFile: '', ...overrides })
+  return unwrapVolatile(Config({ scriptPath: FIXTURE_SCRIPT, envFile: '', ...overrides }))
 }
 
 /** 捕获一次 spawn 调用并以 canned stdout 应答的假 spawn。 */
@@ -82,7 +83,7 @@ test('given no script on disk, when available, then false regardless of keys', (
   const provider = new SearchServicesProvider(() =>
     cfg({
       scriptPath: '/tmp/not-exist-web-search-services.py',
-      keys: { ...Config({}).keys, exa: 'exa-k' },
+      keys: { ...unwrapVolatile(Config({})).keys, exa: 'exa-k' },
     }),
   )
   assert.equal(provider.available(), false)
@@ -96,7 +97,7 @@ test('given no key anywhere, when available, then false (pin 下报 CONFIGURED_U
 
 test('given row-level keys override, when childEnv built, then empty strings skipped and values mapped', (t) => {
   withoutProcessKeys(t)
-  const keys = { ...Config({}).keys, tavily: 'tvly-x', exa: '', openaiModel: 'm' }
+  const keys = { ...unwrapVolatile(Config({})).keys, tavily: 'tvly-x', exa: '', openaiModel: 'm' }
   assert.deepEqual(keyOverridesEnv(keys), { TAVILY_API_KEY: 'tvly-x', SEARCH_OPENAI_MODEL: 'm' })
 })
 
@@ -104,7 +105,7 @@ test('given canned tavily stdout, when search, then argv/env forwarded and resul
   withoutProcessKeys(t)
   const recorded = { args: [] as string[], env: {} as NodeJS.ProcessEnv }
   const provider = new SearchServicesProvider(
-    () => cfg({ keys: { ...Config({}).keys, tavily: 'tvly-override' } }),
+    () => cfg({ keys: { ...unwrapVolatile(Config({})).keys, tavily: 'tvly-override' } }),
     cannedSpawn(TAVILY_JSON, recorded),
   )
   const result = await provider.search({ query: 'q', maxResults: 5 })

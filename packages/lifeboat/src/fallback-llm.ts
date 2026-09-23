@@ -15,7 +15,7 @@ import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type {} from '@deepseek-ai/dsh-llm'
-import { SettingsConflictError, type SettingsProvider } from '@deepseek-ai/dsh-settings'
+import { SettingsConflictError } from '@deepseek-ai/dsh-settings'
 import { parseDocument } from 'yaml'
 
 import type { FallbackStateT } from './config.ts'
@@ -224,7 +224,7 @@ export function installLlmFallback(
   graceMs: number = BOOT_GRACE_MS,
 ): void {
   const logger = ctx.logger('lifeboat')
-  const settings = ctx.settings as SettingsProvider
+  const settings = ctx.settings
   const writes = settings as unknown as SettingsWrite
   const settingsFile = dshHomePath('settings.yaml')
   let inFlight: Promise<void> | undefined
@@ -246,9 +246,9 @@ export function installLlmFallback(
     const translated = translateProviders(providers)
     const fbProvider = `${provider}${FALLBACK_SUFFIX}`
     try {
-      // 官方 llm-pi-ai 的 installSection 注册了 validate（assertServiceable），
-      // 写时拒绝不适配的翻译结果；update 无 expectedRevision 本就无条件写，不做冲突
-      // 重试——失败一律分类为「翻译失败」。
+      // 0.1.7 起写入校验经 internal/config waterfall（官方 llm-pi-ai 同款，
+      // 替代 0.1.6 installSection validate），落盘前拒绝不适配的翻译结果；
+      // update 无 expectedRevision 本就无条件写，不做冲突重试——失败一律分类为「翻译失败」。
       await writes.update(NS_PI_AI, { providers: translated })
       await writes.update(NS_AGENT_DEFAULT, { provider: fbProvider, model })
     } catch (error) {
@@ -303,7 +303,8 @@ export function installLlmFallback(
       if (ids.has(state.originalProvider)) await revert(state)
       return
     }
-    const def = ctx.settings.get(NS_AGENT_DEFAULT) as
+    // 0.1.7 无 settings.get：describe() 直读本条目平面值（volatile 解包后视图）。
+    const def = ctx.settings.describe().find((row) => row.ns === NS_AGENT_DEFAULT)?.value as
       | { provider?: string; model?: string }
       | undefined
     if (def?.provider === undefined || def.model === undefined) return
@@ -340,10 +341,10 @@ export function installLlmFallback(
   ctx.events.on('ready', run)
   // 只响应与本判定相关的命名空间变化：journal 写自身命名空间，不过滤会自触发循环。
   const WATCHED_NS = new Set(['agent-default-model', 'llm-pi-ai', RAW_NS_LLM_PI])
-  // settings/updated 由 @deepseek-ai/dsh-settings 声明（本文件已导入该包），
-  // 参数类型是品牌化的 SettingsNamespace；监听器按 unknown 收，保留原有
-  // typeof 字符串防御。
-  ctx.root.on('settings/updated', (ns: unknown) => {
+  // settings/document-updated 由 @deepseek-ai/dsh-settings 声明（本文件已导入
+  // 该包），0.1.7 起载荷为 (ns, revision)；监听器按 unknown 收，保留原有
+  // typeof 字符串防御。watched 过滤避免 journal 自写自触发循环。
+  ctx.root.on('settings/document-updated', (ns: unknown) => {
     if (typeof ns === 'string' && WATCHED_NS.has(ns)) run()
   })
   // 事件名已核对：0.1.2-alpha.2 的 dsh-llm 保留 'llm/adapters-updated'

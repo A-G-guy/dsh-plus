@@ -20,12 +20,12 @@ import { Browser } from './browser.tsx'
 import { CodeEditor } from './editor.tsx'
 import {
   Button,
-  IconCheckOutline16,
-  IconCloseOutline16,
-  IconCopyOutline16,
-  IconDownloadOutline16,
-  IconEditOutline16,
-  IconWarningOutline16,
+  IconCheckOutlineRegular,
+  IconCloseOutlineMedium,
+  IconCopyOutlineRegular,
+  IconDownloadOutlineRegular,
+  IconEditOutlineRegular,
+  IconWarningOutlineRegular,
   Input,
   Modal,
   RiskConfirmation,
@@ -456,7 +456,7 @@ export function FilePanel({ files, t }: FilePanelProps) {
                   onClick={closePanel}
                   aria-label={t('panel.close')}
                 >
-                  <IconCloseOutline16 />
+                  <IconCloseOutlineMedium />
                 </button>
               </Tooltip>
             </span>
@@ -619,7 +619,7 @@ export function FilePanel({ files, t }: FilePanelProps) {
         <Toast
           key={item.id}
           text={item.text}
-          icon={item.error ? <IconWarningOutline16 /> : <IconCheckOutline16 />}
+          icon={item.error ? <IconWarningOutlineRegular /> : <IconCheckOutlineRegular />}
           onDone={() => setToasts((items) => items.filter((current) => current.id !== item.id))}
         />
       ))}
@@ -653,7 +653,7 @@ function FileErrorView({
       <Button
         variant="outline"
         size="sm"
-        icon={<IconDownloadOutline16 />}
+        icon={<IconDownloadOutlineRegular />}
         onClick={() => window.open(api.downloadUrl(path), '_blank')}
       >
         {t('view.download')}
@@ -713,7 +713,7 @@ function FileView({
               onClick={onCopyPath}
               aria-label="copy path"
             >
-              <IconCopyOutline16 />
+              <IconCopyOutlineRegular />
             </button>
           </Tooltip>
           <Tooltip label={t('view.download')} side="bottom">
@@ -723,11 +723,16 @@ function FileView({
               onClick={onDownload}
               aria-label={t('view.download')}
             >
-              <IconDownloadOutline16 />
+              <IconDownloadOutlineRegular />
             </button>
           </Tooltip>
           {!image && editable && !file.editing && (
-            <Button variant="toolbar" size="sm" icon={<IconEditOutline16 />} onClick={onEditToggle}>
+            <Button
+              variant="toolbar"
+              size="sm"
+              icon={<IconEditOutlineRegular />}
+              onClick={onEditToggle}
+            >
               {t('view.edit')}
             </Button>
           )}

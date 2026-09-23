@@ -4,7 +4,7 @@
  * 轮询由面板根组件负责，本组件纯渲染。
  * @module image-studio/client/panel/tasks
  */
-import { IconLoadingOutline16 } from '@dsh-plus/shared/client'
+import { IconLoadingOutlineRegular } from '@dsh-plus/shared/client'
 import type { ReactElement } from 'react'
 import type { TaskWire } from '../../dto.ts'
 import type { Translate } from '../i18n.ts'
@@ -33,7 +33,7 @@ export function TasksBar(props: TasksBarProps): ReactElement | null {
         const active = task.state === 'queued' || task.state === 'running'
         return (
           <div key={task.id} className={`ims-task ims-task-${task.state}`}>
-            {active ? <IconLoadingOutline16 className="ims-spin" size={14} /> : null}
+            {active ? <IconLoadingOutlineRegular className="ims-spin" size={14} /> : null}
             <span className={`ims-taskState ims-taskState-${task.state}`}>
               {t(STATE_KEYS[task.state])}
             </span>

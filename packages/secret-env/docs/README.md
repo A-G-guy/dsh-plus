@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-01 12:19"
+last_modified: "2026-09-23 12:00"
 ---
 
 # @dsh-plus/secret-env
@@ -78,8 +78,8 @@ agent 可通过 `echo $DSH_VAR_X` 主动把值打印进工具结果——方案 
 - **宿主半**：`src/service.ts`（`SecretEnvService`：镜像/会话桶/屏蔽名单）、
   `src/contributors.ts`（`ContributorBook`：受管/继承 contributor 一键一主
   生命周期）、`src/inventory.ts`（索引解析与端点 DTO 纯函数）。元数据索引与
-  全局屏蔽名单经官方 `settings.installSection` 范式持久化（`setSource`
-  实时 getter，重启/热更不丢）。
+  全局屏蔽名单持久于 settings 用户层（0.1.7：volatile 字段经 loader 原位提交，
+  `readIndex` 实时 getter，重启/热更不丢）。
 - **API 半**（`src/api.ts`）：`/dsh-plus/secret-env/` 前缀端点（list /
   global/set/unset / session/set/unset / mask/set），同源 loopback 信任，
   错误一律以 `SecretEnvError.code` 结构化返回（empty-value / shadowed /

@@ -7,7 +7,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 
-import { Config, type NotifyEmailConfig } from './config.ts'
+import type { NotifyEmailConfig, NotifyEmailConfigFields } from './config.ts'
 import { NotifyEmailService } from './service.ts'
 
 export const name = 'dsh-plus-notify-email'
@@ -18,16 +18,16 @@ export const name = 'dsh-plus-notify-email'
 // 两处同声明互为兜底）。
 export const inject = ['agents', 'tools', 'credentials'] as const
 
+export { Config } from './config.ts'
 export { NotifyEmailService } from './service.ts'
-
 export type {
   DecisionCall,
   EmailNotice,
   NotifyTrigger,
   TurnEndInfo,
 } from './triggers/types.ts'
-export { Config }
 
-export function apply(ctx: Context, config: NotifyEmailConfig): void {
+// config 运行期为 loader 解析出的 volatile 活动字段（测试可直接传平面值）。
+export function apply(ctx: Context, config: NotifyEmailConfig | NotifyEmailConfigFields): void {
   ctx.plugin(NotifyEmailService, config)
 }

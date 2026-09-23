@@ -12,7 +12,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 
-import { Config, type SubagentModelConfig } from './config.ts'
+import type { SubagentModelConfig, SubagentModelConfigFields } from './config.ts'
 import { SubagentModelService } from './service.ts'
 
 export const name = 'dsh-plus-subagent-model'
@@ -24,9 +24,10 @@ export type {
   InjectedOptions,
   SubagentModelConfig,
 } from './config.ts'
+export { Config } from './config.ts'
 export { SubagentModelService } from './service.ts'
-export { Config }
 
-export function apply(ctx: Context, config: SubagentModelConfig): void {
+// config 运行期为 loader 解析的 volatile 活动字段（测试可直接传平面值）。
+export function apply(ctx: Context, config: SubagentModelConfig | SubagentModelConfigFields): void {
   ctx.plugin(SubagentModelService, config)
 }

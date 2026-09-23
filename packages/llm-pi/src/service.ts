@@ -1,8 +1,9 @@
 /**
  * 运行时主逻辑：注册/热更新/发现（逐点对齐官方 dsh-llm-pi-ai apply 的模式）。
  *
- * - profiles 回调按原始 config 对象 identity 备忘；配置变更经 settings 的
- *   setSource/onChange 传播，下一请求生效（adapter 快照按 profiles identity 失效）；
+ * - profiles 回调按原始 config 对象 identity 备忘；配置变更经 0.1.7
+ *   volatile 原位提交（loader/volatile-update 换代快照）传播，下一请求生效
+ *   （adapter 快照按 profiles identity 失效）；
  * - route 集或注册时捕获的事实（displayName/retryPolicy）变化 → 原子的
  *   handle.replace 重注册；写入被校验拒绝时保留旧注册（官方同款护栏）；
  * - registerConfigurableProviders + registerModelDiscovery 让插件 route
@@ -16,10 +17,16 @@ import type { DirectoryRegistrationHandle } from '@deepseek-ai/dsh-llm'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import type {} from '@deepseek-ai/dsh-settings'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
-import { pluginDataPath } from '@dsh-plus/shared'
+import { hasVolatileRefs, pluginDataPath, unwrapVolatile } from '@dsh-plus/shared'
 
 import { ModelsDevSource } from './catalog/models-dev.ts'
-import { Config, type LlmPiConfig, SETTINGS_NS } from './config.ts'
+import {
+  Config,
+  type LlmPiConfig,
+  type LlmPiConfigFields,
+  type LlmPiConfigInput,
+  SETTINGS_NS,
+} from './config.ts'
 import { DeepseekRouteRegistrar } from './deepseek-routes.ts'
 import { buildDirectoryEntries, commitDirectory, type DirectoryEntry } from './directory.ts'
 import { discoverModels } from './discovery.ts'
@@ -72,25 +79,34 @@ function makeResolveApiKey(ctx: Context, kit: DshKit) {
 }
 
 /** 启动插件运行时：解析套件、挂载注册/发现/settings 联动。 */
-export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promise<LlmPiRuntime> {
+export async function startRuntime(
+  ctx: Context,
+  rawConfig: LlmPiConfig | LlmPiConfigFields,
+): Promise<LlmPiRuntime> {
   const logger = ctx.logger('llm-pi')
   // cordis 行级 config 可能未经 schema 解析（insert 行无 config 键时为原始空对象），
-  // 在此统一规范化，保证 enabled/默认值在纯组合层场景也成立。
-  const config = Config(rawConfig ?? {})
+  // 在此统一规范化；0.1.7 loader 解析出的 volatile 活动字段形态直接透传
+  // （hasVolatileRefs 辨识——重复校验会把引用再包一层、破坏 loader 原位提交）。
+  const fields: LlmPiConfigFields = hasVolatileRefs(rawConfig)
+    ? (rawConfig as LlmPiConfigFields)
+    : Config((rawConfig ?? {}) as LlmPiConfigInput)
   const { kit, diagnostics } = await resolveDshKit()
   for (const line of diagnostics) logger.warn(line)
   logger.info(`运行时套件来源：${kit.source}`)
 
+  // 活动引用解包出平面快照：identity 仅在 volatile-update 重解包时换代
+  // （profiles 备忘依赖 raw === lastRaw；非 volatile 变更走 fiber reload 整树重建）。
+  let snapshot = unwrapVolatile(fields)
   const modelsDev = new ModelsDevSource(
     pluginDataPath('llm-pi', 'models-dev.json'),
-    config.catalogUrl,
-    config.catalogRefreshHours,
+    snapshot.catalogUrl,
+    snapshot.catalogRefreshHours,
     (message) => logger.warn(message),
-    config.catalogProxy ?? '',
+    snapshot.catalogProxy ?? '',
   )
   void modelsDev.ensureLoaded()
 
-  let current: () => LlmPiConfig = () => config
+  const current: () => LlmPiConfig = () => snapshot
   let lastRaw: LlmPiConfig | undefined
   let memoized: Map<string, ResolvedPiAiProviderProfile> | undefined
   let memoizedDeepseek: Map<string, ResolvedDeepseekRoute> | undefined
@@ -285,37 +301,39 @@ export async function startRuntime(ctx: Context, rawConfig: LlmPiConfig): Promis
   ensureDeepseek()
   ensureDirectory()
 
-  // 官方 installSection 范式（0.1.2-alpha.2）：settings 在时以行级 config 为
-  // base 注册用户层（validate 拒绝坏写入），缺席/detach 时回落行级 config。
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
-      validate: (cfg: LlmPiConfig) => assertServiceable(cfg, deps),
-      setSource: (source: () => LlmPiConfig) => {
-        current = source
-      },
-      onChange: () => {
-        try {
-          ensureRegistration()
-        } catch (error) {
-          logger.error('llm-pi: 更新被拒，保留此前注册的 route')
-          logger.error(error)
-        }
-        try {
-          ensureDeepseek()
-        } catch (error) {
-          logger.error('llm-pi: deepseek route 更新失败，保留此前注册')
-          logger.error(error)
-        }
-        try {
-          ensureDirectory()
-        } catch (error) {
-          logger.error('llm-pi: 更新被拒，保留此前的 configurable-provider 目录')
-          logger.error(error)
-        }
-        const cfg = current()
-        modelsDev.reconfigure(cfg.catalogUrl, cfg.catalogRefreshHours, cfg.catalogProxy ?? '')
-      },
-    })
+  // 0.1.7 替代 installSection（validate/setSource/onChange 三钩子）：
+  // - 活动引用原位提交 → volatile-update 触发快照换代与重注册（原 onChange 体）；
+  // - internal/config waterfall 承接写入校验（原 validate；官方 llm-pi-ai
+  //   同款）：configEditor.edit 落盘前先跑 waterfall，handler throw 即拒绝整笔写入。
+  const reconfigure = (): void => {
+    snapshot = unwrapVolatile(fields)
+    try {
+      ensureRegistration()
+    } catch (error) {
+      logger.error('llm-pi: 更新被拒，保留此前注册的 route')
+      logger.error(error)
+    }
+    try {
+      ensureDeepseek()
+    } catch (error) {
+      logger.error('llm-pi: deepseek route 更新失败，保留此前注册')
+      logger.error(error)
+    }
+    try {
+      ensureDirectory()
+    } catch (error) {
+      logger.error('llm-pi: 更新被拒，保留此前的 configurable-provider 目录')
+      logger.error(error)
+    }
+    const cfg = current()
+    modelsDev.reconfigure(cfg.catalogUrl, cfg.catalogRefreshHours, cfg.catalogProxy ?? '')
+  }
+  ctx.events.on('loader/volatile-update', reconfigure)
+  ctx.on('internal/config', function (_raw: unknown, next: () => unknown) {
+    const candidate = next()
+    if (this !== ctx.fiber) return candidate
+    assertServiceable(unwrapVolatile(Config(candidate as LlmPiConfigInput)), deps)
+    return candidate
   })
 
   return {

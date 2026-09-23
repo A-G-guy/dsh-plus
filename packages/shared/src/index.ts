@@ -36,3 +36,14 @@ export {
 
 // 编译期断言工具（纯类型）：供各包 tests 与公共契约检查复用。
 export type { Equal, Expect } from './types/assert.ts'
+
+// 0.1.7 volatile 配置引用解包（类型面 + 运行期面）。
+export {
+  hasVolatileRefs,
+  isVolatileRef,
+  type UnwrapVolatile,
+  unwrapVolatile,
+  type VolatileField,
+  type VolatileFields,
+  type VolatileSnapshotOf,
+} from './volatile.ts'

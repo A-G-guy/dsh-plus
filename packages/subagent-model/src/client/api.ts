@@ -1,6 +1,6 @@
 /**
- * 自定义端点通道：仅剩「模型目录」（配置读写已迁移到官方 settingsScope
- * 传输，见 scope.ts 与 card.tsx）。
+ * 自定义端点通道：仅剩「模型目录」（配置读写已迁移到共享层
+ * ctx.remote.settings（0.1.7 起 settingsScope 已删）传输，见 scope.ts 与 card.tsx）。
  * @module subagent-model/client/api
  */
 

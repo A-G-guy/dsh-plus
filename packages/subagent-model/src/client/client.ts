@@ -8,8 +8,8 @@
  * 类型说明：浏览器半只用到 slots/locale/remote 的很窄一面，
  * scope 与基础控件走 @dsh-plus/shared/client 套件（收编自本插件原实现）。
  * 0.1.2-alpha.1 起配置读写统一走 ctx.remote.settings 直连
- * （connection.api.settings RPC 面已移除；不复用 settingsScope 服务——
- * 非 loopback 页面下它固定 memory 模式无数据）；自定义端点仅剩「模型目录」（api.ts）。
+ * （connection.api.settings RPC 面已移除；0.1.7 起 settingsScope 服务亦删除——
+ * configForms 取代，插件卡片自始直连 remote.settings）；自定义端点仅剩「模型目录」（api.ts）。
  * 卡片 key/rowId 约定见 @dsh-plus/shared/client/config-slots。
  * @module @dsh-plus/subagent-model/client
  */

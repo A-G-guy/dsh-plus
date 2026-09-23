@@ -5,10 +5,10 @@
  * 0.1.2-alpha.1 起 `connection.api.settings` RPC 面被移除（dsh-host-apiproxy
  * 删除），配置读写统一走 `ctx.remote.settings`（Typert Remote 命名空间）：
  * `describe()` 无参直返视图、`update/replace` 位置参数、错误一律 throw。
- * 官方 `settingsScope.bind` 在非 loopback 页面固定 memory 模式（构造时按
- * `connection.isLoopback` 定死），remote-settings 的修复只翻 describe mirror，
- * 对已绑定 scope 无效——故插件配置读写仍直连 remote.settings，保证任意
- * origin（loopback / tailnet 信任域名）下行为一致。
+ * （历史：官方 `settingsScope.bind` 曾在非 loopback 页面固定 memory 模式，
+ * remote-settings 的修复只翻 describe mirror、对已绑定 scope 无效；0.1.7 起
+ * 该服务已删除、官方卡片改走 configForms——本层直连语义自始不变，保证任意
+ * origin（loopback / tailnet 信任域名）下行为一致。）
  * @module @dsh-plus/shared/client/scope
  */
 

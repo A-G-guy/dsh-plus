@@ -45,27 +45,14 @@ function createFakeCtx(
       store.delete(ref)
     },
   }
+  // 与 0.1.7 loader 原位提交同形：settings.data 即行级 config 对象——update 落这里，
+  // readIndex（unwrapVolatile(config)）下一次现取即能看到，测试断言直读同一对象。
+  const config = { secrets: meta, masked: [] as string[] }
   const settings = {
-    data: { secrets: meta } as Record<string, unknown>,
-    onChange: undefined as undefined | (() => void),
-    get() {
-      return this.data
-    },
+    data: config as Record<string, unknown>,
+    // 0.1.7 窄面：服务只经 update 写入用户层（读由 loader 并入行级 config）。
     async update(_ns: string, patch: Record<string, unknown>) {
-      Object.assign(this.data, patch)
-      // 模拟真实 settings：提交后 watch 触发 onChange。
-      this.onChange?.()
-    },
-    // installSection 范式：setSource 收实时 getter（scope.get 活视图）。
-    installSection(
-      _ownerCtx: unknown,
-      _ns: string,
-      _schema: unknown,
-      _base: unknown,
-      hooks: { setSource(source: () => unknown): void; onChange(): void },
-    ) {
-      hooks.setSource(() => this.data)
-      this.onChange = hooks.onChange
+      Object.assign(config, patch)
     },
   }
   const ctx = {
@@ -93,11 +80,20 @@ function createFakeCtx(
         handlers[event] = listener
       },
     },
+    // 'loader/volatile-update' 为字符串重载的动态事件，经 events 面注册（贴合真实 ctx）。
+    events: {
+      on(event: string, listener: (arg: never) => void) {
+        handlers[event] = listener
+        return () => {
+          delete handlers[event]
+        }
+      },
+    },
     on(event: string, listener: (arg: never) => void) {
       handlers[event] = listener
     },
   }
-  const service = new SecretEnvService(ctx as unknown as Context, { secrets: meta, masked: [] })
+  const service = new SecretEnvService(ctx as unknown as Context, config)
   return { contributors, credentials: store, handlers, service, settings }
 }
 

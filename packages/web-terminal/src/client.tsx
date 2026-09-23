@@ -8,8 +8,8 @@
  * 类型说明：浏览器半只用到 slots/locale/remote 的很窄一面，手写窄面
  * ClientContext（0.1.2-alpha.1 起 dsh-client-runtime 已删除，类型按包
  * 拆分）；配置读写经 ctx.remote.settings 直连（connection.api.settings
- * 已移除；不复用 settingsScope 服务——非 loopback 页面固定 memory 模式
- * 无数据，见 @dsh-plus/shared/client/scope）。
+ * 已移除；0.1.7 起 settingsScope 服务亦删除——configForms 取代，自始直连，
+ * 见 @dsh-plus/shared/client/scope）。
  * @module @dsh-plus/web-terminal/client
  */
 import type { Context } from '@deepseek-ai/cordis'

@@ -5,7 +5,7 @@
  * @module image-studio/client/panel/picker
  */
 import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
-import { IconPlusOutline16 } from '@dsh-plus/shared/client'
+import { IconPlusOutlineMedium } from '@dsh-plus/shared/client'
 import { type ReactElement, useState } from 'react'
 import type { SourceRef, UploadEntry } from '../../dto.ts'
 import type { GalleryItem } from '../../gallery/store.ts'
@@ -128,7 +128,7 @@ export function ImagePicker(props: ImagePickerProps): ReactElement {
             onUploaded={selectUploaded}
             className="ims-btn ims-btnPrimary ims-btnSmall"
           >
-            <IconPlusOutline16 size={14} /> {t('upload.pick')}
+            <IconPlusOutlineMedium size={14} /> {t('upload.pick')}
           </UploadButton>
           <button type="button" className="ims-btn ims-btnGhost" onClick={onClose}>
             {t('common.close')}

@@ -23,26 +23,30 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
+import { unwrapVolatile } from '@dsh-plus/shared'
 
-import { Config, type WebCacheHeadersConfig } from './config.ts'
-import { SETTINGS_NS } from './ns.ts'
+import type { WebCacheHeadersConfig, WebCacheHeadersConfigFields } from './config.ts'
 import { installImmutableAssetsPatch, uninstallImmutableAssetsPatch } from './patch.ts'
 
 export const name = 'dsh-plus-web-cache-headers'
 
 /** 无硬 inject：见模块头「结构守卫」。 */
 
+export { Config } from './config.ts'
+export { SETTINGS_NS } from './ns.ts'
 export type { WebCacheHeadersConfig }
-export { Config, SETTINGS_NS }
 
 /**
- * 装配补丁并接线配置源：settings 用户层（$DSH_HOME/settings.yaml，热生效）
- * 优先，缺席/detach 回落 cordis 行级 config。enabled 翻转即时装/卸补丁，
- * 无需 /reload；插件 dispose（profile 卸载 / live reload）保证卸下。
- * @param ctx - 宿主上下文（settings 可选）。
- * @param config - 行级 config（settings 缺席时的默认值来源）。
+ * 装配补丁并接线配置源：0.1.7 起配置为 loader 解析的 volatile 活动字段
+ * （用户层 override 并入行级 config，写入原位提交），enabled 翻转即时装/卸
+ * 补丁，无需 /reload；插件 dispose（profile 卸载 / live reload）保证卸下。
+ * @param ctx - 宿主上下文。
+ * @param config - 活动字段形态的行级 config（测试可传平面值）。
  */
-export function apply(ctx: Context, config: WebCacheHeadersConfig): void {
+export function apply(
+  ctx: Context,
+  config: WebCacheHeadersConfig | WebCacheHeadersConfigFields,
+): void {
   const logger = ctx.logger('web-cache-headers')
   if (process.env.NODE_ENV === 'development') {
     logger.info('development 环境：自动禁用（保护 dev/HMR 同 URL 热更新）')
@@ -60,17 +64,10 @@ export function apply(ctx: Context, config: WebCacheHeadersConfig): void {
     )
   }
 
-  let current: () => WebCacheHeadersConfig = () => config
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
-      setSource: (source) => {
-        current = source
-      },
-      onChange: () => {
-        sync(current().enabled)
-      },
-    })
-  })
+  // 活动引用原位提交（替代 0.1.6 setSource/onChange）：每次读现取平面快照，
+  // volatile 提交事件驱动 enabled 翻转装卸。
+  const current = (): WebCacheHeadersConfig => unwrapVolatile(config)
+  ctx.events.on('loader/volatile-update', () => sync(current().enabled))
 
   sync(current().enabled)
   ctx.effect(() => () => sync(false), 'web-cache-headers: dispose 卸下补丁')

@@ -9,7 +9,7 @@
  */
 import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { NamespaceSettingsApi, Scope } from '@dsh-plus/shared/client'
-import { IconBrush, IconCloseOutline16, IconImage, IconSparkles } from '@dsh-plus/shared/client'
+import { IconBrush, IconCloseOutlineMedium, IconImage, IconSparkles } from '@dsh-plus/shared/client'
 import {
   type ReactElement,
   useCallback,
@@ -147,7 +147,7 @@ export function StudioPanel(props: StudioPanelProps): ReactElement | null {
             aria-label={t('common.close')}
             onClick={() => studio.setOpen(false)}
           >
-            <IconCloseOutline16 size={16} />
+            <IconCloseOutlineMedium size={16} />
           </button>
         </header>
 

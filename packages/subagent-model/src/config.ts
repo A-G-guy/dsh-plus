@@ -17,6 +17,7 @@
  */
 
 import z from '@deepseek-ai/schemastery'
+import type { VolatileFields } from '@dsh-plus/shared'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
@@ -70,9 +71,19 @@ const EntrySchema = z.object({
     .default(EFFORT_INHERIT),
 })
 
-export const Config: z<SubagentModelConfigInput, SubagentModelConfig> = z.object({
-  enabled: z.boolean().description('总开关').default(false),
-  entries: z.dict(EntrySchema).description('按子代理 provider 名（spawn/fork/…）配置').default({}),
+// 0.1.7：全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
+// loader 原位提交活动引用；输出面标注活动字段声明面（结构兼容 volatile 引用），
+// 平面消费契约保持 SubagentModelConfig 接口不变。
+/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+export type SubagentModelConfigFields = VolatileFields<SubagentModelConfig>
+
+export const Config: z<SubagentModelConfigInput, SubagentModelConfigFields> = z.object({
+  enabled: z.boolean().description('总开关').default(false).volatile(),
+  entries: z
+    .dict(EntrySchema)
+    .description('按子代理 provider 名（spawn/fork/…）配置')
+    .default({})
+    .volatile(),
 })
 
 /** 注入子代理 AgentOptions 的结果对象：只含需要覆盖的字段。 */

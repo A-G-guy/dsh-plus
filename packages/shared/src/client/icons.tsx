@@ -27,17 +27,16 @@ import Sparkles from 'lucide-react/dist/esm/icons/sparkles.mjs'
 import type { ReactElement } from 'react'
 
 export {
-  IconApiOutline14,
-  IconCheckOutline16,
-  IconChevronDownOutline14,
-  IconCloseOutline16,
-  IconCopyOutline16,
-  IconLoadingOutline16,
-  IconPlusOutline16,
-  IconRefreshOutline14,
-  IconRefreshOutline16,
-  IconTrashOutline16,
-  IconWarningOutline16,
+  IconApiOutlineRegular,
+  IconCheckOutlineRegular,
+  IconChevronDownOutlineRegular,
+  IconCloseOutlineMedium,
+  IconCopyOutlineRegular,
+  IconLoadingOutlineRegular,
+  IconPlusOutlineMedium,
+  IconRefreshOutlineRegular,
+  IconTrashOutlineRegular,
+  IconWarningOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 
 export interface IconProps {
@@ -46,8 +45,8 @@ export interface IconProps {
   className?: string
 }
 
-/** 历史别名：官方 IconChevronDownOutline14（早期版本曾内联同 path，现直连官方）。 */
-export { IconChevronDownOutline14 as ChevronDownIcon } from '@deepseek-ai/dsh-client-ui-primitives'
+/** 历史别名：官方 IconChevronDownOutlineRegular（早期版本曾内联同 path，现直连官方）。 */
+export { IconChevronDownOutlineRegular as ChevronDownIcon } from '@deepseek-ai/dsh-client-ui-primitives'
 
 function lucideProps(props: IconProps): LucideProps {
   return { size: props.size ?? 14, className: props.className, 'aria-hidden': true }

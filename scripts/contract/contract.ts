@@ -21,7 +21,7 @@ import type { Config as LlmPiSchema } from '@dsh-plus/llm-pi'
 import type { Config as NotifyEmailSchema } from '@dsh-plus/notify-email'
 import type { Config as ReloadSchema } from '@dsh-plus/reload'
 import type { Config as SecretEnvSchema } from '@dsh-plus/secret-env'
-import type { Equal, Expect } from '@dsh-plus/shared'
+import type { Equal, Expect, UnwrapVolatile } from '@dsh-plus/shared'
 import type { Config as SubagentModelSchema } from '@dsh-plus/subagent-model'
 import type { Config as UsagePanelSchema } from '@dsh-plus/usage-panel'
 import type { Config as WebTerminalSchema } from '@dsh-plus/web-terminal'
@@ -43,7 +43,9 @@ type _EqSame = Equal<{ a: 1 }, { a: 1 }>
 type _SelfTestSame = Expect<[_EqSame] extends [true] ? true : false>
 
 // ── access-gate ───────────────────────────────────────────────────────────
-type AccessGateConfig = Schemastery.TypeT<typeof AccessGateSchema>
+// 0.1.7 起 volatile 插件的 TypeT 是活动字段面（字段带 .get() 引用）；契约断言
+// 的是平面快照形状，故统一经 UnwrapVolatile 解包（解包链断裂同样会被探测到）。
+type AccessGateConfig = UnwrapVolatile<Schemastery.TypeT<typeof AccessGateSchema>>
 type _AgEnabled = Expect<Equal<AccessGateConfig['enabled'], boolean>>
 type _AgAllowedIps = Expect<Equal<AccessGateConfig['allowedIps'], string[]>>
 type _AgTrustFwd = Expect<Equal<AccessGateConfig['trustForwardedFor'], boolean>>
@@ -55,13 +57,13 @@ type _LbCooldown = Expect<Equal<LifeboatConfig['alertCooldownMs'], number>>
 type _LbPatchFile = Expect<Equal<LifeboatConfig['patchFile'], string>>
 
 // ── llm-pi ────────────────────────────────────────────────────────────────
-type LlmPiConfig = Schemastery.TypeT<typeof LlmPiSchema>
+type LlmPiConfig = UnwrapVolatile<Schemastery.TypeT<typeof LlmPiSchema>>
 type _LpEnabled = Expect<Equal<LlmPiConfig['enabled'], boolean>>
 type _LpCatalogUrl = Expect<Equal<LlmPiConfig['catalogUrl'], string>>
 type _LpRefreshHours = Expect<Equal<LlmPiConfig['catalogRefreshHours'], number>>
 
 // ── notify-email ──────────────────────────────────────────────────────────
-type NotifyEmailConfig = Schemastery.TypeT<typeof NotifyEmailSchema>
+type NotifyEmailConfig = UnwrapVolatile<Schemastery.TypeT<typeof NotifyEmailSchema>>
 type _NeEnabled = Expect<Equal<NotifyEmailConfig['enabled'], boolean>>
 type _NeTo = Expect<Equal<NotifyEmailConfig['to'], string[]>>
 type _NeDryRun = Expect<Equal<NotifyEmailConfig['dryRun'], boolean>>
@@ -73,23 +75,23 @@ type _RlUnitName = Expect<Equal<ReloadConfig['unitName'], string>>
 type _RlGrace = Expect<Equal<ReloadConfig['serverGraceMs'], number>>
 
 // ── subagent-model ────────────────────────────────────────────────────────
-type SubagentModelConfig = Schemastery.TypeT<typeof SubagentModelSchema>
+type SubagentModelConfig = UnwrapVolatile<Schemastery.TypeT<typeof SubagentModelSchema>>
 type _SmEnabled = Expect<Equal<SubagentModelConfig['enabled'], boolean>>
 
 // ── usage-panel（顶层形状；prices 元素级断言待阶段四后补）──────────────────
-type UsagePanelConfig = Schemastery.TypeT<typeof UsagePanelSchema>
+type UsagePanelConfig = UnwrapVolatile<Schemastery.TypeT<typeof UsagePanelSchema>>
 type _UpCurrency = Expect<Equal<UsagePanelConfig['currency'], string>>
 type _UpAutoSync = Expect<Equal<UsagePanelConfig['autoSyncMinutes'], number>>
 type _UpPriceProvider = Expect<Equal<UsagePanelConfig['prices'][number]['provider'], string>>
 type _UpPriceInput = Expect<Equal<UsagePanelConfig['prices'][number]['inputPerMtok'], number>>
 
 // ── secret-env（顶层形状）─────────────────────────────────────────────────
-type SecretEnvConfig = Schemastery.TypeT<typeof SecretEnvSchema>
+type SecretEnvConfig = UnwrapVolatile<Schemastery.TypeT<typeof SecretEnvSchema>>
 type _SeMasked = Expect<Equal<SecretEnvConfig['masked'], string[]>>
 type _SeSecretName = Expect<Equal<SecretEnvConfig['secrets'][number]['name'], string>>
 
 // ── image-studio（顶层形状）───────────────────────────────────────────────
-type ImageStudioConfig = Schemastery.TypeT<typeof ImageStudioSchema>
+type ImageStudioConfig = UnwrapVolatile<Schemastery.TypeT<typeof ImageStudioSchema>>
 type _IsMaxConcurrent = Expect<Equal<ImageStudioConfig['maxConcurrent'], number>>
 // 元素级：三个预设数组曾退化为 any[]，这里钉住元素结构防复发
 type _IsPromptId = Expect<Equal<ImageStudioConfig['promptPresets'][number]['id'], string>>
@@ -101,7 +103,7 @@ type _IsProxy = Expect<Equal<ImageStudioConfig['proxy'], string>>
 type _IsGalleryMax = Expect<Equal<ImageStudioConfig['galleryMaxItems'], number>>
 
 // ── web-terminal：曾整体退化为 any（ConfigSchema: any），断言防复发 ──────────
-type WebTerminalConfig = Schemastery.TypeT<typeof WebTerminalSchema>
+type WebTerminalConfig = UnwrapVolatile<Schemastery.TypeT<typeof WebTerminalSchema>>
 type _WtEnabled = Expect<Equal<WebTerminalConfig['enabled'], boolean>>
 type _WtMaxSessions = Expect<Equal<WebTerminalConfig['maxSessions'], number>>
 type _WtShellArgs = Expect<Equal<WebTerminalConfig['shellArgs'], string[]>>

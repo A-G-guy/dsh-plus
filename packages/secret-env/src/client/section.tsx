@@ -8,11 +8,11 @@
  */
 
 import {
-  IconCheckOutline16,
-  IconCopyOutline16,
+  IconCheckOutlineRegular,
+  IconCopyOutlineRegular,
   IconEye,
   IconEyeOff,
-  IconTrashOutline16,
+  IconTrashOutlineRegular,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
@@ -78,7 +78,7 @@ function CopyButton(props: { t: Translate; text: string }): ReactElement {
         })
       }}
     >
-      {copied ? <IconCheckOutline16 size={14} /> : <IconCopyOutline16 size={14} />}
+      {copied ? <IconCheckOutlineRegular size={14} /> : <IconCopyOutlineRegular size={14} />}
     </button>
   )
 }
@@ -138,7 +138,7 @@ function GlobalRow(props: {
             aria-label={t('delete')}
             onClick={() => setConfirming(true)}
           >
-            <IconTrashOutline16 size={14} />
+            <IconTrashOutlineRegular size={14} />
           </button>
         )}
       </div>

@@ -6,6 +6,7 @@
  * @module secret-env/config
  */
 import z from '@deepseek-ai/schemastery'
+import type { UnwrapVolatile } from '@dsh-plus/shared'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
@@ -35,12 +36,22 @@ const SecretMetaSchema: z<SecretMetaInput, SecretMeta> = z.object({
   createdAt: z.string().description('创建时间 ISO').default(''),
 })
 
+// 0.1.7：全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
+// loader 原位提交活动引用，索引读取现取即热。
 export const Config = z.object({
-  secrets: z.array(SecretMetaSchema).description('全局密钥元数据索引（值存凭据库）').default([]),
+  secrets: z
+    .array(SecretMetaSchema)
+    .description('全局密钥元数据索引（值存凭据库）')
+    .default([])
+    .volatile(),
   masked: z
     .array(z.string())
     .description('全局屏蔽的变量名后缀（继承变量等；注入时跳过）')
-    .default([]),
+    .default([])
+    .volatile(),
 })
 
-export type SecretEnvConfig = Schemastery.TypeT<typeof Config>
+/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+export type SecretEnvConfigFields = Schemastery.TypeT<typeof Config>
+/** 平面配置形态（消费面的读取形态，由活动引用解包得到）。 */
+export type SecretEnvConfig = UnwrapVolatile<SecretEnvConfigFields>

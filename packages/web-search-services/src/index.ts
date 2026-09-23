@@ -10,8 +10,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-web'
+import { unwrapVolatile } from '@dsh-plus/shared'
 
-import { Config, SETTINGS_NS, type WebSearchServicesConfig } from './config.ts'
+import type { WebSearchServicesConfig, WebSearchServicesConfigFields } from './config.ts'
 import { SearchServicesProvider } from './provider.ts'
 
 export const name = 'dsh-plus-web-search-services'
@@ -19,33 +20,18 @@ export const name = 'dsh-plus-web-search-services'
 /** 行级 inject：dsh-web 服务激活后才应用本行（provider 注册即需 ctx.web）。 */
 export const inject = ['web'] as const
 
+export { Config, SETTINGS_NS } from './config.ts'
 export { PROVIDER_ID, SearchServicesProvider } from './provider.ts'
-export { Config, SETTINGS_NS }
 
-export function apply(ctx: Context, config: WebSearchServicesConfig): void {
-  const provider = new SearchServicesProvider(configSource(ctx, config))
+// config 运行期为 loader 解析的 volatile 活动字段（用户层 override 并入行级
+// config，写入原位提交）——每次读现取平面快照，替代 0.1.6 installSection/setSource。
+export function apply(
+  ctx: Context,
+  config: WebSearchServicesConfig | WebSearchServicesConfigFields,
+): void {
+  const provider = new SearchServicesProvider(() => unwrapVolatile(config))
   ctx.effect(
     () => ctx.web.registerSearchProvider(provider),
     'dsh-plus-web-search-services: register search provider',
   )
-}
-
-/**
- * 配置源：settings 用户层（$DSH_HOME/settings.yaml，热生效）在时优先生效，
- * 缺席/detach 回落 cordis 行级 config（官方 installSection 可选消费范式）。
- */
-function configSource(
-  ctx: Context,
-  rowConfig: WebSearchServicesConfig,
-): () => WebSearchServicesConfig {
-  let current: () => WebSearchServicesConfig = () => rowConfig
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, rowConfig, {
-      setSource: (source) => {
-        current = source
-      },
-      onChange: () => {},
-    })
-  })
-  return () => current()
 }

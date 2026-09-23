@@ -5,7 +5,12 @@
  */
 import { useState } from 'react'
 import { IconSort16 } from './icons.tsx'
-import { IconCodeOutline16, IconFolderClose16, IconPlusOutline16, Menu } from './primitives.ts'
+import {
+  IconCodeOutlineRegular,
+  IconFolderCloseRegular,
+  IconPlusOutlineMedium,
+  Menu,
+} from './primitives.ts'
 import { SORT_KEYS, type SortDir, type SortKey } from './sort.ts'
 import type { Translate } from './types.ts'
 
@@ -75,8 +80,8 @@ export function NewMenu({
 }) {
   const [open, setOpen] = useState(false)
   const items = [
-    { id: 'file', label: t('new.file'), icon: <IconCodeOutline16 /> },
-    { id: 'folder', label: t('new.folder'), icon: <IconFolderClose16 /> },
+    { id: 'file', label: t('new.file'), icon: <IconCodeOutlineRegular /> },
+    { id: 'folder', label: t('new.folder'), icon: <IconFolderCloseRegular /> },
   ]
   return (
     <Menu
@@ -90,7 +95,7 @@ export function NewMenu({
           aria-label={t('toolbar.new')}
           onClick={() => setOpen((value) => !value)}
         >
-          <IconPlusOutline16 />
+          <IconPlusOutlineMedium />
         </button>
       }
       items={items}

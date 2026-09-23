@@ -7,6 +7,7 @@
  */
 
 import z from '@deepseek-ai/schemastery'
+import type { UnwrapVolatile } from '@dsh-plus/shared'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
@@ -38,7 +39,7 @@ const TriggerSchema = z.object({
 })
 
 export const Config = z.object({
-  enabled: z.boolean().description('总开关').default(false),
+  enabled: z.boolean().description('总开关').default(false).volatile(),
   smtp: SmtpSchema.default({
     host: '',
     port: 465,
@@ -46,21 +47,28 @@ export const Config = z.object({
     user: '',
     pass: '',
     from: '',
-  }),
-  to: z.array(z.string()).description('收件邮箱列表').default([]),
+  }).volatile(),
+  to: z.array(z.string()).description('收件邮箱列表').default([]).volatile(),
   triggers: TriggerSchema.default({
     onComplete: true,
     onError: true,
     onAborted: false,
     onQuestion: true,
     onPlanReview: true,
-  }),
-  idleDebounceMs: z.natural().description('turn 结束后确认无后续工作的等待毫秒数').default(3000),
-  maxBodyChars: z.natural().min(200).description('邮件正文内容截断长度').default(4000),
-  dryRun: z.boolean().description('仅记录日志不真实发送（开发调试用）').default(false),
+  }).volatile(),
+  idleDebounceMs: z
+    .natural()
+    .description('turn 结束后确认无后续工作的等待毫秒数')
+    .default(3000)
+    .volatile(),
+  maxBodyChars: z.natural().min(200).description('邮件正文内容截断长度').default(4000).volatile(),
+  dryRun: z.boolean().description('仅记录日志不真实发送（开发调试用）').default(false).volatile(),
 })
 
-export type NotifyEmailConfig = Schemastery.TypeT<typeof Config>
+/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+export type NotifyEmailConfigFields = Schemastery.TypeT<typeof Config>
+/** 平面配置形态（消费面的读取形态，由活动引用解包得到）。 */
+export type NotifyEmailConfig = UnwrapVolatile<NotifyEmailConfigFields>
 export type TriggerToggles = NotifyEmailConfig['triggers']
 
 /** 是否具备发信条件（enabled 之外的最小完整性）。 */

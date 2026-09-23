@@ -6,6 +6,8 @@ import { EventEmitter } from 'node:events'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { test } from 'node:test'
 
+import { unwrapVolatile } from '@dsh-plus/shared'
+
 import { type AccessGateConfig, Config } from '../src/config.ts'
 import { createGateRoutes, type RouteDeps } from '../src/routes.ts'
 
@@ -57,7 +59,7 @@ function fakeRes(): { res: ServerResponse; done: Promise<Captured> } {
   return { res, done }
 }
 
-const DEFAULTS: AccessGateConfig = Config({})
+const DEFAULTS: AccessGateConfig = unwrapVolatile(Config({}))
 
 function makeDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
   return {
@@ -72,7 +74,7 @@ function makeDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
 test('status：报告 enabled/verdict/officialAuthed/ipFenceActive', async () => {
   const handler = createGateRoutes(
     makeDeps({
-      config: () => Config({ enabled: true, allowedIps: ['100.108.58.63'] }),
+      config: () => unwrapVolatile(Config({ enabled: true, allowedIps: ['100.108.58.63'] })),
       officialAuth: () => true,
     }),
   )
@@ -94,7 +96,9 @@ test('status：autoLoginActive/autoLoginReady 上报（开启与密钥可用性�
   const on = createGateRoutes(
     makeDeps({
       config: () =>
-        Config({ enabled: true, allowedIps: ['100.108.58.63'], autoLoginTrustedIps: true }),
+        unwrapVolatile(
+          Config({ enabled: true, allowedIps: ['100.108.58.63'], autoLoginTrustedIps: true }),
+        ),
     }),
   )
   const resOn = fakeRes()
@@ -105,7 +109,7 @@ test('status：autoLoginActive/autoLoginReady 上报（开启与密钥可用性�
 
   const off = createGateRoutes(
     makeDeps({
-      config: () => Config({ enabled: true, allowedIps: ['100.108.58.63'] }),
+      config: () => unwrapVolatile(Config({ enabled: true, allowedIps: ['100.108.58.63'] })),
       autoLoginReady: () => false,
     }),
   )
@@ -132,7 +136,7 @@ test('status：autoLogin deps 缺省时 autoLoginReady=false（向后兼容）',
 test('status：远程未认证的导航请求 → verdict=token-page', async () => {
   const handler = createGateRoutes(
     makeDeps({
-      config: () => Config({ enabled: true }),
+      config: () => unwrapVolatile(Config({ enabled: true })),
     }),
   )
   const { res, done } = fakeRes()

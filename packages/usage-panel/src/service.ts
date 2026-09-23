@@ -11,7 +11,7 @@ import { mkdir } from 'node:fs/promises'
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-settings'
-import { pluginDataPath } from '@dsh-plus/shared'
+import { pluginDataPath, unwrapVolatile } from '@dsh-plus/shared'
 import { registerUsageApi } from './api.ts'
 import {
   EMPTY_CACHE,
@@ -22,7 +22,7 @@ import {
   type UsageCache,
 } from './cache.ts'
 import { CatalogStore } from './catalog.ts'
-import { Config, SETTINGS_NS, type UsagePanelConfig } from './config.ts'
+import { SETTINGS_NS, type UsagePanelConfig, type UsagePanelConfigFields } from './config.ts'
 import { importPrices } from './models-dev.ts'
 import { estimateCost, type PriceTable } from './pricing.ts'
 import { type PersistenceLike, planSync, TAIL_BATCH_LIMIT } from './sync-runner.ts'
@@ -72,27 +72,21 @@ export class UsagePanelService extends Service {
   private syncTimer: ReturnType<typeof setTimeout> | null = null
   private catalogTimer: ReturnType<typeof setTimeout> | null = null
   private catalog: CatalogStore | null = null
-  /** settings 服务引用（installSection 注入时捕获；端点写入用户层用）。 */
+  /** settings 服务引用（settings 注入时捕获；端点写入用户层用）。 */
   private settingsRef: {
-    get(ns: string): unknown
+    describe(): ReadonlyArray<{ ns: string; value: unknown }>
     update(ns: string, patch: Record<string, unknown>): Promise<void>
   } | null = null
 
-  constructor(ctx: Context, config: UsagePanelConfig) {
+  constructor(ctx: Context, config: UsagePanelConfig | UsagePanelConfigFields) {
     super(ctx, 'usagePanel')
-    this.current = () => config
-    // 官方 installSection 范式（0.1.2-alpha.2）：settings 在时以行级 config 为
-    // base 注册用户层，缺席/detach 时回落行级 config。
+    // 0.1.7 替代 installSection/setSource：活动引用原位提交，现取即热。
+    this.current = () => unwrapVolatile(config)
     ctx.inject(['settings'], (settingsCtx) => {
       this.settingsRef = settingsCtx.settings as unknown as NonNullable<typeof this.settingsRef>
-      settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
-        setSource: (source) => {
-          this.current = source
-          this.applyConfig()
-        },
-        onChange: () => {},
-      })
     })
+    // volatile 提交事件（替代原 onChange→applyConfig）：目录参数与同步周期热更。
+    ctx.events.on('loader/volatile-update', () => this.applyConfig())
     void this.boot()
     // 实时通道：root 上的会话事件（新事件即时折叠进对应会话桶）。
     ctx.root.on('session/event', (session, event) => {
@@ -360,7 +354,10 @@ export class UsagePanelService extends Service {
     const settings = this.settingsRef
     if (settings === null) throw new Error('settings-unavailable')
     const entries = importPrices(source as never)
-    const current = settings.get(SETTINGS_NS) as { prices?: unknown[] } | undefined
+    // 0.1.7 无 settings.get：describe() 直读本条目平面值（volatile 解包后视图）。
+    const current = settings.describe().find((row) => row.ns === SETTINGS_NS)?.value as
+      | { prices?: unknown[] }
+      | undefined
     await settings.update(SETTINGS_NS, { prices: entries })
     if (current !== undefined && typeof current !== 'object') {
       this.ctx.logger('usage-panel').warn('settings ns shape unexpected; prices overwritten')

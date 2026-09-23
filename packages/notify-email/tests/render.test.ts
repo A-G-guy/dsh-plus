@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { unwrapVolatile } from '@dsh-plus/shared'
 
 import { Config } from '../src/config.ts'
 import { createDecisionTrigger, createTurnEndTrigger } from '../src/triggers/builtin.ts'
@@ -73,7 +74,7 @@ test('given errored turn, when rendered, then error message is the body', () => 
 })
 
 test('given toggles off, when built-in decision trigger fires, then skipped', () => {
-  const cfg = Config({ triggers: { onQuestion: false } })
+  const cfg = unwrapVolatile(Config({ triggers: { onQuestion: false } }))
   const trigger = createDecisionTrigger(() => cfg)
   assert.equal(
     trigger.onDecision?.(decisionCall('ask_user_question', { questions: [] })),
@@ -82,20 +83,20 @@ test('given toggles off, when built-in decision trigger fires, then skipped', ()
 })
 
 test('given unrelated tool, when built-in decision trigger fires, then skipped', () => {
-  const cfg = Config({})
+  const cfg = unwrapVolatile(Config({}))
   const trigger = createDecisionTrigger(() => cfg)
   assert.equal(trigger.onDecision?.(decisionCall('bash', { command: 'ls' })), undefined)
 })
 
 test('given toggles, when built-in turn-end trigger fires, then kinds map to toggles', () => {
-  const all = Config({})
+  const all = unwrapVolatile(Config({}))
   const trigger = createTurnEndTrigger(() => all)
   assert.notEqual(trigger.onTurnEnd?.(turnEnd('completed')), undefined)
   assert.notEqual(trigger.onTurnEnd?.(turnEnd('error')), undefined)
   assert.equal(trigger.onTurnEnd?.(turnEnd('aborted')), undefined)
   assert.equal(trigger.onTurnEnd?.(turnEnd('blocked')), undefined)
 
-  const noError = Config({ triggers: { onError: false } })
+  const noError = unwrapVolatile(Config({ triggers: { onError: false } }))
   const offTrigger = createTurnEndTrigger(() => noError)
   assert.equal(offTrigger.onTurnEnd?.(turnEnd('error')), undefined)
 })

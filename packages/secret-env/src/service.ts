@@ -20,9 +20,10 @@ import type {} from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-shell-env'
 import type { ToolExecution } from '@deepseek-ai/dsh-tools'
+import { unwrapVolatile } from '@dsh-plus/shared'
 
 import { registerSecretEnvApi } from './api.ts'
-import { Config, type SecretEnvConfig, type SecretMeta } from './config.ts'
+import type { SecretEnvConfig, SecretEnvConfigFields, SecretMeta } from './config.ts'
 import { ContributorBook } from './contributors.ts'
 import { SecretEnvError } from './errors.ts'
 import {
@@ -38,16 +39,9 @@ import {
 import { envNameOf, suffixOf } from './names.ts'
 import { SETTINGS_NS } from './ns.ts'
 
+/** settings 服务窄面（0.1.7 只需 update 写入用户层；describe 读由 loader 并入 config）。 */
 interface SettingsLike {
-  get(ns: string): unknown
   update(ns: string, patch: Record<string, unknown>): Promise<void>
-  installSection(
-    ownerCtx: Context,
-    ns: string,
-    schema: unknown,
-    base: unknown,
-    hooks: { setSource(source: () => unknown): void; onChange(): void },
-  ): void
 }
 
 export class SecretEnvService extends Service {
@@ -63,19 +57,22 @@ export class SecretEnvService extends Service {
   private readonly sessionMasks = new Map<string, Set<string>>()
   /** contributor 登记簿（受管/继承两条线，一键一主）。 */
   private readonly book: ContributorBook
-  /** 行级 config（settings 缺席时的索引来源）。 */
+  /** 行级 config 解包基线（settings 缺席时的索引来源）。 */
   private readonly base: SecretEnvConfig
-  /** installSection 给的实时 getter（scope.get 的活视图，读即最新，无时序竞态）。 */
-  private readIndex: (() => unknown) | undefined
+  /** 活动引用现取 getter（loader 原位提交，读即最新；行级 config 缺席时为 undefined）。 */
+  private readIndex: (() => SecretEnvConfig) | undefined
   /** 上次调和时的索引快照（onChange 差量用）。 */
   private lastMeta: SecretMeta[] = []
   private settingsRef: SettingsLike | undefined
   /** 启动镜像建立完成（测试与需要确定性的调用方可等待）。 */
   readonly ready: Promise<void>
 
-  constructor(ctx: Context, config: SecretEnvConfig | undefined) {
+  constructor(ctx: Context, config: SecretEnvConfig | SecretEnvConfigFields | undefined) {
     super(ctx, 'secretEnv')
-    this.base = config ?? { secrets: [], masked: [] }
+    // 0.1.7 替代 installSection/setSource：活动引用原位提交——索引读取经
+    // readIndex 现取平面快照，用户层写入走 loader 落盘 + 原位提交热生效。
+    this.base = config !== undefined ? unwrapVolatile(config) : { secrets: [], masked: [] }
+    this.readIndex = config !== undefined ? () => unwrapVolatile(config) : undefined
     this.book = new ContributorBook({
       shellEnv: ctx.shellEnv,
       describeManaged: (suffix) => {
@@ -95,22 +92,14 @@ export class SecretEnvService extends Service {
         return process.env[envNameOf(suffix)]
       },
     })
-    // 官方 installSection 范式（同 usage-panel）：setSource 收到的是
-    // () => scope.get() 活视图——索引读取永远走 currentMeta() 现取，
-    // onChange 仅触发差量调和，因此用户层加载早晚都不会被写覆盖。
+    // settings 在时捕获写入引用并立即差量调和（用户层索引并入镜像，
+    // 用户层加载早晚都不会被写覆盖）；volatile 提交事件驱动重调和
+    // （替代原 installSection onChange）。
     ctx.inject(['settings'], (settingsCtx) => {
-      const settings = settingsCtx.settings as unknown as SettingsLike
-      settings.installSection(ctx, SETTINGS_NS, Config, this.base, {
-        setSource: (source) => {
-          this.readIndex = source
-        },
-        onChange: () => {
-          void this.reconcile()
-        },
-      })
-      this.settingsRef = settings
+      this.settingsRef = settingsCtx.settings as unknown as SettingsLike
       void this.reconcile()
     })
+    ctx.events.on('loader/volatile-update', () => void this.reconcile())
     ctx.root.on('session/disposed', (session: { id: string }) => {
       this.sessionMasks.delete(session.id)
       this.dropBucket(session.id)
@@ -130,7 +119,7 @@ export class SecretEnvService extends Service {
     this.ready = this.reconcile()
   }
 
-  /** 当前生效索引（settings 活视图优先，缺席回落行级 config）。 */
+  /** 当前生效索引（活动引用现取优先，行级 config 缺席回落空索引）。 */
   private currentMeta(): SecretMeta[] {
     return asMeta(this.readIndex !== undefined ? this.readIndex() : this.base)
   }

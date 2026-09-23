@@ -32,8 +32,9 @@ import { type Context, Service } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type {} from '@deepseek-ai/dsh-settings'
+import { unwrapVolatile } from '@dsh-plus/shared'
 
-import { type AccessGateConfig, Config, SETTINGS_NS } from './config.ts'
+import { type AccessGateConfig, type AccessGateConfigFields, Config } from './config.ts'
 import {
   credentialsPath,
   mintAutoLoginCookie,
@@ -55,25 +56,17 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** 围栏服务：持有当前配置读取器（settings 用户层热更新经 setSource 注入）。 */
+/** 围栏服务：持有当前配置读取器（0.1.7 起为 volatile 活动引用的平面解包，读即最新）。 */
 export class AccessGateService extends Service {
   private current: () => AccessGateConfig
   /** 官方 browser-auth 签名密钥（惰性读取缓存；读取失败 = null，autoLogin fail-safe 降级）。 */
   private signingSecret: Buffer | null | undefined
 
-  constructor(ctx: Context, config: AccessGateConfig) {
+  constructor(ctx: Context, config: AccessGateConfig | AccessGateConfigFields) {
     super(ctx, 'accessGate')
-    this.current = () => config
-    // 官方 installSection 范式（0.1.2-alpha.2）：settings 提供方在时以行级 config 为
-    // base 注册用户层命名空间，缺席/ detach 时回落行级 config。
-    ctx.inject(['settings'], (settingsCtx) => {
-      settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
-        setSource: (source) => {
-          this.current = source
-        },
-        onChange: () => {},
-      })
-    })
+    // 0.1.7 替代 0.1.6 installSection/setSource：loader 解析层已把用户层
+    // override 并入行级 config 并以活动引用原位提交，current() 现取即热。
+    this.current = () => unwrapVolatile(config)
     const logger = ctx.logger('access-gate')
 
     // 官方凭据校验委托：undefined = 已通过（含官方 Host 信任围栏）。
@@ -142,6 +135,6 @@ export class AccessGateService extends Service {
   }
 }
 
-export function apply(ctx: Context, config: AccessGateConfig): void {
+export function apply(ctx: Context, config: AccessGateConfig | AccessGateConfigFields): void {
   ctx.plugin(AccessGateService, config)
 }

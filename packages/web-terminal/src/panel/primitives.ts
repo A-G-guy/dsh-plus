@@ -5,11 +5,11 @@
  */
 export {
   Button,
-  IconCloseOutline16,
-  IconEditOutline16,
-  IconPlusOutline16,
-  IconTrashOutline16,
-  IconWarningOutline16,
+  IconCloseOutlineMedium,
+  IconEditOutlineRegular,
+  IconPlusOutlineMedium,
+  IconTrashOutlineRegular,
+  IconWarningOutlineRegular,
   Input,
   Menu,
   Modal,

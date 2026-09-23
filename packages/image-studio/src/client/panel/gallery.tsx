@@ -4,7 +4,11 @@
  * @module image-studio/client/panel/gallery
  */
 import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
-import { IconDownload, IconRefreshOutline16, IconTrashOutline16 } from '@dsh-plus/shared/client'
+import {
+  IconDownload,
+  IconRefreshOutlineRegular,
+  IconTrashOutlineRegular,
+} from '@dsh-plus/shared/client'
 import { type ReactElement, useState } from 'react'
 import type { GalleryItem } from '../../gallery/store.ts'
 import { deleteGalleryItem, imageUrl, uploadImageUrl } from '../api.ts'
@@ -156,7 +160,7 @@ function GalleryDetail(props: {
               className="ims-btn ims-btnGhost"
               onClick={() => setConfirming(true)}
             >
-              <IconTrashOutline16 size={14} /> {t('common.delete')}
+              <IconTrashOutlineRegular size={14} /> {t('common.delete')}
             </button>
           )}
         </div>
@@ -173,7 +177,7 @@ export function GalleryView(props: GalleryViewProps): ReactElement {
       <div className="ims-galleryBar">
         <span className="ims-hint">{t('gallery.total').replace('{n}', String(items.length))}</span>
         <button type="button" className="ims-btn ims-btnGhost ims-btnSmall" onClick={onRefresh}>
-          <IconRefreshOutline16 size={14} /> {t('common.refresh')}
+          <IconRefreshOutlineRegular size={14} /> {t('common.refresh')}
         </button>
       </div>
       {failed ? (

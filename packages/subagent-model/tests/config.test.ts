@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+
+import { unwrapVolatile } from '@dsh-plus/shared'
+
 import type { SubagentModelConfig } from '../src/config.ts'
 import {
   Config,
@@ -14,13 +17,13 @@ import {
 } from '../src/config.ts'
 
 test('given empty config, when schema resolves, then safe defaults apply (disabled, no entries)', () => {
-  const cfg = Config({})
+  const cfg = unwrapVolatile(Config({}))
   assert.equal(cfg.enabled, false)
   assert.deepEqual(cfg.entries, {})
 })
 
 test('given a partial entry, when schema resolves, then inherit defaults fill gaps', () => {
-  const cfg = Config({ entries: { spawn: { enabled: true } } })
+  const cfg = unwrapVolatile(Config({ entries: { spawn: { enabled: true } } }))
   const entry = cfg.entries['spawn']
   assert.ok(entry !== undefined)
   assert.equal(entry.provider, '')

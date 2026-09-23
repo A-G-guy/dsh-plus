@@ -6,6 +6,7 @@
  * @module image-studio/config
  */
 import z from '@deepseek-ai/schemastery'
+import type { UnwrapVolatile } from '@dsh-plus/shared'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
@@ -71,30 +72,44 @@ const ProviderPreset: z<ProviderPresetEntry, ProviderPresetEntry> = z.object({
   extraHeaders: z.dict(z.string()).description('附加请求头（部分中转需要）').default({}),
 })
 
+// 0.1.7：全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
+// loader 原位提交活动引用，current() 现取即热。
 export const Config = z.object({
-  promptPresets: z.array(PromptPreset).description('提示词预设').default([]),
-  paramPresets: z.array(ParamPreset).description('参数预设').default([]),
-  providerPresets: z.array(ProviderPreset).description('提供商预设').default([]),
-  maxConcurrent: z.number().min(0).max(16).description('生图任务并发上限（0 = 不限）').default(3),
+  promptPresets: z.array(PromptPreset).description('提示词预设').default([]).volatile(),
+  paramPresets: z.array(ParamPreset).description('参数预设').default([]).volatile(),
+  providerPresets: z.array(ProviderPreset).description('提供商预设').default([]).volatile(),
+  maxConcurrent: z
+    .number()
+    .min(0)
+    .max(16)
+    .description('生图任务并发上限（0 = 不限）')
+    .default(3)
+    .volatile(),
   requestTimeoutMs: z
     .number()
     .min(10_000)
     .max(600_000)
     .description('单请求超时（毫秒；生图长耗时，默认 5 分钟）')
-    .default(300_000),
-  proxy: z.string().description('上游请求代理（空 = 直连）').default(''),
+    .default(300_000)
+    .volatile(),
+  proxy: z.string().description('上游请求代理（空 = 直连）').default('').volatile(),
   galleryMaxItems: z
     .number()
     .min(0)
     .max(10_000)
     .description('画廊保留上限（条，0 = 不清理；超限按最旧删除）')
-    .default(500),
+    .default(500)
+    .volatile(),
   uploadTtlHours: z
     .number()
     .min(1)
     .max(720)
     .description('上传原图保留时长（小时；未被画廊条目引用的超期即回收）')
-    .default(24),
+    .default(24)
+    .volatile(),
 })
 
-export type ImageStudioConfig = Schemastery.TypeT<typeof Config>
+/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+export type ImageStudioConfigFields = Schemastery.TypeT<typeof Config>
+/** 平面配置形态（消费面的读取形态，由活动引用解包得到）。 */
+export type ImageStudioConfig = UnwrapVolatile<ImageStudioConfigFields>

@@ -7,6 +7,8 @@ import assert from 'node:assert/strict'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { test } from 'node:test'
 
+import { unwrapVolatile } from '@dsh-plus/shared'
+
 import { type AccessGateConfig, Config } from '../src/config.ts'
 import {
   type GateWebServer,
@@ -16,17 +18,21 @@ import {
   isTokenExchange,
 } from '../src/interceptor.ts'
 
-const ENABLED: AccessGateConfig = Config({
-  enabled: true,
-  allowedIps: ['100.108.58.63'],
-})
+const ENABLED: AccessGateConfig = unwrapVolatile(
+  Config({
+    enabled: true,
+    allowedIps: ['100.108.58.63'],
+  }),
+)
 
 /** autoLoginTrustedIps 开启的围栏配置（IP 信任自动登录）。 */
-const ENABLED_AUTO: AccessGateConfig = Config({
-  enabled: true,
-  allowedIps: ['100.108.58.63'],
-  autoLoginTrustedIps: true,
-})
+const ENABLED_AUTO: AccessGateConfig = unwrapVolatile(
+  Config({
+    enabled: true,
+    allowedIps: ['100.108.58.63'],
+    autoLoginTrustedIps: true,
+  }),
+)
 
 /** 官方 cookie 校验代理：仅认 cookie 头 dsh-auth-x=valid。 */
 const officialAuth = (req: IncomingMessage): boolean => req.headers.cookie === 'dsh-auth-x=valid'
@@ -223,7 +229,7 @@ test('拦截器：enabled=false 完全旁路', async () => {
   installGateInterceptor(
     fakeCtx,
     server,
-    deps(() => Config({ enabled: false })),
+    deps(() => unwrapVolatile(Config({ enabled: false }))),
   )
   const captured = await dispatch(server, makeReq({ headers: { 'x-forwarded-for': '8.8.8.8' } }))
   assert.equal(captured.status, 200)
@@ -292,7 +298,7 @@ test('拦截器：白名单为空时任何来源凭官方 cookie 即可放行', 
   installGateInterceptor(
     fakeCtx,
     server,
-    deps(() => Config({ enabled: true })),
+    deps(() => unwrapVolatile(Config({ enabled: true }))),
   )
   const captured = await dispatch(
     server,
@@ -394,7 +400,7 @@ test('拦截器：enabled=false 时 route 对象 handler 不被替换（旁路�
   installGateInterceptor(
     fakeCtx,
     server,
-    deps(() => Config({ enabled: false })),
+    deps(() => unwrapVolatile(Config({ enabled: false }))),
   )
   await dispatch(server, makeReq({ url: '/health', method: 'GET' }))
   const routeAfter = server.match('/health') as { handler: unknown }

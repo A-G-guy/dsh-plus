@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-19 19:28"
+last_modified: "2026-09-23 12:00"
 ---
 
 # @dsh-plus/ui-mobile-fit
@@ -87,6 +87,7 @@ shell 旧格式为 `_语义_哈希_序号`（`_remove_1hk8w_53`）。哈希随�
 | 0.1.6-alpha.1 | Session 日志胶囊（`_sessionLogButton`，min-width:111px）被移除，上游把该入口改为 28px 图标按钮（`_moreButton`，"更多"菜单） | 删除失效的胶囊压缩规则；顶栏空间由 `_titleRow` 换行 + `_headerUtilities` 收紧兜底 |
 | 0.1.6-alpha.1 | composer 独立回形针按钮（`file.attach`「添加附件」）移除，文件入口收进 `+` 菜单的"添加"分组（`input.file` = "文件"/"File"） | 触屏二次选择层改锚 `[role="option"]` 行（`readRowLabel` 取 `_labelText`，失配回退 textContent），并新增"非 File 行不得误吞"的回归测试 |
 | 0.1.6-alpha.1 | `dsh-client-ui-slots` 新增 Component Factory 面；Session 作用域 `SessionProvider` 新增显式 `session` target | 本插件不使用 slots，无影响（其余插件的隐式 session 作用域注册按"缺省继承外围绑定"语义仍然有效） |
+| 0.1.7-alpha.2 | 选择器全量复核：CSS Modules 局部名改为 hash 前缀形态（layout `pI_x6G_frame/_sidebarCol/_centerCol/_rightbarCol/_handle`、sidebar `hHd-Xa_toggle/_railMark/_panelIcon`），data 钩子（`data-sidebar-collapsed`/`data-rightbar-collapsed`/`data-sidebar-right-open`）与会话/composer 局部名在 `dsh-client-ui-conversation` 全部保留；`_detailsCol`/`_details-collapsed` 维持 0.1.5 起已删除状态（0.1.6 已清理） | 零选择器改动（子串匹配对 hash 前缀免疫，静默降级机制不变） |
 
 ## 开发与验证
 

@@ -6,14 +6,14 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 
-import { Config, type UsagePanelConfig } from './config.ts'
+import type { UsagePanelConfig, UsagePanelConfigFields } from './config.ts'
 import { UsagePanelService } from './service.ts'
 
 export const name = 'dsh-plus-usage-panel'
 
 export const inject = ['sessions'] as const
 
-export { Config }
+export { Config } from './config.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -21,7 +21,8 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-export function apply(ctx: Context, config: UsagePanelConfig): void {
+// config 运行期为 loader 解析的 volatile 活动字段（测试可直接传平面值）。
+export function apply(ctx: Context, config: UsagePanelConfig | UsagePanelConfigFields): void {
   ctx.plugin(UsagePanelService, config)
 }
 

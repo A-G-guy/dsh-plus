@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-19 19:28"
+last_modified: "2026-09-23 12:00"
 ---
 
 # @dsh-plus/llm-pi 文档索引
@@ -151,7 +151,7 @@ anthropic 7 个 offer 字段；`openRouterRouting`/`zaiToolStream`/`supportsTool
   profiles 按原始 config 对象 identity 备忘 → `PiAiAdapter`（快照随 profiles
   identity 失效）→ `registerAdapter` + `registerModelDiscovery` +
   `registerConfigurableProviders`（官方 Models 页/拉取模型动作可见）。
-- 热更新走 `settings.installSection`：配置变更下一请求生效；route 集或
+- 热更新走 0.1.7 volatile 原位提交（`loader/volatile-update` 换代 config 快照）：配置变更下一请求生效；route 集或
   displayName/retryPolicy 变化 → `handle.replace` 原子重注册；
   **写入被校验拒绝时保留旧注册**（官方同款护栏）。
 - **运行期宽松解析（lenient）**：`profiles()` 走宽松模式——已写入的 extends 引用
@@ -165,9 +165,11 @@ anthropic 7 个 offer 字段；`openRouterRouting`/`zaiToolStream`/`supportsTool
   撞上官方内置目录条目）时逐个剔除冲突条目重试并告警，其余条目照常生效。
 - 配置读写走官方 remote.settings 直连（浏览器半 `createSettingsScope` /
   `createNamespaceApi`，0.1.2-alpha 线起 `connection.api.settings` 已移除；
-  不复用 settingsScope 服务——非 loopback 页面固定 memory 模式无数据），
-  保存为 `settings.update` 深合并（providers dict 全量替换语义）；写入经既有
-  settings validate 钩子（assertServiceable）把关。自定义端点仅剩模型目录：
+  0.1.7 起 settingsScope 服务已删除（configForms 取代）；历史上非 loopback
+  页面其固定 memory 模式无数据），
+  保存为 `settings.update` 深合并（providers dict 全量替换语义）；写入经
+  `internal/config` waterfall 的 assertServiceable 把关（0.1.7 取代
+  installSection validate）。自定义端点仅剩模型目录：
   `GET /dsh-plus/llm-pi/catalog?provider=&source=builtin|models-dev`
   （响应附带 `kitSource` 与 models-dev 快照状态，供卡片状态行）、
   `POST /dsh-plus/llm-pi/catalog/refresh`（手动拉取）。
@@ -183,7 +185,7 @@ anthropic 7 个 offer 字段；`openRouterRouting`/`zaiToolStream`/`supportsTool
 - 迁移 route 名后，旧会话绑定旧 route 名，不能在新 route 上继续（dsh 原生语义）。
 - schemastery 陷阱（已踩过）：array 字段缺省物化为 `[]`（`defaultInput` 必须给
   schema 默认值）；settings 层 deepFreeze 的解析值不能再过带键约束 dict 的 schema
-  二次校验——`setSource` 收到的是 thunk，保存引用而非立即求值包装。
+  二次校验——0.1.7 起为活动引用，`unwrapVolatile` 每次现取而非缓存快照。
 - schemastery 物化噪声（已踩过）：**dict 字段无 default 也会物化为 `{}`**
   （`compat`/`headers`/`thinkingBudgets`），`defaultInput` 物化为 `['text']`、
   模型 `input` 物化为 `[]`。凡"用户是否配置了该字段"的判定（如 adapter: deepseek

@@ -9,13 +9,14 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 
-import { Config, type ImageStudioConfig } from './config.ts'
+import type { ImageStudioConfig, ImageStudioConfigFields } from './config.ts'
 import { ImageStudioService } from './service.ts'
 
 export const name = 'dsh-plus-image-studio'
 
 export const inject = ['credentials'] as const
 
+export { Config, SETTINGS_NS } from './config.ts'
 export { credentialRefNameOf, isValidPresetId } from './credentials.ts'
 export type {
   CredentialStatusWire,
@@ -38,7 +39,6 @@ export { checkImageSize, IMAGE_SIZE_RULE, SIZE_PRESETS } from './params/size.ts'
 export type { ParamSpec, ParamSpecMap } from './params/spec.ts'
 export { normalizeParamSpecs, ParamValidationError, validateParamSpecs } from './params/spec.ts'
 export { ImageStudioService } from './service.ts'
-export { Config }
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -46,6 +46,7 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-export function apply(ctx: Context, config: ImageStudioConfig): void {
+// config 运行期为 loader 解析的 volatile 活动字段（测试可直接传平面值）。
+export function apply(ctx: Context, config: ImageStudioConfig | ImageStudioConfigFields): void {
   ctx.plugin(ImageStudioService, config)
 }

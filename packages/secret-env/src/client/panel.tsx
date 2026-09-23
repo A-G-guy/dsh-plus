@@ -7,13 +7,13 @@
  */
 
 import {
-  IconCheckOutline16,
-  IconCloseOutline16,
-  IconCopyOutline16,
+  IconCheckOutlineRegular,
+  IconCloseOutlineMedium,
+  IconCopyOutlineRegular,
   IconEye,
   IconEyeOff,
-  IconRefreshOutline16,
-  IconTrashOutline16,
+  IconRefreshOutlineRegular,
+  IconTrashOutlineRegular,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useRef, useState } from 'react'
 
@@ -72,7 +72,7 @@ function CopyButton(props: { t: Translate; text: string }): ReactElement {
         })
       }}
     >
-      {copied ? <IconCheckOutline16 size={14} /> : <IconCopyOutline16 size={14} />}
+      {copied ? <IconCheckOutlineRegular size={14} /> : <IconCopyOutlineRegular size={14} />}
     </button>
   )
 }
@@ -124,7 +124,7 @@ function SessionRow(props: {
               .catch((error: unknown) => props.onError(errorText(t, error)))
           }}
         >
-          <IconTrashOutline16 size={14} />
+          <IconTrashOutlineRegular size={14} />
         </button>
       </div>
     </div>
@@ -253,7 +253,7 @@ export function SessionSecretsPanel(props: SessionSecretsPanelProps): ReactEleme
             aria-label={t('refresh')}
             onClick={load}
           >
-            <IconRefreshOutline16 size={14} />
+            <IconRefreshOutlineRegular size={14} />
           </button>
           <button
             type="button"
@@ -262,7 +262,7 @@ export function SessionSecretsPanel(props: SessionSecretsPanelProps): ReactEleme
             aria-label={t('close')}
             onClick={props.onClose}
           >
-            <IconCloseOutline16 size={14} />
+            <IconCloseOutlineMedium size={14} />
           </button>
         </div>
       ) : null}

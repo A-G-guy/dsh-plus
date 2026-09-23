@@ -4,11 +4,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
+import { unwrapVolatile } from '@dsh-plus/shared'
+
 import { Config } from '../src/config.ts'
 import { SETTINGS_NS } from '../src/ns.ts'
 
 test('默认值：enabled=false / 空白名单 / 信任 XFF / 自动登录关闭', () => {
-  const config = Config({})
+  const config = unwrapVolatile(Config({}))
   assert.equal(config.enabled, false)
   assert.deepEqual(config.allowedIps, [])
   assert.equal(config.trustForwardedFor, true)
@@ -16,7 +18,7 @@ test('默认值：enabled=false / 空白名单 / 信任 XFF / 自动登录关闭
 })
 
 test('schemastery array 缺省物化为 []（消费端语义按"未设置"处理）', () => {
-  const config = Config({})
+  const config = unwrapVolatile(Config({}))
   assert.ok(Array.isArray(config.allowedIps))
 })
 
@@ -31,7 +33,7 @@ test('旧配置键（token/cookieMaxAgeHours 等）透传忽略，不阻断加�
     loginCooldownMs: 60000,
     allowedIps: ['100.108.58.63'],
   }
-  const config = Config(legacy)
+  const config = unwrapVolatile(Config(legacy))
   assert.equal(config.enabled, true)
   assert.deepEqual(config.allowedIps, ['100.108.58.63'])
   assert.equal(config.autoLoginTrustedIps, false, '旧配置无此键 → 默认关闭')

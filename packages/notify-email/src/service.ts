@@ -1,7 +1,7 @@
 /**
  * NotifyEmailService：通知编排中枢。
- * - 配置：settings.installSection 接入 settings 用户层（$DSH_HOME/settings.yaml，热生效），
- *   无 settings provider 时退化为 cordis 行级 config。
+ * - 配置：0.1.7 volatile 活动引用（loader 解析层并入用户层，GUI 写入原位提交
+ *   热生效），无 settings provider 时即 cordis 行级 config 本身；
  * - 触发器：registerTrigger 是第三方插件的扩展接口；内置官方适配器同路径注册。
  * - 投递：首个非空 EmailNotice 经 Mailer 发送；单个触发器抛错不影响其余。
  * @module @dsh-plus/notify-email
@@ -9,9 +9,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { Service } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
-import { pluginDataPath } from '@dsh-plus/shared'
+import { pluginDataPath, unwrapVolatile } from '@dsh-plus/shared'
 import { createJsonlAuditSink } from './audit.ts'
-import { Config, type NotifyEmailConfig, SETTINGS_NS } from './config.ts'
+import type { NotifyEmailConfig, NotifyEmailConfigFields } from './config.ts'
 import { registerTestApi } from './config-api.ts'
 import { type CredentialsSeamLike, Mailer } from './mailer.ts'
 import { createDecisionTrigger, createTurnEndTrigger } from './triggers/builtin.ts'
@@ -42,19 +42,10 @@ export class NotifyEmailService extends Service {
   private readonly mailer: Mailer
   private current: () => NotifyEmailConfig
 
-  constructor(ctx: Context, config: NotifyEmailConfig) {
+  constructor(ctx: Context, config: NotifyEmailConfig | NotifyEmailConfigFields) {
     super(ctx, 'notifyEmail')
-    this.current = () => config
-    // 官方 installSection 范式（0.1.2-alpha.2）：settings 在时以行级 config 为
-    // base 注册用户层，缺席/detach 时回落行级 config。
-    ctx.inject(['settings'], (settingsCtx) => {
-      settingsCtx.settings.installSection(ctx, SETTINGS_NS, Config, config, {
-        setSource: (source) => {
-          this.current = source
-        },
-        onChange: () => {},
-      })
-    })
+    // 0.1.7 替代 0.1.6 installSection/setSource：活动引用原位提交，现取即热。
+    this.current = () => unwrapVolatile(config)
     const logger = ctx.logger('notify-email')
     const audit = createJsonlAuditSink(pluginDataPath('notify-email', 'audit.jsonl'), (message) =>
       logger.warn(`audit write failed: ${message}`),

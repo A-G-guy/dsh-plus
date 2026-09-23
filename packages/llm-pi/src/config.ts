@@ -10,6 +10,7 @@
  */
 
 import z from '@deepseek-ai/schemastery'
+import type { VolatileFields } from '@dsh-plus/shared'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
@@ -325,21 +326,34 @@ const providerProfile = z.object({
     .description('本 route 的模型目录；缺省且 provider 有 extends 时继承该源全部模型'),
 })
 
-export const Config: z<LlmPiConfigInput, LlmPiConfig> = z.object({
-  enabled: z.boolean().description('总开关（关闭则不注册任何 route）').default(true),
+// 0.1.7：根字段全 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
+// loader 原位提交活动引用；输出面标注活动字段声明面（结构兼容 volatile 引用），
+// 平面消费契约保持 LlmPiConfig 接口不变（服务侧经 unwrapVolatile 解包现取）。
+/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+export type LlmPiConfigFields = VolatileFields<LlmPiConfig>
+
+export const Config: z<LlmPiConfigInput, LlmPiConfigFields> = z.object({
+  enabled: z.boolean().description('总开关（关闭则不注册任何 route）').default(true).volatile(),
   catalogUrl: z
     .string()
     .description('models.dev 目录数据端点')
-    .default('https://models.dev/api.json'),
+    .default('https://models.dev/api.json')
+    .volatile(),
   catalogRefreshHours: z
     .number()
     .description('models.dev 自动拉取间隔小时数；0 = 不自动拉取（可手动拉取或读已有缓存）')
-    .default(0),
+    .default(0)
+    .volatile(),
   catalogProxy: z
     .string()
     .description('拉取 models.dev 目录时的 HTTP 代理地址（如 http://127.0.0.1:7890）；留空直连')
-    .default(''),
-  providers: z.dict(providerProfile).description('provider 路由表，键即 route 名').default({}),
+    .default('')
+    .volatile(),
+  providers: z
+    .dict(providerProfile)
+    .description('provider 路由表，键即 route 名')
+    .default({})
+    .volatile(),
 })
 
 /** 卡片提交的形状：完整配置对象（含 providers 全量），settings.replace 整段覆盖。 */

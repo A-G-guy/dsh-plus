@@ -1,6 +1,7 @@
 /**
  * image-studio 服务主体：
- * - settings installSection（三组预设 + 并发/超时/代理/画廊上限/上传保留时长）；
+ * - 配置：0.1.7 volatile 活动引用（三组预设 + 并发/超时/代理/画廊上限/
+ *   上传保留时长；loader 原位提交热生效）；
  * - TaskRunner 并发生图：提交即排队，成功自动入画廊（元数据 + 图片落盘）；
  * - 提供商预设按 id 即时 resolve credentials（不缓存）；
  * - 上传暂存区：本地文件上传的源图/遮罩，孤儿按 TTL 回收；
@@ -12,13 +13,14 @@ import type { Context as ContextT } from '@deepseek-ai/cordis'
 import { Service } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-settings'
+import { unwrapVolatile } from '@dsh-plus/shared'
 import { registerImageStudioApi } from './api.ts'
-import {
-  type ImageStudioConfig,
-  type ParamPresetEntry,
-  type PromptPresetEntry,
-  type ProviderPresetEntry,
-  SETTINGS_NS,
+import type {
+  ImageStudioConfig,
+  ImageStudioConfigFields,
+  ParamPresetEntry,
+  PromptPresetEntry,
+  ProviderPresetEntry,
 } from './config.ts'
 import { credentialRefNameOf, isValidPresetId } from './credentials.ts'
 import type { GenerateRequest, SourceRef, TaskWire } from './dto.ts'
@@ -46,16 +48,6 @@ import {
   readUploadBytes,
   saveUpload as saveUploadEntry,
 } from './uploads/store.ts'
-
-interface SettingsLike {
-  installSection(
-    ownerCtx: ContextT,
-    ns: string,
-    schema: unknown,
-    base: unknown,
-    hooks: { setSource(source: () => unknown): void; onChange(): void },
-  ): void
-}
 
 /** credentials seam 最小面（真实服务经 inject 探测获取）。 */
 interface CredentialsFace {
@@ -87,28 +79,18 @@ export class ImageStudioService extends Service {
   private readonly log: (message: string) => void
   /** 进行中的孤儿回收（串行化：索引重写不能并发）。 */
   private pruning: Promise<void> | null
-  // settings 服务窄面（settingsCtx.inject 回调内落存）。declare：不参与类字段
-  // 初始化 emit，保持实例运行期形状与既有产物一致（不因声明而多出 undefined 字段）。
-  private declare settingsRef: SettingsLike | undefined
 
-  constructor(ctx: ContextT, config: ImageStudioConfig) {
+  constructor(ctx: ContextT, config: ImageStudioConfig | ImageStudioConfigFields) {
     super(ctx, 'imageStudio')
-    this.current = () => config
+    // 0.1.7 替代 installSection/setSource：活动引用原位提交，现取即热。
+    this.current = () => unwrapVolatile(config)
     this.log = (message) => ctx.logger('image-studio').warn(message)
     this.pruning = null
-    this.runner = new TaskRunner<TaskSnapshot>({ maxConcurrent: config.maxConcurrent })
+    this.runner = new TaskRunner<TaskSnapshot>({ maxConcurrent: this.current().maxConcurrent })
     // 启动回收一次：上次进程遗留的孤儿上传（未被画廊引用且超 TTL）。
     this.schedulePrune()
-    ctx.inject(['settings'], (settingsCtx) => {
-      this.settingsRef = settingsCtx.settings as unknown as SettingsLike
-      settingsCtx.settings.installSection(ctx, SETTINGS_NS, configSchemaRef, config, {
-        setSource: (source) => {
-          this.current = source as () => ImageStudioConfig
-          this.applyConfig()
-        },
-        onChange: () => {},
-      })
-    })
+    // volatile 提交事件（替代原 setSource→applyConfig）：并发上限热更。
+    ctx.events.on('loader/volatile-update', () => this.applyConfig())
     ctx.inject(['webServer'], (webCtx) => {
       registerImageStudioApi(webCtx as ContextT, this)
     })
@@ -584,9 +566,6 @@ export class ImageStudioService extends Service {
     // 进行中任务随进程终止（AbortController 无需逐一 abort——进程退出即断）。
   }
 }
-
-/** 静态 schema 引用（installSection 用；避免循环 import config → service）。 */
-import { Config as configSchemaRef } from './config.ts'
 
 /** 剔除 host 承载参数（model 不进协议参数表——openai-images 请求体单独拼）。 */
 function stripHostParams(params: Record<string, unknown>): Record<string, unknown> {

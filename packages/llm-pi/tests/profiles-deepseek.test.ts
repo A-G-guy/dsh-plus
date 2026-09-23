@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
+import { unwrapVolatile } from '@dsh-plus/shared'
+
 import type { OfficialModelBase } from '../src/catalog/official.ts'
 import { officialBaseUrl, officialModelBase, officialModelIds } from '../src/catalog/official.ts'
-import type { LlmPiConfig, LlmPiConfigInput, ProviderProfileConfig } from '../src/config.ts'
+import type {
+  LlmPiConfig,
+  LlmPiConfigFields,
+  LlmPiConfigInput,
+  ProviderProfileConfig,
+} from '../src/config.ts'
 import { Config } from '../src/config.ts'
 import { buildDeepseekRoutes } from '../src/profiles-deepseek.ts'
 import { loadVendoredKit } from '../src/resolve-dsh.ts'
@@ -45,15 +52,15 @@ type ConfigValidationResult = Awaited<ReturnType<(typeof Config)['~standard']['v
  * 走 dsh-settings 同款投递路径（`~standard`.validate）解析一份用户配置。
  *
  * standard-schema 的 Props 不携带泛型，Output 只能标成 unknown；这里补回 schema
- * 自己声明的输出契约（Config: z<LlmPiConfigInput, LlmPiConfig>），运行期形状由
- * 同一 schema 保证，故断言安全。
+ * 自己声明的输出契约（Config: z<LlmPiConfigInput, LlmPiConfigFields>），断言安全；
+ * 0.1.7 全字段 volatile，返回前经 unwrapVolatile 解出平面 LlmPiConfig 快照。
  */
 async function validateConfig(input: LlmPiConfigInput): Promise<LlmPiConfig> {
   const result: ConfigValidationResult = await Config['~standard'].validate(input)
   if (result.issues !== undefined) {
     assert.fail(`schema 校验失败：${result.issues.map((issue) => issue.message).join('；')}`)
   }
-  return result.value as unknown as LlmPiConfig
+  return unwrapVolatile(result.value as unknown as LlmPiConfigFields)
 }
 
 function routeConfig(

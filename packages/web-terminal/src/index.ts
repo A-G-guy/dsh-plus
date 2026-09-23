@@ -18,7 +18,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 
-import { Config, type WebTerminalConfig } from './config.ts'
+import type { WebTerminalConfig, WebTerminalConfigFields } from './config.ts'
 import { registerHttpApi } from './http-api.ts'
 import { WebTerminalService } from './registry.ts'
 
@@ -26,8 +26,9 @@ export const name = 'dsh-plus-web-terminal'
 
 export const inject = ['webServer', 'settings'] as const
 
+export { Config } from './config.ts'
 export type { WebTerminalConfig }
-export { Config, WebTerminalService }
+export { WebTerminalService }
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -35,7 +36,8 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-export function apply(ctx: Context, config: WebTerminalConfig): void {
+// config 运行期为 loader 解析的 volatile 活动字段（测试可直接传平面值）。
+export function apply(ctx: Context, config: WebTerminalConfig | WebTerminalConfigFields): void {
   ctx.inject(['webServer'], (webCtx) => {
     webCtx.plugin(WebTerminalService, config)
     // 路由注册读 ctx.webTerminal：经二级 inject 显式声明依赖，
