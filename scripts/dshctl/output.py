@@ -41,9 +41,20 @@ def _slug(cmd: list[str]) -> str:
 
 
 def _prune_logs() -> None:
-    logs = sorted(LOG_DIR.glob("*.log"), key=lambda p: p.stat().st_mtime)
-    for old in logs[:-LOG_KEEP]:
-        old.unlink(missing_ok=True)
+    # publish_many 等并行链路并发写日志并各自触发清理：glob 到 stat/unlink 之间
+    # 文件可能已被另一线程删除，单个文件的竞态消失（ENOENT/OSError）不阻断日志主流程。
+    entries: list[tuple[float, Path]] = []
+    for candidate in LOG_DIR.glob("*.log"):
+        try:
+            entries.append((candidate.stat().st_mtime, candidate))
+        except OSError:
+            continue
+    entries.sort(key=lambda item: item[0])
+    for _, old in entries[:-LOG_KEEP]:
+        try:
+            old.unlink()
+        except OSError:
+            pass
 
 
 def _write_log(cmd: list[str], output: str) -> Path:
