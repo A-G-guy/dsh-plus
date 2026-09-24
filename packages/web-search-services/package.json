@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/web-search-services",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "dsh-plus service plugin: web_search 免费后端聚合——经官方 ctx.web provider 扩展点桥接 search-services skill（Tavily/Exa/OpenAI Chat 免费额度，优先级+自动回退+key 配置），官方 web_search 工具与输出格式零修改",
   "type": "module",
   "main": "lib/index.js",
@@ -26,14 +26,14 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
-    "@deepseek-ai/dsh-settings": "^0.1.7-alpha.2",
-    "@deepseek-ai/dsh-web": "^0.1.7-alpha.2",
+    "@deepseek-ai/dsh-settings": "^0.1.7-rc.1",
+    "@deepseek-ai/dsh-web": "^0.1.7-rc.1",
     "@deepseek-ai/schemastery": "^3.18.4"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
-    "@deepseek-ai/dsh-settings": "0.1.7-alpha.2",
-    "@deepseek-ai/dsh-web": "0.1.7-alpha.2",
+    "@deepseek-ai/dsh-settings": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-web": "0.1.7-rc.1",
     "@deepseek-ai/schemastery": "3.18.4"
   },
   "publishConfig": {

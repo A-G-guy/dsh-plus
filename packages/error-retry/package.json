@@ -1,7 +1,7 @@
 {
-  "name": "@dsh-plus/tool-text-transform",
-  "version": "0.1.14",
-  "description": "dsh tool plugin: pure text-transform demo tool (no network, no side effects)",
+  "name": "@dsh-plus/error-retry",
+  "version": "0.1.0",
+  "description": "dsh-plus service plugin: 把按模糊模式匹配的特定 LLM 报错（如 PI_AI_ERROR 下的 Provider finish_reason: content_filter）纳入 dsh 上游重试，重试次数可配（默认 5 次），退避/持久化零改动",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -20,21 +20,17 @@
   "scripts": {
     "build": "tsdown src/index.ts -d lib --format esm --dts --no-fixed-extension"
   },
-  "dependencies": {
-    "@dsh-plus/shared": "workspace:*"
-  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
-    "@deepseek-ai/dsh-tools": "^0.1.7-rc.1"
+    "@deepseek-ai/dsh-agent": "^0.1.7-rc.1",
+    "@deepseek-ai/dsh-llm": "^0.1.7-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.4"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
-    "@deepseek-ai/dsh-scope": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-system-prompt": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-timeout": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-tools": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-typert-protocol": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-util-crypto": "0.1.7-rc.1"
+    "@deepseek-ai/dsh-agent": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-llm": "0.1.7-rc.1",
+    "@deepseek-ai/schemastery": "3.18.4"
   },
   "publishConfig": {
     "access": "public"
@@ -43,6 +39,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/A-G-guy/dsh-plus.git",
-    "directory": "packages/tool-text-transform"
+    "directory": "packages/error-retry"
   }
 }

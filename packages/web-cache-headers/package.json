@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/web-cache-headers",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus service plugin: GUI 静态资源长缓存——为内容哈希的 /assets/* 响应补 `Cache-Control: immutable`（/plugins 官方已自带），消除每次刷新重复传输 ~1.4MB JS/CSS；进程级 writeHead 增量拦截，零路由注册、零 dsh 服务耦合，已有缓存头优先保证未来共存",
   "type": "module",
   "main": "lib/index.js",
@@ -25,12 +25,12 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
-    "@deepseek-ai/dsh-settings": "^0.1.7-alpha.2",
+    "@deepseek-ai/dsh-settings": "^0.1.7-rc.1",
     "@deepseek-ai/schemastery": "^3.18.4"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
-    "@deepseek-ai/dsh-settings": "0.1.7-alpha.2",
+    "@deepseek-ai/dsh-settings": "0.1.7-rc.1",
     "@deepseek-ai/schemastery": "3.18.4"
   },
   "publishConfig": {
