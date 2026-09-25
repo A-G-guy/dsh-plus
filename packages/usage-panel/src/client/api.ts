@@ -31,6 +31,18 @@ export interface UsageCatalogState {
   refreshing: boolean
 }
 
+/** 价目存储状态：导入文件条数/时间 + 生效条数（合并手工条目后）。 */
+export interface UsagePricesState {
+  importedCount: number
+  updatedAt: string | null
+  effectiveCount: number
+}
+
+/** 目录状态端点应答（catalog GET，附价目存储状态）。 */
+export interface UsageCatalogStateWithPrices extends UsageCatalogState {
+  prices: UsagePricesState
+}
+
 export interface UsageData {
   generatedAt: string
   currency: string
@@ -58,16 +70,18 @@ export async function fetchUsageData(): Promise<UsageData> {
   return getJson<UsageData>('/dsh-plus/usage-panel/data', isUsageData)
 }
 
-export async function fetchCatalogState(): Promise<UsageCatalogState> {
-  return getJson<UsageCatalogState>('/dsh-plus/usage-panel/catalog')
+export async function fetchCatalogState(): Promise<UsageCatalogStateWithPrices> {
+  return getJson<UsageCatalogStateWithPrices>('/dsh-plus/usage-panel/catalog')
 }
 
 export async function refreshCatalog(): Promise<void> {
   await postJson<{ ok: boolean }>('/dsh-plus/usage-panel/catalog')
 }
 
-export async function importPricesFromModelsDev(doc?: string): Promise<{ imported: number }> {
-  return postJson<{ imported: number }>(
+export async function importPricesFromModelsDev(
+  doc?: string,
+): Promise<{ imported: number; prices: UsagePricesState }> {
+  return postJson<{ imported: number; prices: UsagePricesState }>(
     '/dsh-plus/usage-panel/prices-import',
     doc === undefined ? {} : { doc },
   )

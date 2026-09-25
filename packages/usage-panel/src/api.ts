@@ -84,7 +84,7 @@ export function registerUsageApi(ctx: Context, service: UsagePanelService): void
           sendJson(res, 405, { error: 'GET or POST only' })
           return
         }
-        sendJson(res, 200, service.catalogState())
+        sendJson(res, 200, { ...service.catalogState(), prices: service.pricesState() })
       } catch (error) {
         logger.warn(
           `catalog endpoint failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -111,11 +111,11 @@ export function registerUsageApi(ctx: Context, service: UsagePanelService): void
         const imported = await service.importFromModelsDev(
           typeof body.doc === 'string' ? body.doc : null,
         )
-        sendJson(res, 200, { imported })
+        sendJson(res, 200, { imported, prices: service.pricesState() })
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         logger.warn(`prices-import failed: ${message}`)
-        if (message === 'catalog-unavailable' || message === 'settings-unavailable') {
+        if (message === 'catalog-unavailable') {
           sendJson(res, 409, { error: message })
           return
         }

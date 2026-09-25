@@ -18,7 +18,12 @@ import {
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
-import { fetchCatalogState, importPricesFromModelsDev, refreshCatalog } from './api.ts'
+import {
+  fetchCatalogState,
+  importPricesFromModelsDev,
+  refreshCatalog,
+  type UsageCatalogStateWithPrices,
+} from './api.ts'
 import type { Translate } from './i18n.ts'
 
 export interface CardProps extends PluginConfigViewProps {
@@ -62,10 +67,25 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
   const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState(false)
   const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
+  // 价目存储状态（导入文件条数/生效条数）：徽标与导入提示用；summary 视图不需要。
+  const [pricesState, setPricesState] = useState<UsageCatalogStateWithPrices['prices'] | null>(null)
 
   useEffect(() => {
     if (value !== undefined && draft === null) setDraft(structuredClone(value))
   }, [value, draft])
+
+  useEffect(() => {
+    if (props.view === 'summary') return
+    let alive = true
+    fetchCatalogState()
+      .then((state) => {
+        if (alive) setPricesState(state.prices)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [props.view])
 
   const dirty = useMemo(
     () => value !== undefined && draft !== null && JSON.stringify(draft) !== JSON.stringify(value),
@@ -129,10 +149,9 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
         return poll()
       })
       .then(() => importPricesFromModelsDev())
-      .then(async ({ imported }) => {
-        await scope.load()
-        const next = scope.getSnapshot().value as ConfigValue | undefined
-        if (next !== undefined) setDraft(structuredClone(next))
+      .then(({ imported, prices }) => {
+        // 导入只写独立存储（不碰行级 config）：不重置 draft，避免冲掉未保存的手工编辑。
+        setPricesState(prices)
         setStatus({ kind: 'ok', text: t('importOk').replace('{n}', String(imported)) })
       })
       .catch((error: unknown) => {
@@ -151,6 +170,8 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
   }
 
   const disabled = !snapshot.writable
+  // 生效条数 = 导入（独立文件）+ 手工合并后；存储状态未取到时退化为手工条数。
+  const priced = pricesState !== null ? pricesState.effectiveCount : draft.prices.length
   return (
     <CardChrome
       prefix="dup"
@@ -159,8 +180,8 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
       open={open}
       onToggle={setOpen}
       statusBadge={{
-        text: t(draft.prices.length > 0 ? 'enabledOn' : 'enabledOff'),
-        on: draft.prices.length > 0,
+        text: t(priced > 0 ? 'enabledOn' : 'enabledOff'),
+        on: priced > 0,
       }}
       dirty={dirty}
       dirtyLabel={t('unsaved')}
@@ -230,7 +251,14 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
         disabled={disabled}
         onEdit={(v) => setDraft({ ...draft, catalogProxy: v })}
       />
-      {draft.prices.length === 0 ? <p className="dup-empty">{t('priceHint')}</p> : null}
+      {pricesState !== null && pricesState.importedCount > 0 ? (
+        <p className="dup-empty">
+          {t('importedPrices').replace('{n}', String(pricesState.importedCount))}
+        </p>
+      ) : null}
+      {draft.prices.length === 0 && (pricesState === null || pricesState.importedCount === 0) ? (
+        <p className="dup-empty">{t('priceHint')}</p>
+      ) : null}
       {draft.prices.map((price, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: 价目草稿行无稳定 id，行序即身份（增删经整体回写）
         <div className="dup-priceRow" key={`price-${index}`}>

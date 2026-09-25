@@ -4,13 +4,13 @@
  * - 历史通道：自动增量同步（启动 + 定时；persistence list 快照 revision/
  *   lastSeq 双重短路，只 open + 读尾部增量，无手动扫描）；
  * - 目录：models.dev 后台拉取（启动 + 定时），失败沿用磁盘缓存；
+ * - 价目：导入价目落独立文件（prices.json，不进配置），与手工条目合并估算；
  * - 端点：GET data / GET|POST catalog / POST prices-import（同源 webServer）。
  * @module usage-panel/service
  */
 import { mkdir } from 'node:fs/promises'
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-session'
-import type {} from '@deepseek-ai/dsh-settings'
 import { pluginDataPath, unwrapVolatile } from '@dsh-plus/shared'
 import { registerUsageApi } from './api.ts'
 import {
@@ -22,9 +22,10 @@ import {
   type UsageCache,
 } from './cache.ts'
 import { CatalogStore } from './catalog.ts'
-import { SETTINGS_NS, type UsagePanelConfig, type UsagePanelConfigFields } from './config.ts'
+import type { UsagePanelConfig, UsagePanelConfigFields } from './config.ts'
 import { importPrices } from './models-dev.ts'
-import { estimateCost, type PriceTable } from './pricing.ts'
+import { emptyPrices, loadPrices, type PricesDocument, savePrices } from './prices-store.ts'
+import { estimateCost, mergePriceEntries, type PriceTable } from './pricing.ts'
 import { type PersistenceLike, planSync, TAIL_BATCH_LIMIT } from './sync-runner.ts'
 import { foldUsage, type UsageRow } from './usage-fold.ts'
 
@@ -60,31 +61,33 @@ const IDLE_SYNC: SyncState = {
 /** 自动同步定时器周期下限（分钟）：防呆，间隔过小时按此值节流。 */
 const MIN_INTERVAL_MINUTES = 1
 
+/** 价目存储状态（端点投影）：导入文件条数/时间与生效条数（合并手工条目后）。 */
+export interface PricesState {
+  importedCount: number
+  updatedAt: string | null
+  effectiveCount: number
+}
+
 export class UsagePanelService extends Service {
   static inject = ['sessions']
 
   private readonly cachePath = pluginDataPath('usage-panel', 'cache.json')
   private readonly catalogPath = pluginDataPath('usage-panel', 'models-dev.json')
+  /** 导入价目独立存储（批量数据不进 cordis.patch.yml，见 prices-store）。 */
+  private readonly pricesPath = pluginDataPath('usage-panel', 'prices.json')
   private cache: UsageCache = { ...EMPTY_CACHE, sessions: {} }
+  private prices: PricesDocument = emptyPrices()
   private current: () => UsagePanelConfig
   private syncState: SyncState = { ...IDLE_SYNC }
   private syncAbort: AbortController | null = null
   private syncTimer: ReturnType<typeof setTimeout> | null = null
   private catalogTimer: ReturnType<typeof setTimeout> | null = null
   private catalog: CatalogStore | null = null
-  /** settings 服务引用（settings 注入时捕获；端点写入用户层用）。 */
-  private settingsRef: {
-    describe(): ReadonlyArray<{ ns: string; value: unknown }>
-    update(ns: string, patch: Record<string, unknown>): Promise<void>
-  } | null = null
 
   constructor(ctx: Context, config: UsagePanelConfig | UsagePanelConfigFields) {
     super(ctx, 'usagePanel')
     // 0.1.7 替代 installSection/setSource：活动引用原位提交，现取即热。
     this.current = () => unwrapVolatile(config)
-    ctx.inject(['settings'], (settingsCtx) => {
-      this.settingsRef = settingsCtx.settings as unknown as NonNullable<typeof this.settingsRef>
-    })
     // volatile 提交事件（替代原 onChange→applyConfig）：目录参数与同步周期热更。
     ctx.events.on('loader/volatile-update', () => this.applyConfig())
     void this.boot()
@@ -103,6 +106,7 @@ export class UsagePanelService extends Service {
       await mkdir(dir, { recursive: true })
     })
     this.cache = await loadCache(this.cachePath)
+    this.prices = await loadPrices(this.pricesPath)
     const config = this.current()
     this.catalog = new CatalogStore(
       this.catalogPath,
@@ -305,9 +309,22 @@ export class UsagePanelService extends Service {
     )
   }
 
+  /** 价目表：导入价目（独立文件）为底、手工条目（config.prices）覆盖同键。 */
   priceTable(): PriceTable {
     const config = this.current()
-    return { currency: config.currency, entries: config.prices }
+    return {
+      currency: config.currency,
+      entries: mergePriceEntries(this.prices.entries, config.prices),
+    }
+  }
+
+  /** 价目存储状态（端点投影）。 */
+  pricesState(): PricesState {
+    return {
+      importedCount: this.prices.entries.length,
+      updatedAt: this.prices.updatedAt,
+      effectiveCount: this.priceTable().entries.length,
+    }
   }
 
   syncProgress(): SyncState {
@@ -342,8 +359,9 @@ export class UsagePanelService extends Service {
   }
 
   /**
-   * models.dev 导入价目（从已缓存文档折算，写入 settings 用户层，返回导入条数）。
-   * settings 服务缺席（极端 headless）→ settings-unavailable 结构化错误。
+   * models.dev 导入价目（从已缓存文档折算，整体替换独立存储，返回导入条数）。
+   * 批量价目绝不进配置文件——写 prices.json，估算时与手工条目合并（手工优先）。
+   * 目录缺席（从未拉取成功）→ catalog-unavailable 结构化错误。
    */
   async importFromModelsDev(docText: string | null): Promise<number> {
     const doc = docText !== null ? (JSON.parse(docText) as Record<string, unknown>) : null
@@ -351,17 +369,8 @@ export class UsagePanelService extends Service {
     if (source === null || source === undefined) {
       throw new Error('catalog-unavailable')
     }
-    const settings = this.settingsRef
-    if (settings === null) throw new Error('settings-unavailable')
     const entries = importPrices(source as never)
-    // 0.1.7 无 settings.get：describe() 直读本条目平面值（volatile 解包后视图）。
-    const current = settings.describe().find((row) => row.ns === SETTINGS_NS)?.value as
-      | { prices?: unknown[] }
-      | undefined
-    await settings.update(SETTINGS_NS, { prices: entries })
-    if (current !== undefined && typeof current !== 'object') {
-      this.ctx.logger('usage-panel').warn('settings ns shape unexpected; prices overwritten')
-    }
+    this.prices = await savePrices(this.pricesPath, entries)
     return entries.length
   }
 

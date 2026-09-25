@@ -51,6 +51,25 @@ export interface PriceTable {
 
 const MTOK = 1_000_000
 
+/** 价目键：provider/model 维度身份（数组 JSON 串，无分隔符拼接歧义）。 */
+function priceKey(entry: PriceEntry): string {
+  return JSON.stringify([entry.provider, entry.model])
+}
+
+/**
+ * 价目合并：同键（provider/model）以后者覆盖，块序按 base 首现位置。
+ * 费用估算口径：导入价目（独立文件）为底、手工条目（config.prices）覆盖。
+ */
+export function mergePriceEntries(
+  base: readonly PriceEntry[],
+  over: readonly PriceEntry[],
+): PriceEntry[] {
+  const merged = new Map<string, PriceEntry>()
+  for (const entry of base) merged.set(priceKey(entry), entry)
+  for (const entry of over) merged.set(priceKey(entry), entry)
+  return [...merged.values()]
+}
+
 export function findPrice(table: PriceTable, provider: string, model: string): PriceEntry | null {
   return table.entries.find((entry) => entry.provider === provider && entry.model === model) ?? null
 }

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-08 23:40"
+last_modified: "2026-09-25 14:49"
 ---
 
 # @dsh-plus/usage-panel
@@ -35,7 +35,7 @@ usage 折叠规则（对齐 0.1.3 dsh-session 官方 token-meter 会计口径，
   （AssistantProvenance）。
 - 日期按服务器本地时区切分。
 
-缓存：`$DSH_HOME/usage-panel/cache.json`（schema v2，按会话记
+缓存：`$DSH_HOME/dsh-plus/usage-panel/cache.json`（schema v2，按会话记
 `revision?` + `lastSeq` + 折叠行；原子写；损坏/版本不符降级为空缓存由
 同步自动重建，不做跨版本迁移）。同步进行中经 `/data` 端点回报进度。
 
@@ -58,11 +58,22 @@ token-meter 的启发式与 provider 实际计费口径有差异（CJK 文本与
 低估明显）。未配置价目的模型费用列显示「—」（对齐官方 NO_COST 语义，
 不臆造价格）。
 
+价目分两层存储，估算时按 `provider/model` 合并（**手工条目优先**）：
+
+| 层 | 落点 | 写入通道 | 规模 |
+|---|---|---|---|
+| 手工条目 | 行级 config `prices[]` | 插件配置页卡片（settings 命名空间 `dsh-plus-usage-panel`） | 小集合，人工增删改 |
+| 导入价目 | `$DSH_HOME/dsh-plus/usage-panel/prices.json` | `POST /prices-import`（整体替换，原子写） | models.dev 全量（数千条） |
+
+批量导入价目**绝不进配置文件**：0.1.7 起 `settings.update` 整值序列化进
+profile 的 `cordis.patch.yml`，数千条价目会淹没配置、每次保存都重写全量
+（曾致该文件 4.3 万行）。故导入只落 `prices.json`，config 只留手工小集合。
+
 配置（settings namespace `dsh-plus-usage-panel`，插件配置页卡片编辑）：
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
-| `prices[]` | [] | `provider/model` 维度的 per-Mtok 单价（input/output/cacheRead/cacheWrite） |
+| `prices[]` | [] | 手工条目：`provider/model` 维度的 per-Mtok 单价（input/output/cacheRead/cacheWrite），覆盖导入同键 |
 | `currency` | CNY | 费用展示货币码 |
 | `catalogProxy` | '' | models.dev 拉取代理（如 http://127.0.0.1:7890） |
 | `autoSyncMinutes` | 30 | 历史会话自动增量同步间隔（分钟，0 = 仅启动时同步一次） |
@@ -70,19 +81,19 @@ token-meter 的启发式与 provider 实际计费口径有差异（CJK 文本与
 
 「从 models.dev 导入参考价」：点击后 host 半后台拉取 models.dev 公共 JSON
 （可经代理，带超时与响应体上限，失败沿用磁盘缓存
-`$DSH_HOME/usage-panel/models-dev.json`），浏览器轮询目录状态至完成后，
-从 host 缓存文档折算价目写入 settings；导入是**整体替换**（models.dev 的
-provider 键与本仓库 llm-pi 路由键不一致时需手工修正）。拉取全程不阻塞
-浏览器请求线程。
+`$DSH_HOME/dsh-plus/usage-panel/models-dev.json`），浏览器轮询目录状态至完成后，
+从 host 缓存文档折算价目**整体替换 `prices.json`**（不改手工条目、不写配置；
+models.dev 的 provider 键与本仓库 llm-pi 路由键不一致时需手工修正）。
+拉取全程不阻塞浏览器请求线程。
 
 ## 端点
 
 | 路由 | 方法 | 说明 |
 |---|---|---|
 | `/dsh-plus/usage-panel/data` | GET | 全量行（含行级费用）+ 同步进度 + 目录状态 + 会话数 |
-| `/dsh-plus/usage-panel/catalog` | GET | models.dev 目录状态（fetchedAt/error/refreshing） |
+| `/dsh-plus/usage-panel/catalog` | GET | models.dev 目录状态（fetchedAt/error/refreshing）+ 价目存储状态（prices.importedCount/updatedAt/effectiveCount） |
 | `/dsh-plus/usage-panel/catalog` | POST | 触发后台刷新（立即返回 202） |
-| `/dsh-plus/usage-panel/prices-import` | POST | 价目导入：body.doc 可选（外部来源），缺省折算 host 缓存目录；settings/catalog 缺席返回 409 |
+| `/dsh-plus/usage-panel/prices-import` | POST | 价目导入：body.doc 可选（外部来源），缺省折算 host 缓存目录，整体替换 `prices.json`；目录缺席返回 409 |
 
 端点与 dsh web 同源（webServer 默认 loopback / 反代信任域），无独立鉴权
 （与 notify-email 等插件自定义端点同一暴露面约定）。
