@@ -48,3 +48,9 @@
     # 无时序依赖；补丁纯增量（已有 cache-control 优先），装上/卸下均安全。
     - id: dsh-plus-web-cache-headers
       name: '@dsh-plus/web-cache-headers'
+    # web-boot-timing / web-shell-sw：无端点竞争的观测与缓存插件，惰性 inject
+    # webServer（缺席即空转），次序不影响正确性，排末位随 bundle 一起装/卸。
+    - id: dsh-plus-web-boot-timing
+      name: '@dsh-plus/web-boot-timing'
+    - id: dsh-plus-web-shell-sw
+      name: '@dsh-plus/web-shell-sw'

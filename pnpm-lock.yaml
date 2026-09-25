@@ -108,12 +108,21 @@ importers:
       '@dsh-plus/usage-panel':
         specifier: workspace:*
         version: link:../usage-panel
+      '@dsh-plus/web-boot-timing':
+        specifier: workspace:*
+        version: link:../web-boot-timing
+      '@dsh-plus/web-cache-headers':
+        specifier: workspace:*
+        version: link:../web-cache-headers
       '@dsh-plus/web-files':
         specifier: workspace:*
         version: link:../web-files
       '@dsh-plus/web-search-services':
         specifier: workspace:*
         version: link:../web-search-services
+      '@dsh-plus/web-shell-sw':
+        specifier: workspace:*
+        version: link:../web-shell-sw
       '@dsh-plus/web-terminal':
         specifier: workspace:*
         version: link:../web-terminal
@@ -534,6 +543,25 @@ importers:
         specifier: ^18.2.0
         version: 18.2.0
 
+  packages/web-boot-timing:
+    dependencies:
+      '@dsh-plus/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.4
+        version: 4.0.4(@deepseek-ai/cordis-plugin-include@1.0.9)(@deepseek-ai/cordis-plugin-loader@1.0.5)
+      '@deepseek-ai/dsh-host-webserver':
+        specifier: 0.1.7-rc.1
+        version: 0.1.7-rc.1(@deepseek-ai/cordis@4.0.4)
+      '@deepseek-ai/dsh-settings':
+        specifier: 0.1.7-rc.1
+        version: 0.1.7-rc.1(15bbd97359cd474c14b0d95dfc1d74e8)
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.4
+        version: 3.18.4
+
   packages/web-cache-headers:
     dependencies:
       '@dsh-plus/shared':
@@ -671,6 +699,25 @@ importers:
       '@deepseek-ai/dsh-web':
         specifier: 0.1.7-rc.1
         version: 0.1.7-rc.1(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-llm@0.1.7-rc.1(@deepseek-ai/cordis@4.0.4))
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.4
+        version: 3.18.4
+
+  packages/web-shell-sw:
+    dependencies:
+      '@dsh-plus/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.4
+        version: 4.0.4(@deepseek-ai/cordis-plugin-include@1.0.9)(@deepseek-ai/cordis-plugin-loader@1.0.5)
+      '@deepseek-ai/dsh-host-webserver':
+        specifier: 0.1.7-rc.1
+        version: 0.1.7-rc.1(@deepseek-ai/cordis@4.0.4)
+      '@deepseek-ai/dsh-settings':
+        specifier: 0.1.7-rc.1
+        version: 0.1.7-rc.1(15bbd97359cd474c14b0d95dfc1d74e8)
       '@deepseek-ai/schemastery':
         specifier: 3.18.4
         version: 3.18.4

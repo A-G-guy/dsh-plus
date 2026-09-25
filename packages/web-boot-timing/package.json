@@ -1,7 +1,7 @@
 {
-  "name": "@dsh-plus/usage-panel",
-  "version": "0.1.24",
-  "description": "dsh-plus service+ui plugin: 全量会话 token 用量聚合面板——实时+历史扫描双通道，按日/模型报表，可选价目估算费用",
+  "name": "@dsh-plus/web-boot-timing",
+  "version": "0.1.0",
+  "description": "dsh-plus ui plugin: 弱网首屏计时观测——导航/绘制/资源分桶/遮罩移除/首次输入五相报告，输出控制台 + globalThis 钩子 + localStorage 历史对比；纯观测零行为改动，settings 一键关闭",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -10,7 +10,9 @@
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     },
-    "./client": "./lib/client.js",
+    "./client": {
+      "default": "./lib/client.js"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -19,41 +21,36 @@
     "src"
   ],
   "scripts": {
-    "build": "tsdown",
-    "watch": "tsdown --watch"
+    "build": "tsdown"
+  },
+  "dsh": {
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
   },
   "dependencies": {
     "@dsh-plus/shared": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
-    "@deepseek-ai/dsh-home-paths": "^0.1.7-rc.1",
     "@deepseek-ai/dsh-host-webserver": "^0.1.7-rc.1",
     "@deepseek-ai/dsh-settings": "^0.1.7-rc.1",
     "@deepseek-ai/schemastery": "^3.18.4"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
-    "@deepseek-ai/dsh-home-paths": "0.1.7-rc.1",
     "@deepseek-ai/dsh-host-webserver": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-session": "0.1.7-rc.1",
     "@deepseek-ai/dsh-settings": "0.1.7-rc.1",
-    "@deepseek-ai/schemastery": "3.18.4",
-    "@types/node": "26.4.0",
-    "@types/react": "~18.3.31",
-    "react": "^18.2.0"
+    "@deepseek-ai/schemastery": "3.18.4"
   },
   "publishConfig": {
     "access": "public"
   },
-  "dsh": {
-    "client": {
-      "inject": [
-        "@deepseek-ai/dsh-client-ui-renderer",
-        "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-api-remotes"
-      ],
-      "platform": "web"
-    }
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/A-G-guy/dsh-plus.git",
+    "directory": "packages/web-boot-timing"
   }
 }
