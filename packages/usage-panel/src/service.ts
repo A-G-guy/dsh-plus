@@ -376,7 +376,7 @@ export class UsagePanelService extends Service {
     return task
   }
 
-  /** 导入执行体（串行队列内运行）。 */
+  /** 导入执行体（串行队列内运行）；catalog 折算记来源标注，外部 doc 记 null。 */
   private async importNow(docText: string | null): Promise<number> {
     const doc = docText !== null ? (JSON.parse(docText) as Record<string, unknown>) : null
     const source = doc ?? this.catalog?.getDocument()
@@ -384,20 +384,23 @@ export class UsagePanelService extends Service {
       throw new Error('catalog-unavailable')
     }
     const entries = importPrices(source as never)
-    this.prices = await savePrices(this.pricesPath, entries)
+    const sourceFetchedAt = docText === null ? (this.catalog?.status().fetchedAt ?? null) : null
+    this.prices = await savePrices(this.pricesPath, entries, sourceFetchedAt)
     return entries.length
   }
 
   /**
-   * 价目与目录自动对齐：目录新于价目存储（或从未导入）时后台重导入。
-   * 价目文件是目录的派生数据，目录刷新成功（onFetched）与启动加载后触发；
-   * 手工条目层（config.prices）独立不受影响；失败只记日志不打断主链路。
+   * 价目与目录自动对齐：价目文件是目录的派生数据，来源落后于当前目录即后台重导。
+   * 判定按 sourceFetchedAt 标注（非时间戳，防旧版文件时间倒挂误跳过）：
+   * 外部 doc 导入（null）永不覆盖；旧版无标注视为落后，重导一次补齐标注。
+   * 触发点：启动加载后与每次目录刷新成功（onFetched）；失败只记日志不打断主链路。
    */
   private syncPricesWithCatalog(): void {
     const fetchedAt = this.catalog?.status().fetchedAt
     if (fetchedAt === null || fetchedAt === undefined) return
-    const updatedAt = this.prices.updatedAt
-    if (updatedAt !== null && Date.parse(updatedAt) >= Date.parse(fetchedAt)) return
+    const { updatedAt, sourceFetchedAt } = this.prices
+    if (sourceFetchedAt === null) return
+    if (updatedAt !== null && sourceFetchedAt === fetchedAt) return
     void this.importFromModelsDev(null).catch((error: unknown) => {
       this.ctx
         .logger('usage-panel')

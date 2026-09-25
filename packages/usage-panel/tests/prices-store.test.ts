@@ -35,6 +35,21 @@ test('parsePrices：合法文档往返保留条目与导入时间', () => {
   assert.equal(doc?.entries[0]?.inputPerMtok, 2.5)
 })
 
+test('parsePrices：sourceFetchedAt 三态——串/null 保留，缺席不产出（旧版视为无标注）', () => {
+  // When-Then：目录来源标注
+  const tagged = parsePrices(
+    JSON.stringify({ updatedAt: 'x', sourceFetchedAt: '2026-09-25T01:17:11.724Z', entries: [] }),
+  )
+  assert.equal(tagged?.sourceFetchedAt, '2026-09-25T01:17:11.724Z')
+  // When-Then：外部 doc 导入的 null 标注
+  const manual = parsePrices(JSON.stringify({ updatedAt: 'x', sourceFetchedAt: null, entries: [] }))
+  assert.equal(manual?.sourceFetchedAt, null)
+  // When-Then：旧版文件（字段缺席）→ undefined，序列化也不产出该键
+  const legacy = parsePrices(JSON.stringify(sample))
+  assert.equal('sourceFetchedAt' in (legacy ?? {}), false)
+  assert.equal(JSON.stringify(legacy).includes('sourceFetchedAt'), false)
+})
+
 test('parsePrices：损坏 JSON / 顶层数组 / entries 缺席 → null（降级空文档）', () => {
   // When-Then
   assert.equal(parsePrices('{broken'), null)
@@ -67,13 +82,17 @@ test('savePrices → loadPrices：原子落盘后往返一致，updatedAt 刷新
   const dir = await mkdtemp(join(tmpdir(), 'usage-panel-prices-'))
   const path = join(dir, 'prices.json')
   try {
-    // When：写入
-    const saved = await savePrices(path, sample.entries)
+    // When：写入（null = 外部 doc 来源标注）
+    const saved = await savePrices(path, sample.entries, null)
     // Then：文件存在且内容自洽
     assert.equal(saved.entries.length, 1)
     assert.notEqual(saved.updatedAt, null)
-    const raw = JSON.parse(await readFile(path, 'utf8')) as { entries: unknown[] }
+    const raw = JSON.parse(await readFile(path, 'utf8')) as {
+      entries: unknown[]
+      sourceFetchedAt: null
+    }
     assert.equal(raw.entries.length, 1)
+    assert.equal(raw.sourceFetchedAt, null)
     // When：回读
     const loaded = await loadPrices(path)
     // Then：条目一致
@@ -94,7 +113,7 @@ test('loadPrices：文件缺席 / 内容损坏 → 空文档（不抛错阻塞�
     assert.deepEqual(missing, emptyPrices())
     // When-Then：损坏
     const broken = join(dir, 'broken.json')
-    await savePrices(broken, sample.entries)
+    await savePrices(broken, sample.entries, null)
     await writeFile(broken, '{not json', 'utf8')
     const damaged = await loadPrices(broken)
     assert.deepEqual(damaged, emptyPrices())

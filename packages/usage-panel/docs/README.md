@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-25 20:34"
+last_modified: "2026-09-25 20:41"
 ---
 
 # @dsh-plus/usage-panel
@@ -97,10 +97,10 @@ profile 的 `cordis.patch.yml`，数千条价目会淹没配置、每次保存�
 拉取全程不阻塞浏览器请求线程。
 
 prices.json 是目录的派生数据，**自动对齐**：启动加载后与每次目录刷新成功
-（`CatalogStore.onFetched`，含定时与手动 POST /catalog）时，若 prices.json
-落后于目录 fetchedAt（或从未导入）即后台重导入；导入串行执行防并发互踩，
-失败只记日志。手动 `POST /prices-import`（可带外部 doc）不受此覆盖——其
-updatedAt 新于目录即不再自动重导。
+（`CatalogStore.onFetched`，含定时与手动 POST /catalog）时，来源落后于当前
+目录即后台重导入。判定按文件内 `sourceFetchedAt` 来源标注（catalog 折算导入
+记当时的目录 fetchedAt；外部 doc 导入记 null 永不覆盖；旧版文件无标注视为
+落后，首次启动重导一次补齐）。导入串行执行防并发互踩，失败只记日志。
 
 ## 端点
 

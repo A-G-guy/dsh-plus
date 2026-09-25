@@ -16,6 +16,12 @@ import type { PriceEntry } from './pricing.ts'
 /** 价目文件文档（updatedAt = 最近一次导入时间，null = 从未导入）。 */
 export interface PricesDocument {
   updatedAt: string | null
+  /**
+   * 目录来源标注：catalog 折算导入 = 当时的目录 fetchedAt；外部 doc 导入 =
+   * null（手工来源，不被自动重导覆盖）；旧版文件缺席 = undefined（视为落后，
+   * 首次启动自动重导一次后补齐标注）。
+   */
+  sourceFetchedAt?: string | null
   entries: PriceEntry[]
 }
 
@@ -55,18 +61,25 @@ export function parsePrices(text: string): PricesDocument | null {
     return null
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
-  const doc = parsed as { updatedAt?: unknown; entries?: unknown }
+  const doc = parsed as { updatedAt?: unknown; entries?: unknown; sourceFetchedAt?: unknown }
   if (!Array.isArray(doc.entries)) return null
   const entries = doc.entries.map(priceOf).filter((entry): entry is PriceEntry => entry !== null)
   return {
     updatedAt: typeof doc.updatedAt === 'string' ? doc.updatedAt : null,
+    ...(doc.sourceFetchedAt === null || typeof doc.sourceFetchedAt === 'string'
+      ? { sourceFetchedAt: doc.sourceFetchedAt }
+      : {}),
     entries,
   }
 }
 
 /** 序列化价目文档（紧凑 JSON：机器数据，7 千条级别不加缩进）。 */
 export function serializePrices(doc: PricesDocument): string {
-  return JSON.stringify({ updatedAt: doc.updatedAt, entries: doc.entries })
+  return JSON.stringify({
+    updatedAt: doc.updatedAt,
+    ...(doc.sourceFetchedAt !== undefined ? { sourceFetchedAt: doc.sourceFetchedAt } : {}),
+    entries: doc.entries,
+  })
 }
 
 /** 读价目文件（缺席/损坏 → 空文档，绝不抛错阻塞启动）。 */
@@ -83,9 +96,14 @@ export async function loadPrices(path: string): Promise<PricesDocument> {
  * 写价目文件（同目录临时文件 + rename 原子落盘），返回落盘文档。
  * @param path - 目标绝对路径（调用方经 pluginDataPath 解析，禁止散拼）。
  * @param entries - 本次导入的完整价目（整体替换）。
+ * @param sourceFetchedAt - 目录来源标注（catalog fetchedAt；外部 doc 传 null）。
  */
-export async function savePrices(path: string, entries: PriceEntry[]): Promise<PricesDocument> {
-  const doc: PricesDocument = { updatedAt: new Date().toISOString(), entries }
+export async function savePrices(
+  path: string,
+  entries: PriceEntry[],
+  sourceFetchedAt: string | null,
+): Promise<PricesDocument> {
+  const doc: PricesDocument = { updatedAt: new Date().toISOString(), sourceFetchedAt, entries }
   await mkdir(dirname(path), { recursive: true })
   const tmp = `${path}.tmp-${process.pid}-${Date.now()}`
   await writeFile(tmp, serializePrices(doc), 'utf8')
