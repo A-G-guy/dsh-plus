@@ -133,9 +133,17 @@ export function UsageSection(props: SectionProps): ReactElement {
     }
   }, [data, filters, today])
 
+  // 范围合计：累加已计价行（修「丢 sum 只取末行」）；范围内无任何计价行 → null（显示「—」）。
   const rangeCost = useMemo(() => {
     if (scoped === null) return null
-    return scoped.rows.reduce((sum, row) => (row.cost === null ? sum : row.cost), 0)
+    let sum = 0
+    let any = false
+    for (const row of scoped.rows) {
+      if (row.cost === null) continue
+      sum += row.cost
+      any = true
+    }
+    return any ? sum : null
   }, [scoped])
 
   const modelOptions = useMemo(() => {

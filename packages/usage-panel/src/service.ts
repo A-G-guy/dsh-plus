@@ -83,6 +83,8 @@ export class UsagePanelService extends Service {
   private syncTimer: ReturnType<typeof setTimeout> | null = null
   private catalogTimer: ReturnType<typeof setTimeout> | null = null
   private catalog: CatalogStore | null = null
+  /** 价目导入串行队列（并发调用依序执行）。 */
+  private importChain: Promise<unknown> = Promise.resolve()
 
   constructor(ctx: Context, config: UsagePanelConfig | UsagePanelConfigFields) {
     super(ctx, 'usagePanel')
@@ -118,9 +120,13 @@ export class UsagePanelService extends Service {
       },
       config.catalogRefreshHours,
       (message) => this.ctx.logger('usage-panel').warn(message),
+      () => this.syncPricesWithCatalog(),
     )
-    // 目录后台拉取（失败不影响任何通道）。
-    void this.catalog.ensureLoaded().then(() => this.scheduleCatalog(config.catalogRefreshHours))
+    // 目录后台拉取（失败不影响任何通道）；拉取成功后 onFetched 自动对齐价目。
+    void this.catalog
+      .ensureLoaded()
+      .then(() => this.scheduleCatalog(config.catalogRefreshHours))
+      .then(() => this.syncPricesWithCatalog())
     // 历史增量同步：启动一次 + 按配置周期自动执行。
     await this.runSync()
     this.scheduleSync(config.autoSyncMinutes)
@@ -362,8 +368,16 @@ export class UsagePanelService extends Service {
    * models.dev 导入价目（从已缓存文档折算，整体替换独立存储，返回导入条数）。
    * 批量价目绝不进配置文件——写 prices.json，估算时与手工条目合并（手工优先）。
    * 目录缺席（从未拉取成功）→ catalog-unavailable 结构化错误。
+   * 导入依序串行（启动自动导入与手动导入可能并发，防同名临时文件互踩）。
    */
   async importFromModelsDev(docText: string | null): Promise<number> {
+    const task = this.importChain.catch(() => undefined).then(() => this.importNow(docText))
+    this.importChain = task
+    return task
+  }
+
+  /** 导入执行体（串行队列内运行）。 */
+  private async importNow(docText: string | null): Promise<number> {
     const doc = docText !== null ? (JSON.parse(docText) as Record<string, unknown>) : null
     const source = doc ?? this.catalog?.getDocument()
     if (source === null || source === undefined) {
@@ -372,6 +386,25 @@ export class UsagePanelService extends Service {
     const entries = importPrices(source as never)
     this.prices = await savePrices(this.pricesPath, entries)
     return entries.length
+  }
+
+  /**
+   * 价目与目录自动对齐：目录新于价目存储（或从未导入）时后台重导入。
+   * 价目文件是目录的派生数据，目录刷新成功（onFetched）与启动加载后触发；
+   * 手工条目层（config.prices）独立不受影响；失败只记日志不打断主链路。
+   */
+  private syncPricesWithCatalog(): void {
+    const fetchedAt = this.catalog?.status().fetchedAt
+    if (fetchedAt === null || fetchedAt === undefined) return
+    const updatedAt = this.prices.updatedAt
+    if (updatedAt !== null && Date.parse(updatedAt) >= Date.parse(fetchedAt)) return
+    void this.importFromModelsDev(null).catch((error: unknown) => {
+      this.ctx
+        .logger('usage-panel')
+        .warn(
+          `auto prices import failed: ${error instanceof Error ? error.message : String(error)}`,
+        )
+    })
   }
 
   /** 一行费用估算（端点投影用）。 */

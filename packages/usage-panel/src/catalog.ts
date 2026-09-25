@@ -163,6 +163,7 @@ export class CatalogStore {
   private options: CatalogFetchOptions
   private ttlHours: number
   private readonly log: (message: string) => void
+  private readonly onFetched: (() => void) | null
 
   private document: CatalogDocument | null = null
   private fetchedAt: string | null = null
@@ -174,11 +175,13 @@ export class CatalogStore {
     options: CatalogFetchOptions,
     ttlHours: number,
     log: (message: string) => void,
+    onFetched?: () => void,
   ) {
     this.cacheFile = cacheFile
     this.options = options
     this.ttlHours = ttlHours
     this.log = log
+    this.onFetched = onFetched ?? null
   }
 
   /** 配置变更时更新端点/代理/TTL（不触发拉取；调度方决定时机）。 */
@@ -222,6 +225,8 @@ export class CatalogStore {
       this.fetchedAt = new Date().toISOString()
       this.lastError = null
       await this.persist(data as CatalogDocument, this.fetchedAt)
+      // 拉取成功后通知调用方（价目自动重导入挂在其上；异常由调用方自担）。
+      this.onFetched?.()
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : String(error)
       this.log(`models.dev 拉取失败（沿用缓存）：${this.lastError}`)

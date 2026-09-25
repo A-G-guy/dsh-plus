@@ -66,7 +66,8 @@ export function DayDetail(props: {
     (sum, r) => sum + r.inputTokens + r.outputTokens + r.cacheReadTokens + r.cacheWriteTokens,
     0,
   )
-  const dayCost = rows.reduce((sum, r) => (r.cost === null ? sum : r.cost), 0)
+  // 累加已计价行（修「丢 sum 只取末行」）；是否显示由 hasAnyCost 把关。
+  const dayCost = rows.reduce((sum, r) => (r.cost === null ? sum : sum + r.cost), 0)
   const hasAnyCost = rows.some((r) => r.cost !== null)
   const costByKey = new Map(rows.map((r) => [`${r.provider}\u0000${r.model}`, r.cost] as const))
   return (

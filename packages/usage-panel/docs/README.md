@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-25 14:49"
+last_modified: "2026-09-25 20:34"
 ---
 
 # @dsh-plus/usage-panel
@@ -55,8 +55,19 @@ usage 折叠规则（对齐 0.1.3 dsh-session 官方 token-meter 会计口径，
 
 价目为用户手工维护的参考值（或从 models.dev 一键导入），**估算仅供参考**：
 token-meter 的启发式与 provider 实际计费口径有差异（CJK 文本与 JSON schema
-低估明显）。未配置价目的模型费用列显示「—」（对齐官方 NO_COST 语义，
+低估明显）。完全无候选价目的模型费用列显示「—」（对齐官方 NO_COST 语义，
 不臆造价格）。
+
+行费用按 `resolvePrice` 级联解析（用量行的 provider 是 llm 路由键，与
+models.dev 的 provider id 不同名，精确匹配会全军覆没）：
+
+1. 精确 `(provider, model)`——手工条目与同名路由直取，手工优先口径不变；
+2. model 唯一命中——路由键不同名但 model id 唯一时直取；
+3. 路由键 token 提示——路由键按非字母数字切 token（`deepseek-official` →
+   `deepseek`），从同 model 候选中筛提示命中者；
+4. 多候选无提示——取 input 非零候选中 inputPerMtok 中位数所在的代表条目
+   （四项字段同源，不跨条目拼价；全零候选取零价条目）；
+5. 无候选（含「—」聚合行）→ null → 显示「—」。
 
 价目分两层存储，估算时按 `provider/model` 合并（**手工条目优先**）：
 
@@ -82,9 +93,14 @@ profile 的 `cordis.patch.yml`，数千条价目会淹没配置、每次保存�
 「从 models.dev 导入参考价」：点击后 host 半后台拉取 models.dev 公共 JSON
 （可经代理，带超时与响应体上限，失败沿用磁盘缓存
 `$DSH_HOME/dsh-plus/usage-panel/models-dev.json`），浏览器轮询目录状态至完成后，
-从 host 缓存文档折算价目**整体替换 `prices.json`**（不改手工条目、不写配置；
-models.dev 的 provider 键与本仓库 llm-pi 路由键不一致时需手工修正）。
+从 host 缓存文档折算价目**整体替换 `prices.json`**（不改手工条目、不写配置）。
 拉取全程不阻塞浏览器请求线程。
+
+prices.json 是目录的派生数据，**自动对齐**：启动加载后与每次目录刷新成功
+（`CatalogStore.onFetched`，含定时与手动 POST /catalog）时，若 prices.json
+落后于目录 fetchedAt（或从未导入）即后台重导入；导入串行执行防并发互踩，
+失败只记日志。手动 `POST /prices-import`（可带外部 doc）不受此覆盖——其
+updatedAt 新于目录即不再自动重导。
 
 ## 端点
 

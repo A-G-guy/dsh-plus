@@ -1,6 +1,7 @@
 /**
  * 费用估算数学（纯函数）：按 per-Mtok 价目把 token 行折算为费用。
- * 价目缺省（未配置该 provider/model）→ null（UI 显示「—」，不臆造价格）。
+ * 价目按 resolvePrice 级联解析（精确 → 唯一命中 → 路由键提示 → 中位数兜底）；
+ * 完全无候选 → null（UI 显示「—」，不臆造价格）。
  *
  * 价目 schema 与类型同源在此维护（config.ts 复用本文件的 PriceEntrySchema），
  * 避免「schema 一份、类型一份」两处漂移。浏览器半不引用本模块，schemas 不会
@@ -74,6 +75,64 @@ export function findPrice(table: PriceTable, provider: string, model: string): P
   return table.entries.find((entry) => entry.provider === provider && entry.model === model) ?? null
 }
 
+/**
+ * 路由键 → 提示 token（小写、按非字母数字切分）：用量行的 provider 是 llm 路由键
+ * （如 `deepseek-official`），与 models.dev 的 provider id（如 `deepseek`）不同名，
+ * 由 token 交集提供弱提示。
+ */
+function keyTokens(key: string): string[] {
+  return key
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length > 0)
+}
+
+/** 候选条目是否被路由键 token 命中（任一 token 相等即命中）。 */
+function hinted(entry: PriceEntry, tokens: readonly string[]): boolean {
+  const entryTokens = keyTokens(entry.provider)
+  return tokens.some((token) => entryTokens.includes(token))
+}
+
+/**
+ * 歧义消解：同一 model 多家 provider 价目且提示无法缩小时，取 input 非零候选中
+ * inputPerMtok 中位数所在的代表条目（四项字段同源，不跨条目拼价）；全零（订阅制
+ * 免费档）→ 任一零价条目。排序带 provider/model 次序，保证确定性。
+ */
+function medianEntry(candidates: readonly PriceEntry[]): PriceEntry {
+  const nonzero = candidates.filter((entry) => entry.inputPerMtok > 0)
+  const pool = nonzero.length > 0 ? nonzero : [...candidates]
+  const sorted = [...pool].sort(
+    (a, b) =>
+      a.inputPerMtok - b.inputPerMtok ||
+      a.provider.localeCompare(b.provider) ||
+      a.model.localeCompare(b.model),
+  )
+  return sorted[Math.floor((sorted.length - 1) / 2)] as PriceEntry
+}
+
+/**
+ * 价目解析级联（费用估算主入口）：
+ * 1. 精确 (provider, model)——手工条目与同名路由直取；
+ * 2. model 唯一命中——路由键与 models.dev 不同名但 model id 唯一时直取；
+ * 3. 路由键 token 提示——从同 model 候选中筛提示命中者（仍多者按 4 消解）；
+ * 4. 多候选无提示——中位数代表条目兜底（估算口径，避免整行「—」）；
+ * 5. 无候选（含「—」聚合行）→ null，不臆造价格。
+ */
+export function resolvePrice(
+  table: PriceTable,
+  provider: string,
+  model: string,
+): PriceEntry | null {
+  const exact = findPrice(table, provider, model)
+  if (exact !== null) return exact
+  const byModel = table.entries.filter((entry) => entry.model === model)
+  if (byModel.length === 0) return null
+  if (byModel.length === 1) return byModel[0] as PriceEntry
+  const hintedEntries = byModel.filter((entry) => hinted(entry, keyTokens(provider)))
+  const pool = hintedEntries.length > 0 ? hintedEntries : byModel
+  return pool.length === 1 ? (pool[0] as PriceEntry) : medianEntry(pool)
+}
+
 function price(entry: PriceEntry | null, field: keyof PriceEntry): number {
   const value = entry?.[field]
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0
@@ -81,10 +140,10 @@ function price(entry: PriceEntry | null, field: keyof PriceEntry): number {
 
 /**
  * 估算一行费用（货币单位字符串保留 2 位小数足够展示；内部按 number 计）。
- * 无价目 → null；有价目 → tokens × per-Mtok / 1M 的四项和。
+ * 价目按 resolvePrice 级联解析；无任何候选 → null；有价目 → tokens × per-Mtok / 1M 的四项和。
  */
 export function estimateCost(row: UsageRow, table: PriceTable): number | null {
-  const entry = findPrice(table, row.provider, row.model)
+  const entry = resolvePrice(table, row.provider, row.model)
   if (entry === null) return null
   const cost =
     (row.inputTokens * price(entry, 'inputPerMtok') +
