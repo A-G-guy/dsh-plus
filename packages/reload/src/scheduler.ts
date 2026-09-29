@@ -26,18 +26,45 @@ export interface SchedulerDeps {
   unitName: string
   confirmTokenTtlMs: number
   serverGraceMs: number
+  /** 重启执行探针注入：缺省走生产 `spawnSystemdRestart`（detached sudo systemctl），测试替换为探针，严禁测试触发真实重启。 */
   spawnRestart?: (unitName: string) => void
   /** 并上 undefined：构造处按 `deps.now ?? Date.now` 处理，二者等价。 */
   now?: (() => number) | undefined
   onError?: (message: string) => void
 }
 
-/** 生产重启：--no-block 使 systemctl 只向 PID1 投递作业即返回，本进程随后被 SIGTERM 不影响拉起。 */
-function defaultSpawnRestart(unitName: string): void {
-  spawn('sudo', ['systemctl', 'restart', '--no-block', unitName], {
+/** 生产 spawn 的最小子进程形状（error 监听 + unref；测试注入探针实现同面）。 */
+export interface SpawnedChild {
+  on(event: 'error', listener: (error: Error) => void): unknown
+  unref(): void
+}
+
+export type SpawnFn = (
+  command: string,
+  args: readonly string[],
+  options: { detached: true; stdio: 'ignore' },
+) => SpawnedChild
+
+const spawnImpl: SpawnFn = (command, args, options) => spawn(command, [...args], options)
+
+/**
+ * 生产重启：--no-block 使 systemctl 只向 PID1 投递作业即返回，本进程随后被
+ * SIGTERM 不影响拉起。必须挂 error 监听——spawn 的异步 ENOENT（如 sudo 缺席、
+ * Windows/desktop 误入此路径）若无监听者会变成未捕获异常打崩宿主进程。
+ */
+export function spawnSystemdRestart(
+  unitName: string,
+  onError: (message: string) => void,
+  spawnFn: SpawnFn = spawnImpl,
+): void {
+  const child = spawnFn('sudo', ['systemctl', 'restart', '--no-block', unitName], {
     detached: true,
     stdio: 'ignore',
-  }).unref()
+  })
+  child.on('error', (error) => {
+    onError(`重启执行失败（spawn）: ${error.message}`)
+  })
+  child.unref()
 }
 
 export class ReloadScheduler {
@@ -49,12 +76,13 @@ export class ReloadScheduler {
   private token: string | null = null
   private tokenExpiresAt = 0
   private graceTimer: NodeJS.Timeout | null = null
-  private readonly spawnRestart: (unitName: string) => void
+  /** 注入的重启探针（测试用）；缺省走 spawnSystemdRestart 生产路径。 */
+  private readonly spawnRestart: ((unitName: string) => void) | undefined
   private readonly now: () => number
 
   constructor(deps: SchedulerDeps) {
     this.deps = deps
-    this.spawnRestart = deps.spawnRestart ?? defaultSpawnRestart
+    this.spawnRestart = deps.spawnRestart
     this.now = deps.now ?? Date.now
     this.bootId = randomUUID()
   }
@@ -83,7 +111,7 @@ export class ReloadScheduler {
     this.graceTimer = setTimeout(() => {
       this.graceTimer = null
       try {
-        this.spawnRestart(this.deps.unitName)
+        this.executeSpawn()
       } catch (error) {
         // spawn 同步失败（如 sudo 缺席）：回到 idle 并上报，进程继续服役。
         this.deps.onError?.(
@@ -93,6 +121,18 @@ export class ReloadScheduler {
       }
     }, this.deps.serverGraceMs)
     return { kind: 'scheduled', etaMs: this.deps.serverGraceMs }
+  }
+
+  /** 执行重启：注入探针原样调用；生产路径带 spawn error 监听（失败回 idle 并上报）。 */
+  private executeSpawn(): void {
+    if (this.spawnRestart !== undefined) {
+      this.spawnRestart(this.deps.unitName)
+      return
+    }
+    spawnSystemdRestart(this.deps.unitName, (message) => {
+      this.deps.onError?.(message)
+      this.reset()
+    })
   }
 
   /** 取消待确认/待执行的重启流程；token 不匹配或已过期则无效。 */

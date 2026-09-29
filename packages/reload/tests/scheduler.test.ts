@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { ReloadScheduler } from '../src/scheduler.ts'
+import { ReloadScheduler, spawnSystemdRestart } from '../src/scheduler.ts'
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -105,4 +105,32 @@ test('given two schedulers, when constructed, then bootIds differ', () => {
   const a = makeScheduler()
   const b = makeScheduler()
   assert.notEqual(a.scheduler.bootId, b.scheduler.bootId)
+})
+
+test('given async spawn failure, when spawnSystemdRestart reports error, then onError receives context instead of an unhandled crash', () => {
+  let onErrorError: ((error: Error) => void) | undefined
+  let seenCommand = ''
+  let seenArgs: readonly string[] = []
+  const child = {
+    on: (_event: 'error', listener: (error: Error) => void): void => {
+      onErrorError = listener
+    },
+    unref: (): void => {},
+  }
+  const messages: string[] = []
+  spawnSystemdRestart(
+    'dsh-web',
+    (message) => messages.push(message),
+    (command, args) => {
+      seenCommand = command
+      seenArgs = args
+      return child
+    },
+  )
+  assert.equal(seenCommand, 'sudo')
+  assert.deepEqual([...seenArgs], ['systemctl', 'restart', '--no-block', 'dsh-web'])
+  assert.ok(onErrorError)
+  onErrorError?.(new Error('spawn sudo ENOENT'))
+  assert.equal(messages.length, 1)
+  assert.match(messages[0] ?? '', /spawn sudo ENOENT/)
 })

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-26 15:53"
+last_modified: "2026-09-29 15:55"
 ---
 
 # @dsh-plus/reload 文档
@@ -9,10 +9,23 @@ last_modified: "2026-08-26 15:53"
 倒计时后重启 systemd 托管的 dsh-web，服务恢复后浏览器自动刷新（新 bundle 生效），
 会话不丢失（dsh 既有持久化）。
 
+## 适用环境（平台支持）
+
+- **适用**：systemd 托管的 Linux `web` profile（`sudo systemctl restart` 链路）。
+- **桌面端（desktop profile）**：Electron 应用管理生命周期，无系统级重启通道。
+  预检直接返回桌面端专属理由（`preflight.ts systemdUnsupportedReasons`），
+  设置行按官方判据 `'dshDesktop' in globalThis` 探测后置灰并显示平台说明；
+  配置类变更由 `dsh-hmr` 热生效，插件安装/升级按应用内提示重启。
+- **Windows / macOS**：非 Linux 无 systemd，预检返回平台化理由（不再暴露
+  ENOENT/journalctl 术语），同样不触碰 systemctl/sudo。
+- 上游没有面向插件的进程重启 API，本插件不尝试自造（`process.exit` 只会触发
+  宿主崩溃恢复流程），不支持的环境一律优雅拒绝。
+
 ## 机制
 
 - **host 半**（`src/`）：
-  - `preflight.ts` — 重启预检：本进程必须是 systemd 单元主进程
+  - `preflight.ts` — 重启预检：先做环境能力判定（desktop profile / 非 Linux
+    平台 → 拒绝并给平台化理由），再确认本进程必须是 systemd 单元主进程
     （`systemctl show -p MainPID` 与 `process.pid` 匹配，INVOCATION_ID/cgroup
     会被子进程继承、不可作判据）、单元 active、`sudo -n true` 通过。任一失败
     拒绝调度并列出原因。
@@ -22,6 +35,8 @@ last_modified: "2026-08-26 15:53"
     成功后缓冲 `serverGraceMs` 再 detached 执行
     `sudo systemctl restart --no-block <unit>`（`--no-block` 只向 PID1 投递
     作业即返回，本进程随后被 SIGTERM 不影响拉起）；缓冲期内可 cancel。
+    生产 spawn 挂 `error` 监听（`spawnSystemdRestart`）：异步 ENOENT 走
+    `onError` 回 idle，不成为未捕获异常。
   - `routes.ts` — `/dsh-plus/reload` 四端点：`GET health`（bootId，供客户端
     轮询）、`POST prepare`、`POST confirm`、`POST cancel`。暴露面与 GUI 其余
     部分同级（默认 loopback），token + 两阶段确认构成防误触/防重放边界。

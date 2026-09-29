@@ -27,6 +27,8 @@ export const zh = {
   preflightFailed: '重启预检未通过：',
   confirmFailed: '确认失败：',
   tokenExpired: '确认已过期，请重新发起。',
+  desktopHint:
+    '桌面端由 Electron 应用管理生命周期：配置类变更热生效，插件安装/升级后请按应用内提示重启；本行不提供系统级重启。',
 } as const
 
 export type DictKey = keyof typeof zh
@@ -58,4 +60,6 @@ export const en: Record<DictKey, string> = {
   preflightFailed: 'Restart preflight failed:',
   confirmFailed: 'Confirm failed: ',
   tokenExpired: 'Confirmation expired; please start over.',
+  desktopHint:
+    'The desktop app owns its lifecycle: config changes apply hot, and plugin installs/upgrades restart from the in-app flow. This row never restarts the host.',
 }

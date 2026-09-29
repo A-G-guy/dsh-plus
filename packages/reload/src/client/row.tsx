@@ -5,6 +5,7 @@
 import type { ReactElement, ReactNode } from 'react'
 
 import { type Flow, type Translate, useReloadFlow } from './flow.ts'
+import { isDesktopRuntime } from './runtime.ts'
 
 /** children 按 React 自身契约声明为 ReactNode：条件渲染会产出 false/null。 */
 function Overlay({ children }: { children: ReactNode }): ReactElement {
@@ -110,15 +111,18 @@ export interface ReloadRowProps {
 export function ReloadRow({ t }: ReloadRowProps): ReactElement {
   const flow = useReloadFlow(t)
   const busy = flow.phase.kind !== 'idle'
+  // 桌面端由 Electron 应用管理生命周期，无系统级重启通道：置灰按钮并给出
+  // 平台化说明（服务端预检同样会拒绝，见 preflight systemdUnsupportedReasons）。
+  const desktop = isDesktopRuntime()
   return (
     <div className="drl-group">
       <div className="drl-title">{t('title')}</div>
       <div className="drl-row">
-        <p className="drl-description">{t('description')}</p>
+        <p className="drl-description">{desktop ? t('desktopHint') : t('description')}</p>
         <button
           type="button"
           className="drl-btn drl-btnPrimary"
-          disabled={busy}
+          disabled={busy || desktop}
           onClick={flow.start}
         >
           {t('action')}

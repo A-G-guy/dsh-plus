@@ -12,11 +12,14 @@
  * @module @dsh-plus/reload
  */
 import type { Context } from '@deepseek-ai/cordis'
+// 平台类型面：profileContext.name（当前 profile；桌面端为 'desktop'）。
+// 纯类型导入，按开发规范仅需 devDeps。
+import type {} from '@deepseek-ai/dsh-app-boot'
 
 import { agentsOf, countRunning } from './agents.ts'
 import { type CommandDeps, registerReloadCommand } from './command.ts'
 import { Config, type ReloadConfig } from './config.ts'
-import { runPreflight, systemRunner } from './preflight.ts'
+import { type PreflightEnv, runPreflight, systemRunner } from './preflight.ts'
 import { registerReloadRoutes } from './routes.ts'
 import { ReloadScheduler } from './scheduler.ts'
 
@@ -42,9 +45,13 @@ export function apply(ctx: Context, config: ReloadConfig): void {
     runningAgents = () => countRunning(agentsOf(agentCtx))
   })
 
+  // 环境能力事实（进程内静态）：桌面端 desktop profile / 非 Linux 平台在
+  // 预检阶段即给平台化拒绝理由，不触碰不存在的 systemctl/sudo。
+  const preflightEnv: PreflightEnv = { profileName: ctx.get('profileContext')?.name }
+
   const commandDeps: CommandDeps = {
     scheduler,
-    preflight: () => runPreflight(config.unitName, process.pid, systemRunner),
+    preflight: () => runPreflight(config.unitName, process.pid, systemRunner, preflightEnv),
     runningAgents: () => runningAgents(),
   }
 
@@ -58,6 +65,7 @@ export function apply(ctx: Context, config: ReloadConfig): void {
       config,
       runningAgents: () => runningAgents(),
       onError,
+      preflightEnv,
     })
   })
 }

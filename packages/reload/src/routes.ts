@@ -11,7 +11,13 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 
 import type { ReloadConfig } from './config.ts'
-import { type PreflightResult, type Runner, runPreflight, systemRunner } from './preflight.ts'
+import {
+  type PreflightEnv,
+  type PreflightResult,
+  type Runner,
+  runPreflight,
+  systemRunner,
+} from './preflight.ts'
 import type { ReloadScheduler } from './scheduler.ts'
 
 const ROUTE = '/dsh-plus/reload'
@@ -21,6 +27,7 @@ export interface RouteDeps {
   config: ReloadConfig
   pid?: number
   runner?: Runner
+  preflightEnv?: PreflightEnv
   runningAgents?: () => number
   onError?: (message: string) => void
 }
@@ -80,7 +87,7 @@ export function createReloadHandler(
   }
 
   const handlePrepare = async (res: ServerResponse): Promise<void> => {
-    const preflight = await runPreflight(config.unitName, pid, runner)
+    const preflight = await runPreflight(config.unitName, pid, runner, deps.preflightEnv ?? {})
     if (!preflight.ok) {
       sendJson(res, 409, { error: 'preflight failed', preflight })
       return

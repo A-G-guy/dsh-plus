@@ -40,6 +40,7 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
     "@deepseek-ai/dsh-agent": "0.2.0-rc.1",
+    "@deepseek-ai/dsh-app-boot": "0.2.0-rc.1",
     "@deepseek-ai/dsh-commands": "0.2.0-rc.1",
     "@deepseek-ai/dsh-host-webserver": "0.2.0-rc.1",
     "@deepseek-ai/schemastery": "3.18.4",
