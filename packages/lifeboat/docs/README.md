@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-31 15:30"
+last_modified: "2026-09-29 15:55"
 ---
 
 # @dsh-plus/lifeboat 文档索引
@@ -11,7 +11,9 @@ last_modified: "2026-08-31 15:30"
 - **故障隔离**（`src/quarantine.ts`）：监听 `internal/status` fiber FAILED 转移
   （host 侧直接监听；浏览器侧由 `src/client/client.ts` 哨兵经
   `POST /dsh-plus/lifeboat/quarantine` 回报），向 profile 用户 patch 层
-  （默认 `$DSH_HOME/profiles/web/cordis.patch.yml`，行级 config `patchFile` 可覆盖）
+  （默认取 `ctx.profileContext.patchPath`——CLI 的 `web` profile 与桌面端的
+  `desktop` profile 各写各的，行级 config `patchFile` 可覆盖；组合树无
+  profileContext 时隔离停用且不写任何文件，防错写其他 profile）
   追加 `{id, disabled: true}`。只处理 `dsh-plus-` 前缀，排除自身与 bundle-main。
   写入幂等、先备份（`.lifeboat.bak`）、原子落盘。隔离时摘录 fiber 的失败原因
   （`fiber._error`，截断 500 字符）进 journal 与告警正文——dsh 的插件 logger
@@ -21,8 +23,10 @@ last_modified: "2026-08-31 15:30"
   原生格式（键加 `-fb` 后缀防 DUPLICATE_ADAPTER），切换 `agent-default-model`；
   源 provider 恢复后按 journal 自动还原。协议推断为启发式（显式 api > 路由名 >
   模型继承源 > openai-completions）。
-- **journal 与告警**：一切动作写入自身 settings 命名空间 `dsh-plus-lifeboat`
-  （封顶 50 条），告警优先走 notify-email 的 `sendNotice`，缺席降级为日志。
+- **journal 与告警**：一切动作写入自身数据文件
+  （`$DSH_HOME/dsh-plus/lifeboat/state.json`，封顶 50 条；早前的 settings
+  命名空间 journal 已迁出，settings 仅存应急翻译等配置），告警优先走
+  notify-email 的 `sendNotice`，缺席降级为日志。
 - **健康面板**（`src/client/health-tab.tsx`）：设置 → 插件 → 「救生艇」tab
   （官方 `settings.plugins.tab` 插槽）。展示应急翻译状态 banner、已隔离插件
   卡片（两段确认「恢复」= 调 `POST /dsh-plus/lifeboat/restore` 移除用户 patch
@@ -38,3 +42,14 @@ last_modified: "2026-08-31 15:30"
 - lifeboat 自身故障时退化为手动恢复：编辑上述 patch 文件删除/添加 disabled 条目，
   或 `dsh plugin --profile web remove <pkg>`。
 - 零 dsh-plus 内部依赖（不 import 本仓库其他包），防止共享代码故障团灭。
+
+## 平台支持
+
+- **Linux（web profile）**：完整能力，`profileContext.patchPath` 缺省生效。
+- **桌面端（DSH Desktop）**：patch 落点取 `profileContext.patchPath`（写
+  `$DSH_HOME/profiles/desktop/cordis.patch.yml`），隔离/恢复与 CLI 同语义；
+  无 profileContext 的组合树停用隔离（告警提示，不写任何文件）。
+- **Windows**：无平台特判需求（patch 写入经官方 dsh-atomic-write 原子落盘，
+  Windows 瞬态重试覆盖杀软/编辑器占用）；告警依赖 notify-email 的 SMTP 可达性。
+- 零 dsh-plus 内部依赖铁律不变；官方平台包（dsh-atomic-write/dsh-home-paths/
+  dsh-app-boot 类型）按 peer 引用。

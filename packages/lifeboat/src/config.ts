@@ -14,7 +14,7 @@ export const Config = z.object({
   patchFile: z
     .string()
     .description(
-      '隔离写入的 profile 用户 patch 文件绝对路径；留空自动取 $DSH_HOME/profiles/web/cordis.patch.yml',
+      '隔离写入的 profile 用户 patch 文件绝对路径；留空自动取当前 profile 的 cordis.patch.yml（profileContext.patchPath，CLI 与桌面端 desktop profile 同源）',
     )
     .default(''),
   llmFallback: z

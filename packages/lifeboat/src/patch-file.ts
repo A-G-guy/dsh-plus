@@ -1,7 +1,8 @@
 /**
  * profile 用户 patch 文件（cordis.patch.yml）的安全写入。
  * 官方预留的逃生门：用户层支持 id 定向 disabled，覆盖 bundle 层 insert。
- * 写入纪律：先备份、幂等（已禁用跳过）、原子落盘（tmp + rename），失败抛错由调用方告警，
+ * 写入纪律：先备份、幂等（已禁用跳过）、原子落盘（官方 dsh-atomic-write
+ * writeFileAtomic：Windows 瞬态重试 + 0o600），失败抛错由调用方告警，
  * 绝不写半个文件、绝不改动既有条目内容。
  *
  * 2026-08-30 事故教训（保险丝必须先于负载可靠）：
@@ -15,8 +16,9 @@
  *    隔离落盘优先于保留坏文件。
  * @module lifeboat/patch-file
  */
-import { copyFile, readFile, rename, writeFile } from 'node:fs/promises'
+import { copyFile, readFile } from 'node:fs/promises'
 
+import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { isSeq, parseDocument } from 'yaml'
 
 /** patch 文件顶层条目（松散视图：只关心 id/disabled/insert 三个键）。 */
@@ -58,11 +60,12 @@ function withFileLock<T>(file: string, fn: () => Promise<T>): Promise<T> {
   return next
 }
 
-/** 唯一 tmp 名（并发/重入不留共享路径），rename 原子落盘。 */
-async function atomicWrite(patchFile: string, content: string): Promise<void> {
-  const tmp = `${patchFile}.lifeboat.${process.pid}.${Math.random().toString(36).slice(2, 10)}.tmp`
-  await writeFile(tmp, content, 'utf-8')
-  await rename(tmp, patchFile)
+/**
+ * 原子落盘（委托官方 dsh-atomic-write：随机后缀 wx 临时文件、Windows
+ * EACCES/EBUSY/EPERM 瞬态重试、0o600 收窄）。失败抛错由调用方告警。
+ */
+function atomicWrite(patchFile: string, content: string): Promise<void> {
+  return writeFileAtomic(patchFile, content, { mode: 0o600 })
 }
 
 /**

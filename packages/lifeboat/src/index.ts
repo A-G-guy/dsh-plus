@@ -14,10 +14,13 @@
  * 接线约束：inject 声明须覆盖本模块全部 ctx.<service> 直接访问（fallback-llm
  * 读 settings 命名空间与 llm.listProviders），漏掉任一即运行期
  * "cannot get property without inject" → 插件树加载失败 → dsh boot 中止。
+ * 可选事实（profileContext）经 ctx.get 读取，缺失即降级而非失败。
  * @module @dsh-plus/lifeboat
  */
 import type { Context } from '@deepseek-ai/cordis'
-import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
+// 平台类型面：profileContext（当前 profile 的 dir/patchPath/name 等运行期事实，
+// CLI 与桌面端经同一 profile-boot 提供）。纯类型导入，按开发规范仅需 devDeps。
+import type {} from '@deepseek-ai/dsh-app-boot'
 
 import { Config, type FallbackStateT, type LifeboatConfig } from './config.ts'
 import { installLlmFallback } from './fallback-llm.ts'
@@ -32,6 +35,18 @@ export const name = 'dsh-plus-lifeboat'
 export const inject = ['settings', 'llm'] as const
 
 export { Config }
+
+/**
+ * 隔离目标 patch 文件解析：显式配置优先；缺省取当前 profile 的用户 patch 层
+ * （`profileContext.patchPath`——CLI 的 web profile 与桌面端的 desktop profile
+ * 同源）。两者皆无（非 dsh 启动的裸 cordis 树）返回 undefined：隔离停用，
+ * 绝不回退到硬编码 profile 路径——那会把 disabled 覆盖写进别的 profile。
+ */
+/** 解析隔离目标 patch 文件（导出供单测；语义见注释）。 */
+export function resolvePatchFile(ctx: Context, config: LifeboatConfig): string | undefined {
+  if (config.patchFile.length > 0) return config.patchFile
+  return ctx.get('profileContext')?.patchPath
+}
 
 export function apply(ctx: Context, config: LifeboatConfig): void {
   const logger = ctx.logger('lifeboat')
@@ -52,27 +67,30 @@ export function apply(ctx: Context, config: LifeboatConfig): void {
   const alert = installAlerter(ctx, journal)
 
   if (config.enabled) {
-    const patchFile =
-      config.patchFile.length > 0
-        ? config.patchFile
-        : dshHomePath('profiles', 'web', 'cordis.patch.yml')
-    const quarantine = createQuarantine(ctx, {
-      patchFile,
-      alertCooldownMs: config.alertCooldownMs,
-      journal,
-      alert,
-    })
-    installHostWatch(ctx, quarantine)
-    ctx.inject(['webServer'], (webCtx) => {
-      registerQuarantineApi(webCtx, quarantine)
-      registerHealthApi(webCtx, {
+    const patchFile = resolvePatchFile(ctx, config)
+    if (patchFile === undefined) {
+      // 无 profileContext 的组合树（非 dsh 启动）：不猜路径、不写任何 patch，
+      // 隔离停用但告警/journal/LLM 应急翻译照常（它们不依赖 patch 文件）。
+      warn('故障隔离停用：当前组合树无 profileContext，无法定位 profile 用户 patch 层')
+    } else {
+      const quarantine = createQuarantine(ctx, {
         patchFile,
+        alertCooldownMs: config.alertCooldownMs,
         journal,
         alert,
-        readJournal: () => doc.journal,
-        readFallback: () => doc.llmFallback,
       })
-    })
+      installHostWatch(ctx, quarantine)
+      ctx.inject(['webServer'], (webCtx) => {
+        registerQuarantineApi(webCtx, quarantine)
+        registerHealthApi(webCtx, {
+          patchFile,
+          journal,
+          alert,
+          readJournal: () => doc.journal,
+          readFallback: () => doc.llmFallback,
+        })
+      })
+    }
   }
 
   if (config.llmFallback) {

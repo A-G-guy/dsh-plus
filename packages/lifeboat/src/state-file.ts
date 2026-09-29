@@ -7,8 +7,8 @@
  * @module lifeboat/state-file
  */
 
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { readFile, stat } from 'node:fs/promises'
+import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type { FallbackStateT, JournalEntryT } from './config.ts'
 
@@ -73,13 +73,13 @@ export async function loadState(): Promise<StateDoc> {
   }
 }
 
-/** 原子写状态文件：临时文件 + rename，写入失败仅告警不抛出。 */
+/**
+ * 原子写状态文件（委托官方 dsh-atomic-write：Windows 瞬态重试 + 0o600 收窄，
+ * 父目录自动创建）。写入失败仅告警不抛出（最后防线不得因自身数据问题阻断动作）。
+ */
 export async function saveState(doc: StateDoc, warn: (message: string) => void): Promise<void> {
   try {
-    await mkdir(dirname(STATE_FILE), { recursive: true })
-    const tmp = `${STATE_FILE}.tmp`
-    await writeFile(tmp, `${JSON.stringify(doc, null, 2)}\n`, 'utf-8')
-    await rename(tmp, STATE_FILE)
+    await writeFileAtomic(STATE_FILE, `${JSON.stringify(doc, null, 2)}\n`, { mode: 0o600 })
   } catch (error) {
     warn(`状态文件写入失败: ${error instanceof Error ? error.message : String(error)}`)
   }
