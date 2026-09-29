@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-29 12:54"
+last_modified: "2026-09-29 15:56"
 ---
 
 # @dsh-plus/access-gate
@@ -157,3 +157,10 @@ node --test packages/access-gate/tests/*.test.ts # 单元测试（纯逻辑，�
 dev 实例验证（零费用）：`dshctl dev up` 后 curl 模拟链路——
 `-H "X-Forwarded-For: …"` 即等效远程流量（dev 无 serve，手工注入 XFF）；
 官方 cookie 侧用 `dshctl url --dev` 取令牌先完成一次交换。
+
+## 平台支持
+
+- 全平台通用（围栏与 cookie 决策为纯逻辑）。
+- token 输入页的获取提示按平台渲染：Linux 显示 `journalctl -u dsh-web | grep …`；
+  Windows/macOS 显示「`dshctl url` 或查看启动终端的 `dsh web:` 行」
+  （Windows 无 systemd journal）。

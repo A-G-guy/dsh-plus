@@ -11,7 +11,19 @@
  * @module access-gate/token-page
  */
 
-export function renderTokenPage(): string {
+/** 获取令牌的日志提示（平台相关：Windows/macOS 无 systemd journalctl）。 */
+function tokenLogHint(platform: NodeJS.Platform): string {
+  if (platform === 'win32') {
+    return '服务器上执行 <code>dshctl url</code>，或在启动 dsh web 的终端窗口里查找 <code>dsh web:</code> 开头的行（链接中 token= 后的部分）'
+  }
+  if (platform === 'darwin') {
+    return '服务器上执行 <code>dshctl url</code>，或查看启动 dsh web 终端里的 <code>dsh web:</code> 行（链接中 token= 后的部分）'
+  }
+  return '服务器上执行 <code>dshctl url</code>，或查看启动日志 <code>journalctl -u dsh-web | grep "dsh web:"</code>（链接中 token= 后的部分）'
+}
+
+export function renderTokenPage(platform: NodeJS.Platform = process.platform): string {
+  const logHint = tokenLogHint(platform)
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -57,7 +69,7 @@ export function renderTokenPage(): string {
   <form class="card" id="form">
     <h1>需要登录</h1>
     <p>粘贴当前<strong>启动令牌</strong>完成登录。登录后此设备免令牌 30 天（按域名:端口分别持有）。</p>
-    <p class="tip">令牌随每次 dsh web 重启更新，获取方式：服务器上执行 <code>dshctl url</code>，或查看启动日志 <code>journalctl -u dsh-web | grep "dsh web:"</code>（链接中 token= 后的部分）。PWA 内打开本页粘贴一次即可恢复。</p>
+    <p class="tip">令牌随每次 dsh web 重启更新，获取方式：${logHint}。PWA 内打开本页粘贴一次即可恢复。</p>
     <input id="token" type="password" placeholder="启动令牌" autocomplete="off" autofocus>
     <button id="btn" type="submit">登录</button>
     <div class="msg" id="msg"></div>

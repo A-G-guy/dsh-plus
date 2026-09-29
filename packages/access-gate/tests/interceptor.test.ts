@@ -676,3 +676,12 @@ test('拦截器：dispose 后 autologin 引导路径失效（拦截完全还原�
   assert.equal(api.status, 200, '拦截卸载后无围栏（原 route handler 直达）')
   assert.equal(api.body, '{"api":true}')
 })
+
+test('given win32 platform, when rendering the token page, then the journalctl hint is replaced with the Windows terminal hint', async () => {
+  const { renderTokenPage } = await import('../src/token-page.ts')
+  const html = renderTokenPage('win32')
+  assert.ok(!html.includes('journalctl'), 'Windows 提示不应出现 journalctl')
+  assert.ok(html.includes('dsh web:'), '应指引查看启动终端日志')
+  const posix = renderTokenPage('linux')
+  assert.ok(posix.includes('journalctl -u dsh-web'), 'Linux 保持 journalctl 提示')
+})
