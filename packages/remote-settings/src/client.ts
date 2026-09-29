@@ -18,11 +18,14 @@
  * memory 翻回 host、原地修复启动期已构造的 memory 表单，并触发一次 mirror.load()；
  * 不可达（直连且围栏未放行）维持官方降级，不做任何改动。
  *
- * 漂移面（0.1.7-alpha.2 构建产物复核，全部按可选面探测、缺失即对应阶段 no-op）：
+ * 漂移面（0.1.7-alpha.2 构建产物首核，0.2.0-rc.1 再复核，全部按可选面探测、
+ * 缺失即对应阶段 no-op）：
  *   - ConfigForms：persistence 属性、describe()→mirror、forms Map；
  *   - SettingsDescribeMirror：persistence 属性、load()、subscribe()；
  *   - ConfigFormController：persistence 属性、store.update()、derive()；
- *   - developerTools：scope/local/enabled 三元组（enabled 与 local 同一才覆写）。
+ *   - developerTools：scope/local/enabled 三元组（enabled 与 local 同一才覆写；
+ *     官方 subscribe/getSnapshot 为原型方法，重绑必须保留 scope 接收者——
+ *     裸函数调用丢 this 会使 React 首次订阅抛错、消费插槽整体 abdicate）。
  *
  * 构建产物须为 window.__ModuleLoader__.load({id, factory}) 形式的 CJS factory
  * （包装见 tsdown.config.ts 的 banner/footer）。零运行时依赖。
@@ -149,7 +152,13 @@ function repairDeveloperTools(forms: ConfigFormsLike): void {
   const readHost = (): unknown =>
     (scope.getSnapshot().value as { enabled?: boolean } | undefined)?.enabled ?? false
   // 守卫后捕获为局部常量：回调内二次读属性会按 possibly-undefined 重判。
-  const subscribe = scope.subscribe
+  // 必须保留 scope 作接收者——官方 subscribe 是 ConfigFormController 的原型
+  // 方法（内部 this.store.subscribe），裸函数调用丢 this 会在 React 首次订阅
+  // 时抛 "Cannot read properties of undefined (reading 'store')"，使全部消费
+  // developerTools 的插槽 abdicate 成空白（turnTail / settings.general.item /
+  // settings.section）；本仓单测替身为闭包形态，捕获不到该差异，见
+  // tests/repair.test.ts 的原型方法回归用例。
+  const subscribe = scope.subscribe.bind(scope)
   local.getSnapshot = readHost
   local.subscribe = (listener) => {
     let previous = readHost()

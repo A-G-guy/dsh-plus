@@ -86,7 +86,11 @@ function fakeForms(options: {
 }) {
   const internal = fakeMirror(options.persistence)
   const mirror = options.mirror ?? internal.mirror
-  const local = { getSnapshot: (): unknown => true, subscribe: () => () => {} }
+  // 与 React 消费面同形：subscribe 接收 listener 并返回退订函数。
+  const local = {
+    getSnapshot: (): unknown => true,
+    subscribe: (_listener: () => void) => () => {},
+  }
   const forms: ConfigFormsLike = {
     persistence: options.persistence,
     ...(options.withDescribe === false ? {} : { describe: () => mirror }),
@@ -186,6 +190,57 @@ test('given developerTools 以 memory 构造（enabled 与 local 同一）, when
 })
 
 // ── 行为 3：漂移面缺失 → 对应阶段 no-op（不误伤、不抛错） ──
+
+test('given scope.subscribe 是依赖 this 的原型方法（官方类形态）, when 修复后经 local.subscribe 订阅, then 接收者保持 scope 且通知可达', async () => {
+  // 回归：官方 ConfigFormController.subscribe 为原型方法（内部 this.store）。
+  // 修复若把方法裸取出调用会丢 this，React 首次订阅即抛
+  // "Cannot read properties of undefined (reading 'store')"，全部消费
+  // developerTools 的插槽 abdicate 成空白。闭包形态替身抓不到该差异。
+  const scope = new ReceiverScopedForm()
+  const { forms, local } = fakeForms({
+    persistence: 'memory',
+    forms: new Map([['ui-settings', scope]]),
+    devToolsScope: scope,
+  })
+  await maybeRepairSettingsPlane({ settings: fakeSettings('ok').settings, forms })
+
+  let notified = 0
+  const off = local.subscribe(() => {
+    notified += 1
+  })
+  assert.equal(typeof off, 'function')
+  scope.snapshot.value = { enabled: true }
+  scope.emit()
+  assert.equal(notified, 1)
+  off()
+})
+
+/** 官方 ConfigFormController 形态的替身：getSnapshot/subscribe 为原型方法，强依赖 this。 */
+class ReceiverScopedForm {
+  persistence = 'memory'
+  snapshot: FormSnapshotLike & Record<string, unknown> = {
+    mode: 'memory',
+    status: 'unavailable',
+    value: undefined,
+  }
+  private readonly listeners = new Set<() => void>()
+  readonly store = {
+    update: (fn: (draft: FormSnapshotLike & Record<string, unknown>) => void) => fn(this.snapshot),
+  }
+  getSnapshot() {
+    return this.snapshot
+  }
+  subscribe(listener: () => void) {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+  derive() {
+    this.snapshot.status = 'ready'
+  }
+  emit() {
+    for (const listener of this.listeners) listener()
+  }
+}
 
 test('given configForms 漂移（persistence/describe 缺失）, when 执行修复, then 无操作且不探测', async () => {
   for (const options of [

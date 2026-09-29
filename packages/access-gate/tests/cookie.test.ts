@@ -103,11 +103,13 @@ test('decodeCookiePayload：官方铸造的 cookie 可验签解出', () => {
 
 test('decodeCookiePayload：签名不符/字段损坏/过期/超时长 → null（与官方校验一致）', () => {
   const valid = officialValue(AUTHORITY, NOW, NOW + COOKIE_MAX_AGE_MS)
-  assert.equal(
-    decodeCookiePayload(valid.replace(/.$/, valid.slice(-1) === 'A' ? 'B' : 'A'), SECRET),
-    null,
-    '签名破坏',
-  )
+  // 破坏签名首字符：末位 base64url 字符只带 4 个有效位（256 位摘要 → 43 字符），
+  // 低 2 位被解码器忽略，改末位有 1/16 概率落到忽略位上仍验签通过（偶发红）。
+  const sigStart = valid.lastIndexOf('.') + 1
+  const head = valid.slice(0, sigStart)
+  const sig = valid.slice(sigStart)
+  const brokenSig = (sig.charAt(0) === 'A' ? 'B' : 'A') + sig.slice(1)
+  assert.equal(decodeCookiePayload(head + brokenSig, SECRET), null, '签名破坏')
   assert.equal(decodeCookiePayload('v1.xxx.yyy', SECRET), null)
   // 过期
   assert.equal(
