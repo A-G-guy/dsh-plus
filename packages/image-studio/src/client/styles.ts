@@ -2,7 +2,7 @@
  * 图像工作室前端样式：侧栏入口 + 工作台（官方 Modal 承载）+ 配置卡片附加件。
  * 设计令牌仅用 dsh-client-ui-theme 实测存在的 --dsw-alias-*（深浅色自适应）；
  * 模态骨架（遮罩/Escape/portal 层叠）由官方 Modal 原语承载，本表只覆写尺寸
- * 与内部布局（.ims-modal 等，模式同 web-files/web-terminal 的 wf-/wt-modal）。
+ * 与内部布局（.ims-modal 等，模式同 web-files 的 wf-modal）。
  * 响应式断点 767px 与 @dsh-plus/ui-mobile-fit 对齐（移动端全屏、单列、44px 热区）。
  * @module image-studio/client/styles
  */

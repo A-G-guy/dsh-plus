@@ -24,7 +24,6 @@ import type { Config as SecretEnvSchema } from '@dsh-plus/secret-env'
 import type { Equal, Expect, UnwrapVolatile } from '@dsh-plus/shared'
 import type { Config as SubagentModelSchema } from '@dsh-plus/subagent-model'
 import type { Config as UsagePanelSchema } from '@dsh-plus/usage-panel'
-import type { Config as WebTerminalSchema } from '@dsh-plus/web-terminal'
 
 // ── 断言工具自检：若 Equal 退化为恒真，下面全部断言会静默失效 ─────────────────
 // 关键：自检不能经由 Equal 自身判定（Equal 坏掉时 Equal<X,false> 也是 true，
@@ -102,13 +101,6 @@ type _IsProviderModel = Expect<Equal<ImageStudioConfig['providerPresets'][number
 type _IsProxy = Expect<Equal<ImageStudioConfig['proxy'], string>>
 type _IsGalleryMax = Expect<Equal<ImageStudioConfig['galleryMaxItems'], number>>
 
-// ── web-terminal：曾整体退化为 any（ConfigSchema: any），断言防复发 ──────────
-type WebTerminalConfig = UnwrapVolatile<Schemastery.TypeT<typeof WebTerminalSchema>>
-type _WtEnabled = Expect<Equal<WebTerminalConfig['enabled'], boolean>>
-type _WtMaxSessions = Expect<Equal<WebTerminalConfig['maxSessions'], number>>
-type _WtShellArgs = Expect<Equal<WebTerminalConfig['shellArgs'], string[]>>
-type _WtEnv = Expect<Equal<WebTerminalConfig['env'], Record<string, string>>>
-
 export type {
   _AgAllowedIps,
   _AgEnabled,
@@ -142,8 +134,4 @@ export type {
   _UpCurrency,
   _UpPriceInput,
   _UpPriceProvider,
-  _WtEnabled,
-  _WtEnv,
-  _WtMaxSessions,
-  _WtShellArgs,
 }

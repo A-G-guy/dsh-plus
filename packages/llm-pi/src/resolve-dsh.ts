@@ -31,6 +31,7 @@ import type { CredentialKey } from '@deepseek-ai/dsh-credentials'
 import type * as DshLlm from '@deepseek-ai/dsh-llm'
 import * as vendoredLlm from '@deepseek-ai/dsh-llm'
 import type {
+  catalogModelInfo as catalogModelInfoType,
   DeepSeekAdapter as DeepSeekAdapterType,
   resolveAdapterOptions as resolveDeepSeekOptionsType,
 } from '@deepseek-ai/dsh-llm-deepseek'
@@ -68,6 +69,8 @@ export interface DeepSeekKit {
   DeepSeekAdapter: typeof DeepSeekAdapterType
   resolveAdapterOptions: typeof resolveDeepSeekOptionsType
   getOrCreateAnonymousUserId: typeof getAnonIdType
+  /** 目录项 → LlmModelInfo（0.2.0 起 listModels 经 discoverModels 消费）。 */
+  catalogModelInfo: typeof catalogModelInfoType
 }
 
 /** profile 解析面（官方 config.ts resolveProfiles 的签名；包根未导出，见文件头）。 */
@@ -178,6 +181,7 @@ function checkDeepseekShape(kit: DeepSeekKit): string[] {
     problems.push('DeepSeekAdapter.prototype.stream 缺失')
   }
   if (typeof kit.resolveAdapterOptions !== 'function') problems.push('resolveAdapterOptions 缺失')
+  if (typeof kit.catalogModelInfo !== 'function') problems.push('catalogModelInfo 缺失')
   if (typeof kit.getOrCreateAnonymousUserId !== 'function') {
     problems.push('getOrCreateAnonymousUserId 缺失')
   }
@@ -268,6 +272,7 @@ async function importTreeDeepseek(root: string): Promise<{ kit?: DeepSeekKit; pr
       getOrCreateAnonymousUserId: anonId[
         'getOrCreateAnonymousUserId'
       ] as DeepSeekKit['getOrCreateAnonymousUserId'],
+      catalogModelInfo: deepseek['catalogModelInfo'] as DeepSeekKit['catalogModelInfo'],
     }
     const problems = checkDeepseekShape(kit)
     if (problems.length > 0) return { problem: `形状不兼容：${problems.join('；')}` }
@@ -381,6 +386,7 @@ function loadVendoredDeepseek(): DeepSeekKit | undefined {
     DeepSeekAdapter: vendoredDeepseek.DeepSeekAdapter,
     resolveAdapterOptions: vendoredDeepseek.resolveAdapterOptions,
     getOrCreateAnonymousUserId: vendoredAnonId.getOrCreateAnonymousUserId,
+    catalogModelInfo: vendoredDeepseek.catalogModelInfo,
   }
   return checkDeepseekShape(kit).length === 0 ? kit : undefined
 }

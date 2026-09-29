@@ -14,7 +14,6 @@
     "noEmit": true,
     "paths": {
       "@dsh-plus/shared": ["./packages/shared/lib/index.d.ts"],
-      "@dsh-plus/web-terminal": ["./packages/web-terminal/lib/index.d.ts"],
       "@dsh-plus/usage-panel": ["./packages/usage-panel/lib/index.d.ts"],
       "@dsh-plus/secret-env": ["./packages/secret-env/lib/index.d.ts"],
       "@dsh-plus/image-studio": ["./packages/image-studio/lib/index.d.ts"],

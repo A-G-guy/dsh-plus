@@ -8,7 +8,7 @@
 [![npm @dsh-plus](https://img.shields.io/badge/npm-%40dsh--plus-CB3837?logo=npm&logoColor=white)](https://www.npmjs.com/org/dsh-plus)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![dsh](https://img.shields.io/badge/dsh-0.1.7--rc.1-blue)](https://www.npmjs.com/package/@deepseek-ai/dsh)
+[![dsh](https://img.shields.io/badge/dsh-0.2.0--rc.1-blue)](https://www.npmjs.com/package/@deepseek-ai/dsh)
 
 </div>
 
@@ -36,7 +36,6 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | [`@dsh-plus/web-shell-sw`](packages/web-shell-sw) | 0.1.0 | service + UI | 外壳 Service Worker：内容寻址资源 cache-first、index network-first 离线兜底；不碰 RPC/SSE/token 交换，`no-store` 永不入库，settings 一键注销恢复原生 | [docs](packages/web-shell-sw/docs/README.md) |
 | [`@dsh-plus/error-retry`](packages/error-retry) | 0.1.0 | service | 特定报错纳入上游重试：模糊/正则匹配 `failure.message`（如 `content_filter` → `PI_AI_ERROR`）并改写载荷 `retryPolicy`，退避/持久事件/次数预算仍全由官方 `dsh-llm-retry` 执行，次数可配（默认 5） | [docs](packages/error-retry/docs/README.md) |
 | [`@dsh-plus/subagent-model`](packages/subagent-model) | 0.2.0 | service | 子代理独立模型配置：按 provider 为 subagent/subagent_fork 注入 agentOptions（provider/model/思考程度），`default` 条目共享单条路由；主代理显式选择仍优先 | [docs](packages/subagent-model/docs/README.md) |
-| [`@dsh-plus/web-terminal`](packages/web-terminal) | 0.1.0 | service + UI | Web 终端工作台：多会话标签 + 桌面分屏（拖拽调宽）+ scrollback 回放，dsh 运行期间会话保活（类 tmux detach/attach） | [docs](packages/web-terminal/docs/README.md) |
 | [`@dsh-plus/tool-text-transform`](packages/tool-text-transform) | 0.1.0 | tool | 纯函数演示工具（uppercase / lowercase / reverse / length），插件链路参考实现 | [docs](packages/tool-text-transform/docs/README.md) |
 | [`@dsh-plus/bundle-main`](packages/bundle-main) | 0.1.0 | bundle | 聚合编排层：按序 insert 正式插件行，单插件脱离 bundle 亦可独立安装 | — |
 | [`@dsh-plus/shared`](packages/shared) | 0.1.0 | library | 工作区共享纯函数库（非插件） | — |
@@ -89,7 +88,6 @@ packages/
   usage-panel/          用量统计面板（token 聚合/报表/费用估算）
   access-gate/          Web 访问围栏（合并官方认证 / token 输入页恢复 PWA / IP 附加围栏）
   web-files/            Web 内嵌类 SFTP 文件浏览与编辑
-  web-terminal/         Web 终端工作台（多会话/分屏/保活）
   tool-text-transform/  演示工具（dev-only，不进生产 bundle）
   bundle-main/          聚合编排层
   shared/               共享纯函数库

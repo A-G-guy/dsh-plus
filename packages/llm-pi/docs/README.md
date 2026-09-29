@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-23 12:00"
+last_modified: "2026-09-29 12:54"
 ---
 
 # @dsh-plus/llm-pi 文档索引
@@ -39,6 +39,13 @@ Files API 文件通道、失败自动降级 base64），模型继承官方内置
 
 provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapter`
 （`@deepseek-ai/dsh-llm-deepseek`，同树同实例）服务，而不是 PiAiAdapter：
+
+- **0.2.0 接线（破坏性）**：官方把 `resolveApiKey` 换成 `resolveAuth`
+  （认证头一次性给出，本插件同官方 `llm-deepseek-api-key` 给 `x-api-key`），
+  并把 `listModels` 改为读 `discoverModels`（缺省即空目录）——本插件补传
+  `discoverModels`，从当前物化 `connection.models` 经同树 `catalogModelInfo` 映射，
+  否则模型选择器对该 route 无项。套件形状自检（`checkDeepseekShape`）因此
+  同时要求 `catalogModelInfo`，缺项即判定 deepseek route 不可用。
 
 - **文件通道免费获得**：视觉模型的图片输入先经 Files API 上传为 file_id 引用
   （配额清理、过期刷新、`file_id` 被拒后失效重传），上传失败自动降级 base64 内联——

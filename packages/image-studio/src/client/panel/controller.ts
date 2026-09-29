@@ -1,7 +1,7 @@
 /**
  * 面板开合与跨标签联动控制器：footer 入口 ↔ overlay 面板共享开合态；
  * 画廊「二次编辑」经 editSeed 单向投递给图生图表单（nonce 保证同参可重复触发）。
- * 模式照抄 web-files/web-terminal 的 PanelController。
+ * 模式照抄 web-files 的 PanelController。
  * @module image-studio/client/panel/controller
  */
 

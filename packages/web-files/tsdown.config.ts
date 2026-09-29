@@ -56,7 +56,7 @@ export default defineConfig([
       alwaysBundle: [
         '@deepseek-ai/dsh-util-workspace-path',
         // @dsh-plus/shared 无 client bundle 行：按源码级内联（与
-        // web-terminal/usage-panel 同约定；lucide 图标随其打入）。
+        // usage-panel 同约定；lucide 图标随其打入）。
         '@dsh-plus/shared/**',
       ],
     },

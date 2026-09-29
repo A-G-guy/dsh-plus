@@ -102,7 +102,6 @@ HEADLESS_DISABLED_IDS = (
     "dsh-plus-access-gate",
     "dsh-plus-usage-panel",
     "dsh-plus-lifeboat",
-    "dsh-plus-web-terminal",
 )
 
 

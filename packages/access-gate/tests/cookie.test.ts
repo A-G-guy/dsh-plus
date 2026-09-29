@@ -28,7 +28,9 @@ import {
 
 const SECRET = Buffer.alloc(32, 7)
 const AUTHORITY = '127.0.0.1:3080'
-const NOW = 1_788_000_000_000
+// 滚动当前时刻：decodeCookiePayload 按 Date.now() 判过期，钉死时间戳会在
+// cookie 到期（签发 +30 天）后整体失效（2026-09-28 曾因此 3 用例转红）。
+const NOW = Date.now()
 
 function b64url(data: Buffer): string {
   return data.toString('base64url')

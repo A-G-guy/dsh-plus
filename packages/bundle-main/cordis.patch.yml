@@ -28,8 +28,6 @@
       name: '@dsh-plus/reload'
     - id: dsh-plus-web-files
       name: '@dsh-plus/web-files'
-    - id: dsh-plus-web-terminal
-      name: '@dsh-plus/web-terminal'
     - id: dsh-plus-usage-panel
       name: '@dsh-plus/usage-panel'
     - id: dsh-plus-subagent-model

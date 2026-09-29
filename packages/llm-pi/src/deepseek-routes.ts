@@ -130,7 +130,19 @@ export class DeepseekRouteRegistrar {
         }
         return current.connection
       },
-      resolveApiKey: this.resolveApiKey as never,
+      // 0.2.0 起认证由 resolveAuth 一次性给出请求头（resolveApiKey 已删），
+      // 头形与官方 llm-deepseek-api-key 接线一致（x-api-key）。
+      resolveAuth: (async (connection: { apiKeyEnv: unknown }) => ({
+        headers: { 'x-api-key': await this.resolveApiKey(connection) },
+      })) as never,
+      // 0.2.0 起 listModels 改读 discoverModels（缺省即空目录，模型选择器无项）：
+      // 与官方 llm-deepseek-api-key 同款——现取当前物化 connection 的 models。
+      discoverModels: (provider: string) => {
+        const connection = routes().get(route)?.connection ?? built.connection
+        const catalogModelInfo = kit.deepseek?.catalogModelInfo
+        if (catalogModelInfo === undefined) return Promise.resolve([])
+        return Promise.resolve(connection.models.map((model) => catalogModelInfo(provider, model)))
+      },
       resolveUserId: () => this.resolveUserId() as never,
       resolveAttachments: () => ctx.get('attachments') as never,
       // 附件宿主路径 → 模型工具执行世界只读路径桥（官方接线同款，见

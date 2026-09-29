@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-08-31 15:30"
+last_modified: "2026-09-29 12:54"
 ---
 
 # @dsh-plus/shared
@@ -27,7 +27,7 @@ alwaysBundle 需通配子路径——picomatch 裸包名不匹配 `pkg/subpath`�
 | `i18n.ts` | `commonZh/commonEn` 公共文案 + `mergeDict` 合并 |
 | `fetch.ts` | 同源端点 `getJson` / `postJson` |
 
-消费方：notify-email / access-gate / llm-pi / web-terminal 的配置卡片、
+消费方：notify-email / access-gate / llm-pi 的配置卡片、
 usage-panel 的价目卡片与设置页、lifeboat 健康页。
 
 注意：`card.tsx` / `fields.tsx` 含 JSX，node --test 直接 import 会因 .tsx

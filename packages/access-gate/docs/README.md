@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-08 17:42"
+last_modified: "2026-09-29 12:54"
 ---
 
 # @dsh-plus/access-gate
@@ -14,7 +14,7 @@ service+ui 混合插件（node 半拦截判定，浏览器半提供配置卡片�
 官方（dsh 0.1.2-alpha 线）browser-auth 的覆盖与缺口：
 
 - 官方守护：index（`?token=` 启动令牌交换签发 cookie）、`/api`、connection WS；
-- 官方缺口：**静态资产公开**、插件自有路由（如 web-terminal 的 WS）不在认证范围、
+- 官方缺口：**静态资产公开**、插件自有路由（如插件自建 WS）不在认证范围、
   PWA `start_url` 固定 `/` 无法携带 token（存储隔离平台上 PWA 永远无法登录）；
 - 官方 cookie：`dsh-auth-<sha256(authority)>`，HttpOnly + SameSite=Strict，
   默认 30 天，**绑定具体 host:port**；启动令牌每进程随机生成，重启即换。
@@ -145,7 +145,7 @@ cordis 行级 `Config`（组合默认值）与 settings namespace `dsh-plus-acce
 ## 与其他插件的关系
 
 - **lifeboat**：本插件在其 `dsh-plus-*` 守护范围内，启动失败自动隔离止损。
-- **web-files / web-terminal**：其 HTTP/WS 路由本就被本围栏全覆盖；路径级策略留作扩展点。
+- **web-files**：其 HTTP/WS 路由本就被本围栏全覆盖；路径级策略留作扩展点。
 
 ## 开发与验证
 
