@@ -52,3 +52,7 @@
       name: '@dsh-plus/web-boot-timing'
     - id: dsh-plus-web-shell-sw
       name: '@dsh-plus/web-shell-sw'
+    # agent-preset-chat：注册 chat 预设（后台 register，惰性 inject agentPresets，
+    # registry 缺席即空转），无端点、无时序依赖，排末位随 bundle 一起装/卸。
+    - id: dsh-plus-agent-preset-chat
+      name: '@dsh-plus/agent-preset-chat'
