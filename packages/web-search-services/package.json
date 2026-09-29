@@ -26,12 +26,14 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/dsh-home-paths": "^0.2.0-rc.1",
     "@deepseek-ai/dsh-settings": "^0.2.0-rc.1",
     "@deepseek-ai/dsh-web": "^0.2.0-rc.1",
     "@deepseek-ai/schemastery": "^3.18.4"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/dsh-home-paths": "0.2.0-rc.1",
     "@deepseek-ai/dsh-settings": "0.2.0-rc.1",
     "@deepseek-ai/dsh-web": "0.2.0-rc.1",
     "@deepseek-ai/schemastery": "3.18.4"

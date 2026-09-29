@@ -4,8 +4,9 @@ import { test } from 'node:test'
 
 import { isAbortError, runProcess, type SpawnFn } from '../src/runner.ts'
 
-/** 最小 ChildProcess 假件：只实现 runner 触碰的面（stdout/stderr/on/kill）。 */
+/** 最小 ChildProcess 假件：只实现 runner 触碰的面（stdout/stderr/on/kill/pid）。 */
 class FakeChild {
+  readonly pid = 4242
   readonly stdout = new EventEmitter()
   readonly stderr = new EventEmitter()
   readonly killedWith: string[] = []
@@ -107,4 +108,36 @@ test('given silent child, when timeout hits, then SIGTERM and timeout error', as
 test('given spawn error event, when run, then rejects with start failure message', async () => {
   const { spawnFn } = fakeSpawn((child) => child.fail(new Error('ENOENT python3')))
   await assert.rejects(runProcess({ ...base, spawnFn }), /failed to start python3: ENOENT/)
+})
+
+test('given win32 platform, when timeout hits, then the process tree is killed via killTree instead of signals', async () => {
+  const { spawnFn } = fakeSpawn(() => {})
+  const killed: number[] = []
+  await assert.rejects(
+    runProcess({
+      ...base,
+      timeoutMs: 50,
+      spawnFn,
+      platform: 'win32',
+      killTree: (pid) => killed.push(pid),
+    }),
+    /timed out after 50ms/,
+  )
+  assert.deepEqual(killed, [4242])
+})
+
+test('given posix platform, when timeout hits, then SIGTERM path is used and killTree stays untouched', async () => {
+  const { spawnFn } = fakeSpawn(() => {})
+  const killed: number[] = []
+  await assert.rejects(
+    runProcess({
+      ...base,
+      timeoutMs: 50,
+      spawnFn,
+      platform: 'linux',
+      killTree: (pid) => killed.push(pid),
+    }),
+    /timed out after 50ms/,
+  )
+  assert.deepEqual(killed, [])
 })

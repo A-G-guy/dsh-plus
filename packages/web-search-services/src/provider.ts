@@ -7,6 +7,7 @@
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
+import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import type { WebSearchProvider, WebSearchRequest, WebSearchResult } from '@deepseek-ai/dsh-web'
 import { WebError } from '@deepseek-ai/dsh-web'
 
@@ -14,6 +15,12 @@ import { buildSearchArgv } from './args.ts'
 import type { SearchBackend, WebSearchServicesConfig } from './config.ts'
 import { expandHome, loadEnvFile } from './env-file.ts'
 import { normalizeSearchOutput } from './normalize.ts'
+import {
+  type PythonCandidate,
+  type PythonDiscoveryEnv,
+  pythonCandidates,
+  realPythonFs,
+} from './python.ts'
 import { isAbortError, runProcess, type SpawnFn } from './runner.ts'
 
 export const PROVIDER_ID = 'search-services'
@@ -49,6 +56,16 @@ function messageOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+/**
+ * 判定「解释器缺失」类失败（spawn ENOENT，runProcess 包装时保留 cause）：
+ * 候选链据此换下一个解释器；其余错误照常上抛。
+ */
+function isMissingInterpreter(err: unknown): boolean {
+  if (!(err instanceof Error)) return false
+  const cause = err.cause as { code?: unknown } | undefined
+  return cause?.code === 'ENOENT'
+}
+
 function toWebError(err: unknown): WebError {
   if (err instanceof WebError) return err
   if (isAbortError(err)) return new WebError('搜索已取消', 'WEB_ABORTED', { cause: err })
@@ -62,16 +79,47 @@ export class SearchServicesProvider implements WebSearchProvider {
 
   private readonly current: () => WebSearchServicesConfig
   private readonly spawnFn: SpawnFn | undefined
+  private readonly discovery: () => PythonDiscoveryEnv
+  /** 候选链按 `${python}|${bundledRoot}` 记忆：PATH 与捆绑布局在进程内静态。 */
+  private readonly candidateCache = new Map<string, PythonCandidate[]>()
 
-  constructor(current: () => WebSearchServicesConfig, spawnFn?: SpawnFn | undefined) {
+  constructor(
+    current: () => WebSearchServicesConfig,
+    spawnFn?: SpawnFn | undefined,
+    discovery?: (() => PythonDiscoveryEnv) | undefined,
+  ) {
     this.current = current
     this.spawnFn = spawnFn
+    this.discovery =
+      discovery ??
+      (() => ({
+        platform: process.platform,
+        pathValue: process.env.PATH ?? process.env.Path,
+        bundledRoot: dshHomePath('dsh-runtimes', 'dsh-primary-runtime'),
+        fs: realPythonFs(),
+      }))
   }
 
-  /** 廉价本地检查：脚本存在 + 优先级内至少一个后端有 key；不做网络调用。 */
+  /** 解释器候选链（有序、记忆化）。 */
+  private candidates(): PythonCandidate[] {
+    const cfg = this.current()
+    const env = this.discovery()
+    const key = `${cfg.python}|${env.bundledRoot ?? ''}`
+    const cached = this.candidateCache.get(key)
+    if (cached !== undefined) return cached
+    const resolved = pythonCandidates(env, cfg.python)
+    this.candidateCache.set(key, resolved)
+    return resolved
+  }
+
+  /**
+   * 廉价本地检查：脚本存在 + 至少一个【已验证】解释器候选（配置/捆绑/PATH，
+   * 未验证兜底名不算）+ 优先级内至少一个后端有 key；不做网络调用、不 spawn。
+   */
   available(): boolean {
     const cfg = this.current()
     if (!existsSync(resolveScriptPath(cfg.scriptPath))) return false
+    if (!this.candidates().some((candidate) => candidate.source !== 'fallback')) return false
     const env = this.childEnv(cfg)
     return cfg.priority.some((backend) =>
       BACKEND_KEY_VARS[backend].some((name) => (env[name]?.trim() ?? '') !== ''),
@@ -95,18 +143,28 @@ export class SearchServicesProvider implements WebSearchProvider {
     argv: string[],
     signal: AbortSignal | undefined,
   ): Promise<string> {
-    try {
-      return await runProcess({
-        command: cfg.python,
-        args: [resolveScriptPath(cfg.scriptPath), ...argv],
-        env: this.childEnv(cfg),
-        timeoutMs: cfg.timeoutMs,
-        ...(signal !== undefined ? { signal } : {}),
-        ...(this.spawnFn !== undefined ? { spawnFn: this.spawnFn } : {}),
-      })
-    } catch (err) {
-      throw toWebError(err)
+    const script = resolveScriptPath(cfg.scriptPath)
+    const env = this.childEnv(cfg)
+    let lastMissing: unknown
+    // 候选链逐个尝试：仅解释器缺失（ENOENT）换下一个，其余错误立即上抛。
+    for (const candidate of this.candidates()) {
+      try {
+        return await runProcess({
+          command: candidate.command,
+          args: [...candidate.argsPrefix, script, ...argv],
+          env,
+          timeoutMs: cfg.timeoutMs,
+          ...(signal !== undefined ? { signal } : {}),
+          ...(this.spawnFn !== undefined ? { spawnFn: this.spawnFn } : {}),
+        })
+      } catch (err) {
+        if (!isMissingInterpreter(err)) throw toWebError(err)
+        lastMissing = err
+      }
     }
+    throw toWebError(
+      lastMissing ?? new Error('未找到可用的 python 解释器（配置 python 或安装 python3）'),
+    )
   }
 
   private normalize(stdout: string): WebSearchResult {

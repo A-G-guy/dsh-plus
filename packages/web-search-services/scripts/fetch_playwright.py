@@ -31,6 +31,7 @@ import fetch as local_fetch  # noqa: E402
 
 
 DEFAULT_SELECTOR = "main, article, [role='main'], .content, #content, .post, .entry-content"
+_IS_WINDOWS = os.name == "nt"
 _ACTIVE_PGIDS: set[int] = set()
 _ACTIVE_BROWSER_PIDS: set[int] = set()
 _TEMP_DIRS: set[str] = set()
@@ -52,46 +53,91 @@ class PlaywrightError(RuntimeError):
         self.details = details
 
 
-def _safe_rmtree(path: str) -> None:
-    """只清理本脚本创建的 /tmp 临时目录，避免误删。"""
+def _popen(cmd: list[str], **kwargs: Any) -> subprocess.Popen:
+    """启动子进程；Windows 上 .cmd/.bat 必须经 cmd.exe（CreateProcess 不直接执行批处理）。"""
+    if _IS_WINDOWS and cmd and cmd[0].lower().endswith((".cmd", ".bat")):
+        cmd = ["cmd", "/c", *cmd]
+    return subprocess.Popen(cmd, **kwargs)
 
+
+def _taskkill_tree(pid: int) -> None:
+    """Windows 进程树终止：taskkill /T /F（无 POSIX 信号语义，单杀父进程会留孤儿）。"""
+    try:
+        subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def _signal_group(pgid: int, *, force: bool) -> None:
+    """向进程组发信号（仅 POSIX；Windows 无 killpg/SIGKILL，直接返回）。"""
+    if _IS_WINDOWS:
+        return
+    try:
+        os.killpg(pgid, signal.SIGKILL if force else signal.SIGTERM)
+    except OSError:
+        pass
+
+
+def _signal_pid(pid: int, *, force: bool) -> None:
+    """终止单个进程：POSIX 走 SIGTERM→SIGKILL，Windows 统一 taskkill /T /F。"""
+    if _IS_WINDOWS:
+        _taskkill_tree(pid)
+        return
+    try:
+        os.kill(pid, signal.SIGKILL if force else signal.SIGTERM)
+    except OSError:
+        pass
+
+
+def _pid_alive(pid: int) -> bool:
+    """进程存活探测。Windows 上 os.kill(pid, 0) 会直接杀进程，绝不能用。"""
+    if _IS_WINDOWS:
+        try:
+            out = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                timeout=15,
+                text=True,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return str(pid) in out.stdout
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _safe_rmtree(path: str) -> None:
+    """只清理本脚本创建的临时目录（tempfile.gettempdir() 下 search-services-pw-*），避免误删。"""
+
+    root = os.path.realpath(tempfile.gettempdir())
     real = os.path.realpath(path)
-    if not real.startswith("/tmp/search-services-pw-"):
+    if not real.startswith(os.path.join(root, "search-services-pw-")):
         return
     shutil.rmtree(real, ignore_errors=True)
 
 
 def _cleanup() -> None:
     for pgid in list(_ACTIVE_PGIDS):
-        try:
-            os.killpg(pgid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-        except OSError:
-            pass
+        _signal_group(pgid, force=False)
     time.sleep(0.1)
     for pgid in list(_ACTIVE_PGIDS):
-        try:
-            os.killpg(pgid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        except OSError:
-            pass
+        _signal_group(pgid, force=True)
     for pid in list(_ACTIVE_BROWSER_PIDS):
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-        except OSError:
-            pass
+        _signal_pid(pid, force=False)
     time.sleep(0.1)
     for pid in list(_ACTIVE_BROWSER_PIDS):
-        try:
-            os.kill(pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        except OSError:
-            pass
+        _signal_pid(pid, force=True)
     for temp_dir in list(_TEMP_DIRS):
         _safe_rmtree(temp_dir)
         _TEMP_DIRS.discard(temp_dir)
@@ -124,7 +170,8 @@ def _playwright_command_base() -> list[str]:
 
     codex_home = os.getenv("CODEX_HOME") or os.path.join(os.path.expanduser("~"), ".codex")
     wrapper = os.path.join(codex_home, "skills", "playwright-headless", "scripts", "playwright_cli.sh")
-    if os.path.exists(wrapper):
+    # .sh 包装依赖 POSIX shell，Windows 上直接跳过走 npx 兜底。
+    if not _IS_WINDOWS and os.path.exists(wrapper):
         return [wrapper]
 
     npx = shutil.which("npx")
@@ -180,37 +227,33 @@ def _run_checked_with_retries(cmd: list[str], *, timeout: float, cwd: str, retri
 
 
 def _run_command(cmd: list[str], *, timeout: float, cwd: str) -> tuple[int, str, str]:
-    proc = subprocess.Popen(
+    proc = _popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         cwd=cwd,
-        start_new_session=True,
+        # Windows 无 setsid；进程树终止由 taskkill /T 承担。
+        start_new_session=not _IS_WINDOWS,
     )
-    try:
-        pgid = os.getpgid(proc.pid)
-        _ACTIVE_PGIDS.add(pgid)
-    except OSError:
-        pgid = None
+    pgid: Optional[int] = None
+    if not _IS_WINDOWS:
+        try:
+            pgid = os.getpgid(proc.pid)
+            _ACTIVE_PGIDS.add(pgid)
+        except OSError:
+            pgid = None
     try:
         stdout, stderr = proc.communicate(timeout=timeout)
         return proc.returncode, stdout, stderr
     except subprocess.TimeoutExpired as exc:
         if pgid is not None:
-            try:
-                os.killpg(pgid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            except OSError:
-                pass
+            _signal_group(pgid, force=False)
             time.sleep(0.2)
-            try:
-                os.killpg(pgid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            except OSError:
-                pass
+            _signal_group(pgid, force=True)
+        else:
+            # Windows（或 POSIX 取组失败）：端掉整棵子进程树而非单个进程。
+            _signal_pid(proc.pid, force=True)
         try:
             proc.wait(timeout=2)
         except subprocess.TimeoutExpired:
@@ -366,22 +409,12 @@ def fetch_one(
             except Exception:
                 pass
         if browser_pid is not None:
-            try:
-                os.kill(browser_pid, 0)
-            except ProcessLookupError:
-                _ACTIVE_BROWSER_PIDS.discard(browser_pid)
-            except OSError:
-                _ACTIVE_BROWSER_PIDS.discard(browser_pid)
-            else:
-                try:
-                    os.kill(browser_pid, signal.SIGTERM)
-                    time.sleep(0.2)
-                    os.kill(browser_pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                except OSError:
-                    pass
-                _ACTIVE_BROWSER_PIDS.discard(browser_pid)
+            # 存活探测必须走 _pid_alive：Windows 上 os.kill(pid, 0) 会直接杀进程。
+            if _pid_alive(browser_pid):
+                _signal_pid(browser_pid, force=False)
+                time.sleep(0.2)
+                _signal_pid(browser_pid, force=True)
+            _ACTIVE_BROWSER_PIDS.discard(browser_pid)
         _safe_rmtree(temp_dir)
         _TEMP_DIRS.discard(temp_dir)
 

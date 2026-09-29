@@ -8,10 +8,10 @@ import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-/** 展开路径开头的 ~（仅 ~ 与 ~/ 两种形态，不借 shell）。 */
+/** 展开路径开头的 ~（支持 `~`、`~/`、`~\` 三种形态，与官方 dsh-home-paths 对齐，不借 shell）。 */
 export function expandHome(path: string): string {
   if (path === '~') return homedir()
-  if (path.startsWith('~/')) return join(homedir(), path.slice(2))
+  if (path.startsWith('~/') || path.startsWith('~\\')) return join(homedir(), path.slice(2))
   return path
 }
 

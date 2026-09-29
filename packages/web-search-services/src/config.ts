@@ -64,7 +64,13 @@ export const Config = z.object({
     .description('skill 密钥 env 文件路径（支持 ~ 展开）；空串表示不读 envFile')
     .default(DEFAULT_ENV_FILE)
     .volatile(),
-  python: z.string().description('python 可执行文件').default('python3').volatile(),
+  python: z
+    .string()
+    .description(
+      'python 解释器（可含参数，如 `py -3`）；空串 = 自动发现（配置外按 桌面捆绑运行时 → PATH → 平台兜底名 解析）',
+    )
+    .default('')
+    .volatile(),
   priority: z
     .array(PRIORITY_ENTRY)
     .description('后端优先级：靠前的先尝试，失败自动回退到下一个')

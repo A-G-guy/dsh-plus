@@ -12,6 +12,7 @@ import {
   resolveScriptPath,
   SearchServicesProvider,
 } from '../src/provider.ts'
+import type { PythonDiscoveryEnv } from '../src/python.ts'
 import type { SpawnFn } from '../src/runner.ts'
 
 const FIXTURE_DIR = new URL('./fixtures/', import.meta.url).pathname
@@ -19,6 +20,16 @@ const FIXTURE_SCRIPT = `${FIXTURE_DIR}script.py`
 const FIXTURE_ENV = `${FIXTURE_DIR}keys.env`
 
 const KEY_VARS = ['TAVILY_API_KEY', 'TAVILY_API_KEYS', 'EXA_API_KEY', 'SEARCH_OPENAI_API_KEY']
+
+/** 注入的解释器发现视图：PATH 固定 /fake/bin，存在集合由用例给定（主机无关）。 */
+function discoveryWith(existing: string[]): () => PythonDiscoveryEnv {
+  return () => ({
+    platform: 'linux',
+    pathValue: '/fake/bin',
+    bundledRoot: undefined,
+    fs: { exists: (path) => existing.includes(path), list: () => [] },
+  })
+}
 
 /** 隔离进程环境，避免宿主 shell 泄漏的 key 干扰 available() 断言。 */
 function withoutProcessKeys(t: { after: (fn: () => void) => void }): void {
@@ -72,10 +83,24 @@ const TAVILY_JSON = JSON.stringify({
   },
 })
 
-test('given fixture script and envFile with tavily key, when available, then true', (t) => {
+test('given fixture script, envFile with tavily key and a verified interpreter, when available, then true', (t) => {
   withoutProcessKeys(t)
-  const provider = new SearchServicesProvider(() => cfg({ envFile: FIXTURE_ENV }))
+  const provider = new SearchServicesProvider(
+    () => cfg({ envFile: FIXTURE_ENV }),
+    undefined,
+    discoveryWith(['/fake/bin/python3']),
+  )
   assert.equal(provider.available(), true)
+})
+
+test('given keys but no verified interpreter anywhere, when available, then false', (t) => {
+  withoutProcessKeys(t)
+  const provider = new SearchServicesProvider(
+    () => cfg({ envFile: FIXTURE_ENV }),
+    undefined,
+    discoveryWith([]),
+  )
+  assert.equal(provider.available(), false)
 })
 
 test('given no script on disk, when available, then false regardless of keys', (t) => {
@@ -160,4 +185,46 @@ test('given empty scriptPath, when resolved, then vendored in-package script is 
   assert.match(resolveScriptPath(''), /scripts\/search\.py$/)
   const provider = new SearchServicesProvider(() => cfg({ scriptPath: '' }))
   assert.equal(provider.available(), false)
+})
+
+test('given first candidate spawn ENOENT, when search, then next candidate runs and result normalizes', async (t) => {
+  withoutProcessKeys(t)
+  const commands: string[] = []
+  let calls = 0
+  const spawnFn = ((command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => {
+    void args
+    void options
+    commands.push(command)
+    calls += 1
+    const child = new EventEmitter() as EventEmitter & {
+      stdout: EventEmitter
+      stderr: EventEmitter
+      kill: (signal?: string) => boolean
+    }
+    child.stdout = new EventEmitter()
+    child.stderr = new EventEmitter()
+    child.kill = () => true
+    if (calls === 1) {
+      // 第一个候选（PATH 命中）实际 spawn ENOENT：候选链应换下一个。
+      queueMicrotask(() => {
+        const error = new Error('spawn /fake/bin/python3 ENOENT') as NodeJS.ErrnoException
+        error.code = 'ENOENT'
+        child.emit('error', error)
+      })
+    } else {
+      queueMicrotask(() => {
+        child.stdout.emit('data', TAVILY_JSON)
+        child.emit('close', 0)
+      })
+    }
+    return child
+  }) as unknown as SpawnFn
+  const provider = new SearchServicesProvider(
+    () => cfg({ keys: { ...unwrapVolatile(Config({})).keys, tavily: 'tvly-x' } }),
+    spawnFn,
+    discoveryWith(['/fake/bin/python3']),
+  )
+  const result = await provider.search({ query: 'q', maxResults: 1 })
+  assert.deepEqual(commands, ['/fake/bin/python3', 'python3'])
+  assert.equal(result.sources[0]?.url, 'https://a.example.com')
 })

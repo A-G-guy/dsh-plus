@@ -7,6 +7,9 @@ import { spawn } from 'node:child_process'
 
 export type SpawnFn = typeof spawn
 
+/** 进程树终止器（Windows 用 taskkill 注入面；测试可替换）。 */
+export type KillTreeFn = (pid: number) => void
+
 export interface RunProcessOptions {
   command: string
   args: readonly string[]
@@ -16,10 +19,28 @@ export interface RunProcessOptions {
   signal?: AbortSignal | undefined
   maxBufferBytes?: number | undefined
   spawnFn?: SpawnFn | undefined
+  /** 平台（缺省 process.platform）：win32 的超时/中止走进程树终止而非信号。 */
+  platform?: NodeJS.Platform | undefined
+  /** win32 进程树终止实现（缺省 taskkill /T /F）。 */
+  killTree?: KillTreeFn | undefined
 }
 
 const DEFAULT_MAX_BUFFER = 8 * 1024 * 1024
 const KILL_GRACE_MS = 2_000
+
+/**
+ * Windows 进程树终止：`taskkill /PID <pid> /T /F`（Windows 无 POSIX 信号语义，
+ * 单纯 `child.kill()` 会遗留 npx/playwright 派生的子进程树；上游
+ * dsh-subprocess-local 同款做法）。error 监听防 taskkill 缺席成为未捕获异常。
+ */
+export const killWindowsTree: KillTreeFn = (pid) => {
+  const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+  killer.on('error', (error) => {
+    // 无监听者的 'error' 会成为未捕获异常；终止是尽力而为，留上下文日志即可。
+    console.warn(`[web-search-services] taskkill 失败（pid ${pid}）: ${error.message}`)
+  })
+  killer.unref()
+}
 
 export function abortError(): Error {
   const err = new Error('search aborted')
@@ -39,6 +60,8 @@ function tail(text: string, max = 500): string {
 /** 运行子进程并返回完整 stdout；任何失败以 Error 拒绝（消息含 stderr/退出码上下文）。 */
 export function runProcess(opts: RunProcessOptions): Promise<string> {
   const spawnFn = opts.spawnFn ?? spawn
+  const platform = opts.platform ?? process.platform
+  const killTree = opts.killTree ?? killWindowsTree
   return new Promise<string>((resolve, reject) => {
     if (opts.signal?.aborted === true) {
       reject(abortError())
@@ -68,6 +91,12 @@ export function runProcess(opts: RunProcessOptions): Promise<string> {
       fn()
     }
     const kill = (): void => {
+      if (platform === 'win32') {
+        // Windows 无 SIGTERM/SIGKILL 语义：taskkill /T /F 端掉整棵进程树。
+        if (child.pid !== undefined) killTree(child.pid)
+        else child.kill()
+        return
+      }
       child.kill('SIGTERM')
       graceTimer = setTimeout(() => child.kill('SIGKILL'), KILL_GRACE_MS)
       graceTimer.unref()
