@@ -26,7 +26,7 @@ PKG_JSON = """\
     "./package.json": "./package.json"
   }},
   "files": ["lib", "src"],
-  "scripts": {{ "build": "tsdown src/index.ts -d lib --format esm --dts" }},
+  "scripts": {{ "build": "tsdown src/index.ts -d lib --format esm --dts --no-fixed-extension" }},
   "dependencies": {{
     "@dsh-plus/shared": "workspace:*"
   }},

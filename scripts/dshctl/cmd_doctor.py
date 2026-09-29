@@ -4,10 +4,11 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from .common import (DEV_HOME, DEV_PORT, DEV_RUN_DIR, DSH_BIN, MOCK_PORT,
                      PROD_HOME, PROD_PORTS, REPO_ROOT, TS_HOOK_REPO,
-                     expected_platform_version, find_platform_shadows,
+                     expected_platform_version, fail, find_platform_shadows,
                      package_dirs, read_json, run, yaml_scalar)
 
 CHECKS: list[tuple[str, bool, str]] = []
@@ -174,6 +175,52 @@ def cmd_doctor(args) -> None:
         sys.exit(1)
 
 
+def missing_entry_artifacts(pkg_dirs: list[Path]) -> list[str]:
+    """返回「包名 → 入口」清单：package.json 声明的入口文件不存在。
+
+    典型拦截：tsdown 未加 --no-fixed-extension 时产物为 lib/index.mjs，
+    而 exports 仍指 lib/index.js——发布后宿主 failed to import（插件静默缺席），
+    类型检查与单测都读 src，拦不住这类产物/声明不符。
+    """
+    missing: list[str] = []
+    for pkg_dir in pkg_dirs:
+        manifest = pkg_dir / "package.json"
+        if not manifest.exists():
+            continue
+        meta = read_json(manifest)
+        entries: list[str] = [meta[k] for k in ("main", "module", "types")
+                              if isinstance(meta.get(k), str)]
+
+        def _walk(node) -> None:
+            if isinstance(node, str):
+                if node.startswith("./") and "*" not in node:
+                    entries.append(node)
+            elif isinstance(node, dict):
+                for value in node.values():
+                    _walk(value)
+
+        _walk(meta.get("exports"))
+        seen: set[str] = set()
+        for entry in dict.fromkeys(entries):
+            rel = entry[2:] if entry.startswith("./") else entry
+            if rel in seen:
+                continue
+            seen.add(rel)
+            if not (pkg_dir / rel).exists():
+                missing.append(f"{meta.get('name', pkg_dir.name)} → {entry}")
+    return sorted(missing)
+
+
+def _check_entry_artifacts() -> None:
+    dirs = package_dirs()
+    missing = missing_entry_artifacts(dirs)
+    if missing:
+        fail("入口产物缺失（构建扩展名/exports 声明不符）：\n  "
+             + "\n  ".join(missing)
+             + "\n  提示：tsdown CLI 构建需 --no-fixed-extension 才输出 index.js")
+    print(f"[test] {len(dirs)} 个包入口产物与声明一致")
+
+
 def cmd_test(_args) -> None:
     from .cmd_lint import biome_check_cmd
     from .cmd_typecheck import run_typecheck
@@ -186,6 +233,7 @@ def cmd_test(_args) -> None:
     # 必先于消费方。顺序调整不削弱检查力：tsc 的 include 只含 src/tests，
     # 不读 lib/，构建产物不会掩盖源码类型错误。
     run(["pnpm", "-r", "build"], cwd=REPO_ROOT)
+    _check_entry_artifacts()
     # 类型检查置于测试之前：tsdown 只转译不校验类型，官方契约漂移必须在此拦住。
     run_typecheck()
     tests = sorted(REPO_ROOT.glob("packages/*/tests/*.test.ts"))
