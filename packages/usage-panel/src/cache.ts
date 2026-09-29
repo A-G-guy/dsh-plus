@@ -6,8 +6,10 @@
  * @module usage-panel/cache
  */
 import { existsSync } from 'node:fs'
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+
+import { atomicWriteFile } from '@dsh-plus/shared'
 
 import type { UsageRow } from './usage-fold.ts'
 
@@ -127,18 +129,9 @@ export async function loadCache(path: string): Promise<UsageCache> {
   }
 }
 
-/** 原子写缓存（同目录临时文件 + rename）。 */
+/** 原子写缓存（委托官方 dsh-atomic-write：Windows 瞬态重试 + 0o600）。 */
 export async function saveCache(path: string, cache: UsageCache): Promise<void> {
-  const tmp = `${path}.tmp-${process.pid}-${Date.now()}`
-  await writeFile(tmp, JSON.stringify(cache), 'utf8')
-  try {
-    await rename(tmp, path)
-  } catch (error) {
-    // Windows/并发 rename 失败兜底：直接写目标（保持简单，本地场景 rename 几乎必成）。
-    await writeFile(path, JSON.stringify(cache), 'utf8').catch(() => {
-      throw error
-    })
-  }
+  await atomicWriteFile(path, JSON.stringify(cache))
 }
 
 /** 合并同一会话的旧 rows 与新增 rows（同键桶内累加）。 */

@@ -7,9 +7,11 @@
  * @module @dsh-plus/shared/plugin-data
  */
 
-import { mkdir, rename, writeFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
+
+import { atomicWriteFile } from './atomic-write.ts'
 
 /** dsh-plus 插件数据在 DSH HOME 下的顶层目录名。 */
 export const PLUGIN_DATA_ROOT = 'dsh-plus'
@@ -43,19 +45,17 @@ export async function ensurePluginDataDir(pluginId: string): Promise<string> {
 }
 
 /**
- * 原子写文件：先写同目录临时文件，再 rename 落盘，避免中断产生半截文件。
+ * 原子写文件（委托官方 dsh-atomic-write writeFileAtomic：Windows 瞬态重试 +
+ * 0o600 权限收窄，父目录自动创建），避免中断产生半截文件。
  * @returns 最终文件绝对路径。
  */
 export async function writePluginDataFile(
   pluginId: string,
   fileName: string,
-  data: string | Uint8Array,
+  data: string,
 ): Promise<string> {
   const target = pluginDataPath(pluginId, fileName)
-  await mkdir(dirname(target), { recursive: true })
-  const tmp = `${target}.tmp-${process.pid}-${Date.now()}`
-  await writeFile(tmp, data)
-  await rename(tmp, target)
+  await atomicWriteFile(target, data)
   return target
 }
 

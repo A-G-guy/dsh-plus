@@ -7,13 +7,15 @@
  */
 
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import type { IncomingMessage } from 'node:http'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest, type RequestOptions } from 'node:https'
 import { dirname } from 'node:path'
 import type { Duplex } from 'node:stream'
 import type { ConnectionOptions } from 'node:tls'
+
+import { atomicWriteFile } from '@dsh-plus/shared'
 
 /** 目录文档最小投影（只关心形状，不解析字段）。 */
 export type CatalogDocument = Record<string, unknown>
@@ -264,9 +266,7 @@ export class CatalogStore {
     try {
       const dir = dirname(this.cacheFile)
       if (!existsSync(dir)) await mkdir(dir, { recursive: true })
-      const tmp = `${this.cacheFile}.tmp-${process.pid}`
-      await writeFile(tmp, JSON.stringify({ fetchedAt, data }), 'utf8')
-      await rename(tmp, this.cacheFile)
+      await atomicWriteFile(this.cacheFile, JSON.stringify({ fetchedAt, data }))
     } catch (error) {
       this.log(`models.dev 缓存写入失败：${error instanceof Error ? error.message : String(error)}`)
     }

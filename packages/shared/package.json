@@ -31,6 +31,7 @@
     "directory": "packages/shared"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-atomic-write": "0.2.0-rc.1",
     "@deepseek-ai/dsh-client-ui-primitives": "0.2.0-rc.1",
     "@types/react": "~18.3.31",
     "react": "^18.2.0",
@@ -40,6 +41,7 @@
     "lucide-react": "1.38.0"
   },
   "peerDependencies": {
+    "@deepseek-ai/dsh-atomic-write": "^0.2.0-rc.1",
     "@deepseek-ai/dsh-home-paths": "^0.2.0-rc.1"
   }
 }

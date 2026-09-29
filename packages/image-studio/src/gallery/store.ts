@@ -7,10 +7,10 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { appendFile, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { pluginDataPath } from '@dsh-plus/shared'
+import { atomicWriteFile, commitTmpFile, pluginDataPath } from '@dsh-plus/shared'
 import { isImageId } from '../images/id.ts'
 import { extOfMime } from '../images/mime.ts'
 import type { ImageEndpoint } from '../provider/types.ts'
@@ -121,11 +121,12 @@ export async function saveGalleryItem(input: {
   for (const image of input.images) {
     const imageId = randomUUID()
     const ext = extOfMime(image.mime)
-    // 原子写：临时文件 + rename，中断不留半截图片。
+    // 图片是字节（官方 writeFileAtomic 仅收字符串）：tmp 落盘 + commitTmpFile
+    // rename 提交，rename 被占用时回退复制，中断不留半截图片。
     const target = imagePathOf(imageId, ext)
     const tmp = `${target}.tmp-${process.pid}-${Date.now()}`
     await writeFile(tmp, image.data)
-    await rename(tmp, target)
+    await commitTmpFile(tmp, target)
     imageIds.push(imageId)
   }
   const item: GalleryItem = {
@@ -153,13 +154,10 @@ export async function deleteGalleryItem(itemId: string): Promise<boolean> {
     }
   }
   const kept = items.filter((item) => item.id !== itemId)
-  const tmp = `${indexFile()}.tmp-${process.pid}-${Date.now()}`
-  await writeFile(
-    tmp,
+  await atomicWriteFile(
+    indexFile(),
     kept.map((item) => JSON.stringify(item)).join('\n') + (kept.length > 0 ? '\n' : ''),
-    'utf8',
   )
-  await rename(tmp, indexFile())
   return true
 }
 

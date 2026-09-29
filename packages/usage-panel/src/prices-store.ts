@@ -8,8 +8,9 @@
  * @module usage-panel/prices-store
  */
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { readFile } from 'node:fs/promises'
+
+import { atomicWriteFile } from '@dsh-plus/shared'
 
 import type { PriceEntry } from './pricing.ts'
 
@@ -93,7 +94,7 @@ export async function loadPrices(path: string): Promise<PricesDocument> {
 }
 
 /**
- * 写价目文件（同目录临时文件 + rename 原子落盘），返回落盘文档。
+ * 写价目文件（委托官方 dsh-atomic-write 原子落盘，父目录自动创建），返回落盘文档。
  * @param path - 目标绝对路径（调用方经 pluginDataPath 解析，禁止散拼）。
  * @param entries - 本次导入的完整价目（整体替换）。
  * @param sourceFetchedAt - 目录来源标注（catalog fetchedAt；外部 doc 传 null）。
@@ -104,9 +105,6 @@ export async function savePrices(
   sourceFetchedAt: string | null,
 ): Promise<PricesDocument> {
   const doc: PricesDocument = { updatedAt: new Date().toISOString(), sourceFetchedAt, entries }
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp-${process.pid}-${Date.now()}`
-  await writeFile(tmp, serializePrices(doc), 'utf8')
-  await rename(tmp, path)
+  await atomicWriteFile(path, serializePrices(doc))
   return doc
 }

@@ -8,10 +8,10 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { appendFile, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { pluginDataPath } from '@dsh-plus/shared'
+import { atomicWriteFile, commitTmpFile, pluginDataPath } from '@dsh-plus/shared'
 import { isImageId } from '../images/id.ts'
 import { extOfMime } from '../images/mime.ts'
 
@@ -96,9 +96,10 @@ export async function saveUpload(input: {
   const id = randomUUID()
   const ext = extOfMime(input.mime)
   const target = blobPathOf(id, ext)
+  // 字节走 tmp + commitTmpFile（官方 writeFileAtomic 仅收字符串）。
   const tmp = `${target}.tmp-${process.pid}-${Date.now()}`
   await writeFile(tmp, input.data)
-  await rename(tmp, target)
+  await commitTmpFile(tmp, target)
   const entry: UploadEntry = {
     id,
     createdAt: new Date().toISOString(),
@@ -128,13 +129,10 @@ async function removeUpload(entry: UploadEntry): Promise<void> {
 
 /** 索引导出为 JSONL（重写式删除的公共收尾）。 */
 async function rewriteIndex(kept: UploadEntry[]): Promise<void> {
-  const tmp = `${indexFile()}.tmp-${process.pid}-${Date.now()}`
-  await writeFile(
-    tmp,
+  await atomicWriteFile(
+    indexFile(),
     kept.map((item) => JSON.stringify(item)).join('\n') + (kept.length > 0 ? '\n' : ''),
-    'utf8',
   )
-  await rename(tmp, indexFile())
 }
 
 /**

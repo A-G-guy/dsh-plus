@@ -27,6 +27,13 @@ export function transformText(text: string, op: TransformOp): string {
 }
 
 export {
+  type AtomicWriteIo,
+  atomicWriteFile,
+  commitTmpFile,
+  PLUGIN_DATA_FILE_MODE,
+  USER_FILE_MODE,
+} from './atomic-write.ts'
+export {
   ensurePluginDataDir,
   PLUGIN_DATA_ROOT,
   pluginDataDir,
