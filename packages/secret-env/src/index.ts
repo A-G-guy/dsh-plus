@@ -5,7 +5,8 @@
  * 挂载即得：密钥以 $DSH_VAR_* 变量名向 agent 暴露（dsh-shell-env 执行期
  * 注入，与内建变量同一通道）；值经 dsh-credentials seam 或会话内存持有，
  * 不进消息流、不动 prompt 前缀（缓存率零影响）。不新增工具与提示词——
- * 模型经 bash 原生能力（env | grep ^DSH_）发现变量名。
+ * 模型经 bash 原生能力（env | grep ^DSH_；Windows 同样跑 dsh 内置 bash，
+ * Git Bash 自带 grep，命令一致）发现变量名。
  * @module @dsh-plus/secret-env
  */
 import type { Context } from '@deepseek-ai/cordis'
