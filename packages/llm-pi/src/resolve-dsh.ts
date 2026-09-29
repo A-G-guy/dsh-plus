@@ -3,9 +3,9 @@
  * dsh-llm-pi-ai / dsh-llm / pi-ai 之上，从而 dsh 升级即自动跟随上游。
  *
  * 解析策略（全部模块同源地整体成功或整体回退，杜绝跨源混用）：
- * 1. dsh-tree：从 process.argv[1]（systemd/CLI 启动的 dsh 即 bin.js  shim，
- *    realpath 后落在 dsh 安装树内）向上找到同时含有
- *    node_modules/@deepseek-ai/dsh-llm-pi-ai 与 node_modules/@earendil-works/pi-ai
+ * 1. dsh-tree：锚点链 = profileContext.installAnchor（CLI/桌面端同一事实，
+ *    桌面端 Electron 下 argv[1] 探测走不通）→ realpath(argv[1]) 向上找到同时
+ *    含 node_modules/@deepseek-ai/dsh-llm-pi-ai 与 node_modules/@earendil-works/pi-ai
  *    的目录，按文件路径动态 import——与 dsh 官方插件共享同一模块实例；
  * 2. vendored：回退到本插件 dependencies 里的固定版本副本（裸 import）。
  *
@@ -450,12 +450,23 @@ export function loadVendoredKit(): DshKit {
   return kit
 }
 
-/** 定位 dsh 安装树根：realpath(argv[1]) 向上查找；argv 异常时返回 undefined。 */
-function dshTreeAnchor(): string | undefined {
-  const entry = process.argv[1]
-  if (entry === undefined) return undefined
+/**
+ * 定位 dsh 安装树根：优先 `profileContext.installAnchor`（CLI 与桌面端同一
+ * 事实——桌面端 Electron 启动时 argv[1] 是 Electron 自身、走不通 argv 探测，
+ * 锚点是唯一可靠来源），其次 realpath(argv[1]) 向上查找；均失败返回 undefined。
+ * argvEntry 参数仅测试注入（缺省 process.argv[1]）。
+ */
+export function dshTreeAnchor(
+  installAnchor?: string | undefined,
+  argvEntry: string | undefined = process.argv[1],
+): string | undefined {
+  if (installAnchor !== undefined && installAnchor.length > 0) {
+    const anchored = findDshTreeRoot(dirname(installAnchor))
+    if (anchored !== undefined) return anchored
+  }
+  if (argvEntry === undefined) return undefined
   try {
-    return findDshTreeRoot(dirname(realpathSync(entry)))
+    return findDshTreeRoot(dirname(realpathSync(argvEntry)))
   } catch {
     return undefined
   }
@@ -465,13 +476,14 @@ function dshTreeAnchor(): string | undefined {
  * 解析运行时套件：优先 dsh 安装树（自动跟随上游），失败回退 vendored 副本；
  * 两者都过不了形状自检时抛错（调用方应记日志并放弃注册 route）。
  * 返回的 diagnostics 记录回退原因，供配置卡片与日志展示。
+ * @param installAnchor profile 的 dsh 安装锚点（`ctx.profileContext.installAnchor`）。
  */
-export async function resolveDshKit(): Promise<{
+export async function resolveDshKit(installAnchor?: string | undefined): Promise<{
   kit: DshKit
   diagnostics: string[]
 }> {
   const diagnostics: string[] = []
-  const anchor = dshTreeAnchor()
+  const anchor = dshTreeAnchor(installAnchor)
   if (anchor !== undefined) {
     const treePkgDir = join(anchor, 'node_modules', '@deepseek-ai', 'dsh-llm-pi-ai')
     try {
@@ -508,7 +520,9 @@ export async function resolveDshKit(): Promise<{
       )
     }
   } else {
-    diagnostics.push('未能从 process.argv[1] 定位 dsh 安装树；回退 vendored 副本')
+    diagnostics.push(
+      '未能从 profileContext.installAnchor / process.argv[1] 定位 dsh 安装树；回退 vendored 副本',
+    )
   }
   const kit = loadVendoredKit()
   if (kit.deepseek === undefined) {

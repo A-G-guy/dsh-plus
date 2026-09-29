@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-29 12:54"
+last_modified: "2026-09-29 15:56"
 ---
 
 # @dsh-plus/llm-pi 文档索引
@@ -214,3 +214,12 @@ anthropic 路由在 `k3`/`k3-256k` 之外再挂 `kimi-for-coding`
 
 联调建议：用独立 `DSH_HOME` 起一个 dev 实例，模型后端指向本机 mock（OpenAI 兼容
 假后端），避免产生真实 API 费用。
+
+## 平台支持
+
+- dsh 树锚点链：`ctx.profileContext.installAnchor` → `realpath(argv[1])` 向上
+  查找（要求同目录树同时含 `@deepseek-ai/dsh-llm-pi-ai` 与 `@earendil-works/pi-ai`）
+  → vendored 副本兜底。桌面端 Electron 启动时 argv[1] 是 Electron 自身，
+  锚点是唯一可靠来源（诊断文案会显示套件来源 dsh-tree / vendored）。
+- `auth-inline` 的 `fileExists` 展开 `~/` 与 `~\` 两种前缀（Windows 反斜杠形态）。
+- 无其他平台特判：路由/compat/discovery 全为纯 TS；桌面端与 Windows 复用同链路。

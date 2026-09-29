@@ -11,6 +11,9 @@
  * @module llm-pi/service
  */
 import type { Context } from '@deepseek-ai/cordis'
+// 平台类型面：profileContext.installAnchor（dsh 安装锚点，桌面端关键来源）。
+// 纯类型导入，按开发规范仅需 devDeps。
+import type {} from '@deepseek-ai/dsh-app-boot'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type { DirectoryRegistrationHandle } from '@deepseek-ai/dsh-llm'
@@ -90,7 +93,7 @@ export async function startRuntime(
   const fields: LlmPiConfigFields = hasVolatileRefs(rawConfig)
     ? (rawConfig as LlmPiConfigFields)
     : Config((rawConfig ?? {}) as LlmPiConfigInput)
-  const { kit, diagnostics } = await resolveDshKit()
+  const { kit, diagnostics } = await resolveDshKit(ctx.get('profileContext')?.installAnchor)
   for (const line of diagnostics) logger.warn(line)
   logger.info(`运行时套件来源：${kit.source}`)
 
