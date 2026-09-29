@@ -7,6 +7,7 @@
 
 import { IconFullscreen, IconFullscreenExit } from '@dsh-plus/shared/client'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { parentPath } from '../paths.ts'
 import {
   type DirSortPreference,
   detectImageType,
@@ -40,12 +41,6 @@ import type { PanelController, Translate } from './types.ts'
 function warnPrefs(action: string, error: unknown): void {
   const message = error instanceof Error ? error.message : String(error)
   console.warn(`[web-files] prefs ${action} failed: ${message}`)
-}
-
-/** POSIX 父目录路径（外部打开文件前先定位其所在目录）。 */
-function parentPath(path: string): string {
-  const index = path.lastIndexOf('/')
-  return index <= 0 ? '/' : path.slice(0, index)
 }
 
 export interface FilePanelProps {

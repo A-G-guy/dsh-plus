@@ -8,14 +8,13 @@
  * - slot 注入等任一环节因上游升级失配时静默降级（入口不出现），不影响原生 UI。
  *
  * 类型说明：0.1.2-alpha.1 起 dsh-client-runtime 删除，类型按包拆分——
- * ctx.slots 来自 ui-renderer、ctx.workspaces 来自 workspace-controller、
- * ctx.locale 来自 locale；「打开文件」接管挂在 ctx.remote.session 的
- * openWorkspacePath（官方 openFile 手势的落点）。
+ * ctx.slots 来自 ui-renderer、ctx.locale 来自 locale。
+ * （原「打开文件」手势接管已移除：官方侧栏文件能力已覆盖该诉求，
+ * 会话内文件链接交还官方 openWorkspacePath 宿主实现。）
  * @module @dsh-plus/web-files/client
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // 插槽名的类型声明分散在各 shell 包：sidebar 声明 sidebar.footer.action，
 // layout 声明 shell.overlay；二者只提供类型，运行时经模块表解析。
@@ -25,7 +24,6 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { useSyncExternalStore } from 'react'
 
 import { en, NS, zh } from './locales.ts'
-import { takeOverOpenPath } from './open-path.ts'
 import { FilePanel } from './panel/panel.tsx'
 import { IconFolderOpenOutlineRegular } from './panel/primitives.ts'
 import { createPanelController, type PanelController, type Translate } from './panel/types.ts'
@@ -33,8 +31,8 @@ import { webFilesCss } from './styles.ts'
 
 export const name = 'dsh-plus-web-files'
 
-/** 客户端 cordis 服务依赖（slots/locale 字典 + workspaces 服务；接管走 remote.session）。 */
-export const inject = ['slots', 'locale', 'workspaces', 'remote', 'remote.session'] as const
+/** 客户端 cordis 服务依赖（slots 注入 + locale 字典）。 */
+export const inject = ['slots', 'locale'] as const
 
 const PLUGIN_ID = '@dsh-plus/web-files'
 const STYLE_TAG_ID = `${PLUGIN_ID}/styles.css`
@@ -89,10 +87,6 @@ function FilesOverlayEntry({ files, t }: EntryProps) {
 export function apply(ctx: Context): void {
   const tag = injectStyle()
   const controller = createPanelController()
-  // 接管 remote.session.openWorkspacePath（实现与回归测试见 open-path.ts）。
-  const session = (ctx as unknown as { remote: { session: unknown } }).remote.session
-  const disposeTakeover = takeOverOpenPath(session as never, controller)
-  ctx.effect(() => disposeTakeover, 'web-files: openWorkspacePath takeover cleanup')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'web-files: dictionaries')
   ctx.effect(
     () =>

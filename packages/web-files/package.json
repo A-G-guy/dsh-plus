@@ -29,7 +29,6 @@
       "inject": [
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-sidebar",
-        "@deepseek-ai/dsh-api-workspace-controller",
         "@deepseek-ai/dsh-client-ui-renderer"
       ],
       "external": [
@@ -40,7 +39,6 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
-    "@deepseek-ai/dsh-api-workspace-controller": "^0.2.0-rc.1",
     "@deepseek-ai/dsh-client-locale": "^0.2.0-rc.1",
     "@deepseek-ai/dsh-client-ui-primitives": "^0.2.0-rc.1",
     "@deepseek-ai/dsh-client-ui-renderer": "^0.2.0-rc.1",
@@ -71,7 +69,6 @@
     "@codemirror/state": "^6.7.1",
     "@codemirror/view": "^6.43.9",
     "@deepseek-ai/cordis": "4.0.4",
-    "@deepseek-ai/dsh-api-workspace-controller": "0.2.0-rc.1",
     "@deepseek-ai/dsh-client-locale": "0.2.0-rc.1",
     "@deepseek-ai/dsh-client-ui-layout": "0.2.0-rc.1",
     "@deepseek-ai/dsh-client-ui-primitives": "0.2.0-rc.1",

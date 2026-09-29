@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, win32 } from 'node:path'
 import { test } from 'node:test'
 
 import {
@@ -300,4 +300,21 @@ test('given an unreadable file, when reading, then errno maps to FilesError inst
       await chmod(path, 0o600)
     }
   })
+})
+
+test('buildCrumbs yields drive-rooted jump targets for win32 shapes (path.win32 injected on linux)', () => {
+  const crumbs = buildCrumbs('C:\\Users\\agguy\\proj', win32)
+  assert.deepEqual(crumbs, [
+    { name: 'C:\\', path: 'C:\\' },
+    { name: 'Users', path: 'C:\\Users' },
+    { name: 'agguy', path: 'C:\\Users\\agguy' },
+    { name: 'proj', path: 'C:\\Users\\agguy\\proj' },
+  ])
+  // 每一段都必须是 win32 绝对路径（旧实现按 sep 硬拼会产出 `\C:\…` 非法值）。
+  for (const crumb of crumbs) assert.ok(win32.isAbsolute(crumb.path), crumb.path)
+})
+
+test('buildCrumbs for the filesystem root yields a single root crumb on both platforms', () => {
+  assert.deepEqual(buildCrumbs('/'), [{ name: '/', path: '/' }])
+  assert.deepEqual(buildCrumbs('C:\\', win32), [{ name: 'C:\\', path: 'C:\\' }])
 })

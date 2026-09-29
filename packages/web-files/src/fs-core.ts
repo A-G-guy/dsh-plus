@@ -14,12 +14,14 @@ import {
   rmdir,
   stat,
   unlink,
-  writeFile,
 } from 'node:fs/promises'
 import { homedir } from 'node:os'
+import * as pathModule from 'node:path'
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import type { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+
+import { atomicWriteFile, commitTmpFile, USER_FILE_MODE } from '@dsh-plus/shared'
 
 import {
   BINARY_SNIFF_BYTES,
@@ -103,14 +105,27 @@ async function classify(
   return { kind: 'other', size: 0, mtimeMs: lst.mtimeMs }
 }
 
-/** 从文件系统根到目标目录的面包屑链（每段可跳转）。 */
-export function buildCrumbs(path: string): CrumbDto[] {
-  const crumbs: CrumbDto[] = [{ name: sep, path: sep }]
-  const parts = path.split(sep).filter((part) => part.length > 0)
-  // 显式 string：sep 是 '/' | '\\' 字面量联合，逐段落拼接后不再是单个字面量。
-  let current: string = sep
-  for (const part of parts) {
-    current = current === sep ? `${sep}${part}` : `${current}${sep}${part}`
+/** node:path 切分面（默认宿主实现；测试注入 path.win32 覆盖 Windows 形态）。 */
+export interface PathSegments {
+  sep: string
+  parse(path: string): { root: string }
+  relative(from: string, to: string): string
+  join(...segments: string[]): string
+}
+
+/**
+ * 从文件系统根到目标目录的面包屑链（每段可跳转）。
+ * 以 path root 为起点逐段 join：Windows 得 `C:\`、`C:\Users`…（按 sep 硬拼
+ * 会产出 `\C:\Users` 这类非法路径），POSIX 形状与既往一致。
+ */
+export function buildCrumbs(path: string, impl: PathSegments = pathModule): CrumbDto[] {
+  const root = impl.parse(path).root
+  const crumbs: CrumbDto[] = [{ name: root, path: root }]
+  const relative = impl.relative(root, path)
+  if (relative.length === 0) return crumbs
+  let current = root
+  for (const part of relative.split(impl.sep).filter((segment) => segment.length > 0)) {
+    current = impl.join(current, part)
     crumbs.push({ name: part, path: current })
   }
   return crumbs
@@ -201,7 +216,7 @@ export async function readFileText(path: string): Promise<ReadResponse> {
   return { content, size: info.size, mtimeMs: info.mtimeMs, truncated }
 }
 
-/** 原子写：临时文件 + rename；baseMtimeMs 乐观锁防覆盖他人改动。 */
+/** 原子写（官方 dsh-atomic-write：Windows 瞬态重试 + 显式 mode）；baseMtimeMs 乐观锁防覆盖他人改动。 */
 export async function writeFileText(
   path: string,
   content: string,
@@ -223,12 +238,9 @@ export async function writeFileText(
       throw new FilesError(`${target} changed on disk since it was read`, 'mtime-conflict', 409)
     }
   }
-  const tmp = `${target}.web-files-${String(process.pid)}-${String(Date.now())}.tmp`
   try {
-    await writeFile(tmp, content, 'utf8')
-    await rename(tmp, target)
+    await atomicWriteFile(target, content, USER_FILE_MODE)
   } catch (error) {
-    await unlink(tmp).catch(() => {})
     throw toFilesError(error, target)
   }
   const written = await lstat(target)
@@ -246,18 +258,15 @@ export async function makeDirectory(parent: string, name: string): Promise<{ pat
   return { path: dir }
 }
 
-/** 新建空文件：tmp+rename 原子落盘，重名拒绝（409），返回条目 DTO。 */
+/** 新建空文件：官方原子写落盘，重名拒绝（409），返回条目 DTO。 */
 export async function createFile(parent: string, name: string): Promise<FsEntryDto> {
   const target = join(requireAbsolute(parent), requireEntryName(name))
   if (await exists(target)) {
     throw new FilesError(`${target} already exists`, 'entry-exists', 409)
   }
-  const tmp = `${target}.web-files-${String(process.pid)}-${String(Date.now())}.tmp`
   try {
-    await writeFile(tmp, '', 'utf8')
-    await rename(tmp, target)
+    await atomicWriteFile(target, '', USER_FILE_MODE)
   } catch (error) {
-    await unlink(tmp).catch(() => {})
     throw toFilesError(error, target)
   }
   return statEntry(target)
@@ -328,7 +337,7 @@ export async function saveUpload(
   }
   try {
     await pipeline(counting(body), createWriteStream(tmp))
-    await rename(tmp, target)
+    await commitTmpFile(tmp, target)
   } catch (error) {
     await unlink(tmp).catch(() => {})
     if (error instanceof FilesError) throw error

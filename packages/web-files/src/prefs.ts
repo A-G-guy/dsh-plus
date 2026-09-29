@@ -6,10 +6,10 @@
  * 边界校验，损坏/越界数据静默回退默认项而非整文件作废。
  * @module @dsh-plus/web-files/prefs
  */
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { dirname, isAbsolute } from 'node:path'
 
-import { pluginDataPath } from '@dsh-plus/shared'
+import { atomicWriteFile, pluginDataPath } from '@dsh-plus/shared'
 
 import { FilesError, requireAbsolute } from './fs-core.ts'
 import {
@@ -137,9 +137,8 @@ export class PrefsStore {
       prefs.sortByDir = Object.fromEntries(entries.slice(-PREFS_SORT_MAX_DIRS))
     }
     await mkdir(dirname(this.path), { recursive: true })
-    const tmp = `${this.path}.web-files-${String(process.pid)}-${String(Date.now())}.tmp`
-    await writeFile(tmp, `${JSON.stringify(prefs, null, 2)}\n`, 'utf8')
-    await rename(tmp, this.path)
+    // 原子落盘（tmp + rename），Windows 目标占用时按 shared 语义回退直写。
+    await atomicWriteFile(this.path, `${JSON.stringify(prefs, null, 2)}\n`)
     return prefs
   }
 }
