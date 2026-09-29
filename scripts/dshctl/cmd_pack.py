@@ -594,16 +594,84 @@ def _sweep_vendor_tarballs(prod: dict) -> None:
             print(f"[uninstall-prod] 清理孤儿 vendor tarball: {tgz.name}")
 
 
+def _profile_owned_name(candidate: str) -> str | None:
+    """profile（dependencies / pnpm.overrides / bundles）中登记的包名，未登记为 None。
+
+    包已从仓库删除时 workspace 侧必然查不到——卸载的判据是「profile 里还装着」，
+    而非「workspace 里还存在」（整包下线后的清理走这条路径）。
+    """
+    prod = read_json(PROD_HOME / "profiles/web/package.json")
+    owned = set(prod.get("dependencies", {}))
+    owned |= set(prod.get("pnpm", {}).get("overrides", {}))
+    owned |= set(prod.get("dsh", {}).get("profile", {}).get("bundles", []))
+    names = {candidate}
+    if not candidate.startswith("@"):
+        names.add(f"@dsh-plus/{candidate}")
+    return next((name for name in sorted(names) if name in owned), None)
+
+
+def _exclude_owner(entry: str) -> str:
+    """minimumReleaseAgeExclude 条目的包名（去掉可选 @版本 后缀）。"""
+    if entry.startswith("@"):
+        head, sep, _ = entry[1:].partition("@")
+        return f"@{head}" if sep else entry
+    head, sep, _ = entry.partition("@")
+    return head if sep else entry
+
+
+def _remove_workspace_specs(profile_dir: Path, sweep: set[str]) -> None:
+    """从 pnpm-workspace.yaml 摘除被卸载包的 overrides 与 minimumReleaseAgeExclude。
+
+    pnpm 11 起 overrides 只读 pnpm-workspace.yaml（见 _ensure_release_age_exclude）：
+    只清 package.json 会让已删 tarball 的 file: spec 继续生效，install 直接失败。
+    """
+    ws = profile_dir / "pnpm-workspace.yaml"
+    if not ws.exists():
+        return
+    lines = ws.read_text(encoding="utf-8").splitlines()
+    exclude = [line.strip()[2:].strip().strip("'\"")
+               for line in lines
+               if line.strip().startswith("- ") and not line.strip().startswith("- .")]
+    overrides = _read_workspace_overrides(lines)
+    stale_names = {name for name in overrides if name in sweep}
+    stale_exclude = [entry for entry in exclude if _exclude_owner(entry) in sweep]
+    if not stale_names and not stale_exclude:
+        return
+    out = _rewrite_workspace_sections(
+        lines,
+        [entry for entry in exclude if entry not in stale_exclude],
+        {k: v for k, v in overrides.items() if k not in stale_names},
+    )
+    ws.write_text("\n".join(out) + "\n", encoding="utf-8")
+    if stale_names:
+        print("[uninstall-prod] workspace overrides 已摘除: " + ", ".join(sorted(stale_names)))
+    if stale_exclude:
+        print("[uninstall-prod] minimumReleaseAgeExclude 已摘除: " + ", ".join(sorted(stale_exclude)))
+
+
+def _uninstall_target(candidate: str) -> tuple[Path | None, str]:
+    """解析卸载目标：workspace 包目录（优先），或 profile 中仍登记的包名。"""
+    try:
+        pkg_dir = find_package(candidate)
+    except SystemExit:
+        name = _profile_owned_name(candidate)
+        if name is None:
+            fail(f"找不到包: {candidate}（workspace 无此包，profile 亦未安装）")
+        print(f"[uninstall-prod] {candidate} 已不在 workspace，按 profile 登记卸载: {name}")
+        return None, name
+    return pkg_dir, read_json(pkg_dir / "package.json")["name"]
+
+
 def cmd_uninstall_prod(args) -> None:
-    pkg_dir = find_package(args.package)
-    meta = read_json(pkg_dir / "package.json")
-    names = {read_json(p / "package.json")["name"] for p in _workspace_dep_closure(pkg_dir)}
+    pkg_dir, pkg_name = _uninstall_target(args.package)
+    names = ({read_json(p / "package.json")["name"]
+              for p in _workspace_dep_closure(pkg_dir)} if pkg_dir is not None else {pkg_name})
     from .common import write_json
     pkg_json = PROD_HOME / "profiles/web/package.json"
     prod = read_json(pkg_json)
     bundles = prod.get("dsh", {}).get("profile", {}).get("bundles", [])
-    if meta["name"] in bundles:
-        bundles.remove(meta["name"])
+    if pkg_name in bundles:
+        bundles.remove(pkg_name)
     write_json(pkg_json, prod)
     # 清扫：卸载闭包 ∪ 不再被任何留存 bundle 需要的孤儿 vendor 依赖
     keep = _remaining_workspace_closure(names)
@@ -614,11 +682,12 @@ def cmd_uninstall_prod(args) -> None:
         for name in sweep:
             table.pop(name, None)
     write_json(pkg_json, prod)
+    _remove_workspace_specs(_prod_profile_dir(), sweep)
     _sweep_vendor_tarballs(prod)
     run([dsh_bin(), "plugin", "--profile", "web", "install"], env=_prod_env())
     dump = run([dsh_bin(), "--profile", "web", "--dump-config"], env=_prod_env())
-    gone = meta["name"] not in dump.stdout
-    print(f"[uninstall-prod] {meta['name']} 已移除（清扫 {len(sweep)} 项），"
+    gone = pkg_name not in dump.stdout
+    print(f"[uninstall-prod] {pkg_name} 已移除（清扫 {len(sweep)} 项），"
           f"组合树{'已无' if gone else '仍有'}该包")
     print("[uninstall-prod] 择机重启生效: python3 scripts/dshctl.py restart-prod")
 
