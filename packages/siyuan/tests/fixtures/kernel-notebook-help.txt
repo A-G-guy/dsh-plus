@@ -1,0 +1,25 @@
+Manage notebooks
+
+Usage:
+  kernel notebook [command]
+
+Available Commands:
+  close       Close a notebook
+  create      Create a notebook
+  list        List all notebooks
+  open        Open a notebook
+  random-icon Randomly set notebook icon(s) from built-in emojis
+  remove      Remove a notebook
+  rename      Rename a notebook
+  set-icon    Set a notebook icon
+
+Flags:
+  -h, --help   help for notebook
+
+Global Flags:
+      --dry-run            dry run mode: validate and print what would happen without making changes
+  -f, --format string      output format: table | json (default "table")
+  -v, --log-level string   log level: off | trace | debug | info | warn | error | fatal (defaults to conf.json system.logLevel)
+  -w, --workspace string   workspace path
+
+Use "kernel notebook [command] --help" for more information about a command.

@@ -1,0 +1,42 @@
+SiYuan Kernel v3.8.6. Manage workspace data directly or start the HTTP server.
+
+Usage:
+  kernel [command]
+
+Available Commands:
+  asset       Manage assets
+  attr        Manage block attributes
+  block       Block operations
+  bookmark    Manage bookmarks
+  completion  Generate the autocompletion script for the specified shell
+  dailynote   Daily note (dailynote) operations
+  database    Manage databases (attribute views)
+  document    Manage documents
+  export      Export documents
+  file        Workspace file operations
+  help        Help about any command
+  history     Data history
+  import      Import files
+  inbox       Manage the cloud inbox (clipped shorthands)
+  notebook    Manage notebooks
+  outline     Document outline (heading tree)
+  ref         Backlinks and references
+  repo        Data snapshots
+  search      Full-text search (blocks, semantic, or asset file contents with --asset)
+  serve       Start kernel HTTP server
+  sql         Execute SQL query
+  sync        Sync data with cloud
+  system      System information
+  tag         Manage tags
+  template    Manage templates
+  workspace   Manage SiYuan workspaces
+
+Flags:
+      --dry-run            dry run mode: validate and print what would happen without making changes
+  -f, --format string      output format: table | json (default "table")
+  -h, --help               help for kernel
+  -v, --log-level string   log level: off | trace | debug | info | warn | error | fatal (defaults to conf.json system.logLevel)
+      --version            version for kernel
+  -w, --workspace string   workspace path
+
+Use "kernel [command] --help" for more information about a command.

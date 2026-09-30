@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/bundle-main",
-  "version": "0.2.15",
+  "version": "0.2.16",
   "description": "dsh-plus aggregate bundle: ordered cordis patch layer wiring all dsh-plus plugins",
   "type": "module",
   "main": "lib/index.js",
@@ -41,7 +41,9 @@
     "@dsh-plus/web-cache-headers": "workspace:*",
     "@dsh-plus/web-boot-timing": "workspace:*",
     "@dsh-plus/web-shell-sw": "workspace:*",
-    "@dsh-plus/agent-preset-chat": "workspace:*"
+    "@dsh-plus/agent-preset-chat": "workspace:*",
+    "@dsh-plus/siyuan": "workspace:*",
+    "@dsh-plus/siyuan-tools": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4"

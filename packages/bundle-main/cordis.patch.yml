@@ -56,3 +56,9 @@
     # registry 缺席即空转），无端点、无时序依赖，排末位随 bundle 一起装/卸。
     - id: dsh-plus-agent-preset-chat
       name: '@dsh-plus/agent-preset-chat'
+    # siyuan：思源笔记能力发现服务（MCP tools/list × kernel CLI help 树）+
+    # siyuan 预设注册。宿主行只提供 ctx.siyuan 服务与预设声明，不注册任何
+    # 模型面工具；工具由预设挂载的 @dsh-plus/siyuan-tools 在 agent 作用域
+    # 注册，仅 siyuan 预设可见，不污染其他预设。
+    - id: dsh-plus-siyuan
+      name: '@dsh-plus/siyuan'

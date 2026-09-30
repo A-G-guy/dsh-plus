@@ -1,0 +1,14 @@
+Execute SQL query
+
+Usage:
+  kernel sql <statement> [flags]
+
+Flags:
+  -h, --help        help for sql
+  -l, --limit int   max rows returned (default 100)
+
+Global Flags:
+      --dry-run            dry run mode: validate and print what would happen without making changes
+  -f, --format string      output format: table | json (default "table")
+  -v, --log-level string   log level: off | trace | debug | info | warn | error | fatal (defaults to conf.json system.logLevel)
+  -w, --workspace string   workspace path

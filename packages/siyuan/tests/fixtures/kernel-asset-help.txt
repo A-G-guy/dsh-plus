@@ -1,0 +1,21 @@
+Manage assets
+
+Usage:
+  kernel asset [command]
+
+Available Commands:
+  clean       Clean unused assets
+  stat        Show asset file info
+  unused      List unused assets
+  upload      Upload files to workspace assets
+
+Flags:
+  -h, --help   help for asset
+
+Global Flags:
+      --dry-run            dry run mode: validate and print what would happen without making changes
+  -f, --format string      output format: table | json (default "table")
+  -v, --log-level string   log level: off | trace | debug | info | warn | error | fatal (defaults to conf.json system.logLevel)
+  -w, --workspace string   workspace path
+
+Use "kernel asset [command] --help" for more information about a command.
