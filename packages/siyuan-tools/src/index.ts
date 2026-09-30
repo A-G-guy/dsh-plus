@@ -5,8 +5,9 @@
  * 行为：
  * - 惰性等待首次发现（有界、自吞失败），随后监听清单变更整代换新；
  *   发现失败按 5s→60s 指数退避重试，SiYuan 宕机不影响预设激活；
- * - `tools/pre-execute` 写确认（读白名单放行、其余 ask → 宿主审批弹窗，
- *   审批缺席降级拒绝，fail-closed）；
+ * - `tools/pre-execute` 写确认接入 DSH 官方审批体系：policy=ask 才弹窗，
+ *   never（完全权限/无人值守）直接放行——ask 绝不静默降级为拒绝；
+ * - 写前数据历史快照（每会话一次，失败按配置中止，官方 fail-closed 行为）；
  * - system-prompt 动态环境快照（日期 + 连接事实）。
  * @module @dsh-plus/siyuan-tools
  */
@@ -16,6 +17,7 @@ import { Config, type SiyuanToolsConfig } from './config.ts'
 import { registerEnvContext } from './env.ts'
 import { policySettingsOf, registerPolicy } from './policy.ts'
 import { applyManifest, emptyToolState, type RegisterDeps } from './register.ts'
+import { createSnapshotGuard } from './snapshot.ts'
 
 export const name = 'dsh-plus-siyuan-tools'
 
@@ -50,10 +52,15 @@ function messageOf(error: unknown): string {
 export async function apply(ctx: Context, config: SiyuanToolsConfig): Promise<void> {
   const logger = ctx.logger('siyuan-tools')
   const state = emptyToolState()
+  const snapshotGuard = createSnapshotGuard(config, {
+    snapshot: (memo, options) => ctx.siyuan.snapshot(memo, options),
+    logger,
+  })
   const deps: RegisterDeps = {
     ctx,
     config,
     invoke: (entry, args, options) => ctx.siyuan.invoke(entry, args, options),
+    beforeWrite: (entry, args) => snapshotGuard.beforeWrite(entry, args),
     logger,
   }
   const life: Lifecycle = {

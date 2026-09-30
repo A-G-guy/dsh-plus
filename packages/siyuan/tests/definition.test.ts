@@ -47,6 +47,8 @@ test('given safety config, when building, then the tool row receives exposure an
   const definition = siyuanPresetDefinition(
     configWith({
       confirmWrites: false,
+      snapshotBeforeWrite: false,
+      snapshotFailure: 'warn',
       readActions: ['get'],
       alwaysAsk: ['sync'],
       readTools: ['sql'],
@@ -58,6 +60,8 @@ test('given safety config, when building, then the tool row receives exposure an
   assert.ok(toolsRow !== undefined && toolsRow.config !== undefined)
   const config = toolsRow.config as Record<string, unknown>
   assert.equal(config.confirmWrites, false)
+  assert.equal(config.snapshotBeforeWrite, false)
+  assert.equal(config.snapshotFailure, 'warn')
   assert.deepEqual(config.readActions, ['get'])
   assert.deepEqual(config.alwaysAsk, ['sync'])
   assert.deepEqual(config.readTools, ['sql'])

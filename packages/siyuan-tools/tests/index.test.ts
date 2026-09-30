@@ -11,15 +11,18 @@ interface RegisteredDef {
   description: string
 }
 
+/** pre-execute 替身的执行视图（审批策略需要 agent.session）。 */
+type FakeExec = { name: string; arguments: unknown; agent?: { session: unknown } }
+
 /** 服务/注册表/事件的整体替身，覆盖 apply 用到的全部 cordis 面。 */
-function fakeCtx(options?: { discover?: () => Promise<SiyuanManifest> }): {
+function fakeCtx(options?: {
+  discover?: () => Promise<SiyuanManifest>
+  approvalPolicy?: 'ask' | 'never'
+}): {
   ctx: Context
   registered: RegisteredDef[]
   disposed: () => number
-  handlers: Map<
-    string,
-    (exec: { name: string; arguments: unknown }, next: () => Promise<unknown>) => unknown
-  >
+  handlers: Map<string, (exec: FakeExec, next: () => Promise<unknown>) => unknown>
   changeCb: (() => void) | undefined
   cleanups: (() => void)[]
   logs: string[]
@@ -27,10 +30,7 @@ function fakeCtx(options?: { discover?: () => Promise<SiyuanManifest> }): {
 } {
   const registered: RegisteredDef[] = []
   const disposers: (() => void)[] = []
-  const handlers = new Map<
-    string,
-    (exec: { name: string; arguments: unknown }, next: () => Promise<unknown>) => unknown
-  >()
+  const handlers = new Map<string, (exec: FakeExec, next: () => Promise<unknown>) => unknown>()
   let changeCb: (() => void) | undefined
   let discovers = 0
   const logs: string[] = []
@@ -75,14 +75,15 @@ function fakeCtx(options?: { discover?: () => Promise<SiyuanManifest> }): {
         return () => disposers.push(() => {})
       },
     },
-    on(
-      event: string,
-      fn: (exec: { name: string; arguments: unknown }, next: () => Promise<unknown>) => unknown,
-    ) {
+    on(event: string, fn: (exec: FakeExec, next: () => Promise<unknown>) => unknown) {
       handlers.set(event, fn)
       return () => handlers.delete(event)
     },
-    get: () => undefined,
+    get(key: string) {
+      if (key !== 'approval') return undefined
+      const policy = options?.approvalPolicy ?? 'ask'
+      return { config: { policy }, overrideOf: () => undefined }
+    },
     effect(fn: () => (() => void) | void) {
       const cleanup = fn()
       if (typeof cleanup === 'function') cleanups.push(cleanup)
@@ -126,13 +127,19 @@ test('given a discoverable manifest, when apply runs, then tools register, polic
 
   const handler = fake.handlers.get('tools/pre-execute')
   assert.ok(handler !== undefined, '写确认监听必须注册')
-  const write = await handler({ name: 'document', arguments: { action: 'delete' } }, async () => ({
-    kind: 'allow',
-  }))
-  assert.equal((write as { kind: string }).kind, 'ask')
-  const read = await handler({ name: 'document', arguments: { action: 'get' } }, async () => ({
-    kind: 'allow',
-  }))
+  const write = await handler(
+    { name: 'document', arguments: { action: 'delete' }, agent: { session: {} } },
+    async () => ({
+      kind: 'allow',
+    }),
+  )
+  assert.equal((write as { kind: string }).kind, 'ask', 'policy=ask 时写操作弹审批')
+  const read = await handler(
+    { name: 'document', arguments: { action: 'get' }, agent: { session: {} } },
+    async () => ({
+      kind: 'allow',
+    }),
+  )
   assert.deepEqual(read, { kind: 'allow' })
 
   const cleanup = fake.cleanups.at(-1)
@@ -150,8 +157,23 @@ test('given namePrefix, when apply runs, then public names carry the prefix and 
   )
   const handler = fake.handlers.get('tools/pre-execute')
   assert.ok(handler !== undefined)
-  const foreign = await handler({ name: 'bash', arguments: {} }, async () => ({ kind: 'allow' }))
+  const foreign = await handler(
+    { name: 'bash', arguments: {}, agent: { session: {} } },
+    async () => ({ kind: 'allow' }),
+  )
   assert.deepEqual(foreign, { kind: 'allow' })
+})
+
+test('given full-permission approval policy, when a write pre-executes, then it passes without prompting', async () => {
+  const fake = fakeCtx({ approvalPolicy: 'never' })
+  await apply(fake.ctx, configWith())
+  const handler = fake.handlers.get('tools/pre-execute')
+  assert.ok(handler !== undefined)
+  const write = await handler(
+    { name: 'document', arguments: { action: 'move' }, agent: { session: {} } },
+    async () => ({ kind: 'allow' }),
+  )
+  assert.deepEqual(write, { kind: 'allow' }, '完全权限模式（approval=never）写操作自动通过')
 })
 
 test('given a failing discovery, when apply runs, then activation still settles with a warn and a retry', async () => {

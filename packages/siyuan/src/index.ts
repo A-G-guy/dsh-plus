@@ -24,7 +24,14 @@ export const name = 'dsh-plus-siyuan'
 /** 无硬 inject：agentPresets 经 apply 内惰性 inject 接线（缺席即空转）。 */
 export const inject = [] as const
 
-export { DEFAULT_ALWAYS_ASK, DEFAULT_READ_ACTIONS, DEFAULT_READ_TOOLS } from './config.ts'
+export {
+  DEFAULT_ALWAYS_ASK,
+  DEFAULT_READ_ACTIONS,
+  DEFAULT_READ_TOOLS,
+  DEFAULT_SNAPSHOT_BEFORE_WRITE,
+  DEFAULT_SNAPSHOT_FAILURE,
+  SNAPSHOT_MEMO,
+} from './config.ts'
 export type {
   CapabilityDrift,
   CapabilityEntry,

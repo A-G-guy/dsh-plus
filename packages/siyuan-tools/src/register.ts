@@ -24,6 +24,8 @@ export interface RegisterDeps {
     args: Record<string, unknown>,
     options: { signal?: AbortSignal; timeoutMs: number },
   ): Promise<unknown>
+  /** 写前钩子（数据历史快照）：审批之后、实际执行之前；抛错即中止写入。 */
+  beforeWrite?(entry: CapabilityEntry, args: Record<string, unknown>): Promise<void>
   logger: { error(message: string): void }
 }
 
@@ -55,11 +57,13 @@ export function buildDefinition(deps: RegisterDeps, entry: CapabilityEntry): Too
       inputSchema: entry.inputSchema,
       ...(entry.outputSchema !== undefined ? { outputSchema: entry.outputSchema } : {}),
       ...(entry.taskRequired === true ? { taskRequired: true } : {}),
-      call: (args, execution) =>
-        deps.invoke(entry, args, {
+      call: async (args, execution) => {
+        await deps.beforeWrite?.(entry, args)
+        return await deps.invoke(entry, args, {
           signal: execution.signal,
           timeoutMs: deps.config.toolCallTimeoutMs,
-        }),
+        })
+      },
     })
   }
   return cliDefinition(deps, entry, name)
@@ -80,6 +84,7 @@ function cliDefinition(deps: RegisterDeps, entry: CapabilityEntry, name: string)
     async execute(args, exec) {
       const violations = validateJsonSchemaValue(entry.inputSchema as JsonSchemaNode, args)
       if (violations.length > 0) throw new Error(`invalid arguments: ${violations.join('; ')}`)
+      await deps.beforeWrite?.(entry, args as Record<string, unknown>)
       return await deps.invoke(entry, args as Record<string, unknown>, {
         signal: exec.signal,
         timeoutMs,

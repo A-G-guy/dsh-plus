@@ -45,6 +45,8 @@ export function siyuanPresetDefinition(config: SiyuanConfig): PresetDefinition {
         config: {
           toolCallTimeoutMs: config.toolCallTimeoutMs,
           confirmWrites: config.confirmWrites,
+          snapshotBeforeWrite: config.snapshotBeforeWrite,
+          snapshotFailure: config.snapshotFailure,
           readActions: [...config.readActions],
           alwaysAsk: [...config.alwaysAsk],
           readTools: [...config.readTools],

@@ -4,14 +4,28 @@
  */
 
 import z from '@deepseek-ai/schemastery'
-import { DEFAULT_ALWAYS_ASK, DEFAULT_READ_ACTIONS, DEFAULT_READ_TOOLS } from '@dsh-plus/siyuan'
+import {
+  DEFAULT_ALWAYS_ASK,
+  DEFAULT_READ_ACTIONS,
+  DEFAULT_READ_TOOLS,
+  DEFAULT_SNAPSHOT_BEFORE_WRITE,
+  DEFAULT_SNAPSHOT_FAILURE,
+} from '@dsh-plus/siyuan'
 
 export const Config = z.object({
   toolCallTimeoutMs: z.number().description('单次工具调用超时（毫秒）').default(60_000),
   confirmWrites: z
     .boolean()
-    .description('非读操作返回 ask 决策（审批弹窗；审批缺席时降级为拒绝）')
+    .description('非读操作经 DSH 审批策略确认（policy=ask 弹窗；never/完全权限模式自动通过）')
     .default(true),
+  snapshotBeforeWrite: z
+    .boolean()
+    .description('首个本地写操作前创建数据历史快照（每会话一次，对齐思源内置 agent）')
+    .default(DEFAULT_SNAPSHOT_BEFORE_WRITE),
+  snapshotFailure: z
+    .union(['abort', 'warn'])
+    .description('快照失败处置：abort = 中止写入（官方行为）；warn = 放行但记录告警')
+    .default(DEFAULT_SNAPSHOT_FAILURE),
   readActions: z
     .array(z.string())
     .description('读动作白名单（alwaysAsk 优先）')

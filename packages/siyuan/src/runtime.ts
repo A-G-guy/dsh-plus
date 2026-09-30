@@ -48,6 +48,8 @@ export class SiyuanRuntime {
   private connection: SiyuanConnection | undefined
   private mcp: McpLike | undefined
   private manifestCache: SiyuanManifest | undefined
+  /** 未经过 allow/deny 暴露过滤的最近清单（快照等内部安全能力用）。 */
+  private rawManifest: SiyuanManifest | undefined
   private familyHelps = new Map<string, KernelHelp>()
   private actionHelps = new Map<string, KernelHelp>()
   private discovering: Promise<SiyuanManifest> | undefined
@@ -139,6 +141,24 @@ export class SiyuanRuntime {
     return await this.invokeCli(conn, entry.cli, args, options)
   }
 
+  /**
+   * 创建数据历史快照（写前安全网）。走 `repo` 能力的 `create` 动作——与思源
+   * 内置 agent `IndexRepo("AI agent auto snapshot")` 同一 API；查未过滤清单，
+   * allow/deny 暴露过滤不影响内部安全能力。失败抛错（调用方决定中止或放行）。
+   */
+  async snapshot(memo: string, options: InvokeOptions): Promise<unknown> {
+    if (this.rawManifest === undefined) await this.discover().catch(() => undefined)
+    const entry = this.rawManifest?.entries.find((candidate) => candidate.name === 'repo')
+    if (entry === undefined) {
+      throw new Error('SiYuan 快照能力不可用：当前能力清单无 repo（数据历史）工具')
+    }
+    try {
+      return await this.invoke(entry, { action: 'create', memo }, options)
+    } catch (error) {
+      throw new Error(`SiYuan 数据历史快照失败：${messageOf(error)}`)
+    }
+  }
+
   /** 释放会话、定时器与订阅。 */
   dispose(): void {
     this.disposed = true
@@ -156,8 +176,10 @@ export class SiyuanRuntime {
     this.familyHelps = new Map()
     this.actionHelps = new Map()
     this.version = await this.probeVersion()
-    const manifest =
+    const raw =
       (await this.discoverViaMcp(conn)) ?? (await this.discoverViaCli(conn)) ?? this.failDiscover()
+    this.rawManifest = raw
+    const manifest: SiyuanManifest = { ...raw, entries: this.filter(raw.entries) }
     this.publish(manifest)
     return manifest
   }
@@ -213,7 +235,7 @@ export class SiyuanRuntime {
     return {
       source: helps.size > 0 ? 'mixed' : 'mcp',
       version: this.version,
-      entries: this.filter(entries),
+      entries,
       drift,
     }
   }
@@ -232,7 +254,7 @@ export class SiyuanRuntime {
     return {
       source: 'cli',
       version: this.version,
-      entries: this.filter(entries),
+      entries,
       drift: computeDrift([], families, []),
     }
   }

@@ -280,3 +280,34 @@ test('given both sources unavailable, when discovering, then the failure carries
   )
   harness.runtime.dispose()
 })
+
+test('given a healthy manifest, when a snapshot is requested, then repo create goes through MCP with the memo', async () => {
+  const harness = await makeHarness({ mcp: 'up' })
+  await harness.runtime.discover()
+  await harness.runtime.snapshot('DSH agent auto snapshot (dsh-plus)', { timeoutMs: 1_000 })
+  const call = harness.mcp?.callLog.at(-1)
+  assert.ok(call !== undefined)
+  assert.equal(call.name, 'repo', '快照走 repo.create —— 与思源内置 agent 同 API')
+  assert.deepEqual(call.args, { action: 'create', memo: 'DSH agent auto snapshot (dsh-plus)' })
+  harness.runtime.dispose()
+})
+
+test('given repo hidden by exposure filters, when a snapshot is requested, then the raw manifest still serves it', async () => {
+  const harness = await makeHarness({ mcp: 'up', config: { allow: ['document', 'sql'] } })
+  const manifest = await harness.runtime.discover()
+  assert.equal(
+    manifest.entries.some((entry) => entry.name === 'repo'),
+    false,
+    'allow 过滤掉 repo',
+  )
+  await harness.runtime.snapshot('memo', { timeoutMs: 1_000 })
+  assert.equal(harness.mcp?.callLog.at(-1)?.name, 'repo', '快照不受暴露过滤影响')
+  harness.runtime.dispose()
+})
+
+test('given degraded mode without the repo family, when a snapshot is requested, then it fails with capability context', async () => {
+  const harness = await makeHarness({ mcp: 'down' })
+  await harness.runtime.discover()
+  await assert.rejects(harness.runtime.snapshot('memo', { timeoutMs: 1_000 }), /快照能力不可用/)
+  harness.runtime.dispose()
+})

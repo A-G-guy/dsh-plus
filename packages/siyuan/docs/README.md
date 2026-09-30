@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-30 08:51"
+last_modified: "2026-09-30 12:41"
 ---
 
 # @dsh-plus/siyuan 文档索引
@@ -94,7 +94,9 @@ last_modified: "2026-09-30 08:51"
 | `allow` / `deny` | `[]` / `[]` | 工具暴露白名单（空=全量）/ 黑名单（优先） |
 | `personaPrefix` | `''` | 覆盖系统提示词（空 = 内置思源优化版） |
 | `includeRuntimeContext` | `true` | 运行时上下文快照开关 |
-| `confirmWrites` | `true` | 非读操作 ask 确认（下发子插件行） |
+| `confirmWrites` | `true` | 非读操作经 DSH 审批策略确认（`ask` 弹窗 / `never` 完全权限自动通过） |
+| `snapshotBeforeWrite` | `true` | 首个本地写操作前打数据历史快照（每会话一次，官方 fail-closed） |
+| `snapshotFailure` | `'abort'` | 快照失败处置：`abort` 中止写入 / `warn` 放行告警 |
 | `readActions` / `alwaysAsk` / `readTools` | 见 `src/config.ts` | 判读白名单 / 整工具强制确认 / 无 action 工具判读 |
 | `toolCallTimeoutMs` | `60000` | 单次调用超时 |
 | `namePrefix` | `''` | 模型可见工具名前缀 |
@@ -107,6 +109,9 @@ last_modified: "2026-09-30 08:51"
 - `manifest(): SiyuanManifest | undefined` —— 最近一次成功清单；
 - `invoke(entry, args, {signal?, timeoutMs}): Promise<unknown>` —— MCP 优先、
   CLI 兜底；中止信号原样透传；
+- `snapshot(memo, {signal?, timeoutMs}): Promise<unknown>` —— 数据历史快照
+  （`repo.create`，与思源内置 agent 同 API）；查**未过滤清单**，不受
+  allow/deny 暴露过滤影响，失败抛错；
 - `onChange(cb): () => void` —— 清单变更订阅（返回退订）；
 - `status(): SiyuanStatus` —— 已脱敏的连接事实。
 
@@ -117,8 +122,14 @@ last_modified: "2026-09-30 08:51"
 
 - 生产实例只做只读元数据探测（`version`/`tools/list`/`--help`）；一切写与
   功能测试在一次性 scratch 容器上进行（见子插件文档「验证」）；
-- 写确认对齐思源内置 agent 行为：读动作白名单免确认，其余经 DSH 审批弹窗
-  （`tools/pre-execute` → `{kind:'ask'}`；审批缺席降级拒绝，fail-closed）；
+- 写确认**接入 DSH 官方审批体系**（`ctx.approval`）：会话审批策略 `ask`
+  时经 `tools/pre-execute` → `{kind:'ask'}` 弹审批窗（带 en/zh
+  `displayReason`）；`never`（完全权限预设 / 无人值守）直接放行；审批服务
+  缺席也放行——ask 绝不静默降级为拒绝；读动作白名单免确认；
+- **写前数据历史快照**（对齐思源内置 agent）：确认之后、执行之前，每会话
+  最多一次 `repo.create`（`DSH agent auto snapshot (dsh-plus)`）；快照失败
+  默认中止写入并给出启用「数据历史」指引（`snapshotFailure: 'warn'` 可改为
+  放行告警），`snapshotBeforeWrite: false` 可整体关闭；
 - 降级 CLI 执行显式告警并发写风险，可经停用 CLI（`mode: http` 或清空
   `cliCommand`/docker）关闭该路径。
 
@@ -131,12 +142,14 @@ last_modified: "2026-09-30 08:51"
 | 能力版本漂移 | `list_changed` 订阅重发现 + 整代换新；drift 报告 MCP-only/CLI-only/无兜底 |
 | 单条注册冲突 | 仅丢弃该条并记 error，其余照常 |
 | 端点 401（token 轮换） | 每次发现重新解析连接（docker exec 重读 conf） |
+| 审批策略 `never` / 审批服务缺席 | 写操作直接放行（完全权限语义），不产生 `the user rejected tool` 误拒 |
+| 数据历史未启用 / 快照失败 | 默认中止该次写入并给出启用指引；可 `snapshotFailure: 'warn'` 或关 `snapshotBeforeWrite` |
 
 ## 测试与文档
 
 - 单测：`tests/{help,cli-map,connection,definition,prompt,runtime}.test.ts`
   —— help 解析、双源映射与 argv 构造、连接矩阵、预设组装、提示词不变量、
-  运行时健康/降级/过滤/执行路径（全部离线，fixture = 录制的 tools/list 与
-  cobra help，纯产品元数据）。
+  运行时健康/降级/过滤/执行路径/快照（全部离线，fixture = 录制的
+  tools/list 与 cobra help，纯产品元数据）。
 - 运行 `python3 scripts/dshctl.py test` 覆盖 lint/typecheck/build/单测。
 - 子插件（工具包装与安全策略）见 [../siyuan-tools/docs/README.md](../siyuan-tools/docs/README.md)。

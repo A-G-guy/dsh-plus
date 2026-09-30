@@ -138,6 +138,14 @@ export class SiyuanService extends Service {
     return this.runtime.invoke(entry, args, options)
   }
 
+  /**
+   * 创建数据历史快照（写前安全网；`repo create`，与思源内置 agent 同 API）。
+   * 不受 allow/deny 暴露过滤影响；失败抛错由调用方决定中止或放行。
+   */
+  snapshot(memo: string, options: InvokeOptions): Promise<unknown> {
+    return this.runtime.snapshot(memo, options)
+  }
+
   /** 连接与发现状态（已脱敏）。 */
   status(): SiyuanStatus {
     return this.runtime.status()

@@ -168,3 +168,34 @@ test('given one conflicting registration, when applying, then the rest stay regi
   assert.equal(state.disposers.size, 1)
   assert.match(errors[0] ?? '', /register sql failed/)
 })
+
+test('given a beforeWrite hook, when executing, then it runs before invoke and its failure blocks the write', async () => {
+  const { ctx } = fakeRegisterCtx()
+  const calls: unknown[][] = []
+  let hooks = 0
+
+  // 钩子抛错（快照失败）→ 写入被中止，invoke 不发生
+  const blocking: RegisterDeps = {
+    ...depsWith(ctx, calls),
+    beforeWrite: async () => {
+      hooks += 1
+      throw new Error('snapshot boom')
+    },
+  }
+  const cliDef = buildDefinition(blocking, CLI_ENTRY)
+  await assert.rejects(cliDef.execute({ action: 'get' }, runContext()), /snapshot boom/)
+  assert.equal(calls.length, 0, '钩子失败时不得执行写入')
+  assert.equal(hooks, 1)
+
+  // 钩子通过 → MCP 分支同样先挂钩再执行
+  const passing: RegisterDeps = {
+    ...depsWith(ctx, calls),
+    beforeWrite: async () => {
+      hooks += 1
+    },
+  }
+  const mcpDef = buildDefinition(passing, MCP_ENTRY)
+  await mcpDef.execute({ action: 'query', stmt: 'SELECT 1' }, runContext())
+  assert.equal(calls.length, 1)
+  assert.equal(hooks, 2)
+})

@@ -70,6 +70,15 @@ export const DEFAULT_ALWAYS_ASK: string[] = [
 /** 无 action 属性时按工具名判读（降级 CLI 直连命令）。 */
 export const DEFAULT_READ_TOOLS: string[] = ['sql', 'search']
 
+/** 写操作前数据历史快照的默认开关（对齐思源内置 agent：首个本地写前打一次）。 */
+export const DEFAULT_SNAPSHOT_BEFORE_WRITE = true
+
+/** 快照失败的默认处置：abort = 中止写入（思源内置 agent 的 fail-closed 行为）。 */
+export const DEFAULT_SNAPSHOT_FAILURE: 'abort' | 'warn' = 'abort'
+
+/** 自动快照备注（思源内置 agent 用 "AI agent auto snapshot"，此处标明来源）。 */
+export const SNAPSHOT_MEMO = 'DSH agent auto snapshot (dsh-plus)'
+
 export const Config = z.object({
   enabled: z
     .boolean()
@@ -126,8 +135,16 @@ export const Config = z.object({
     .default(true),
   confirmWrites: z
     .boolean()
-    .description('非读操作弹审批确认（对齐思源内置 agent 行为）')
+    .description('非读操作经 DSH 审批策略确认（审批策略=ask 时弹窗；never/完全权限模式自动通过）')
     .default(true),
+  snapshotBeforeWrite: z
+    .boolean()
+    .description('首个本地写操作前创建数据历史快照（每会话一次；对齐思源内置 agent）')
+    .default(DEFAULT_SNAPSHOT_BEFORE_WRITE),
+  snapshotFailure: z
+    .union(['abort', 'warn'])
+    .description('快照失败处置：abort = 中止写入（官方行为）；warn = 放行但记录告警')
+    .default(DEFAULT_SNAPSHOT_FAILURE),
   readActions: z
     .array(z.string())
     .description('读动作白名单（alwaysAsk 优先）')
