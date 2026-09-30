@@ -14,15 +14,21 @@ function configWith(overrides: Partial<SiyuanConfig> = {}): SiyuanConfig {
   return { ...Config({}), ...overrides } as SiyuanConfig
 }
 
-test('given default config, when building the preset, then only persona and siyuan-tools compose it', () => {
+test('given default config, when building the preset, then operations stay SiYuan-only with three auxiliary rows', () => {
   const definition = siyuanPresetDefinition(configWith())
   assert.equal(definition.id, SIYUAN_PRESET_ID)
   assert.equal(definition.name, '思源笔记')
   const rows = definition.plugins.map((row) => row.name)
   assert.deepEqual(
     rows,
-    ['@deepseek-ai/dsh-persona', '@dsh-plus/siyuan-tools'],
-    '不得挂任何官方工具行',
+    [
+      '@deepseek-ai/dsh-persona',
+      '@dsh-plus/siyuan-tools',
+      '@deepseek-ai/dsh-tool-web',
+      '@deepseek-ai/dsh-tool-ask-user',
+      '@deepseek-ai/dsh-tool-todo',
+    ],
+    '操作面仅思源派生工具 + 三行辅助工具，不得挂 bash/fs/edit/write 等操作类官方行',
   )
   const persona = definition.plugins[0]
   assert.ok(persona !== undefined && persona.config !== undefined)
@@ -30,6 +36,18 @@ test('given default config, when building the preset, then only persona and siyu
   assert.equal(personaConfig.complete, true, 'complete 模式移除全部无关注入')
   assert.equal(personaConfig.includeRuntimeContext, true)
   assert.equal(personaConfig.prefix, DEFAULT_PERSONA_PREFIX)
+  const web = definition.plugins[2]?.config as Record<string, unknown> | undefined
+  assert.deepEqual(web, { fetch: true, searchTimeoutMs: 60_000 })
+  const todo = definition.plugins[4]?.config as Record<string, unknown> | undefined
+  assert.deepEqual(todo, { allowParallelInProgress: true })
+})
+
+test('given auxTools disabled, when building, then only persona and siyuan-tools compose it', () => {
+  const definition = siyuanPresetDefinition(configWith({ auxTools: false }))
+  assert.deepEqual(
+    definition.plugins.map((row) => row.name),
+    ['@deepseek-ai/dsh-persona', '@dsh-plus/siyuan-tools'],
+  )
 })
 
 test('given persona overrides, when building, then custom prefix wins and runtime context follows config', () => {

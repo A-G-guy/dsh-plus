@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/siyuan",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus service plugin: 思源笔记（SiYuan）能力发现与 siyuan agent 预设注册——MCP tools/list × kernel CLI help 树自动派生，零手工工具清单",
   "type": "module",
   "main": "lib/index.js",

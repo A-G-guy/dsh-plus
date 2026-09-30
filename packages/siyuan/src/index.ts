@@ -30,6 +30,7 @@ export {
   DEFAULT_READ_TOOLS,
   DEFAULT_SNAPSHOT_BEFORE_WRITE,
   DEFAULT_SNAPSHOT_FAILURE,
+  effectiveDeny,
   SNAPSHOT_MEMO,
 } from './config.ts'
 export type {

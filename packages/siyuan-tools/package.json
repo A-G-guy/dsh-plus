@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/siyuan-tools",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus preset tool plugin: 思源笔记能力包装——把主插件发现的 SiYuan 能力清单 1:1 注册为 agent 作用域 DSH 工具（写操作确认 + CLI 兜底执行）",
   "type": "module",
   "main": "lib/index.js",

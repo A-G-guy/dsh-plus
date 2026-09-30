@@ -40,7 +40,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | [`@dsh-plus/image-studio`](packages/image-studio) | 0.1.18 | service + UI | 通用 | 图像工作室：OpenAI Images 协议文生图/图生图、全参数开关化、预设体系与可二次编辑画廊 | [docs](packages/image-studio/docs/README.md) |
 | [`@dsh-plus/secret-env`](packages/secret-env) | 0.1.20 | service + UI | 通用 | 密钥环境变量：以 `$DSH_VAR_*` 变量名向 agent 暴露密钥，执行期经 dsh-shell-env 注入，值不进消息流、不影响缓存率 | [docs](packages/secret-env/docs/README.md) |
 | [`@dsh-plus/web-search-services`](packages/web-search-services) | 0.1.6 | service | 通用·py | web_search 免费后端聚合（Tavily/Exa/OpenAI Chat），官方 web_search 工具零修改；需本机 Python（自动发现，Windows 兜底 `py -3`） | [docs](packages/web-search-services/docs/README.md) |
-| [`@dsh-plus/siyuan`](packages/siyuan) | 0.1.0 | service | 通用 | 思源笔记主插件：MCP tools/list × kernel CLI help 树自动派生能力清单（docker/native/http 连接与 token 自动发现、双源交叉校验、降级执行），注册仅含思源工具的 `siyuan` agent 预设 | [docs](packages/siyuan/docs/README.md) |
+| [`@dsh-plus/siyuan`](packages/siyuan) | 0.1.0 | service | 通用 | 思源笔记主插件：MCP tools/list × kernel CLI help 树自动派生能力清单（docker/native/http 连接与 token 自动发现、双源交叉校验、降级执行），注册 `siyuan` agent 预设（操作面仅思源工具 + web/提问/待办辅助行，精简版系统提示词不复述工具描述） | [docs](packages/siyuan/docs/README.md) |
 | [`@dsh-plus/siyuan-tools`](packages/siyuan-tools) | 0.1.0 | tool | 通用 | 思源笔记子插件（仅 siyuan 预设挂载）：能力 1:1 包装为 agent 作用域 DSH 工具，写操作按 DSH 审批策略确认（完全权限自动通过、绝不静默拒绝），写前数据历史快照，`siyuan:env` 环境快照，MCP 优先 CLI 兜底 | [docs](packages/siyuan-tools/docs/README.md) |
 | [`@dsh-plus/tool-text-transform`](packages/tool-text-transform) | 0.1.0 | tool | 通用 | 纯函数演示工具（uppercase / lowercase / reverse / length），插件链路参考实现 | [docs](packages/tool-text-transform/docs/README.md) |
 | [`@dsh-plus/bundle-main`](packages/bundle-main) | 0.1.0 | bundle | 通用 | 聚合编排层：按序 insert 正式插件行，单插件脱离 bundle 亦可独立安装 | — |

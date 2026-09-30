@@ -89,7 +89,7 @@ export const Config = z.object({
     .string()
     .description('预设说明（设置 → Agent 预设卡片描述）')
     .default(
-      '专注操作思源笔记：仅提供从本机 SiYuan 自动派生的工具（MCP × kernel CLI），写操作需确认。',
+      '专注操作思源笔记：仅暴露从本机 SiYuan 自动派生的工具（MCP × kernel CLI），另配 web 检索/提问/待办辅助工具，写操作需确认。',
     ),
   order: z.number().description('预设名册排序位').default(10),
 
@@ -125,6 +125,13 @@ export const Config = z.object({
   allow: z.array(z.string()).description('工具暴露白名单（空 = 全部）').default([]),
   deny: z.array(z.string()).description('工具暴露黑名单（优先于白名单）').default([]),
 
+  auxTools: z
+    .boolean()
+    .description(
+      '挂载辅助工具行（web_search/web_fetch、ask_user_question、todo_write；关闭则思源自带 web_search/web_fetch 恢复暴露，且建议同步用 personaPrefix 覆盖提示词中对应行）',
+    )
+    .default(true),
+
   personaPrefix: z
     .string()
     .description('预设系统提示词（complete 模式整体生效；空 = 内置思源优化版）')
@@ -159,3 +166,22 @@ export const Config = z.object({
 })
 
 export type SiyuanConfig = Schemastery.TypeT<typeof Config>
+
+/**
+ * 暴露过滤的生效黑名单：aux 工具在位且模型可见工具名无前缀时，派生侧的
+ * 思源自带 `web_search`/`web_fetch` 与预设挂载的官方同名工具重名——显式
+ * 让位于官方工具（注册期竞态抛错会腐蚀预设激活），而非依赖注册顺序。
+ * 前缀非空（无重名）或 aux 关闭（未挂官方行）时不注入。
+ * @param config - 主插件配置中判定所需的三个字段。
+ * @returns 合并去重后的 deny 列表。
+ */
+export function effectiveDeny(
+  config: Pick<SiyuanConfig, 'deny' | 'auxTools' | 'namePrefix'>,
+): string[] {
+  const deny = new Set(config.deny)
+  if (config.auxTools === true && config.namePrefix === '') {
+    deny.add('web_search')
+    deny.add('web_fetch')
+  }
+  return [...deny]
+}

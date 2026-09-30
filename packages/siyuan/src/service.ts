@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 
 import { type Context, Service } from '@deepseek-ai/cordis'
-import type { SiyuanConfig } from './config.ts'
+import { effectiveDeny, type SiyuanConfig } from './config.ts'
 import type { ConnectionDeps } from './connection.ts'
 import type { CapabilityEntry, SiyuanManifest, SiyuanStatus } from './contract.ts'
 import { SiyuanMcp } from './mcp.ts'
@@ -112,7 +112,7 @@ export class SiyuanService extends Service {
         cliWorkspace: config.cliWorkspace,
         token: config.token,
         allow: [...config.allow],
-        deny: [...config.deny],
+        deny: effectiveDeny(config),
       },
       deps,
       logger,

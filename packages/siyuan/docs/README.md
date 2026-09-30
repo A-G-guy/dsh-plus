@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-30 12:41"
+last_modified: "2026-09-30 16:53"
 ---
 
 # @dsh-plus/siyuan 文档索引
@@ -34,7 +34,8 @@ last_modified: "2026-09-30 12:41"
  │    │    └─ MCP 失败：CLI 降级 → help 树（家族 + action 级）派生 CLI 原生能力
  │    └─ invoke()    MCP tools/call 优先；连接失联且有 CLI 计划时 docker exec 兜底
  └─ ctx.agentPresets.register(         预设声明（id=siyuan）
-      persona(complete) + siyuan-tools 行（安全/超时/前缀策略下发）)
+      persona(complete) + siyuan-tools 行（安全/超时/前缀策略下发）
+      + auxTools 时的 tool-web / tool-ask-user / tool-todo 三行辅助工具)
         └─ 子插件（预设作用域）→ ctx.tools.register 一个个能力 1:1 的 DSH 工具
 ```
 
@@ -57,9 +58,9 @@ last_modified: "2026-09-30 12:41"
 | 字段 | 值 |
 |---|---|
 | `id` | `siyuan`（注册表身份，不开放覆盖） |
-| `plugins` | 仅两行：`@deepseek-ai/dsh-persona`（`complete: true`）与 `@dsh-plus/siyuan-tools` |
-| 工具目录 | 不挂任何官方工具行（bash/fs/skill/todo/web/subagent/plan/compaction/ask-user 均不挂）→ 只有自动派生的思源能力 |
-| 系统提示词 | 默认见 `src/prompt.ts`：以 DSH 官方提示词为骨架（`{{model}}`/`{{cwd}}` 变量、工具指引位），移除 harness 身份/Web 定向/技能/目标等无关注入，领域内容与安全规则改写自思源官方内置 agent 提示词；`complete: true` 下即完整系统提示词，可用 `personaPrefix` 整体覆盖 |
+| `plugins` | `@deepseek-ai/dsh-persona`（`complete: true`）+ `@dsh-plus/siyuan-tools`；`auxTools`（默认开）时另挂三行**辅助**工具 `tool-web`（web_search/web_fetch）、`tool-ask-user`、`tool-todo` |
+| 工具目录 | 操作面只有自动派生的思源能力（MCP × CLI）：不挂 bash/fs/edit/write/skill/subagent/plan/compaction 等操作类官方行；辅助行均不改动笔记数据，不扩大操作范围 |
+| 系统提示词 | 默认见 `src/prompt.ts`：静态 persona（`complete: true` 下即完整提示词，`personaPrefix` 可整体覆盖）。**不复述工具描述**——动作/参数用法一律以派生描述为唯一权威，提示词只写跨工具领域语义、响应规范、笔记内容书写规范与安全规则；引用的族名×动作由 `tests/prompt.test.ts` 对照记录版 MCP 清单钉住，防过时失效。官方工具提示段（如 `tool:web_search`）在 complete 模式下被丢弃，其指引（web 不可信+引用来源、ask/todo 行为）由 persona 对应行承接 |
 | 运行时上下文 | `includeRuntimeContext: true`（日期/环境/审批策略快照；子插件另注册 `siyuan:env` 快照） |
 
 预设注册沿用 `agent-preset-chat` 先例：惰性 inject `agentPresets`（服务缺席
@@ -91,7 +92,8 @@ last_modified: "2026-09-30 12:41"
 | `cliCommand` | `[]` | native 形态 kernel 命令；空 = 无 CLI 兜底 |
 | `cliWorkspace` | `''` | `kernel -w` 工作区（空 = docker `/siyuan/workspace`，native `~/SiYuan`） |
 | `token` | `''` | 显式 token；空 = 自动发现（支持 `!!js process.env.SIYUAN_TOKEN`） |
-| `allow` / `deny` | `[]` / `[]` | 工具暴露白名单（空=全量）/ 黑名单（优先） |
+| `allow` / `deny` | `[]` / `[]` | 工具暴露白名单（空=全量）/ 黑名单（优先）；生效黑名单见 `effectiveDeny` |
+| `auxTools` | `true` | 挂载辅助行 web_search/web_fetch + ask_user_question + todo_write；开启且 `namePrefix` 为空时，派生侧思源自带 `web_search`/`web_fetch`（Exa 版）被注入 `effectiveDeny` 让位（重名免注册期竞态）——关闭则其恢复暴露，且建议同步用 `personaPrefix` 覆盖提示词中对应行 |
 | `personaPrefix` | `''` | 覆盖系统提示词（空 = 内置思源优化版） |
 | `includeRuntimeContext` | `true` | 运行时上下文快照开关 |
 | `confirmWrites` | `true` | 非读操作经 DSH 审批策略确认（`ask` 弹窗 / `never` 完全权限自动通过） |
@@ -141,15 +143,16 @@ last_modified: "2026-09-30 12:41"
 | 预设激活失败（包缺失） | 名册保留诊断，修复 bundle 重装；现有会话不受影响 |
 | 能力版本漂移 | `list_changed` 订阅重发现 + 整代换新；drift 报告 MCP-only/CLI-only/无兜底 |
 | 单条注册冲突 | 仅丢弃该条并记 error，其余照常 |
+| 派生 web 工具与官方辅助工具重名 | `effectiveDeny` 在暴露过滤阶段即让位（aux 开且无前缀），不进注册期；`namePrefix≠''` 或 `auxTools=false` 时无冲突 |
 | 端点 401（token 轮换） | 每次发现重新解析连接（docker exec 重读 conf） |
 | 审批策略 `never` / 审批服务缺席 | 写操作直接放行（完全权限语义），不产生 `the user rejected tool` 误拒 |
 | 数据历史未启用 / 快照失败 | 默认中止该次写入并给出启用指引；可 `snapshotFailure: 'warn'` 或关 `snapshotBeforeWrite` |
 
 ## 测试与文档
 
-- 单测：`tests/{help,cli-map,connection,definition,prompt,runtime}.test.ts`
-  —— help 解析、双源映射与 argv 构造、连接矩阵、预设组装、提示词不变量、
-  运行时健康/降级/过滤/执行路径/快照（全部离线，fixture = 录制的
-  tools/list 与 cobra help，纯产品元数据）。
+- 单测：`tests/{help,cli-map,connection,config,definition,prompt,runtime}.test.ts`
+  —— help 解析、双源映射与 argv 构造、连接矩阵、生效黑名单、预设组装、
+  提示词不变量（含族名×动作防过时校验）、运行时健康/降级/过滤/执行路径/
+  快照（全部离线，fixture = 录制的 tools/list 与 cobra help，纯产品元数据）。
 - 运行 `python3 scripts/dshctl.py test` 覆盖 lint/typecheck/build/单测。
 - 子插件（工具包装与安全策略）见 [../siyuan-tools/docs/README.md](../siyuan-tools/docs/README.md)。

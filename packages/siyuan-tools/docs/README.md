@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-30 12:41"
+last_modified: "2026-09-30 16:53"
 ---
 
 # @dsh-plus/siyuan-tools 文档索引
@@ -7,6 +7,12 @@ last_modified: "2026-09-30 12:41"
 思源笔记（SiYuan）子插件：**仅被 `siyuan` 预设挂载**，把主插件
 （`@dsh-plus/siyuan`）发现的能力清单 1:1 包装为 **agent 作用域**的 DSH
 工具——预设外完全不可见，不污染其他预设。
+
+> 预设的完整工具目录 = 本插件的思源派生能力 + `auxTools` 时官方挂载的
+> 三行辅助工具（web_search/web_fetch、ask_user_question、todo_write）。
+> 辅助行不经本插件的审批/快照链路（`owned` 不含，交还瀑布，与 standard
+> 预设行为一致）；派生侧自带的 `web_search`/`web_fetch` 在 `auxTools` 开启
+> 且 `namePrefix` 为空时由主插件 `effectiveDeny` 过滤让位（见主插件文档）。
 
 ## 行为
 
@@ -127,7 +133,7 @@ CLI/MCP 定义构造与执行（含入参校验与 beforeWrite 钩子）、换�
 ## 验证（人工，面向生产实例的安全步骤）
 
 1. `dshctl install-prod`（或 `plugin_manager install_bundle`）装入 bundle-main，`/reload` 后在 **设置 → Agent 预设** 出现「思源笔记」；
-2. 新会话选该预设：工具目录 = 思源能力集（无 bash/fs/skill 等）；系统提示词为思源优化版；
+2. 新会话选该预设：工具目录 = 思源能力集 + 辅助三件套（`web_search`/`web_fetch`/`ask_user_question`/`todo_write`），无 bash/fs/edit/write/skill 等操作类工具，且无重复的思源版 web 工具；系统提示词为思源优化版（轨迹视图「系统提示词」可核对）；
 3. 只读验证仅允许元数据调用（如 `system` 的 `version`/`current_time`）；
    **写操作验证一律在 scratch 容器上进行**（`docker run -d -p 127.0.0.1:16806:6806 -v /tmp/siyuan-it:/siyuan/workspace b3log/siyuan:latest`，端点覆盖指向它，结束后删容器与临时目录），禁止用生产工作区做写测试；
 4. 审批行为验证（生产只读结论 + scratch 写结论）：权限模式为「每次询问」时写调用应弹审批窗、拒绝后无副作用；切换**完全权限**（approval=never）后同一写调用应直接执行、无弹窗、无 `the user rejected tool`；

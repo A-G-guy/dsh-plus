@@ -19,9 +19,10 @@ export function resolvePersonaPrefix(config: SiyuanConfig): string {
 /**
  * 由主插件配置拼出预设声明。
  *
- * 只挂 persona 与 siyuan-tools 两行：不挂任何官方工具行（bash/fs/skill/
- * todo/web/subagent/plan/compaction/ask-user 等），预设的工具目录即
- * 自动派生的思源能力集；agent 框架（循环/会话/审批/持久化）在宿主侧。
+ * 操作面只挂 siyuan-tools 一行（思源 MCP/CLI 派生能力）：不挂任何官方
+ * 操作类工具行（bash/fs/edit/write/skill 等），agent 框架（循环/会话/
+ * 审批/持久化）在宿主侧；`auxTools` 时另挂三行**辅助**工具（web 检索、
+ * 结构化提问、待办跟踪）——均不改动笔记数据，不扩大操作范围。
  */
 export function siyuanPresetDefinition(config: SiyuanConfig): PresetDefinition {
   return {
@@ -53,6 +54,21 @@ export function siyuanPresetDefinition(config: SiyuanConfig): PresetDefinition {
           namePrefix: config.namePrefix,
         },
       },
+      ...(config.auxTools
+        ? [
+            {
+              id: 'tool-web',
+              name: '@deepseek-ai/dsh-tool-web',
+              config: { fetch: true, searchTimeoutMs: 60_000 },
+            },
+            { id: 'tool-ask-user', name: '@deepseek-ai/dsh-tool-ask-user' },
+            {
+              id: 'tool-todo',
+              name: '@deepseek-ai/dsh-tool-todo',
+              config: { allowParallelInProgress: true },
+            },
+          ]
+        : []),
     ],
   }
 }
