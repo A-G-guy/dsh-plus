@@ -34,6 +34,20 @@ test('given the styles module, when aggregating, then all layers and the mobile 
   assert.equal(depth, 0, 'CSS 花括号必须配平')
 })
 
+test('given the one-screen root lock, when inspecting base styles, then both document axes are locked on narrow and touch viewports', () => {
+  // 回归：整页可整体上下/左右拖动。根锁必须——
+  // 1) 两轴齐锁且 hidden→clip 兜底（旧内核无 clip 时退 hidden；clip 不生成
+  //    滚动容器保 sticky，并连程序化滚动一起禁掉）；
+  // 2) 媒体并列 pointer:coarse（横屏手机/平板宽度 >767 不匹配窄屏断点）；
+  // 3) 根壳用 dvh（ICB 大于可见视口时 height:100% 会留下整页可拖的余量）。
+  assert.match(mobileFitCss, /@media \(max-width: 767px\), \(pointer: coarse\)/)
+  assert.match(mobileFitCss, /html,\s*body,\s*#root\s*\{[^}]*overflow: hidden;[^}]*overflow: clip/)
+  assert.match(mobileFitCss, /html\s*\{[^}]*height: 100%;[^}]*height: 100dvh/)
+  // 只锁单轴的旧规则不得回归（overflow-x 单轴时 overflow-y 仍按 visible→auto
+  // 映射到视口，纵向整页滚动照样存在）
+  assert.doesNotMatch(mobileFitCss, /overflow-x: clip/)
+})
+
 test('given the layout layer, when inspecting IME float, then transform is gated behind the keyboard attribute', () => {
   // 常驻 transform 会让 composerSeat 成为 fixed 后代的包含块，浮层错位并撑高
   // 滚动区；transform 必须只在键盘弹出（html[data-dsh-ime]）期间挂载

@@ -10,16 +10,34 @@
  * @module @dsh-plus/ui-mobile-fit/styles/base
  */
 
-/** 窄屏基础修复：防横向整页滚动、长串折行、输入框防 iOS 聚焦缩放。 */
+/** 窄屏与触屏基础修复：一屏化根锁（防整页横竖滚动）、长串折行、输入防 iOS 缩放。 */
 export const baseCss = /* css */ `
-@media (max-width: 767px) {
-  /* 防任何子元素撑出横向整页滚动；clip 不生成滚动容器，不影响 sticky */
+/* 一屏化根锁：整页（html/body/#root）横竖都不可拖动，滚动只允许内部容器。
+   触屏媒体并列——横屏手机/平板宽度大于 767px 不匹配窄屏断点，同样必须锁住。 */
+@media (max-width: 767px), (pointer: coarse) {
+  /* 根壳高度取动态视口：height:100% 的基准（ICB）在移动端可能大于可见视口
+     （iOS 地址栏展开时是大视口），整页因此留下可拖动的余量、底部还被压在
+     地址栏后面。dvh 恒等于当前可见视口（配 resizes-content 也随键盘收缩），
+     旧内核不识别该单位时回落到 100%。 */
+  html {
+    height: 100%;
+    height: 100dvh;
+  }
+
+  /* 双轴锁：hidden 兜底不支持 clip 的旧内核（仅禁手动拖动），clip 覆盖其上——
+     clip 不生成滚动容器（不影响 sticky/fixed），且手动与程序化（focus、
+     scrollIntoView 拉动整页）一律滚不动。body/#root 裁掉越界内容后文档无可滚
+     区域，根溢出按规范映射到视口即 hidden，两个方向都拖不动；浮层是
+     position:fixed 不计入文档滚动区，内部 overflow:auto 滚动容器不受影响。 */
   html,
   body,
   #root {
-    overflow-x: clip;
+    overflow: hidden;
+    overflow: clip;
   }
+}
 
+@media (max-width: 767px) {
   /* 长 URL / 无空格串在 markdown 与面包屑内折行（0.1.2-alpha.2 基线 chip 系统为
      nowrap+缩放方案，自带溢出处理，无需此处覆盖） */
   [class*="_markdown"],

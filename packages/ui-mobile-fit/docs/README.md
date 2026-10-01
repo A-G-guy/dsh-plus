@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-09-23 12:00"
+last_modified: "2026-10-01 20:52"
 ---
 
 # @dsh-plus/ui-mobile-fit
@@ -18,16 +18,16 @@ last_modified: "2026-09-23 12:00"
 - style 标签沿用官方 `data-plugin` / `data-plugin-css` 约定，
   `dsh-client-hmr` 据此热更卸载；`ctx.effect` 返回值负责移除标签与事件监听。
 
-## 覆盖内容（`src/styles/`，@media max-width: 767px 为主）
+## 覆盖内容（`src/styles/`，@media max-width: 767px 为主，根锁并列 pointer: coarse）
 
 | 层 | 文件 | 内容 |
 |---|---|---|
-| 基础 | `base.ts` | 防横向整页滚动（overflow-x: clip）、长串折行（代码块例外）、输入框 ≥16px 防 iOS 缩放 |
+| 基础 | `base.ts` | 一屏化根锁（整页两轴不可滚 + 根壳 100dvh，见坑 4）、长串折行（代码块例外）、输入框 ≥16px 防 iOS 缩放 |
 | 布局 | `layout.ts` | 收起态 rail 全隐+展开按钮外移 header、展开态侧栏/详情 drawer 化且内容满宽、composer 随 --dsh-ime-inset 上浮（仅 `html[data-dsh-ime]` 期间挂 transform）、触屏隐藏拖拽手柄 |
 | 会话 | `conversation.ts` | markdown 图片/表格/代码块容器内滚动、工具卡片防溢出、composer 全宽换行、接管卡片（计划待审/提问/审批）footer 换行防按钮裁剪 |
 | 覆盖层 | `overlays.ts` | 对话框/菜单视口内收编、设置面板 nav+content 纵向堆叠（nav 横向滚动）、触屏 Tooltip 气泡自动隐藏 |
 
-### 两个非显而易见的坑（修复记录）
+### 非显而易见的坑（修复记录）
 
 1. **transform 包含块陷阱**：`transform` 取任何非 none 值（含 `translateY(0)`）都会让
    composerSeat 成为 `position:fixed` 后代的包含块。上游 Tooltip 内联渲染在 composer
@@ -45,6 +45,17 @@ last_modified: "2026-09-23 12:00"
    自动淡出动画，终态 `visibility:hidden` 由 forwards 保持；React 每次展示重挂
    span 使动画重启，桌面 hover 路径不受影响。对同用 primitives Tooltip 的
    dsh-plus 自家面板（web-files）一并生效。
+4. **整页可横竖拖动**（应一屏化，仅内部可滚）：三处成因叠加——(a) 旧规则只锁
+   `overflow-x: clip`，`overflow-y` 仍按 visible→auto 映射到视口，纵向整页滚动
+   一直存在；(b) `height:100%` 的基准（ICB）在移动端可能大于可见视口（iOS 地址栏
+   展开时是大视口），留下整页可拖的余量、底部还被压在地址栏后；(c) 断点只认
+   767px，横屏手机/平板宽度超限后整段样式（含锁）全部失效。修复为根锁三件套：
+   `html, body, #root` 双轴 `overflow: hidden`（兜底无 clip 的旧内核）→
+   `overflow: clip`（不生成滚动容器保 sticky/fixed，连程序化 focus/
+   scrollIntoView 拉动整页也禁掉），根壳 `height:100dvh`（恒等于当前可见视口，
+   配 `interactive-widget=resizes-content` 也随键盘收缩），媒体并列
+   `(pointer: coarse)`。根锁只裁文档层：浮层是 `position:fixed` 不计入文档滚动区，
+   内部 `overflow:auto` 容器不受影响；桌面（宽 >767 且细指针）不匹配媒体，零影响。
 
 ## 行为胶水（`src/behaviors.ts`，均限窄屏生效）
 
@@ -98,6 +109,9 @@ node --test packages/ui-mobile-fit/tests/*.test.ts     # 单元测试（纯逻�
 ```
 
 端到端：独立 `DSH_HOME` 的 dev 实例 + playwright 375×812 视口实测，
-核心断言 `documentElement.scrollWidth === innerWidth`、rail 全隐/drawer 化、
-设置面板可完整操作。桌面 1280px 需回归确认零影响。IME 上浮与自动聚焦屏蔽
-依赖触屏环境，playwright 无法完全模拟，需真机抽查。
+核心断言 `documentElement.scrollWidth === innerWidth`、
+`documentElement.scrollHeight === innerHeight`（一屏化：竖屏与横屏各测一次，
+页面任何位置单指拖动都不产生整页位移）、rail 全隐/drawer 化、设置面板可完整
+操作。桌面 1280px 需回归确认零影响。IME 上浮与自动聚焦屏蔽依赖触屏环境，
+playwright 无法完全模拟，需真机抽查（另附真机项：iOS 地址栏展开时底部 composer
+不被压住、键盘弹出 composer 仍上浮可见）。
