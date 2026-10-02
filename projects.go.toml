@@ -1,0 +1,10 @@
+# projects-go 门禁配置：只记录与内置默认的偏差（默认策略始终生效，勿复述默认值）。
+# 门禁清单、触发时机与失败处理见 docs/repo/仓库管理规范.md「提交与门槛」。
+
+[docs]
+# 文档根：仓库文档 + 各插件契约文档（承接原 .md-doc-timestamp.json 的 doc_roots）。
+dirs = ["docs", "packages/*/docs"]
+
+[agents]
+# 关闭人类区结构检查：AGENTS.md 不再要求 [HUMAN]/[/HUMAN] 手写区。
+enabled = false
