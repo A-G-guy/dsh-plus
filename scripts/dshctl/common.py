@@ -1,7 +1,7 @@
 """dshctl 公共层：路径常量、进程/命令工具、dev 环境约定。
 
 本机差异一律外部化，严禁硬编码个人路径：
-- 环境变量优先（DSHCTL_DSH_BIN / DSHCTL_TS_HOOK_REPO / DSHCTL_TOKEN_FILES）；
+- 环境变量优先（DSHCTL_DSH_BIN / DSHCTL_TOKEN_FILES）；
 - 其次可选的 scripts/dshctl/local_config.py（gitignored 的机器本地覆盖，不入库）；
 - 最后通用兜底（PATH 查找）。未配置时相关检查跳过或给出配置提示。
 """
@@ -18,7 +18,7 @@ import sys
 import time
 from pathlib import Path
 
-try:  # 机器本地覆盖（gitignored）：提供 TS_HOOK_REPO / EXTRA_TOKEN_FILES 等
+try:  # 机器本地覆盖（gitignored）：提供 EXTRA_TOKEN_FILES / DSH_BIN 等
     from . import local_config as _local_config
 except ImportError:
     _local_config = None
@@ -53,9 +53,6 @@ MOCK_PORT = 3917
 PROD_WEB_SERVICE = "dsh-web"
 PROXY_SERVICE = "dsh-proxy"
 
-# 外部文档时间戳工具仓库（可选）；None = 未配置，相关检查/安装跳过。
-_ts_hook = os.environ.get("DSHCTL_TS_HOOK_REPO") or _local_value("TS_HOOK_REPO")
-TS_HOOK_REPO: Path | None = Path(_ts_hook) if _ts_hook else None
 # dsh CLI 入口；None = 未找到，调用处在使用时给出配置提示。
 DSH_BIN: Path | None = _resolve_dsh_bin()
 

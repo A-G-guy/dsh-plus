@@ -144,8 +144,9 @@ python3 scripts/dshctl.py test          # 静态检查 + 构建 + 单测
 python3 scripts/dshctl.py dev up        # 起 dev 实例（mock LLM，零费用）
 ```
 
-本机差异经环境变量配置（`DSHCTL_DSH_BIN` / `DSHCTL_TS_HOOK_REPO` /
-`DSHCTL_TOKEN_FILES`），或写入 `scripts/dshctl/local_config.py`（不入库）。
+本机差异经环境变量配置（`DSHCTL_DSH_BIN` / `DSHCTL_TOKEN_FILES`），
+或写入 `scripts/dshctl/local_config.py`（不入库）；git 门禁统一由 projects-go
+钩子承载（`python3 scripts/dshctl.py init-hooks` 安装，每人一次）。
 
 ## 许可证
 

@@ -3,7 +3,7 @@
 
 子命令总览：
   doctor [--release]     环境体检；--release 附加 npm 版本对照
-  init-hooks             部署 pre-commit 链
+  init-hooks             安装 projects-go git 钩子（pre-commit/commit-msg/pre-push）
   new-plugin <名>        脚手架新插件（--type tool/service/persona/ui）
   lint [--write]         biome 静态检查；--write 自动修复
   typecheck [包...]      逐包 tsc --noEmit 类型契约检查（零网络）
