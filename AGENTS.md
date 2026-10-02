@@ -7,7 +7,7 @@ DSH（DeepSeek Harness）增强插件 pnpm monorepo：`packages/*` 各为独立 
 - `packages/<包>/`：`src/` 源码、`tests/` 单测、`docs/` 插件契约；产物 `lib/`（构建生成，不入库）
 - `scripts/dshctl.py`：开发/测试/发版统一入口（下称 `dshctl`），用法见 `python3 scripts/dshctl.py --help`
 - `scripts/dshctl/skills/dsh-dev-mock`：mock 调试与零费用护栏用法
-- [docs/README.md](docs/README.md)：文档索引；插件与架构见[官方文档](https://deepseek-harness.github.io/deepseek-harness/develop/basic/)
+- [docs/INDEX.md](docs/INDEX.md)：文档索引（由 `projects-go index` 生成）；插件与架构见[官方文档](https://deepseek-harness.github.io/deepseek-harness/develop/basic/)
 - [docs/repo/仓库管理规范.md](docs/repo/仓库管理规范.md)：分支/提交/版本/依赖分层/门槛的权威细则
 - [docs/plugin-dev/插件开发指南.md](docs/plugin-dev/插件开发指南.md)：四类插件骨架与 cordis 契约；[docs/repo/adr/](docs/repo/adr/)：架构决策与事故沉淀
 - 本仓无 CI：守门靠 pre-commit 钩子与根脚本；平台包必须 peer 的依赖红线见 [ADR 0001](docs/repo/adr/0001-平台依赖必须-peer.md)
@@ -38,7 +38,7 @@ dshctl dev up   # 起 dev 实例（mock LLM，零费用）
 
 ### 代码结构
 
-- 函数/方法 ≤50 行，类/模块 ≤300 行（设计目标；pre-commit 500 行警告、800 行拦截）。
+- 函数/方法 ≤50 行，类/模块 ≤300 行（设计目标；硬门槛由 projects-go 的 lines 检查承载，数值见 `projects-go help lines`）。
 - 卫语句尽早返回，`if-else` 嵌套 ≤3 层；复杂条件提取为独立函数。
 - 统一 async/await，禁止回调与 Promise 链混用。
 - 环境差异与可调参数必须外部化，严禁硬编码。
@@ -54,13 +54,13 @@ dshctl dev up   # 起 dev 实例（mock LLM，零费用）
 ### 提交
 
 - Conventional Commits：`<type>: <简短描述>`，核心变更以 `- <具体变更>` 列出。
-- 类型仅限：`feat`、`fix`、`docs`、`style`、`refactor`、`test`、`chore`。
+- 类型：`feat`、`fix`、`docs`、`style`、`refactor`、`test`、`chore`，回滚统一用 `revert`；门禁另允许 `perf`/`build`/`ci`。
 
 ### 文档
 
 - 只写长生命周期文档（架构决策、数据字典、核心契约），置于 `docs/` 按模块分目录，中文、UTF-8。
 - 核心代码变更同步更新文档，过时即更新或删除，索引始终反映真实状态。
-- `last_modified` 由预提交脚本自动维护，禁止手动修改。
+- `last_modified` 与 `INDEX.md` 由 projects-go（`doc`/`index` 及 pre-commit 钩子）自动维护，禁止手动修改。
 
 ## 项目特化要求
 
