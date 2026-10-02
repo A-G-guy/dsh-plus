@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-29 15:56"
+description: "@dsh-plus/llm-pi 文档索引"
 ---
 
 # @dsh-plus/llm-pi 文档索引

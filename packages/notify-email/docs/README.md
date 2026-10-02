@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-08-31 15:30"
+description: "@dsh-plus/notify-email"
 ---
 
 # @dsh-plus/notify-email

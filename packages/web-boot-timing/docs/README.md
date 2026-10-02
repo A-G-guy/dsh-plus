@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-25 13:09"
+description: "@dsh-plus/web-boot-timing"
 ---
 
 # @dsh-plus/web-boot-timing

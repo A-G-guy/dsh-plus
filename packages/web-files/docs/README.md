@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-29 15:56"
+description: "@dsh-plus/web-files"
 ---
 
 # @dsh-plus/web-files

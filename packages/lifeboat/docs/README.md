@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-29 15:55"
+description: "@dsh-plus/lifeboat 文档索引"
 ---
 
 # @dsh-plus/lifeboat 文档索引

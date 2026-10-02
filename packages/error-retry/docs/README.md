@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-24 18:29"
+description: "@dsh-plus/error-retry"
 ---
 
 # @dsh-plus/error-retry

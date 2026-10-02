@@ -1,6 +1,6 @@
 ---
 description: "Auto-generated index of this document folder."
-last_modified: "2026-10-02 22:39"
+last_modified: "2026-10-02 22:42"
 ---
 <!-- projects-go:generated -->
 
@@ -9,5 +9,5 @@ last_modified: "2026-10-02 22:39"
 | Document | Description | Last modified |
 | --- | --- | --- |
 | [adr/](adr/) | — | — |
-| [仓库管理规范](仓库管理规范.md) | 仓库管理规范 | 2026-10-01 20:52 |
-| [插件存储规范](插件存储规范.md) | 插件存储规范 | 2026-10-01 20:52 |
+| [仓库管理规范](仓库管理规范.md) | 仓库管理规范 | 2026-10-02 22:40 |
+| [插件存储规范](插件存储规范.md) | 插件存储规范 | 2026-10-02 22:40 |

@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-23 01:06"
+description: "@dsh-plus/web-cache-headers"
 ---
 
 # @dsh-plus/web-cache-headers

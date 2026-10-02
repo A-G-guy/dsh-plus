@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-29 18:54"
+description: "@dsh-plus/agent-preset-chat 文档索引"
 ---
 
 # @dsh-plus/agent-preset-chat 文档索引

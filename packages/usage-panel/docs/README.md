@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-25 20:41"
+description: "@dsh-plus/usage-panel"
 ---
 
 # @dsh-plus/usage-panel

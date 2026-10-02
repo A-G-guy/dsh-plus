@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-23 12:00"
+description: "@dsh-plus/remote-settings"
 ---
 
 # @dsh-plus/remote-settings

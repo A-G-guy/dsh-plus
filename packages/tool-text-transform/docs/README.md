@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-08-17 16:37"
+description: "@dsh-plus/tool-text-transform"
 ---
 
 # @dsh-plus/tool-text-transform

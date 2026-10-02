@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-01 20:52"
+last_modified: "2026-10-02 22:40"
 description: "ADR 0003：搜索 provider 默认 TS 原生，Python 桥接为例外"
 ---
 

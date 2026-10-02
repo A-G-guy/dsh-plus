@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-30 16:53"
+description: "@dsh-plus/siyuan 文档索引"
 ---
 
 # @dsh-plus/siyuan 文档索引

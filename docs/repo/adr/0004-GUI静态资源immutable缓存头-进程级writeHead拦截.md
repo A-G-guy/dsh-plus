@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-01 20:52"
+last_modified: "2026-10-02 22:40"
 description: "ADR 0004：GUI 静态资源 immutable 缓存头走进程级 writeHead 拦截"
 ---
 

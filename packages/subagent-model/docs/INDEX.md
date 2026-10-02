@@ -4,8 +4,8 @@ last_modified: "2026-10-02 22:42"
 ---
 <!-- projects-go:generated -->
 
-# reference
+# docs
 
 | Document | Description | Last modified |
 | --- | --- | --- |
-| [官方机制参照](官方机制参照.md) | 官方机制参照 | 2026-10-02 22:40 |
+| [README](README.md) | @dsh-plus/subagent-model | 2026-09-08 12:36 |

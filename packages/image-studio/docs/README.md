@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-10 19:45"
+description: "@dsh-plus/image-studio"
 ---
 
 # @dsh-plus/image-studio

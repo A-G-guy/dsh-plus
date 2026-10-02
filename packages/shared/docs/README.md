@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-29 12:54"
+description: "@dsh-plus/shared"
 ---
 
 # @dsh-plus/shared

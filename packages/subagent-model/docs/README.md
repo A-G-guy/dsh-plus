@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-08 12:36"
+description: "@dsh-plus/subagent-model"
 ---
 
 # @dsh-plus/subagent-model

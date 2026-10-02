@@ -1,5 +1,6 @@
 ---
 last_modified: "2026-09-29 15:56"
+description: "@dsh-plus/access-gate"
 ---
 
 # @dsh-plus/access-gate
