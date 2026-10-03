@@ -215,6 +215,18 @@ function extraOf(wire: object, known: Set<string>): Record<string, unknown> {
   return out
 }
 
+/**
+ * JSON 文本框值 → extra 映射。
+ * `undefined`（空文本）表示清空为 `{}`；合法但非对象的 JSON（数组/标量/null）
+ * 返回 undefined，调用方据此忽略这次编辑——extra 是「其余 wire 字段」的映射，
+ * 静默丢弃已配置字段比拒绝一次编辑更糟。
+ */
+export function extraOfJson(value: unknown): Record<string, unknown> | undefined {
+  if (value === undefined) return {}
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  return { ...(value as Record<string, unknown>) }
+}
+
 function modelDraftFromWire(model: WireModel): ModelDraft {
   return {
     id: model.id,

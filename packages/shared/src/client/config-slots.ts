@@ -30,6 +30,18 @@ export interface PluginConfigViewProps {
   readonly view?: 'summary' | 'page'
 }
 
+/** 配置卡片外壳形态：`card` 自绘卡片（legacy 列表槽位），`section` 宿主内嵌无边框分节。 */
+export type PluginCardVariant = 'card' | 'section'
+
+/**
+ * 视图 → 外壳形态：插件页 page 视图渲染在官方页面容器内（宿主已画标题、图标、
+ * 面包屑与页面级内边距），再套卡片会形成卡片套卡片并压缩移动端可用宽度，
+ * 故用无边框分节；summary 与 legacy 槽位保持卡片形态。
+ */
+export function cardVariantFor(view: PluginConfigViewProps['view']): PluginCardVariant {
+  return view === 'page' ? 'section' : 'card'
+}
+
 /** injectPluginConfigCard 的一次注册描述。 */
 export interface PluginConfigCardReg {
   /** 卡片编辑的 settings 命名空间（兼作旧槽位 key 与注册 locale NS）。 */

@@ -28,6 +28,9 @@ const ownZh = {
   refreshOk: '目录已拉取。',
   refreshFailed: '拉取失败：',
   advancedGroup: '高级设置（retryPolicy / compat）',
+  extraFields: '其余字段（JSON）',
+  extraFieldsHint:
+    '表单未覆盖的 wire 字段原样往返：如 adapter=deepseek 的 thinking / reasoningEffort、Files API 与图片配额等。对象整体合并进该 route（模型级同 key 覆盖 route 级），非法 JSON 不会提交。',
   providersGroup: 'Provider 路由',
   addRoute: '新增 route',
   addRoutePlaceholder: '新 route 键名（如 my-llm）',
@@ -112,6 +115,9 @@ const ownEn = {
   refreshOk: 'Catalog refreshed.',
   refreshFailed: 'Refresh failed: ',
   advancedGroup: 'Advanced (retryPolicy / compat)',
+  extraFields: 'Other fields (JSON)',
+  extraFieldsHint:
+    'Wire fields the form does not cover, round-tripped verbatim: e.g. thinking / reasoningEffort and the Files API & image quotas for adapter=deepseek. The object merges into this route (model-level keys win); invalid JSON is not submitted.',
   providersGroup: 'Provider routes',
   addRoute: 'Add route',
   addRoutePlaceholder: 'New route key (e.g. my-llm)',

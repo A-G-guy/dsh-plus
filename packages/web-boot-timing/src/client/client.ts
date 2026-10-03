@@ -16,22 +16,40 @@
  *
  * 安全边界：任何采集/输出异常被 try/catch 隔离并带上下文 warn——观测插件
  * 自身故障绝不影响 boot 或 UI。ctx.effect 兜底清理监听器与定时器。
+ *
+ * 同一入口另注册「启动计时观测」配置卡片（injectPluginConfigCard 三槽位）：
+ * 配置行在页面加载阶段注入，卡片改动刷新后生效。
  * 构建产物须为 window.__ModuleLoader__.load({id, factory}) 形式
  * （包装见 tsdown.config.ts 的 banner/footer）。
  * @module @dsh-plus/web-boot-timing/client
  */
 import type { Context } from '@deepseek-ai/cordis'
+import {
+  createNamespaceApi,
+  createSettingsScope,
+  injectPluginConfigCard,
+  type PluginClientContext,
+} from '@dsh-plus/shared/client'
 
-import { TIMING_GLOBAL_KEY } from './ns.ts'
+import { SETTINGS_NS, TIMING_GLOBAL_KEY } from '../ns.ts'
 import {
   type BootReport,
   buildReport,
   formatReport,
   type PhaseMarks,
   type ResourceSample,
-} from './report.ts'
+} from '../report.ts'
+import { BootTimingCard } from './card.tsx'
+import { type DictKey, en, NS, zh } from './i18n.ts'
+import { injectStyle } from './styles.ts'
 
 export const name = 'dsh-plus-web-boot-timing'
+
+/** 浏览器半需要的 cordis 服务 key（观测本体零服务依赖，配置卡片需要这四个）。 */
+export const inject = ['slots', 'locale', 'remote', 'remote.settings'] as const
+
+/** 宿主窄面收编在 @dsh-plus/shared/client；TKey 传入本包 DictKey 使键名受检。 */
+type ClientContext = PluginClientContext<DictKey>
 
 /** 注入的配置行形状（node 半保证 JSON 可序列化）。 */
 interface TimingGlobal {
@@ -181,6 +199,26 @@ function emit(clientApplyMs: number, watchers: Watchers, settleMs: number): void
 }
 
 export function apply(ctx: Context): void {
+  // 配置卡片：locale/样式/scope/api 与观测同入口注册。
+  const c = ctx as unknown as ClientContext
+  const tag = injectStyle()
+  c.effect(
+    () => () => {
+      tag?.remove()
+    },
+    'web-boot-timing: style',
+  )
+  c.effect(() => c.locale.register(NS, { zh, en }), 'web-boot-timing: locale')
+  const scope = createSettingsScope(c, SETTINGS_NS, 'web-boot-timing: settings scope')
+  const api = createNamespaceApi(c.get('remote').settings, SETTINGS_NS)
+  injectPluginConfigCard(c.slots, {
+    ns: SETTINGS_NS,
+    rowId: 'dsh-plus-web-boot-timing',
+    pkg: '@dsh-plus/web-boot-timing',
+    component: BootTimingCard,
+    inject: () => ({ t: c.locale.bind(NS), scope, api }),
+  })
+
   const cfg = readGlobal()
   if (cfg === undefined) return // 配置行缺席 = 插件禁用/宿主无 webServer：零行为
 

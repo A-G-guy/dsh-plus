@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/web-search-services",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "dsh-plus service plugin: web_search 免费后端聚合——经官方 ctx.web provider 扩展点桥接 search-services skill（Tavily/Exa/OpenAI Chat 免费额度，优先级+自动回退+key 配置），官方 web_search 工具与输出格式零修改",
   "type": "module",
   "main": "lib/index.js",
@@ -9,6 +9,9 @@
     ".": {
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
     },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
@@ -19,7 +22,18 @@
     "scripts"
   ],
   "scripts": {
-    "build": "tsdown src/index.ts -d lib --format esm --dts --no-fixed-extension"
+    "build": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-api-remotes"
+      ],
+      "platform": "web"
+    }
   },
   "dependencies": {
     "@dsh-plus/shared": "workspace:*"
@@ -36,7 +50,9 @@
     "@deepseek-ai/dsh-home-paths": "0.2.0-rc.1",
     "@deepseek-ai/dsh-settings": "0.2.0-rc.1",
     "@deepseek-ai/dsh-web": "0.2.0-rc.1",
-    "@deepseek-ai/schemastery": "3.18.4"
+    "@deepseek-ai/schemastery": "3.18.4",
+    "@types/react": "~18.3.31",
+    "react": "^18.2.0"
   },
   "publishConfig": {
     "access": "public"

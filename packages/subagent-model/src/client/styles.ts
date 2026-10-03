@@ -16,9 +16,14 @@ const extraCss = `
 .dsm-banner{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);justify-content:space-between;align-items:center;gap:8px;border-radius:8px;margin-top:12px;padding:7px 8px;font-size:12px;line-height:18px;display:flex}
 .dsm-bannerRetry{color:inherit;font:inherit;cursor:pointer;background:0 0;border:none;flex:none;padding:0;font-weight:600}
 .dsm-empty{color:var(--dsw-alias-label-tertiary);margin:12px 0 0;font-size:12px;line-height:1.5}
+/* 分节形态（插件页 page 视图）：provider 行块改为分隔线分组，去掉第二层内边距，
+   移动端可用宽度不再被卡片与行块两级内边距同时扣减。 */
+.dsm-section .dsm-row{background:0 0;border:0;border-top:1px solid var(--dsw-alias-border-l2);border-radius:0;margin:0;padding:10px 0 2px}
+.dsm-section .dsm-row:first-of-type{border-top:0}
 @media (max-width:767px){
 .dsm-row{padding:2px 8px 8px}
 .dsm-rowHead{flex-wrap:wrap}
+.dsm-section .dsm-row{padding:10px 0 2px}
 }
 `
 

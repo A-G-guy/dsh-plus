@@ -9,8 +9,8 @@ import { CheckRow } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useState } from 'react'
 import { fetchCatalog, type WireModelsDevStatus } from '../api.ts'
 import { MODALITIES, THINKING_LEVELS } from '../constants.ts'
-import { emptyModelDraft, type ModelDraft, type ReasoningDraft } from '../draft.ts'
-import { TextField } from '../fields.tsx'
+import { emptyModelDraft, extraOfJson, type ModelDraft, type ReasoningDraft } from '../draft.ts'
+import { JsonField, TextField } from '../fields.tsx'
 import type { Translate } from '../i18n.ts'
 import { CompatEditor } from './compat.tsx'
 
@@ -260,6 +260,21 @@ export function ModelRow(props: ModelRowProps): ReactElement {
         wide
         t={t}
         onEdit={(compat) => props.onPatch({ compat })}
+      />
+      <JsonField
+        id={`${id}-extra`}
+        label={t('extraFields')}
+        hint={t('extraFieldsHint')}
+        invalidText={t('invalidJson')}
+        value={Object.keys(model.extra).length === 0 ? undefined : model.extra}
+        epoch={props.epoch}
+        disabled={props.disabled === true}
+        wide
+        onEdit={(extra) => {
+          const next = extraOfJson(extra)
+          // 合法但非对象的 JSON（数组/标量）忽略这次编辑，不静默清空已配置字段。
+          if (next !== undefined) props.onPatch({ extra: next })
+        }}
       />
     </div>
   )

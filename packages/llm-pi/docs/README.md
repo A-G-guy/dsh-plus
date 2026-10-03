@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 03:46"
 description: "@dsh-plus/llm-pi 文档索引"
 type: fact
 ---
@@ -78,8 +78,13 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
 - **运行时依赖**：0.1.2-alpha.2 起基线（树内含 `dsh-llm-deepseek`；当前基线
   0.1.6-alpha.2）；旧版 dsh 树下
   deepseek 路由在写入/启动时以明确错误拒绝，pi 路由不受影响（kit 诊断有日志）。
-- 配置卡片暂未提供 deepseek 专有字段的编辑控件，但未知字段会**原样往返保留**
-  （卡片编辑不会丢 `adapter` 等手写字段）；deepseek 路由建议直接编辑 settings.yaml。
+- 配置卡片的 deepseek 专有字段：表单未逐项渲染的 wire 字段（`adapter`/`thinking`/
+  `reasoningEffort`、文件与图片限额组、三个 offload quantum、
+  `filesApiTimeoutMs`/`fileExpiresAfterSeconds`/`fileRefreshMarginSeconds`，以及模型级
+  `imagePixelBudget`/`imageMaxBytes`）经 route/模型「高级设置」里的
+  **其余字段（JSON）**编辑器整体编辑——草稿的 `extra` 原样往返，表单已渲染的字段优先。
+  去掉卡片里的未知字段也不会丢：留空即清空该 route 的 extra。
+  非法 JSON 不提交；合法但非对象（数组/标量）的输入被忽略，避免静默清空已配置字段。
 
 ## 配置项（settings namespace `dsh-plus-llm-pi`）
 

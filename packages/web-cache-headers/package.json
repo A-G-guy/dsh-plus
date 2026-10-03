@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/web-cache-headers",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "dsh-plus service plugin: GUI 静态资源长缓存——为内容哈希的 /assets/* 响应补 `Cache-Control: immutable`（/plugins 官方已自带），消除每次刷新重复传输 ~1.4MB JS/CSS；进程级 writeHead 增量拦截，零路由注册、零 dsh 服务耦合，已有缓存头优先保证未来共存",
   "type": "module",
   "main": "lib/index.js",
@@ -10,6 +10,9 @@
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./client": {
+      "default": "./lib/client.js"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -18,7 +21,18 @@
     "src"
   ],
   "scripts": {
-    "build": "tsdown src/index.ts -d lib --format esm --dts --no-fixed-extension"
+    "build": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-api-remotes"
+      ],
+      "platform": "web"
+    }
   },
   "dependencies": {
     "@dsh-plus/shared": "workspace:*"
@@ -31,7 +45,9 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
     "@deepseek-ai/dsh-settings": "0.2.0-rc.1",
-    "@deepseek-ai/schemastery": "3.18.4"
+    "@deepseek-ai/schemastery": "3.18.4",
+    "@types/react": "~18.3.31",
+    "react": "^18.2.0"
   },
   "publishConfig": {
     "access": "public"

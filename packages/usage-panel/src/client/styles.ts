@@ -93,9 +93,12 @@ const cardExtra = `
 .dup-mini{display:flex;flex-direction:column;gap:4px;min-width:0}
 .dup-mini span{color:var(--dsw-alias-label-tertiary);font-size:11px}
 .dup-in{width:100%;box-sizing:border-box;height:30px;padding:0 10px;font-size:12px}
+/* 分节形态（插件页 page 视图）：价目行改为分隔线分组，去掉第二层内边距 */
+.dup-section .dup-priceRow{background:0 0;border:0;border-top:1px solid var(--dsw-alias-border-l2);border-radius:0;margin:0;padding:10px 0 2px}
 @media (max-width:767px){
 .dup-priceGrid{grid-template-columns:1fr}
 .dup-in{font-size:16px;height:40px}
+.dup-section .dup-priceRow{padding:10px 0 2px}
 }
 `
 

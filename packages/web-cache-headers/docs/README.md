@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 03:46"
 description: "@dsh-plus/web-cache-headers"
 type: fact
 ---
@@ -39,6 +39,10 @@ dsh 前端 dist 由 `dsh-host-frontend-static` 经 webserver fallback 服务，�
 
 `enabled: false` 即时卸下补丁，响应头恢复 dsh 原生行为。
 `NODE_ENV=development` 恒禁用（保护 dev/HMR 的 same-URL 热更新语义）。
+
+插件页「配置」入口提供同名卡片（`src/client/`，三槽位注册）：一个 `enabled`
+开关，并把作用范围（`/assets/*` 之内与之外）与 development 恒禁用写在卡片上——
+这些边界没有对应配置项，只能靠说明传达。
 
 ## 明确不做
 

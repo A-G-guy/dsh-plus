@@ -8,13 +8,15 @@
  */
 
 import {
+  type CardAction,
   CardChrome,
+  CardLoading,
   type CardStatusState,
+  cardVariantFor,
   IDLE_STATUS,
   type NamespaceSettingsApi,
   type PluginConfigViewProps,
   type Scope,
-  TextField,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
@@ -25,6 +27,8 @@ import {
   type UsageCatalogStateWithPrices,
 } from './api.ts'
 import type { Translate } from './i18n.ts'
+import { PriceGlobalFields, PriceHints } from './price-fields.tsx'
+import { PriceRowEditor } from './price-rows.tsx'
 
 export interface CardProps extends PluginConfigViewProps {
   t: Translate
@@ -32,7 +36,12 @@ export interface CardProps extends PluginConfigViewProps {
   api: NamespaceSettingsApi
 }
 
-interface ConfigValue {
+/**
+ * settings 命名空间的解析值。
+ * 用类型别名而非 interface：别名带隐式索引签名，可直接交给
+ * `NamespaceSettingsApi.update`（形参为 Record<string, unknown>）。
+ */
+type ConfigValue = {
   prices: Array<{
     provider: string
     model: string
@@ -43,15 +52,191 @@ interface ConfigValue {
   }>
   currency: string
   catalogProxy: string
+  /** 历史会话自动增量同步间隔（分钟，0 = 仅启动时同步一次）。 */
+  autoSyncMinutes: number
+  /** models.dev 目录自动刷新间隔（小时，0 = 仅启动时拉取一次）。 */
+  catalogRefreshHours: number
 }
 
-function num(text: string): number {
-  const value = Number(text)
-  return Number.isFinite(value) && value >= 0 ? value : 0
+/** 编辑草稿：价目与字符串字段原样保留，数值字段以文本承载（保存时校验并折算）。 */
+interface Draft {
+  prices: ConfigValue['prices']
+  currency: string
+  catalogProxy: string
+  autoSyncMinutes: string
+  catalogRefreshHours: string
+}
+
+function draftFrom(value: ConfigValue): Draft {
+  return {
+    prices: structuredClone(value.prices),
+    currency: value.currency,
+    catalogProxy: value.catalogProxy,
+    autoSyncMinutes: String(value.autoSyncMinutes),
+    catalogRefreshHours: String(value.catalogRefreshHours),
+  }
+}
+
+/** 草稿 → 提交形状：数值字段已由 invalid 校验保证为合法非负整数。 */
+function toPatch(draft: Draft): ConfigValue {
+  return {
+    prices: draft.prices,
+    currency: draft.currency,
+    catalogProxy: draft.catalogProxy,
+    autoSyncMinutes: Number(draft.autoSyncMinutes),
+    catalogRefreshHours: Number(draft.catalogRefreshHours),
+  }
 }
 
 function numTextOk(text: string): boolean {
   return /^\d+(\.\d+)?$/.test(text.trim())
+}
+
+/** 非负整数文本（间隔类字段：不接受小数）。 */
+function intTextOk(text: string): boolean {
+  return /^\d+$/.test(text.trim())
+}
+
+/** 价目存储状态（导入文件条数/生效条数）：徽标与导入提示用；summary 视图不取。 */
+function usePricesState(view: PluginConfigViewProps['view']): {
+  prices: UsageCatalogStateWithPrices['prices'] | null
+  setPrices(next: UsageCatalogStateWithPrices['prices']): void
+} {
+  const [pricesState, setPricesState] = useState<UsageCatalogStateWithPrices['prices'] | null>(null)
+  useEffect(() => {
+    if (view === 'summary') return
+    let alive = true
+    fetchCatalogState()
+      .then((state) => {
+        if (alive) setPricesState(state.prices)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [view])
+  return { prices: pricesState, setPrices: setPricesState }
+}
+
+/** 导入流程：触发 host 后台刷新 → 轮询目录状态（refreshing 结束）→ 缓存文档折算导入。 */
+function runImport(
+  t: Translate,
+  onPrices: (prices: UsageCatalogStateWithPrices['prices']) => void,
+  onStatus: (status: CardStatusState) => void,
+  onSettled: () => void,
+): void {
+  refreshCatalog()
+    .catch(() => {})
+    .then(() => fetchCatalogState())
+    .then((state) => {
+      if (!state.refreshing) return state
+      const deadline = Date.now() + 60_000
+      const poll = (): Promise<typeof state> =>
+        new Promise((resolve) => setTimeout(resolve, 1500))
+          .then(fetchCatalogState)
+          .then((next) => (next.refreshing && Date.now() < deadline ? poll() : next))
+      return poll()
+    })
+    .then(() => importPricesFromModelsDev())
+    .then(({ imported, prices }) => {
+      // 导入只写独立存储（不碰行级 config）：不重置 draft，避免冲掉未保存的手工编辑。
+      onPrices(prices)
+      onStatus({ kind: 'ok', text: t('importOk').replace('{n}', String(imported)) })
+    })
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error)
+      onStatus({ kind: 'error', text: `${t('importFailed')}${message}` })
+    })
+    .finally(onSettled)
+}
+
+/** 卡片动作：导入参考价、添加手工条目、放弃、保存。 */
+function cardActions(options: {
+  t: Translate
+  dirty: boolean
+  invalid: boolean
+  saving: boolean
+  importing: boolean
+  disabled: boolean
+  onImport(): void
+  onAdd(): void
+  onDiscard(): void
+  onSave(): void
+}): CardAction[] {
+  const { t } = options
+  return [
+    {
+      key: 'import',
+      label: t(options.importing ? 'importing' : 'importBtn'),
+      disabled: options.disabled || options.importing,
+      onClick: options.onImport,
+    },
+    { key: 'add', label: t('addPrice'), disabled: options.disabled, onClick: options.onAdd },
+    {
+      key: 'discard',
+      label: t('discard'),
+      disabled: !options.dirty || options.saving,
+      onClick: options.onDiscard,
+    },
+    {
+      key: 'save',
+      label: t(options.saving ? 'saving' : 'save'),
+      variant: 'primary',
+      disabled: !options.dirty || options.invalid || options.saving || options.disabled,
+      onClick: options.onSave,
+    },
+  ]
+}
+
+/** 保存：整段价目 + 全局字段一次提交（revision fencing），成功后重新装载 Host 值。 */
+function saveDraft(options: {
+  t: Translate
+  scope: Scope
+  api: NamespaceSettingsApi
+  patch: Record<string, unknown>
+  onSaved(): void
+  onStatus(status: CardStatusState): void
+  onSettled(): void
+}): void {
+  const revision = options.scope.getSnapshot().revision
+  options.api
+    .update(options.patch, revision)
+    .then(async () => {
+      await options.scope.load()
+      options.onSaved()
+      options.onStatus(IDLE_STATUS)
+    })
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error)
+      options.onStatus({ kind: 'error', text: `${options.t('saveFailed')}${message}` })
+    })
+    .finally(options.onSettled)
+}
+
+/** 价目行的 React key：草稿行无稳定 id，行序即身份（增删经整体回写）。 */
+function priceRowKey(index: number): string {
+  return `price-${index}`
+}
+
+/** 空白手工价目：行序即身份，保存时整体回写。 */
+function emptyPrice(): ConfigValue['prices'][number] {
+  return {
+    provider: '',
+    model: '',
+    inputPerMtok: 0,
+    outputPerMtok: 0,
+    cacheReadPerMtok: 0,
+    cacheWritePerMtok: 0,
+  }
+}
+
+/** 改写第 index 行价目（返回新草稿，不改入参）。 */
+function editPrice(
+  draft: Draft,
+  index: number,
+  patch: Partial<ConfigValue['prices'][number]>,
+): Draft {
+  return { ...draft, prices: draft.prices.map((p, i) => (i === index ? { ...p, ...patch } : p)) }
 }
 
 export function UsagePriceCard(props: CardProps): ReactElement | string | null {
@@ -63,37 +248,29 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
   const value = snapshot.value as ConfigValue | undefined
   // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
   const [open, setOpen] = useState(props.view === 'page')
-  const [draft, setDraft] = useState<ConfigValue | null>(null)
+  const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState(false)
   const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
-  // 价目存储状态（导入文件条数/生效条数）：徽标与导入提示用；summary 视图不需要。
-  const [pricesState, setPricesState] = useState<UsageCatalogStateWithPrices['prices'] | null>(null)
+  const { prices: pricesState, setPrices } = usePricesState(props.view)
 
   useEffect(() => {
-    if (value !== undefined && draft === null) setDraft(structuredClone(value))
+    if (value !== undefined && draft === null) setDraft(draftFrom(value))
   }, [value, draft])
 
-  useEffect(() => {
-    if (props.view === 'summary') return
-    let alive = true
-    fetchCatalogState()
-      .then((state) => {
-        if (alive) setPricesState(state.prices)
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [props.view])
-
   const dirty = useMemo(
-    () => value !== undefined && draft !== null && JSON.stringify(draft) !== JSON.stringify(value),
+    () =>
+      value !== undefined &&
+      draft !== null &&
+      JSON.stringify(toPatch(draft)) !== JSON.stringify(toPatch(draftFrom(value))),
     [value, draft],
   )
   const invalid = useMemo(
     () =>
-      draft?.prices.some(
+      draft === null ||
+      !intTextOk(draft.autoSyncMinutes) ||
+      !intTextOk(draft.catalogRefreshHours) ||
+      draft.prices.some(
         (p) =>
           p.provider.trim() === '' ||
           p.model.trim() === '' ||
@@ -106,67 +283,29 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
   // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
   if (props.view === 'summary') return t('cardSummary')
 
+  // 插件页 page 视图内嵌宿主页面容器（已带页面级内边距与标题），用无边框分节。
+  const variant = cardVariantFor(props.view)
+
   if (value === undefined || draft === null) {
-    return (
-      <li className="dup-card">
-        <p className="dup-loading">{t('loading')}</p>
-      </li>
-    )
+    return <CardLoading prefix="dup" variant={variant} text={t('loading')} />
   }
 
   const onSave = (): void => {
     setSaving(true)
-    const revision = scope.getSnapshot().revision
-    api
-      .update(
-        { prices: draft.prices, currency: draft.currency, catalogProxy: draft.catalogProxy },
-        revision,
-      )
-      .then(async () => {
-        await scope.load()
-        setStatus(IDLE_STATUS)
-      })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error)
-        setStatus({ kind: 'error', text: `${t('saveFailed')}${message}` })
-      })
-      .finally(() => setSaving(false))
+    saveDraft({
+      t,
+      scope,
+      api,
+      patch: toPatch(draft),
+      onSaved: () => {},
+      onStatus: setStatus,
+      onSettled: () => setSaving(false),
+    })
   }
 
-  /** 导入流程：触发 host 后台刷新 → 轮询目录状态（refreshing 结束）→ 缓存文档折算导入。 */
   const onImport = (): void => {
     setImporting(true)
-    refreshCatalog()
-      .catch(() => {})
-      .then(() => fetchCatalogState())
-      .then((state) => {
-        if (!state.refreshing) return state
-        const deadline = Date.now() + 60_000
-        const poll = (): Promise<typeof state> =>
-          new Promise((resolve) => setTimeout(resolve, 1500))
-            .then(fetchCatalogState)
-            .then((next) => (next.refreshing && Date.now() < deadline ? poll() : next))
-        return poll()
-      })
-      .then(() => importPricesFromModelsDev())
-      .then(({ imported, prices }) => {
-        // 导入只写独立存储（不碰行级 config）：不重置 draft，避免冲掉未保存的手工编辑。
-        setPricesState(prices)
-        setStatus({ kind: 'ok', text: t('importOk').replace('{n}', String(imported)) })
-      })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error)
-        setStatus({ kind: 'error', text: `${t('importFailed')}${message}` })
-      })
-      .finally(() => setImporting(false))
-  }
-
-  const editPrice = (index: number, patch: Partial<ConfigValue['prices'][number]>): void => {
-    setDraft({
-      ...draft,
-      prices: draft.prices.map((p, i) => (i === index ? { ...p, ...patch } : p)),
-    })
-    setStatus(IDLE_STATUS)
+    runImport(t, setPrices, setStatus, () => setImporting(false))
   }
 
   const disabled = !snapshot.writable
@@ -179,6 +318,7 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
       description={t('cardDescription')}
       open={open}
       onToggle={setOpen}
+      variant={variant}
       statusBadge={{
         text: t(priced > 0 ? 'enabledOn' : 'enabledOff'),
         on: priced > 0,
@@ -187,158 +327,53 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
       dirtyLabel={t('unsaved')}
       readOnlyNotice={disabled ? t('readOnly') : undefined}
       status={status}
-      actions={[
-        {
-          key: 'import',
-          label: t(importing ? 'importing' : 'importBtn'),
-          disabled: disabled || importing,
-          onClick: onImport,
+      actions={cardActions({
+        t,
+        dirty,
+        invalid,
+        saving,
+        importing,
+        disabled,
+        onImport,
+        onAdd: () => {
+          setDraft({ ...draft, prices: [...draft.prices, emptyPrice()] })
+          setStatus(IDLE_STATUS)
         },
-        {
-          key: 'add',
-          label: t('addPrice'),
-          disabled,
-          onClick: () => {
-            setDraft({
-              ...draft,
-              prices: [
-                ...draft.prices,
-                {
-                  provider: '',
-                  model: '',
-                  inputPerMtok: 0,
-                  outputPerMtok: 0,
-                  cacheReadPerMtok: 0,
-                  cacheWritePerMtok: 0,
-                },
-              ],
-            })
-            setStatus(IDLE_STATUS)
-          },
+        onDiscard: () => {
+          setDraft(draftFrom(value))
+          setStatus(IDLE_STATUS)
         },
-        {
-          key: 'discard',
-          label: t('discard'),
-          disabled: !dirty || saving,
-          onClick: () => {
-            setDraft(structuredClone(value))
-            setStatus(IDLE_STATUS)
-          },
-        },
-        {
-          key: 'save',
-          label: t(saving ? 'saving' : 'save'),
-          variant: 'primary',
-          disabled: !dirty || invalid || saving || disabled,
-          onClick: onSave,
-        },
-      ]}
+        onSave,
+      })}
     >
-      <TextField
-        prefix="dup"
-        id="dup-currency"
-        label={t('currency')}
-        value={draft.currency}
+      <PriceGlobalFields
+        t={t}
+        draft={draft}
         disabled={disabled}
-        onEdit={(v) => setDraft({ ...draft, currency: v })}
+        onEdit={(patch) => setDraft({ ...draft, ...patch })}
       />
-      <TextField
-        prefix="dup"
-        id="dup-proxy"
-        label={t('catalogProxyLabel')}
-        hint={t('catalogProxyHint')}
-        value={draft.catalogProxy}
-        disabled={disabled}
-        onEdit={(v) => setDraft({ ...draft, catalogProxy: v })}
+      <PriceHints
+        t={t}
+        importedCount={pricesState?.importedCount ?? 0}
+        hasStoredState={pricesState !== null}
+        manualCount={draft.prices.length}
       />
-      {pricesState !== null && pricesState.importedCount > 0 ? (
-        <p className="dup-empty">
-          {t('importedPrices').replace('{n}', String(pricesState.importedCount))}
-        </p>
-      ) : null}
-      {draft.prices.length === 0 && (pricesState === null || pricesState.importedCount === 0) ? (
-        <p className="dup-empty">{t('priceHint')}</p>
-      ) : null}
       {draft.prices.map((price, index) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: 价目草稿行无稳定 id，行序即身份（增删经整体回写）
-        <div className="dup-priceRow" key={`price-${index}`}>
-          <div className="dup-priceHead">
-            <span className="dup-priceTitle">
-              {price.provider}/{price.model}
-            </span>
-            <button
-              type="button"
-              className="dup-btn dup-btnGhost dup-btnSmall"
-              disabled={disabled}
-              onClick={() => {
-                setDraft({ ...draft, prices: draft.prices.filter((_, i) => i !== index) })
-                setStatus(IDLE_STATUS)
-              }}
-            >
-              {t('removePrice')}
-            </button>
-          </div>
-          <div className="dup-priceGrid">
-            <label className="dup-mini">
-              <span>{t('provider')}</span>
-              <input
-                className="dup-input dup-in"
-                value={price.provider}
-                disabled={disabled}
-                onChange={(e) => editPrice(index, { provider: e.target.value })}
-              />
-            </label>
-            <label className="dup-mini">
-              <span>{t('model')}</span>
-              <input
-                className="dup-input dup-in"
-                value={price.model}
-                disabled={disabled}
-                onChange={(e) => editPrice(index, { model: e.target.value })}
-              />
-            </label>
-            <label className="dup-mini">
-              <span>{t('inputPrice')}</span>
-              <input
-                className="dup-input dup-in"
-                inputMode="decimal"
-                value={String(price.inputPerMtok)}
-                disabled={disabled}
-                onChange={(e) => editPrice(index, { inputPerMtok: num(e.target.value) })}
-              />
-            </label>
-            <label className="dup-mini">
-              <span>{t('outputPrice')}</span>
-              <input
-                className="dup-input dup-in"
-                inputMode="decimal"
-                value={String(price.outputPerMtok)}
-                disabled={disabled}
-                onChange={(e) => editPrice(index, { outputPerMtok: num(e.target.value) })}
-              />
-            </label>
-            <label className="dup-mini">
-              <span>{t('cacheReadPrice')}</span>
-              <input
-                className="dup-input dup-in"
-                inputMode="decimal"
-                value={String(price.cacheReadPerMtok)}
-                disabled={disabled}
-                onChange={(e) => editPrice(index, { cacheReadPerMtok: num(e.target.value) })}
-              />
-            </label>
-            <label className="dup-mini">
-              <span>{t('cacheWritePrice')}</span>
-              <input
-                className="dup-input dup-in"
-                inputMode="decimal"
-                value={String(price.cacheWritePerMtok)}
-                disabled={disabled}
-                onChange={(e) => editPrice(index, { cacheWritePerMtok: num(e.target.value) })}
-              />
-            </label>
-          </div>
-        </div>
+        <PriceRowEditor
+          // 价目草稿行无稳定 id：行序即身份（增删经整体回写，重排不保留行内状态）
+          key={priceRowKey(index)}
+          price={price}
+          disabled={disabled}
+          t={t}
+          onEdit={(patch) => {
+            setDraft(editPrice(draft, index, patch))
+            setStatus(IDLE_STATUS)
+          }}
+          onRemove={() => {
+            setDraft({ ...draft, prices: draft.prices.filter((_, i) => i !== index) })
+            setStatus(IDLE_STATUS)
+          }}
+        />
       ))}
     </CardChrome>
   )

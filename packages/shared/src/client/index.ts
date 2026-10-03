@@ -10,15 +10,24 @@ export {
   type CardAction,
   CardChrome,
   type CardChromeProps,
+  CardLoading,
   type CardStatusState,
+  type CardVariant,
   IDLE_STATUS,
 } from './card.tsx'
 export {
+  cardVariantFor,
   DSH_PLUS_BUNDLE,
   injectPluginConfigCard,
+  type PluginCardVariant,
   type PluginConfigCardReg,
   type PluginConfigViewProps,
 } from './config-slots.ts'
+export {
+  type NamespaceDraft,
+  type UseNamespaceDraftOptions,
+  useNamespaceDraft,
+} from './draft.ts'
 export { getJson, postJson } from './fetch.ts'
 export { CheckRow, SelectField, type SelectOption, TextField } from './fields.tsx'
 export { type CommonDictKey, commonEn, commonZh, type Dict, mergeDict } from './i18n.ts'

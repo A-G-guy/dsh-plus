@@ -10,14 +10,15 @@
  */
 
 import {
+  type CardAction,
   CardChrome,
+  CardLoading,
   type CardStatusState,
-  CheckRow,
+  cardVariantFor,
   IDLE_STATUS,
   type NamespaceSettingsApi,
   type PluginConfigViewProps,
   type Scope,
-  TextField,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { type ConfigValue, fetchCatalog, refreshCatalog, type WireModelsDevStatus } from './api.ts'
@@ -31,6 +32,7 @@ import {
   toPatch,
 } from './draft.ts'
 import type { Translate } from './i18n.ts'
+import { RootFields } from './root-fields.tsx'
 import { ProvidersSection } from './views/providers.tsx'
 
 export interface CardProps extends PluginConfigViewProps {
@@ -39,38 +41,14 @@ export interface CardProps extends PluginConfigViewProps {
   api: NamespaceSettingsApi
 }
 
-function modelsDevText(status: WireModelsDevStatus | null, t: Translate): string {
-  if (status === null) return t('modelsDevEmpty')
-  if (status.error !== null) return `${t('modelsDevError')}${status.error}`
-  if (status.fetchedAt === null) return t('modelsDevEmpty')
-  return `${t('modelsDevStatusLine')}：${status.providers} 个 provider，快照 ${status.fetchedAt}`
-}
-
-export function LlmPiCard(props: CardProps): ReactElement | string | null {
-  const { t, scope, api } = props
-  const snapshot = useSyncExternalStore(
-    (listener: () => void) => scope.subscribe(listener),
-    () => scope.getSnapshot(),
-  )
-  const value = snapshot.value as ConfigValue | undefined
-  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
-  const [open, setOpen] = useState(props.view === 'page')
-  const [draft, setDraft] = useState<Draft | null>(null)
-  const [epoch, setEpoch] = useState(0)
+/** 运行期诊断行数据来源：模型目录端点（compat 字段表同批安装）。 */
+function useRuntimeDiagnostics(): {
+  kitSource: string | null
+  modelsDevStatus: WireModelsDevStatus | null
+  setModelsDevStatus(next: WireModelsDevStatus): void
+} {
   const [kitSource, setKitSource] = useState<string | null>(null)
   const [modelsDevStatus, setModelsDevStatus] = useState<WireModelsDevStatus | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
-  const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
-
-  // 首次拿到解析值后播种草稿；后续 Host 更新不覆盖在途编辑（与官方 staged 表单一致）。
-  useEffect(() => {
-    if (value === undefined || draft !== null) return
-    setDraft(draftFromValue(value))
-  }, [value, draft])
-
-  // 运行期诊断行（kitSource / models-dev 状态）来自模型目录端点，非配置数据。
-  // compat 字段表同批下发：安装后 UI 渲染与服务端校验同源（不再手抄镜像表）。
   useEffect(() => {
     let alive = true
     fetchCatalog('', 'models-dev')
@@ -85,6 +63,82 @@ export function LlmPiCard(props: CardProps): ReactElement | string | null {
       alive = false
     }
   }, [])
+  return { kitSource, modelsDevStatus, setModelsDevStatus }
+}
+
+/** 路由级草稿改写：改字段 / 新增 route / 删除 route（返回新草稿，不改入参）。 */
+function withProviderPatch(draft: Draft, route: string, patch: Partial<ProviderDraft>): Draft {
+  const current = draft.providers[route] ?? emptyProviderDraft()
+  return { ...draft, providers: { ...draft.providers, [route]: { ...current, ...patch } } }
+}
+
+function withNewRoute(draft: Draft, key: string): Draft {
+  return { ...draft, providers: { ...draft.providers, [key]: emptyProviderDraft() } }
+}
+
+function withoutRoute(draft: Draft, route: string): Draft {
+  const next = { ...draft.providers }
+  delete next[route]
+  return { ...draft, providers: next }
+}
+
+/** 卡片动作：手动拉取目录、放弃、保存。 */
+function cardActions(options: {
+  t: Translate
+  dirty: boolean
+  invalid: boolean
+  saving: boolean
+  refreshing: boolean
+  disabled: boolean
+  onRefresh(): void
+  onDiscard(): void
+  onSave(): void
+}): CardAction[] {
+  const { t } = options
+  return [
+    {
+      key: 'refresh',
+      label: t(options.refreshing ? 'refreshingCatalog' : 'refreshCatalog'),
+      disabled: options.disabled || options.refreshing,
+      onClick: options.onRefresh,
+    },
+    {
+      key: 'discard',
+      label: t('discard'),
+      disabled: !options.dirty || options.saving,
+      onClick: options.onDiscard,
+    },
+    {
+      key: 'save',
+      label: t(options.saving ? 'saving' : 'save'),
+      variant: 'primary',
+      disabled: !options.dirty || options.invalid || options.saving || options.disabled,
+      onClick: options.onSave,
+    },
+  ]
+}
+
+export function LlmPiCard(props: CardProps): ReactElement | string | null {
+  const { t, scope, api } = props
+  const snapshot = useSyncExternalStore(
+    (listener: () => void) => scope.subscribe(listener),
+    () => scope.getSnapshot(),
+  )
+  const value = snapshot.value as ConfigValue | undefined
+  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
+  const [open, setOpen] = useState(props.view === 'page')
+  const [draft, setDraft] = useState<Draft | null>(null)
+  const [epoch, setEpoch] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
+  const { kitSource, modelsDevStatus, setModelsDevStatus } = useRuntimeDiagnostics()
+
+  // 首次拿到解析值后播种草稿；后续 Host 更新不覆盖在途编辑（与官方 staged 表单一致）。
+  useEffect(() => {
+    if (value === undefined || draft !== null) return
+    setDraft(draftFromValue(value))
+  }, [value, draft])
 
   const dirty = useMemo(
     () =>
@@ -106,33 +160,23 @@ export function LlmPiCard(props: CardProps): ReactElement | string | null {
   // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
   if (props.view === 'summary') return t('summaryLine')
 
+  // 插件页 page 视图内嵌宿主页面容器（已带页面级内边距与标题），用无边框分节。
+  const variant = cardVariantFor(props.view)
+
   if (value === undefined || draft === null) {
-    return (
-      <li className="lpc-card">
-        <p className="lpc-readOnly">{t('loading')}</p>
-      </li>
-    )
+    return <CardLoading prefix="lpc" variant={variant} text={t('loading')} />
   }
 
   const setProvider = (route: string, patch: Partial<ProviderDraft>): void => {
-    const current = draft.providers[route] ?? emptyProviderDraft()
-    setDraft({
-      ...draft,
-      providers: { ...draft.providers, [route]: { ...current, ...patch } },
-    })
+    setDraft(withProviderPatch(draft, route, patch))
     setStatus(IDLE_STATUS)
   }
   const onAddRoute = (key: string): void => {
-    setDraft({
-      ...draft,
-      providers: { ...draft.providers, [key]: emptyProviderDraft() },
-    })
+    setDraft(withNewRoute(draft, key))
     setStatus(IDLE_STATUS)
   }
   const onRemoveRoute = (route: string): void => {
-    const next = { ...draft.providers }
-    delete next[route]
-    setDraft({ ...draft, providers: next })
+    setDraft(withoutRoute(draft, route))
     setStatus(IDLE_STATUS)
   }
   const onSave = (): void => {
@@ -180,91 +224,35 @@ export function LlmPiCard(props: CardProps): ReactElement | string | null {
       description={t('description')}
       open={open}
       onToggle={setOpen}
+      variant={variant}
       statusBadge={{ text: t(draft.enabled ? 'enabledOn' : 'enabledOff'), on: draft.enabled }}
       dirty={dirty}
       dirtyLabel={t('unsaved')}
       readOnlyNotice={disabled ? t('readOnly') : undefined}
       status={status}
-      actions={[
-        {
-          key: 'refresh',
-          label: t(refreshing ? 'refreshingCatalog' : 'refreshCatalog'),
-          disabled: disabled || refreshing,
-          onClick: onRefreshCatalog,
-        },
-        {
-          key: 'discard',
-          label: t('discard'),
-          disabled: !dirty || saving,
-          onClick: onDiscard,
-        },
-        {
-          key: 'save',
-          label: t(saving ? 'saving' : 'save'),
-          variant: 'primary',
-          disabled: !dirty || invalid || saving || disabled,
-          onClick: onSave,
-        },
-      ]}
+      actions={cardActions({
+        t,
+        dirty,
+        invalid,
+        saving,
+        refreshing,
+        disabled,
+        onRefresh: onRefreshCatalog,
+        onDiscard,
+        onSave,
+      })}
     >
-      <CheckRow
-        prefix="lpc"
-        id="lpc-enabled"
-        label={t('enabled')}
-        checked={draft.enabled}
+      <RootFields
+        t={t}
+        draft={draft}
         disabled={disabled}
-        onEdit={(value) => {
-          setDraft({ ...draft, enabled: value })
+        kitSource={kitSource}
+        modelsDevStatus={modelsDevStatus}
+        onEdit={(patch) => {
+          setDraft({ ...draft, ...patch })
           setStatus(IDLE_STATUS)
         }}
       />
-      <TextField
-        prefix="lpc"
-        id="lpc-catalogUrl"
-        label={t('catalogUrl')}
-        hint={t('catalogUrlHint')}
-        value={draft.catalogUrl}
-        disabled={disabled}
-        onEdit={(value) => {
-          setDraft({ ...draft, catalogUrl: value })
-          setStatus(IDLE_STATUS)
-        }}
-      />
-      <TextField
-        prefix="lpc"
-        id="lpc-catalogRefresh"
-        label={t('catalogRefreshHours')}
-        hint={t('catalogRefreshHoursHint')}
-        value={draft.catalogRefreshHours}
-        numeric
-        disabled={disabled}
-        invalid={!numTextOk(draft.catalogRefreshHours)}
-        invalidLabel={t('invalidNumber')}
-        onEdit={(value) => {
-          setDraft({ ...draft, catalogRefreshHours: value })
-          setStatus(IDLE_STATUS)
-        }}
-      />
-      <TextField
-        prefix="lpc"
-        id="lpc-catalogProxy"
-        label={t('catalogProxy')}
-        hint={t('catalogProxyHint')}
-        value={draft.catalogProxy}
-        disabled={disabled}
-        onEdit={(value) => {
-          setDraft({ ...draft, catalogProxy: value })
-          setStatus(IDLE_STATUS)
-        }}
-      />
-      <p className="lpc-statusRow">
-        {t('kitSource')}：{kitSource ?? ''}
-      </p>
-      <div className="lpc-statusRow">
-        <span>
-          {t('modelsDevStatus')}：{modelsDevText(modelsDevStatus, t)}
-        </span>
-      </div>
       <ProvidersSection
         providers={draft.providers}
         epoch={epoch}

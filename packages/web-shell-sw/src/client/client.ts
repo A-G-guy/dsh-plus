@@ -14,16 +14,35 @@
  * 所有异步失败仅带上下文 warn/debug，绝不抛入 boot 链路。ctx.effect 兜底
  * 移除 load 监听与未触发的定时器（已注册的 SW 不随 HMR 注销——它是部署级
  * 状态，不是会话级状态）。
+ *
+ * 同一入口另注册「外壳 Service Worker」配置卡片（injectPluginConfigCard 三槽位）：
+ * 卡片改的是 settings 命名空间，注配置行在下次页面加载才被重新读取，故卡片
+ * 提示「刷新后生效」。
  * 构建产物须为 window.__ModuleLoader__.load({id, factory}) 形式
  * （包装见 tsdown.config.ts 的 banner/footer）。
  * @module @dsh-plus/web-shell-sw/client
  */
 import type { Context } from '@deepseek-ai/cordis'
+import {
+  createNamespaceApi,
+  createSettingsScope,
+  injectPluginConfigCard,
+  type PluginClientContext,
+} from '@dsh-plus/shared/client'
 
-import { decideClientAction } from './decision.ts'
-import { SW_CACHE_PREFIX, SW_GLOBAL_KEY, SW_SCRIPT_PATH } from './ns.ts'
+import { decideClientAction } from '../decision.ts'
+import { SETTINGS_NS, SW_CACHE_PREFIX, SW_GLOBAL_KEY, SW_SCRIPT_PATH } from '../ns.ts'
+import { ShellSwCard } from './card.tsx'
+import { type DictKey, en, NS, zh } from './i18n.ts'
+import { injectStyle } from './styles.ts'
 
 export const name = 'dsh-plus-web-shell-sw'
+
+/** 浏览器半需要的 cordis 服务 key（SW 本体零服务依赖，配置卡片需要这四个）。 */
+export const inject = ['slots', 'locale', 'remote', 'remote.settings'] as const
+
+/** 宿主窄面收编在 @dsh-plus/shared/client；TKey 传入本包 DictKey 使键名受检。 */
+type ClientContext = PluginClientContext<DictKey>
 
 /** 注入的配置行形状（node 半保证 JSON 可序列化）。 */
 interface SwGlobal {
@@ -73,6 +92,26 @@ function cleanupSw(): void {
 }
 
 export function apply(ctx: Context): void {
+  // 配置卡片：locale/样式/scope/api 与 SW 本体同入口注册。
+  const c = ctx as unknown as ClientContext
+  const tag = injectStyle()
+  c.effect(
+    () => () => {
+      tag?.remove()
+    },
+    'web-shell-sw: style',
+  )
+  c.effect(() => c.locale.register(NS, { zh, en }), 'web-shell-sw: locale')
+  const scope = createSettingsScope(c, SETTINGS_NS, 'web-shell-sw: settings scope')
+  const api = createNamespaceApi(c.get('remote').settings, SETTINGS_NS)
+  injectPluginConfigCard(c.slots, {
+    ns: SETTINGS_NS,
+    rowId: 'dsh-plus-web-shell-sw',
+    pkg: '@dsh-plus/web-shell-sw',
+    component: ShellSwCard,
+    inject: () => ({ t: c.locale.bind(NS), scope, api }),
+  })
+
   const config = readConfig()
   const action = decideClientAction(config, {
     isSecureContext: window.isSecureContext,

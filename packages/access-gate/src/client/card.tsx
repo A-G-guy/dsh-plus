@@ -15,12 +15,15 @@
 
 import {
   CardChrome,
+  CardLoading,
   type CardStatusState,
   CheckRow,
+  cardVariantFor,
   IDLE_STATUS,
   type NamespaceSettingsApi,
   type PluginConfigViewProps,
   type Scope,
+  type ScopeSnapshot,
 } from '@dsh-plus/shared/client'
 import { type ReactElement, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { DictKey, Translate } from './i18n.ts'
@@ -101,27 +104,9 @@ function verdictLabel(t: Translate, diag: Diag): string {
   return t('diagBlock')
 }
 
-export function AccessGateCard(props: CardProps): ReactElement | string | null {
-  const { t, scope, api } = props
-  const snapshot = useSyncExternalStore(
-    (listener: () => void) => scope.subscribe(listener),
-    () => scope.getSnapshot(),
-  )
-  const value = snapshot.value as ConfigValue | undefined
-  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
-  const [open, setOpen] = useState(props.view === 'page')
-  const [draft, setDraft] = useState<Draft | null>(null)
+/** 本页诊断读侧：围栏状态端点（配置保存后 snapshot 推进时重读）。 */
+function useGateDiag(snapshot: ScopeSnapshot): Diag | null {
   const [diag, setDiag] = useState<Diag | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
-
-  // 首次拿到解析值后播种草稿；后续 Host 更新不覆盖在途编辑（与官方 staged 表单一致）。
-  useEffect(() => {
-    if (value === undefined || draft !== null) return
-    setDraft(draftFromValue(value))
-  }, [value, draft])
-
-  // 本页诊断：读围栏状态端点（配置保存后 snapshot 推进时重读）。
   // biome-ignore lint/correctness/useExhaustiveDependencies: 配置保存后刻意重取诊断
   useEffect(() => {
     let alive = true
@@ -135,6 +120,75 @@ export function AccessGateCard(props: CardProps): ReactElement | string | null {
       alive = false
     }
   }, [snapshot])
+  return diag
+}
+
+/** 诊断面板：本页判定 / 客户端 IP / 放行原因 / 官方登录态（附自动登录与非法条目告警）。 */
+function DiagPanel({ t, diag }: { t: Translate; diag: Diag | null }): ReactElement | null {
+  if (diag === null) return null
+  return (
+    <div className={`dag-diag${diag.invalidEntries.length > 0 ? ' dag-diagWarn' : ''}`}>
+      <p className="dag-diagTitle">{t('diagTitle')}</p>
+      <div className="dag-diagRow">
+        <span className="dag-diagKey">{t('diagVerdict')}</span>
+        <span className="dag-diagVal">{verdictLabel(t, diag)}</span>
+      </div>
+      <div className="dag-diagRow">
+        <span className="dag-diagKey">{t('diagClientIp')}</span>
+        <span className="dag-diagVal">{diag.clientIp ?? '—'}</span>
+      </div>
+      <div className="dag-diagRow">
+        <span className="dag-diagKey">{t('diagReason')}</span>
+        <span className="dag-diagVal">
+          {diag.reason !== null ? reasonText(t, diag.reason) : '—'}
+        </span>
+      </div>
+      <div className="dag-diagRow">
+        <span className="dag-diagKey">{t('diagOfficial')}</span>
+        <span className="dag-diagVal">
+          {diag.officialAuthed ? t('diagOfficialYes') : t('diagOfficialNo')}
+        </span>
+      </div>
+      {diag.autoLoginActive ? (
+        <div className="dag-diagRow">
+          <span className="dag-diagKey">{t('diagAutoLogin')}</span>
+          <span className="dag-diagVal">
+            {diag.autoLoginReady ? t('diagAutoLoginReady') : t('diagAutoLoginNoSecret')}
+          </span>
+        </div>
+      ) : null}
+      {diag.invalidEntries.length > 0 ? (
+        <div className="dag-diagRow">
+          <span className="dag-diagKey">!</span>
+          <span className="dag-diagVal">
+            {t('diagInvalid')}
+            {diag.invalidEntries.join('、')}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export function AccessGateCard(props: CardProps): ReactElement | string | null {
+  const { t, scope, api } = props
+  const snapshot = useSyncExternalStore(
+    (listener: () => void) => scope.subscribe(listener),
+    () => scope.getSnapshot(),
+  )
+  const value = snapshot.value as ConfigValue | undefined
+  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
+  const [open, setOpen] = useState(props.view === 'page')
+  const [draft, setDraft] = useState<Draft | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
+  const diag = useGateDiag(snapshot)
+
+  // 首次拿到解析值后播种草稿；后续 Host 更新不覆盖在途编辑（与官方 staged 表单一致）。
+  useEffect(() => {
+    if (value === undefined || draft !== null) return
+    setDraft(draftFromValue(value))
+  }, [value, draft])
 
   const dirty = useMemo(
     () =>
@@ -147,12 +201,11 @@ export function AccessGateCard(props: CardProps): ReactElement | string | null {
   // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
   if (props.view === 'summary') return t('summaryLine')
 
+  // 插件页 page 视图内嵌宿主页面容器（已带页面级内边距与标题），用无边框分节。
+  const variant = cardVariantFor(props.view)
+
   if (value === undefined || draft === null) {
-    return (
-      <li className="dag-card">
-        <p className="dag-readOnly">{t('loading')}</p>
-      </li>
-    )
+    return <CardLoading prefix="dag" variant={variant} text={t('loading')} />
   }
   const edit = <K extends keyof Draft>(key: K, editValue: Draft[K]): void => {
     setDraft({ ...draft, [key]: editValue })
@@ -185,6 +238,7 @@ export function AccessGateCard(props: CardProps): ReactElement | string | null {
       description={t('description')}
       open={open}
       onToggle={setOpen}
+      variant={variant}
       statusBadge={{ text: t(draft.enabled ? 'enabledOn' : 'enabledOff'), on: draft.enabled }}
       dirty={dirty}
       dirtyLabel={t('unsaved')}
@@ -250,48 +304,7 @@ export function AccessGateCard(props: CardProps): ReactElement | string | null {
         disabled={disabled}
         onEdit={(v) => edit('trustForwardedFor', v)}
       />
-      {diag !== null ? (
-        <div className={`dag-diag${diag.invalidEntries.length > 0 ? ' dag-diagWarn' : ''}`}>
-          <p className="dag-diagTitle">{t('diagTitle')}</p>
-          <div className="dag-diagRow">
-            <span className="dag-diagKey">{t('diagVerdict')}</span>
-            <span className="dag-diagVal">{verdictLabel(t, diag)}</span>
-          </div>
-          <div className="dag-diagRow">
-            <span className="dag-diagKey">{t('diagClientIp')}</span>
-            <span className="dag-diagVal">{diag.clientIp ?? '—'}</span>
-          </div>
-          <div className="dag-diagRow">
-            <span className="dag-diagKey">{t('diagReason')}</span>
-            <span className="dag-diagVal">
-              {diag.reason !== null ? reasonText(t, diag.reason) : '—'}
-            </span>
-          </div>
-          <div className="dag-diagRow">
-            <span className="dag-diagKey">{t('diagOfficial')}</span>
-            <span className="dag-diagVal">
-              {diag.officialAuthed ? t('diagOfficialYes') : t('diagOfficialNo')}
-            </span>
-          </div>
-          {diag.autoLoginActive ? (
-            <div className="dag-diagRow">
-              <span className="dag-diagKey">{t('diagAutoLogin')}</span>
-              <span className="dag-diagVal">
-                {diag.autoLoginReady ? t('diagAutoLoginReady') : t('diagAutoLoginNoSecret')}
-              </span>
-            </div>
-          ) : null}
-          {diag.invalidEntries.length > 0 ? (
-            <div className="dag-diagRow">
-              <span className="dag-diagKey">!</span>
-              <span className="dag-diagVal">
-                {t('diagInvalid')}
-                {diag.invalidEntries.join('、')}
-              </span>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      <DiagPanel t={t} diag={diag} />
     </CardChrome>
   )
 }

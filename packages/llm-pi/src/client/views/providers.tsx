@@ -9,6 +9,7 @@ import { ChevronDownIcon } from '@dsh-plus/shared/client'
 import { type ReactElement, useState } from 'react'
 
 import type { ProviderDraft } from '../draft.ts'
+import { extraOfJson } from '../draft.ts'
 import { CollapseSection, JsonField, KeyValueEditor } from '../fields.tsx'
 import type { Translate } from '../i18n.ts'
 import { CompatEditor } from './compat.tsx'
@@ -145,6 +146,21 @@ export function ProviderSection(props: ProviderSectionProps): ReactElement {
             onEdit={(headers) => props.onPatch({ headers })}
           />
           <CollapseSection id={`${id}-advanced`} title={t('advancedGroup')} defaultOpen={false}>
+            <JsonField
+              id={`${id}-extra`}
+              label={t('extraFields')}
+              hint={t('extraFieldsHint')}
+              invalidText={t('invalidJson')}
+              value={Object.keys(draft.extra).length === 0 ? undefined : draft.extra}
+              epoch={props.epoch}
+              disabled={props.disabled === true}
+              wide
+              onEdit={(extra) => {
+                const next = extraOfJson(extra)
+                // 合法但非对象的 JSON（数组/标量）忽略这次编辑，不静默清空已配置字段。
+                if (next !== undefined) props.onPatch({ extra: next })
+              }}
+            />
             <JsonField
               id={`${id}-retry`}
               label={t('retryPolicy')}

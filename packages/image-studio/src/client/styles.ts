@@ -586,6 +586,14 @@ export const imageStudioCss = `
 }
 .imsc-credRow { display: flex; align-items: center; gap: 8px; }
 .imsc-credRow .imsc-input { flex: 1; min-width: 0; }
+/* 分节形态（插件页 page 视图，无边框分节）：预设块改为分隔线分组，去掉第二层内边距 */
+.imsc-section .imsc-presetBox {
+  border: 0;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 0;
+  padding: 10px 0 2px;
+  margin-bottom: 0;
+}
 
 /* ── 移动端（≤767px，与 ui-mobile-fit 同断点）── */
 @media (max-width: 767px) {
@@ -619,6 +627,7 @@ export const imageStudioCss = `
   .ims-btn { min-height: 40px; }
   .ims-btnSmall { min-height: 32px; }
   .imsc-grid2 { grid-template-columns: 1fr; }
+  .imsc-section .imsc-presetBox { padding: 10px 0 2px; }
 }
 `
 

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 03:46"
 description: "@dsh-plus/web-shell-sw"
 type: fact
 ---
@@ -28,7 +28,7 @@ type: fact
   `GET/HEAD /dsh-plus/shell-sw.js` 服务生成的 SW 脚本，响应头三件套：
   `content-type: text/javascript`、`service-worker-allowed: /`（脚本在
   `/dsh-plus/` 下而 scope 覆盖全站，缺此头注册即失败）、`cache-control: no-cache`。
-- **浏览器半**（`src/client.ts`）：`window load` 后下一个宏任务执行
+- **浏览器半**（`src/client/client.ts`）：`window load` 后下一个宏任务执行
   `decideClientAction` 裁决——`enabled=true` 且安全上下文 → 幂等注册
   （scope `/`）；`enabled=false` → 注销 scriptURL 匹配的注册 + 删除本插件
   前缀全部缓存；无配置行/非安全上下文 → 零行为。
@@ -53,6 +53,10 @@ type: fact
 |---|---|---|---|
 | settings.yaml | `dsh-plus-web-shell-sw.enabled` | `true` | 用户层，热生效（下一次页面加载执行注册/注销） |
 | cordis 行级 config | `enabled` | `true` | patch 层覆盖用 |
+
+插件页「配置」入口提供同名卡片（`src/client/`，三槽位注册）：一个 `enabled`
+开关 + 两条说明（生效时机＝下次页面加载、安全上下文要求）——注册/注销发生在
+页面加载阶段，开关不会即时改变当前页的注册状态，必须在卡片上说清。
 
 ## 演练
 

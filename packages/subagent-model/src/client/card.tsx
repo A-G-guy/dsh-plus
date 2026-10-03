@@ -11,9 +11,12 @@
  */
 
 import {
+  type CardAction,
   CardChrome,
+  CardLoading,
   type CardStatusState,
   CheckRow,
+  cardVariantFor,
   IDLE_STATUS,
   type NamespaceSettingsApi,
   type PluginConfigViewProps,
@@ -147,6 +150,105 @@ function RowBlock(props: RowBlockProps): ReactElement {
   )
 }
 
+/** 目录状态行：拉取失败给重试入口，拉取中与空行集各给一行提示。 */
+function CatalogStatus(props: {
+  t: Translate
+  catalog: ModelCatalog | null
+  catalogFailed: boolean
+  rowCount: number
+  onRetry(): void
+}): ReactElement | null {
+  if (props.catalogFailed) {
+    return (
+      <div className="dsm-banner" role="status">
+        <span>{props.t('catalogError')}</span>
+        <button type="button" className="dsm-bannerRetry" onClick={props.onRetry}>
+          {props.t('catalogRetry')}
+        </button>
+      </div>
+    )
+  }
+  if (props.catalog === null) {
+    return (
+      <p className="dsm-empty" role="status">
+        {props.t('catalogLoading')}
+      </p>
+    )
+  }
+  if (props.rowCount === 0) {
+    return (
+      <p className="dsm-empty" role="status">
+        {props.t('noRows')}
+      </p>
+    )
+  }
+  return null
+}
+
+/**
+ * 子代理 provider 目录（展开后拉取一次；失败保留重试入口，重试即回到未加载态）。
+ * 与草稿播种共用同一个 catalog：目录到达后由调用方补缺失的空行。
+ */
+function useCatalog(open: boolean): {
+  catalog: ModelCatalog | null
+  catalogFailed: boolean
+  retry(): void
+} {
+  const [catalog, setCatalog] = useState<ModelCatalog | null>(null)
+  const [catalogFailed, setCatalogFailed] = useState(false)
+  useEffect(() => {
+    if (!open || catalog !== null) return
+    let alive = true
+    fetchCatalog()
+      .then((loaded) => {
+        if (!alive) return
+        setCatalog(loaded)
+        setCatalogFailed(false)
+      })
+      .catch(() => {
+        if (alive) setCatalogFailed(true)
+      })
+    return () => {
+      alive = false
+    }
+  }, [open, catalog])
+  return {
+    catalog,
+    catalogFailed,
+    retry: () => {
+      setCatalog(null)
+      setCatalogFailed(false)
+    },
+  }
+}
+
+/** 卡片动作：放弃（回到 Host 值）与保存（无效行或只读时禁用）。 */ function cardActions(options: {
+  t: Translate
+  dirty: boolean
+  invalid: boolean
+  saving: boolean
+  disabled: boolean
+  onDiscard(): void
+  onSave(): void
+}): CardAction[] {
+  const { t } = options
+  return [
+    {
+      key: 'discard',
+      label: t('discard'),
+      disabled: !options.dirty || options.saving,
+      onClick: options.onDiscard,
+    },
+    {
+      key: 'save',
+      label: t(options.saving ? 'saving' : 'save'),
+      variant: 'primary',
+      disabled: !options.dirty || options.invalid || options.saving || options.disabled,
+      onClick: options.onSave,
+    },
+  ]
+}
+
 export function SubagentModelCard(props: CardProps): ReactElement | string | null {
   const { t, scope, api } = props
   const snapshot = useSyncExternalStore(
@@ -157,10 +259,9 @@ export function SubagentModelCard(props: CardProps): ReactElement | string | nul
   // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
   const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<Draft | null>(null)
-  const [catalog, setCatalog] = useState<ModelCatalog | null>(null)
-  const [catalogFailed, setCatalogFailed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
+  const { catalog, catalogFailed, retry: retryCatalog } = useCatalog(open)
 
   // 播种草稿（行集 = 已配置条目）；catalog 到达后只补缺失的 provider 空行，
   // 不覆盖在途编辑；后续 Host 更新同样不覆盖。
@@ -180,23 +281,6 @@ export function SubagentModelCard(props: CardProps): ReactElement | string | nul
     })
   }, [value, catalog])
 
-  useEffect(() => {
-    if (!open || catalog !== null) return
-    let alive = true
-    fetchCatalog()
-      .then((loaded) => {
-        if (!alive) return
-        setCatalog(loaded)
-        setCatalogFailed(false)
-      })
-      .catch(() => {
-        if (alive) setCatalogFailed(true)
-      })
-    return () => {
-      alive = false
-    }
-  }, [open, catalog])
-
   const dirty = useMemo(
     () =>
       value !== undefined &&
@@ -214,12 +298,11 @@ export function SubagentModelCard(props: CardProps): ReactElement | string | nul
   // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
   if (props.view === 'summary') return t('summaryLine')
 
+  // 插件页 page 视图内嵌宿主页面容器（已带页面级内边距与标题），用无边框分节。
+  const variant = cardVariantFor(props.view)
+
   if (value === undefined || draft === null) {
-    return (
-      <li className="dsm-card">
-        <p className="dsm-empty">{t('loading')}</p>
-      </li>
-    )
+    return <CardLoading prefix="dsm" variant={variant} text={t('loading')} />
   }
   const edit = <K extends keyof Draft>(key: K, editValue: Draft[K]): void => {
     setDraft({ ...draft, [key]: editValue })
@@ -248,10 +331,6 @@ export function SubagentModelCard(props: CardProps): ReactElement | string | nul
       })
       .finally(() => setSaving(false))
   }
-  const onRetryCatalog = (): void => {
-    setCatalog(null)
-    setCatalogFailed(false)
-  }
 
   const disabled = !snapshot.writable
   const rowNames = Object.keys(draft.rows).sort()
@@ -263,29 +342,24 @@ export function SubagentModelCard(props: CardProps): ReactElement | string | nul
       description={t('description')}
       open={open}
       onToggle={setOpen}
+      variant={variant}
       statusBadge={{ text: t(draft.enabled ? 'enabledOn' : 'enabledOff'), on: draft.enabled }}
       dirty={dirty}
       dirtyLabel={t('unsaved')}
       readOnlyNotice={disabled ? t('readOnly') : undefined}
       status={status}
-      actions={[
-        {
-          key: 'discard',
-          label: t('discard'),
-          disabled: !dirty || saving,
-          onClick: () => {
-            setDraft(draftFrom(value, catalog))
-            setStatus(IDLE_STATUS)
-          },
+      actions={cardActions({
+        t,
+        dirty,
+        invalid,
+        saving,
+        disabled,
+        onDiscard: () => {
+          setDraft(draftFrom(value, catalog))
+          setStatus(IDLE_STATUS)
         },
-        {
-          key: 'save',
-          label: t(saving ? 'saving' : 'save'),
-          variant: 'primary',
-          disabled: !dirty || invalid || saving || disabled,
-          onClick: onSave,
-        },
-      ]}
+        onSave,
+      })}
     >
       <CheckRow
         prefix="dsm"
@@ -295,24 +369,13 @@ export function SubagentModelCard(props: CardProps): ReactElement | string | nul
         disabled={disabled}
         onEdit={(v) => edit('enabled', v)}
       />
-      {catalogFailed ? (
-        <div className="dsm-banner" role="status">
-          <span>{t('catalogError')}</span>
-          <button type="button" className="dsm-bannerRetry" onClick={onRetryCatalog}>
-            {t('catalogRetry')}
-          </button>
-        </div>
-      ) : null}
-      {catalog === null && !catalogFailed ? (
-        <p className="dsm-empty" role="status">
-          {t('catalogLoading')}
-        </p>
-      ) : null}
-      {rowNames.length === 0 ? (
-        <p className="dsm-empty" role="status">
-          {t('noRows')}
-        </p>
-      ) : null}
+      <CatalogStatus
+        t={t}
+        catalog={catalog}
+        catalogFailed={catalogFailed}
+        rowCount={rowNames.length}
+        onRetry={retryCatalog}
+      />
       {rowNames.map((name) => (
         <RowBlock
           key={name}

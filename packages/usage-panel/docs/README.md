@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 03:46"
 description: "@dsh-plus/usage-panel"
 type: fact
 ---
@@ -82,15 +82,16 @@ models.dev 的 provider id 不同名，精确匹配会全军覆没）：
 profile 的 `cordis.patch.yml`，数千条价目会淹没配置、每次保存都重写全量
 （曾致该文件 4.3 万行）。故导入只落 `prices.json`，config 只留手工小集合。
 
-配置（settings namespace `dsh-plus-usage-panel`，插件配置页卡片编辑）：
+配置（settings namespace `dsh-plus-usage-panel`，插件配置页卡片编辑，五个字段全部
+有编辑器；两个间隔字段只接受区间内整数，越界即禁用保存）：
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
 | `prices[]` | [] | 手工条目：`provider/model` 维度的 per-Mtok 单价（input/output/cacheRead/cacheWrite），覆盖导入同键 |
 | `currency` | CNY | 费用展示货币码 |
 | `catalogProxy` | '' | models.dev 拉取代理（如 http://127.0.0.1:7890） |
-| `autoSyncMinutes` | 30 | 历史会话自动增量同步间隔（分钟，0 = 仅启动时同步一次） |
-| `catalogRefreshHours` | 24 | models.dev 目录自动刷新间隔（小时，0 = 仅启动时拉取一次） |
+| `autoSyncMinutes` | 30 | 历史会话自动增量同步间隔（分钟，0 = 仅启动时同步一次；0–1440） |
+| `catalogRefreshHours` | 24 | models.dev 目录自动刷新间隔（小时，0 = 仅启动时拉取一次；0–720） |
 
 「从 models.dev 导入参考价」：点击后 host 半后台拉取 models.dev 公共 JSON
 （可经代理，带超时与响应体上限，失败沿用磁盘缓存

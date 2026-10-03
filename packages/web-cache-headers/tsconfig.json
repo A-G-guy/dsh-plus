@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2022"]
+    // node 半 + 浏览器半（src/client/*.tsx）：DOM 与 jsx 项与其余 UI 包一致。
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "tsdown.config.ts"]
 }

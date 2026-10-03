@@ -5,6 +5,9 @@
  * - 窄屏 input/textarea 16px（防 iOS 聚焦缩放）、可点目标 ≥44px；
  * - footer 按钮等宽换行、状态文字独占一行；
  * - 展开态 body 底部 sticky 保存栏（长表单滚动中始终可达）。
+ * - 分节形态（-section，插件页 page 视图内嵌宿主页面）：无边框/背景、横向零
+ *   内边距，页脚不 sticky——官方插件页已提供页面级内边距，再叠一层卡片会
+ *   缩窄移动端可用宽度（卡片套卡片）。
  * 沿用官方 data-plugin / data-plugin-css 约定（HMR 据此卸载），不覆盖上游选择器。
  * @module @dsh-plus/shared/client/styles
  */
@@ -52,6 +55,15 @@ export function cardCss(prefix: string, extra = ''): string {
 .${prefix}-checkRow input:checked::after{left:16px;background:var(--dsw-alias-bg-base)}
 .${prefix}-checkRow input:disabled{opacity:.4;cursor:default}
 .${prefix}-checkRow input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+/* 宿主内嵌分节形态（插件页 page 视图）：官方设置页同构——无边框/背景，
+   横向零内边距（宽度交给宿主页面容器），小节标题 13px/600，页脚非 sticky。 */
+.${prefix}-section{box-sizing:border-box;flex-direction:column;width:100%;min-width:0;padding:16px 0;display:flex}
+.${prefix}-sectionHead{align-items:center;gap:8px;min-width:0;display:flex}
+.${prefix}-sectionTitle{min-width:0;color:var(--dsw-alias-label-primary);flex:1;margin:0;font-size:13px;font-weight:600;line-height:1.5}
+.${prefix}-sectionBadge{white-space:nowrap;border-radius:999px;flex:none;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}
+.${prefix}-sectionDesc{color:var(--dsw-alias-label-tertiary);margin:4px 0 0;font-size:12px;line-height:1.5}
+.${prefix}-sectionBody{flex-direction:column;min-width:0;display:flex}
+.${prefix}-sectionFooter{align-items:center;gap:8px;padding-top:16px;display:flex;flex-wrap:wrap}
 .${prefix}-groupLabel{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600;padding:12px 0 2px;margin:0}
 .${prefix}-readOnly{color:var(--dsw-alias-label-tertiary);margin:12px 0 0;font-size:12px;line-height:1.5}
 .${prefix}-warn{color:var(--dsw-alias-label-error);margin:12px 0 0;font-size:12px;line-height:1.5}
@@ -73,6 +85,8 @@ export function cardCss(prefix: string, extra = ''): string {
 .${prefix}-status{flex-basis:100%;flex:none}
 .${prefix}-btn{min-height:44px;flex:1;min-width:96px}
 .${prefix}-statusBadge{display:none}
+.${prefix}-sectionBadge{display:inline-block}
+.${prefix}-sectionFooter{position:static}
 }
 @media (pointer:coarse){
 .${prefix}-btn{min-height:44px}
