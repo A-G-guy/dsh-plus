@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-09-25 13:09"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/web-shell-sw"
+type: fact
 ---
 
 # @dsh-plus/web-shell-sw

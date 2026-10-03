@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-08-17 16:37"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/tool-text-transform"
+type: fact
 ---
 
 # @dsh-plus/tool-text-transform

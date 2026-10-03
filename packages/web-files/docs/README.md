@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-09-29 15:56"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/web-files"
+type: fact
 ---
 
 # @dsh-plus/web-files

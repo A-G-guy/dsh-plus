@@ -1,5 +1,5 @@
 /**
- * 自定义端点通道：/dsh-plus/reload 四个端点的 fetch 封装（same-origin）。
+ * 自定义端点通道：/dsh-plus/reload 五个端点的 fetch 封装（same-origin）。
  * @module reload/client/api
  */
 
@@ -8,6 +8,16 @@ const ROUTE = '/dsh-plus/reload'
 export interface PreflightInfo {
   ok: boolean
   reasons: string[]
+}
+
+/** 进程内重载报告（host 侧 applyReport 的同构载荷）。 */
+export interface ApplyInfo {
+  status: 'applied' | 'unsupported' | 'failed' | 'agents-running'
+  text: string
+  warnings: string[]
+  pendingRestart: string[]
+  capabilities: { profile: boolean; hmr: boolean; pluginPackages: boolean }
+  runningAgents: number
 }
 
 export interface PrepareInfo {
@@ -95,4 +105,22 @@ export async function postCancel(token: string): Promise<void> {
   }).catch(() => {
     // 取消失败（含进程已死）无须上报：倒计时遮罩关闭即视为本地放弃。
   })
+}
+
+/**
+ * 进程内重载（默认路径）：零中断、无 token。
+ * 失败态（agents-running / unsupported / failed）同样返回结构化报告供渲染，
+ * 只有网络或响应体异常才抛错——报告本身就是用户要看的诊断。
+ * @param force - 跳过运行中会话防线。
+ * @returns host 侧统一报告。
+ */
+export async function postApply(force: boolean): Promise<ApplyInfo> {
+  const res = await fetch(`${ROUTE}/now`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ force }),
+  })
+  const body = (await res.json()) as ApplyInfo
+  return body
 }

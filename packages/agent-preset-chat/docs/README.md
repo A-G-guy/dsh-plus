@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-09-29 18:54"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/agent-preset-chat 文档索引"
+type: fact
 ---
 
 # @dsh-plus/agent-preset-chat 文档索引

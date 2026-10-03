@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/boot-retry",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "dsh-plus service plugin: 弱网引导重试——经官方 __DSH_TRANSPORT__.loadBundle 缝注入零缓存重试加载器，消除 tailnet/弱网下一次抖动导致的「Failed to load plugins」",
   "type": "module",
   "main": "lib/index.js",

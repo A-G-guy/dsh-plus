@@ -1,70 +1,80 @@
 ---
-last_modified: "2026-09-29 15:55"
+last_modified: "2026-10-04 00:42"
 description: "@dsh-plus/reload 文档"
+type: fact
 ---
 
 # @dsh-plus/reload 文档
 
-内置重新加载：插件开发/安装完成后，不必再手动跑 `dshctl restart-prod`——
-设置页「重新加载」按钮（General 段）与 `/reload` 命令，两段确认 + 可取消
-倒计时后重启 systemd 托管的 dsh-web，服务恢复后浏览器自动刷新（新 bundle 生效），
-会话不丢失（dsh 既有持久化）。
+重新加载插件：设置页「重新加载 / 重启服务」行与 `/reload` 命令。
 
-## 适用环境（平台支持）
+- **主动作＝进程内重载**：读盘重建 profile 组合层（bundle 层 + profile 补丁 +
+  home 补丁 + 覆盖层）并对账进运行中的 Loader 树。行启停、行配置、组合包选择、
+  settings、新装插件即时生效；零中断，**不需要刷新页面**（客户端插件图由官方
+  `dsh-client-hmr` 同步）。
+- **次级动作＝重启服务**：`systemd` 通道（Linux），供进程内无法覆盖的变更
+  （插件本体替换、平台升级、`.env` 变更）使用。
+- 与 pi 的 `/reload` 对齐的三点：无确认对话框、执行前拒绝在有会话运行时执行
+  （可用 `force` 覆盖）、执行后逐项报告结果与失败原因。
 
-- **适用**：systemd 托管的 Linux `web` profile（`sudo systemctl restart` 链路）。
-- **桌面端（desktop profile）**：Electron 应用管理生命周期，无系统级重启通道。
-  预检直接返回桌面端专属理由（`preflight.ts systemdUnsupportedReasons`），
-  设置行按官方判据 `'dshDesktop' in globalThis` 探测后置灰并显示平台说明；
-  配置类变更由 `dsh-hmr` 热生效，插件安装/升级按应用内提示重启。
-- **Windows / macOS**：非 Linux 无 systemd，预检返回平台化理由（不再暴露
-  ENOENT/journalctl 术语），同样不触碰 systemctl/sudo。
-- 上游没有面向插件的进程重启 API，本插件不尝试自造（`process.exit` 只会触发
-  宿主崩溃恢复流程），不支持的环境一律优雅拒绝。
+## 覆盖范围（上游语义决定）
+
+| 变更 | 生效方式 |
+|---|---|
+| 行启停 / 行配置 / `insert` 新行 | 进程内即时 |
+| 组合包（bundle）选择、新装插件包（首次导入） | 进程内即时 |
+| settings（`dsh-settings` 监听 `app-boot/config-reload` 失效缓存） | 进程内即时 |
+| 技能（skills，`dsh-skill-filesystem` 自带监听） | 自动，无需操作 |
+| **已安装包在 `node_modules` 内的代码替换** | **只能重启**：dsh-hmr 的依赖遍历遇 `/node_modules/` 直接返回空集，不做模块替换 |
+| 指令文件（`AGENTS.md`） | 进程内不可刷新：首个请求注入基线，之后仅由文件操作触摸 / 新会话 / 恢复会话对账 |
+| `.env`、平台包版本、TSX/Worker 场景 | 只能重启 |
+
+插件在启动时记录 profile 直接依赖的产物指纹（`package.json` + `lib/`、`dist/` 全量
+文件的内容哈希），`/reload` 时重新比对，把「只能重启」的包**点名报告**，避免
+「看起来重载成功、其实新代码没生效」。
 
 ## 机制
 
 - **host 半**（`src/`）：
-  - `preflight.ts` — 重启预检：先做环境能力判定（desktop profile / 非 Linux
-    平台 → 拒绝并给平台化理由），再确认本进程必须是 systemd 单元主进程
-    （`systemctl show -p MainPID` 与 `process.pid` 匹配，INVOCATION_ID/cgroup
-    会被子进程继承、不可作判据）、单元 active、`sudo -n true` 通过。任一失败
-    拒绝调度并列出原因。
-  - `scheduler.ts` — 状态机 `idle → prepared → scheduled`：`prepare` 签发
-    一次性 TTL token；`confirm(token, {force, runningAgents})` 在 running
-    会话 >0 且未 force 时拒绝（409，token 保留可携同 token force 重试）；
-    成功后缓冲 `serverGraceMs` 再 detached 执行
-    `sudo systemctl restart --no-block <unit>`（`--no-block` 只向 PID1 投递
-    作业即返回，本进程随后被 SIGTERM 不影响拉起）；缓冲期内可 cancel。
-    生产 spawn 挂 `error` 监听（`spawnSystemdRestart`）：异步 ENOENT 走
-    `onError` 回 idle，不成为未捕获异常。
-  - `routes.ts` — `/dsh-plus/reload` 四端点：`GET health`（bootId，供客户端
-    轮询）、`POST prepare`、`POST confirm`、`POST cancel`。暴露面与 GUI 其余
-    部分同级（默认 loopback），token + 两阶段确认构成防误触/防重放边界。
-  - `command.ts` — `/reload`（预检→调度）、`/reload force`、`/reload cancel`、
-    `/reload status`；经官方 commands 注册表分发，结果直渲 UI、不进模型上下文。
-  - `agents.ts` — `ctx.agents.list()` 中 status=running 的计数；agents 服务
-    缺席降级为 0。
-- **client 半**（`src/client/`）：`settings.general.item` 插槽注册「重新加载」
-  行；流程 prepare → 可取消倒计时（有 running 会话时归零不自动确认，须点
-  「仍然重启」）→ confirm → 轮询 health 直至 bootId 变化 → `location.reload()`；
-  超时（默认 30s）给出人工排查指引。多标签页经 localStorage 标记联动，
-  其他标签页自动接力轮询刷新。
-- **被动重启检测**（`src/client/watchdog.ts`）：主动流程只覆盖本插件发起、
-  且在同一浏览器内的重启。watchdog 在页面加载后经 health 建立 bootId 基线，
-  随后低频轮询（间隔由 health 下发，见 `watchdogIntervalSeconds`）与
-  `visibilitychange` 可见性恢复时比对；bootId 变化即服务已被**任何来源**
-  （systemctl / 其他设备 / 直接 kill）重启 → `location.reload()` 拉取新
-  bundle（官方 `?rev=` 内容哈希保证拿到新包）。health 失败保持基线等下轮；
-  间隔 0 关闭该检测。
+  - `inprocess.ts` — 进程内重载核心：能力判定（缺 `profileContext` 即拒绝）→
+    可选刷新 `pluginPackages` 解析表 → `readProfilePatches` 重建 patch 列表 →
+    `reconcileProfilePatches` 对账进 Loader 树；全程在 `hmr.runExclusive()` 队列内
+    串行（缺席则直接执行）。失败只回报诊断，不抛出。
+  - `fingerprint.ts` — 产物指纹采集与差异比对（`node:crypto` + 注入的文件端口，零磁盘依赖可测）。
+  - `report.ts` — 命令面与 HTTP 面共用的状态与文案（四态：applied / agents-running /
+    unsupported / failed；另有 status 文本）。
+  - `command.ts` — `/reload`（进程内）、`/reload force`、`/reload restart [force]`、
+    `/reload cancel`、`/reload status`；结果直渲会话 UI、不进模型上下文（零 token）。
+  - `routes.ts` — `/dsh-plus/reload` 五端点：`POST now`（进程内，无 token）、
+    `GET health`（bootId + watchdog 间隔）、`POST prepare/confirm/cancel`
+    （重启通道，一次性 token 两段确认）。
+  - `scheduler.ts` / `preflight.ts` — 重启通道状态机与三级预检（ProfileContext 平台判定
+    → MainPID 匹配 → 单元 active → `sudo -n` 可用），不通过即拒绝调度。
+  - `agents.ts` — `ctx.agents.list()` 中 status=running 的计数；服务缺席降级为 0。
+  - `config.ts` — 行级配置单一事实源（含 `binName`、`detectPendingRestart`）。
+  - **能力位按请求时取值**：`hmr` 是行内服务，只能经 `ctx.inject(['hmr'], cb)` 捕获
+    （属性访问要求 inject 声明；`ctx.get` 读不到同级行服务）；它的 fiber 要等模块监听
+    ready，boot 后头几秒可能显示 `hmr ✗`——此时进程内重载照常执行，只是不与自动热重载
+    共队列。`profile`（宿主 provide）与 `pluginPackages`（宿主挂根上下文）用 `ctx.get` 读。
+- **client 半**（`src/client/`）：`settings.general.item` 插槽注册一行，主按钮
+  「重新加载」→ `POST now` → 结果对话框（`white-space:pre-line` 原样呈现 host 文案，
+  需重启时给出直达「重启服务」的按钮）；有会话运行时先弹「强制执行」询问。
+  「重启服务」走 prepare → 可取消倒计时（有 running 会话时归零不自动确认）→
+  confirm → 轮询 health 至 bootId 变化 → `location.reload()`；多标签页经
+  localStorage 标记接力。桌面端只保留进程内重载（重启按钮置灰 + 平台说明）。
+- **被动重启检测**（`src/client/watchdog.ts`）：`health` 建立 bootId 基线后低频轮询
+  （间隔由 host 下发，见 `watchdogIntervalSeconds`）+ 可见性恢复即比对；bootId 变化
+  即服务已被**任何来源**重启 → `location.reload()` 拉取新 bundle。
 
 ## 配置（行级，`dsh` 组合层可覆盖）
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
 | `enabled` | `true` | 总开关（按钮与命令同时生效/隐藏） |
-| `unitName` | `dsh-web` | systemd 单元名 |
-| `clientCountdownSeconds` | `5` | 客户端倒计时秒数 |
+| `binName` | `dsh` | 启动器名：组合层读取与诊断前缀 |
+| `detectPendingRestart` | `true` | 是否采集/比对产物指纹（关闭即不报告待重启清单） |
+| `unitName` | `dsh-web` | systemd 单元名（仅重启通道） |
+| `clientCountdownSeconds` | `5` | 设置页「重启服务」倒计时秒数 |
 | `confirmTokenTtlMs` | `60000` | 一次性 token 有效期 |
 | `serverGraceMs` | `800` | confirm 后到执行重启的缓冲（响应落盘/取消窗口） |
 | `clientPollTimeoutMs` | `30000` | 客户端等待服务恢复的轮询超时 |
@@ -72,12 +82,13 @@ description: "@dsh-plus/reload 文档"
 
 ## 边界
 
-- **非托管环境拒绝执行**：dev 实例（`dshctl dev up`，非 prod 单元主进程）、
-  从服务内 shell 手动拉起的进程，preflight 一律拒绝并提示改用
-  `dshctl restart-prod`；这是特性而非缺陷。
-- 命令路径的 cancel 为本地可信面（无 token），HTTP 面必须持 token。
-- 与 lifeboat 的关系：无代码联动——重启后若兄弟插件加载失败，lifeboat 既有
-  隔离+告警机制自动止血；reload 自身亦在其 `dsh-plus-*` 守护范围内。
-- 重启仅由 systemd 拉起保证；若单元被 stop 而非 restart，服务不会自动回来。
-- 多标签页中任一页发起重启，其余页会跟随刷新；无痕/禁用 localStorage 的页面
-  只刷新自己。
+- **非托管环境**：重启通道对非 systemd 托管 / 非主进程 / 无 `sudo -n` 的环境一律
+  拒绝（dev 实例、服务内 shell 手动拉起的进程），提示改用 `dshctl restart-prod`；
+  进程内重载不受此限。
+- **桌面端与 Windows/macOS**：进程内重载可用（只需 `profileContext` + Loader），
+  重启通道禁用；client 半按 `'dshDesktop' in globalThis` 置灰重启按钮。
+- 命令路径的 `cancel`/进程内重载为本地可信面（无 token），HTTP 面的重启必须持 token。
+- 与 lifeboat 的关系：无代码联动——重启后若兄弟插件加载失败，lifeboat 既有隔离
+  机制自动止血；reload 自身亦在其 `dsh-plus-*` 守护范围内。
+- 进程内重载会 dispose 并重建被改动的行：被重载插件内的运行期状态（含正在跑的
+  会话上下文之外的内存状态）会重置，这是上游行级重载的既定语义。

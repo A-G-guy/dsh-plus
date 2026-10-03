@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/bundle-main",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "description": "dsh-plus aggregate bundle: ordered cordis patch layer wiring all dsh-plus plugins",
   "type": "module",
   "main": "lib/index.js",

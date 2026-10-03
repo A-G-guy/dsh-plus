@@ -12,10 +12,23 @@ export const Config = z.object({
     .boolean()
     .description('重新加载功能总开关（按钮与 /reload 命令同时生效/隐藏）')
     .default(true),
-  unitName: z.string().description('systemd 托管的 dsh web 单元名').default('dsh-web'),
+  binName: z
+    .string()
+    .description('dsh 启动器名：profile 组合层读取与诊断前缀（保持默认除非换了启动器名）')
+    .default('dsh'),
+  detectPendingRestart: z
+    .boolean()
+    .description(
+      '启动时记录 profile 直接依赖的产物指纹，/reload 据此点名「位于 node_modules、只能重启生效」的包',
+    )
+    .default(true),
+  unitName: z
+    .string()
+    .description('systemd 托管的 dsh web 单元名（仅重启通道使用）')
+    .default('dsh-web'),
   clientCountdownSeconds: z
     .natural()
-    .description('设置页点击后、正式确认前的可取消倒计时秒数（客户端 UI 采用）')
+    .description('设置页「重启服务」点击后、正式确认前的可取消倒计时秒数（客户端 UI 采用）')
     .default(5),
   confirmTokenTtlMs: z
     .natural()

@@ -1,7 +1,9 @@
 /**
- * 浏览器半的 host 接收面：/dsh-plus/reload 下四个端点。
- * 暴露面与 GUI 其余部分同级（webserver 默认 loopback）；一次性 token +
- * 两阶段确认构成防误触/防重放边界，不另设鉴权。
+ * 浏览器半的 host 接收面：/dsh-plus/reload 下五个端点。
+ * `now` 是默认路径——进程内重载（零中断，无 token）；`prepare/confirm/cancel`
+ * 构成重启通道的两段确认，一次性 token 负责防误触/防重放；`health` 供客户端
+ * 轮询 bootId 与被动重启检测。
+ * 暴露面与 GUI 其余部分同级（webserver 默认 loopback），不另设鉴权。
  * handler 工厂与路由注册分离，测试直接驱动 handler（禁起真实服务器）。
  * @module reload/routes
  */
@@ -18,6 +20,7 @@ import {
   runPreflight,
   systemRunner,
 } from './preflight.ts'
+import type { ApplyReport } from './report.ts'
 import type { ReloadScheduler } from './scheduler.ts'
 
 const ROUTE = '/dsh-plus/reload'
@@ -25,6 +28,8 @@ const ROUTE = '/dsh-plus/reload'
 export interface RouteDeps {
   scheduler: ReloadScheduler
   config: ReloadConfig
+  /** 进程内重载（与 /reload 命令同一实现与报告）。 */
+  apply?: (options: { force: boolean }) => Promise<ApplyReport>
   pid?: number
   runner?: Runner
   preflightEnv?: PreflightEnv
@@ -69,7 +74,7 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown> |
   }
 }
 
-/** 组装请求处理器；env/runner/runningAgents 均可注入，测试零真实副作用。 */
+/** 组装请求处理器；env/runner/runningAgents/apply 均可注入，测试零真实副作用。 */
 export function createReloadHandler(
   deps: RouteDeps,
 ): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
@@ -77,6 +82,7 @@ export function createReloadHandler(
   const pid = deps.pid ?? process.pid
   const runner = deps.runner ?? systemRunner
   const runningAgents = deps.runningAgents ?? (() => 0)
+  const apply = deps.apply ?? (() => Promise.reject(new Error('in-process reload unavailable')))
 
   const handleHealth = (res: ServerResponse): void => {
     sendJson(res, 200, {
@@ -84,6 +90,29 @@ export function createReloadHandler(
       bootId: scheduler.bootId,
       watchdogIntervalMs: config.watchdogIntervalSeconds * 1000,
     })
+  }
+
+  const handleNow = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    const body = await readJson(req)
+    if (!body) {
+      sendJson(res, 400, { error: 'invalid json body' })
+      return
+    }
+    const report = await apply({ force: body.force === true })
+    const payload = {
+      status: report.status,
+      text: report.text,
+      warnings: report.warnings,
+      pendingRestart: report.pendingRestart,
+      capabilities: report.capabilities,
+      runningAgents: report.runningAgents,
+    }
+    if (report.status === 'applied') sendJson(res, 200, { ok: true, ...payload })
+    else if (report.status === 'agents-running')
+      sendJson(res, 409, { error: 'agents running', ...payload })
+    else if (report.status === 'unsupported')
+      sendJson(res, 501, { error: 'in-process reload unsupported', ...payload })
+    else sendJson(res, 500, { error: 'in-process reload failed', ...payload })
   }
 
   const handlePrepare = async (res: ServerResponse): Promise<void> => {
@@ -148,8 +177,9 @@ export function createReloadHandler(
         if (method !== 'GET') return sendJson(res, 405, { error: 'GET only' })
         return handleHealth(res)
       }
-      if (sub === '/prepare' || sub === '/confirm' || sub === '/cancel') {
+      if (sub === '/now' || sub === '/prepare' || sub === '/confirm' || sub === '/cancel') {
         if (method !== 'POST') return sendJson(res, 405, { error: 'POST only' })
+        if (sub === '/now') return await handleNow(req, res)
         if (sub === '/prepare') return await handlePrepare(res)
         if (sub === '/confirm') return await handleConfirm(req, res)
         return await handleCancel(req, res)

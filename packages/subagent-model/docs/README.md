@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-09-08 12:36"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/subagent-model"
+type: fact
 ---
 
 # @dsh-plus/subagent-model

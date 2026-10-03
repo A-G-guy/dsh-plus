@@ -24,7 +24,7 @@ from pathlib import Path
 from .auth import cookie_header, home_for_port
 from .common import DEV_PORT, PROD_PORTS, fail
 
-# dev settings.yaml（cmd_dev.MOCK_SETTINGS）中的默认模型指向本机 mock LLM；
+# dev profile 的 mock 接线（cmd_dev.MOCK_PATCH_ROWS）把默认模型指向本机 mock LLM；
 # 两项同时匹配才认定目标是 dev mock 实例。
 MOCK_PROVIDER = "deepseek"
 MOCK_MODEL = "deepseek-v4-flash"

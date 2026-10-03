@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/agent-preset-chat",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus service plugin: 注册纯聊天模式 agent preset（id=chat）——空工具目录、complete persona 前缀，官方 registry 机制下对遗留 .agent-presets/chat 的迁移",
   "type": "module",
   "main": "lib/index.js",

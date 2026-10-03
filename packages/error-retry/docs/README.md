@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-09-24 18:29"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/error-retry"
+type: fact
 ---
 
 # @dsh-plus/error-retry

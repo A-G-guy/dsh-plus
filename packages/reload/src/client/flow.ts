@@ -1,13 +1,24 @@
 /**
  * 「重新加载」流程状态机（hook 形态，与渲染分离）。
- * 流程：prepare → 可取消倒计时（有 running 会话时归零不自动确认，须点
- * 「仍然重启」force）→ confirm → 轮询 health 至 bootId 变化 → location.reload()。
- * 多标签页：confirm 成功写 localStorage 标记，其他标签页 storage 事件接力刷新。
+ * 两条独立子流程，各自一个 hook，由 useReloadFlow 合成一个 phase 供渲染：
+ * - 进程内重载（默认）：apply → 报告（已生效 / 需重启清单 / 失败）；有运行中
+ *   会话时先询问是否强制执行（对应 pi 的「等当前响应结束」）。
+ * - 重启服务（次级，保留原有语义）：prepare → 可取消倒计时（有 running 会话时
+ *   归零不自动确认，须点「仍然重启」force）→ confirm → 轮询 health 至 bootId
+ *   变化 → location.reload()；多标签页经 localStorage 标记接力。
  * @module reload/client/flow
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 
-import { ApiError, fetchHealth, postCancel, postConfirm, postPrepare } from './api.ts'
+import { ApiError, fetchHealth, postApply, postCancel, postConfirm, postPrepare } from './api.ts'
 import type { Translate } from './i18n.ts'
 
 /** 多标签页联动的 localStorage 键。 */
@@ -23,10 +34,24 @@ interface RestartFlag {
   pollTimeoutMs: number
 }
 
-export type Phase =
+export type ApplyPhase =
   | { kind: 'idle' }
+  /** 进程内重载进行中。 */
+  | { kind: 'applying' }
+  /** 进程内重载报告：text 为 host 侧原文，原样渲染。 */
+  | {
+      kind: 'result'
+      status: 'applied' | 'unsupported' | 'failed'
+      text: string
+      pendingRestart: string[]
+    }
+  /** 有会话在运行：询问是否强制进程内重载。 */
+  | { kind: 'forceAsk'; runningAgents: number }
+
+export type RestartPhase =
+  | { kind: 'idle' }
+  /** 重启通道：预检中。 */
   | { kind: 'preparing' }
-  | { kind: 'failed'; title: string; lines: string[] }
   | {
       kind: 'countdown'
       token: string
@@ -37,10 +62,19 @@ export type Phase =
     }
   | { kind: 'restarting'; bootId: string; pollTimeoutMs: number }
   | { kind: 'timeout'; bootId: string; pollTimeoutMs: number }
+  /** 重启通道自身失败（预检未通过/确认过期/网络错误）的报告。 */
+  | { kind: 'report'; text: string }
+
+export type Phase = ApplyPhase | RestartPhase
 
 export interface Flow {
   phase: Phase
-  start: () => void
+  /** 进程内重载（默认动作）。 */
+  apply: () => void
+  /** 进程内重载（跳过运行中会话防线）。 */
+  applyForce: () => void
+  /** 重启服务（次级动作）。 */
+  startRestart: () => void
   restartNow: () => void
   forceRestart: () => void
   cancel: () => void
@@ -96,8 +130,130 @@ function pollUntilRestarted(flag: RestartFlag, onTimeout: () => void): () => voi
   return () => clearInterval(timer)
 }
 
-export function useReloadFlow(t: Translate): Flow {
-  const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
+/** 错误值的可读文本。 */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+interface ApplyFlow {
+  phase: ApplyPhase
+  apply: () => void
+  applyForce: () => void
+  dismiss: () => void
+}
+
+/** 进程内重载子流程：一次请求一次报告，无倒计时、无 token。 */
+function useApplyFlow(): ApplyFlow {
+  const [phase, setPhase] = useState<ApplyPhase>({ kind: 'idle' })
+
+  const runApply = useCallback(async (force: boolean): Promise<void> => {
+    setPhase({ kind: 'applying' })
+    try {
+      const info = await postApply(force)
+      if (info.status === 'agents-running') {
+        setPhase({ kind: 'forceAsk', runningAgents: info.runningAgents })
+        return
+      }
+      setPhase({
+        kind: 'result',
+        status: info.status,
+        text: info.text,
+        pendingRestart: info.pendingRestart,
+      })
+    } catch (error) {
+      setPhase({ kind: 'result', status: 'failed', text: messageOf(error), pendingRestart: [] })
+    }
+  }, [])
+
+  const apply = useCallback((): void => {
+    void runApply(false)
+  }, [runApply])
+
+  const applyForce = useCallback((): void => {
+    void runApply(true)
+  }, [runApply])
+
+  const dismiss = useCallback((): void => {
+    setPhase((current) =>
+      current.kind === 'result' || current.kind === 'forceAsk' ? { kind: 'idle' } : current,
+    )
+  }, [])
+
+  return { phase, apply, applyForce, dismiss }
+}
+
+interface RestartFlow {
+  phase: RestartPhase
+  startRestart: () => void
+  cancel: () => void
+  restartNow: () => void
+  forceRestart: () => void
+  retry: () => void
+  dismiss: () => void
+}
+
+/** 确认重启（携带 token 与是否强制）。 */
+type Confirm = (
+  token: string,
+  force: boolean,
+  bootId: string,
+  pollTimeoutMs: number,
+) => Promise<void>
+
+/** 倒计时滴答：归零且无 running 会话时自动确认；有 running 会话停在 0 等 force。 */
+function useCountdownTick(
+  phase: RestartPhase,
+  confirm: Confirm,
+  setPhase: Dispatch<SetStateAction<RestartPhase>>,
+): void {
+  useEffect(() => {
+    if (phase.kind !== 'countdown') return
+    if (phase.left === 0) {
+      if (phase.runningAgents === 0) {
+        void confirm(phase.token, false, phase.bootId, phase.pollTimeoutMs)
+      }
+      return
+    }
+    const timer = setTimeout(() => {
+      setPhase((current) =>
+        current.kind === 'countdown' ? { ...current, left: current.left - 1 } : current,
+      )
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [phase, confirm, setPhase])
+}
+
+/**
+ * 挂载接力：本页是刷新后重生（bootId 已变 → 清标记）或其他标签页发起中（接力轮询）。
+ * 只在自身空闲（idle）时接受 storage 通知，避免抢占进行中的本地流程。
+ */
+function useRestartRelay(
+  phaseRef: MutableRefObject<RestartPhase>,
+  adopt: (flag: RestartFlag) => void,
+): void {
+  useEffect(() => {
+    const existing = readFlag()
+    if (existing) {
+      void fetchHealth()
+        .then((health) => {
+          if (health.bootId !== existing.bootId) localStorage.removeItem(RESTART_FLAG)
+          else adopt(existing)
+        })
+        .catch(() => adopt(existing))
+    }
+    const onStorage = (event: StorageEvent): void => {
+      if (event.key !== RESTART_FLAG || !event.newValue || phaseRef.current.kind !== 'idle') return
+      const flag = readFlag()
+      if (flag) adopt(flag)
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [adopt, phaseRef])
+}
+
+/** 重启服务子流程：预检 → 倒计时 → 确认 → 轮询恢复 → 刷新页面（多标签页接力）。 */
+function useRestartFlow(t: Translate): RestartFlow {
+  const [phase, setPhase] = useState<RestartPhase>({ kind: 'idle' })
   const phaseRef = useRef(phase)
   phaseRef.current = phase
 
@@ -110,54 +266,17 @@ export function useReloadFlow(t: Translate): Flow {
       pollTimeoutMs: phase.pollTimeoutMs,
     }
     return pollUntilRestarted(flag, () => {
-      setPhase({
-        kind: 'timeout',
-        bootId: phase.bootId,
-        pollTimeoutMs: phase.pollTimeoutMs,
-      })
+      setPhase({ kind: 'timeout', bootId: phase.bootId, pollTimeoutMs: phase.pollTimeoutMs })
     })
   }, [phase])
 
-  // 挂载接力：本页是刷新后重生（bootId 已变 → 清标记）或其他标签页发起中（接力轮询）。
-  useEffect(() => {
-    const existing = readFlag()
-    if (existing) {
-      void fetchHealth()
-        .then((health) => {
-          if (health.bootId !== existing.bootId) {
-            localStorage.removeItem(RESTART_FLAG)
-          } else {
-            setPhase({
-              kind: 'restarting',
-              bootId: existing.bootId,
-              pollTimeoutMs: existing.pollTimeoutMs,
-            })
-          }
-        })
-        .catch(() => {
-          setPhase({
-            kind: 'restarting',
-            bootId: existing.bootId,
-            pollTimeoutMs: existing.pollTimeoutMs,
-          })
-        })
-    }
-    const onStorage = (event: StorageEvent): void => {
-      if (event.key !== RESTART_FLAG || !event.newValue || phaseRef.current.kind !== 'idle') return
-      const flag = readFlag()
-      if (flag)
-        setPhase({
-          kind: 'restarting',
-          bootId: flag.bootId,
-          pollTimeoutMs: flag.pollTimeoutMs,
-        })
-    }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
+  const adopt = useCallback((flag: RestartFlag): void => {
+    setPhase({ kind: 'restarting', bootId: flag.bootId, pollTimeoutMs: flag.pollTimeoutMs })
   }, [])
+  useRestartRelay(phaseRef, adopt)
 
-  const confirm = useCallback(
-    async (token: string, force: boolean, bootId: string, pollTimeoutMs: number): Promise<void> => {
+  const confirm = useCallback<Confirm>(
+    async (token, force, bootId, pollTimeoutMs) => {
       try {
         await postConfirm(token, force)
         writeFlag(bootId, pollTimeoutMs)
@@ -177,63 +296,45 @@ export function useReloadFlow(t: Translate): Flow {
             bootId,
             pollTimeoutMs,
           })
-        } else if (error instanceof ApiError && error.status === 403) {
-          setPhase({ kind: 'failed', title: '', lines: [t('tokenExpired')] })
-        } else {
-          setPhase({
-            kind: 'failed',
-            title: '',
-            lines: [error instanceof Error ? error.message : String(error)],
-          })
+          return
         }
+        setPhase({
+          kind: 'report',
+          text:
+            error instanceof ApiError && error.status === 403
+              ? t('tokenExpired')
+              : messageOf(error),
+        })
       }
     },
     [t],
   )
 
-  // 倒计时滴答：归零且无 running 会话时自动确认；有 running 会话停在 0 等 force。
-  useEffect(() => {
-    if (phase.kind !== 'countdown') return
-    if (phase.left === 0) {
-      if (phase.runningAgents === 0)
-        void confirm(phase.token, false, phase.bootId, phase.pollTimeoutMs)
-      return
-    }
-    const timer = setTimeout(() => {
-      setPhase((current) =>
-        current.kind === 'countdown' ? { ...current, left: current.left - 1 } : current,
-      )
-    }, 1000)
-    return () => clearTimeout(timer)
-  }, [phase, confirm])
+  useCountdownTick(phase, confirm, setPhase)
 
-  const start = useCallback(async (): Promise<void> => {
-    setPhase({ kind: 'preparing' })
-    try {
-      const info = await postPrepare()
-      setPhase({
-        kind: 'countdown',
-        token: info.token,
-        left: Math.max(0, info.countdownSeconds),
-        runningAgents: info.runningAgents,
-        bootId: info.bootId,
-        pollTimeoutMs: info.pollTimeoutMs,
-      })
-    } catch (error) {
-      if (error instanceof ApiError && error.preflight) {
+  const startRestart = useCallback((): void => {
+    void (async () => {
+      setPhase({ kind: 'preparing' })
+      try {
+        const info = await postPrepare()
         setPhase({
-          kind: 'failed',
-          title: t('preflightFailed'),
-          lines: error.preflight.reasons,
+          kind: 'countdown',
+          token: info.token,
+          left: Math.max(0, info.countdownSeconds),
+          runningAgents: info.runningAgents,
+          bootId: info.bootId,
+          pollTimeoutMs: info.pollTimeoutMs,
         })
-      } else {
+      } catch (error) {
         setPhase({
-          kind: 'failed',
-          title: '',
-          lines: [error instanceof Error ? error.message : String(error)],
+          kind: 'report',
+          text:
+            error instanceof ApiError && error.preflight
+              ? [t('preflightFailed'), ...error.preflight.reasons.map((r) => `- ${r}`)].join('\n')
+              : messageOf(error),
         })
       }
-    }
+    })()
   }, [t])
 
   const cancel = useCallback((): void => {
@@ -251,25 +352,44 @@ export function useReloadFlow(t: Translate): Flow {
 
   const forceRestart = useCallback((): void => {
     const current = phaseRef.current
-    if (current.kind === 'countdown')
+    if (current.kind === 'countdown') {
       void confirm(current.token, true, current.bootId, current.pollTimeoutMs)
+    }
   }, [confirm])
 
   const retry = useCallback((): void => {
     const current = phaseRef.current
     if (current.kind !== 'timeout') return
     writeFlag(current.bootId, current.pollTimeoutMs)
-    setPhase({
-      kind: 'restarting',
-      bootId: current.bootId,
-      pollTimeoutMs: current.pollTimeoutMs,
-    })
+    setPhase({ kind: 'restarting', bootId: current.bootId, pollTimeoutMs: current.pollTimeoutMs })
   }, [])
 
   const dismiss = useCallback((): void => {
-    if (phaseRef.current.kind === 'failed' || phaseRef.current.kind === 'timeout')
-      setPhase({ kind: 'idle' })
+    const current = phaseRef.current
+    if (current.kind === 'timeout' || current.kind === 'report') setPhase({ kind: 'idle' })
   }, [])
 
-  return { phase, start, restartNow, forceRestart, cancel, dismiss, retry }
+  return { phase, startRestart, cancel, restartNow, forceRestart, retry, dismiss }
+}
+
+export function useReloadFlow(t: Translate): Flow {
+  const applyFlow = useApplyFlow()
+  const restartFlow = useRestartFlow(t)
+  // 同一时刻只有一条子流程在跑：非 idle 的那条胜出。
+  const phase: Phase = applyFlow.phase.kind === 'idle' ? restartFlow.phase : applyFlow.phase
+  const dismiss = useCallback((): void => {
+    applyFlow.dismiss()
+    restartFlow.dismiss()
+  }, [applyFlow, restartFlow])
+  return {
+    phase,
+    apply: applyFlow.apply,
+    applyForce: applyFlow.applyForce,
+    startRestart: restartFlow.startRestart,
+    restartNow: restartFlow.restartNow,
+    forceRestart: restartFlow.forceRestart,
+    cancel: restartFlow.cancel,
+    dismiss,
+    retry: restartFlow.retry,
+  }
 }

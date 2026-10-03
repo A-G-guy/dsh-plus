@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/error-retry",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus service plugin: 把按模糊模式匹配的特定 LLM 报错（如 PI_AI_ERROR 下的 Provider finish_reason: content_filter）纳入 dsh 上游重试，重试次数可配（默认 5 次），退避/持久化零改动",
   "type": "module",
   "main": "lib/index.js",

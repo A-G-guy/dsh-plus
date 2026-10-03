@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/web-shell-sw",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus ui plugin: 外壳 Service Worker——内容寻址静态资源 cache-first、index network-first 离线兜底；绝不触碰 RPC/SSE/网关路由，token 页（no-store）永不入缓存，settings 一键注销",
   "type": "module",
   "main": "lib/index.js",

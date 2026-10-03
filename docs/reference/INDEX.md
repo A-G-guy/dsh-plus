@@ -1,11 +1,11 @@
 ---
 description: "Auto-generated index of this document folder."
-last_modified: "2026-10-02 22:42"
+last_modified: "2026-10-04 00:42"
 ---
 <!-- projects-go:generated -->
 
 # reference
 
-| Document | Description | Last modified |
-| --- | --- | --- |
-| [官方机制参照](官方机制参照.md) | 官方机制参照 | 2026-10-02 22:40 |
+| Document | description | last_modified | type |
+| --- | --- | --- | --- |
+| [官方机制参照](官方机制参照.md) | 官方机制参照 | 2026-10-04 00:42 | fact |

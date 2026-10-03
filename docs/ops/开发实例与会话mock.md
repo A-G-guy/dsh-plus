@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-10-02 22:40"
+last_modified: "2026-10-03 03:23"
 description: "开发实例与会话 mock"
+type: fact
 ---
 
 # 开发实例与会话 mock

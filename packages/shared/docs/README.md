@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-09-29 12:54"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/shared"
+type: fact
 ---
 
 # @dsh-plus/shared

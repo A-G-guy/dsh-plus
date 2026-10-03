@@ -15,24 +15,31 @@ from .common import (DEV_HOME, DEV_PORT, DEV_PROFILE, DEV_RUN_DIR, dsh_bin,
                      daemon_status, dev_env, fail, port_open, read_json, run,
                      start_daemon, stop_daemon, wait_port, write_json)
 
-MOCK_SETTINGS = """\
-# dev 专用：所有 provider 指向本机 mock LLM（127.0.0.1），严禁填入真实网关。
+# mock LLM 接线：0.2.x 起 settings.yaml 已废弃，且 settings 服务只导入「有 volatile
+# 字段」的段（llm-pi-ai 的 providers 不在其列，会被拒并原样留在 settings.yaml.imported），
+# 因此 mock 接线一律以 profile patch 行注入：patch 整行替换 config，缺省字段由
+# schemastery 兜底（permission 的 presets 就有默认值，只覆盖 defaultPreset 即可）。
+MOCK_PATCH_MARKER = "# ── mock LLM 接线（dev/smoke 专用）"
+MOCK_PATCH_ROWS = f"""\
+{MOCK_PATCH_MARKER}：所有 provider 指向本机 mock，严禁真实网关 ──────
 # 模型 id 复用 catalog 已知条目以继承元数据；mock 不区分模型，一律回显/脚本化应答。
-agent-default-model:
-  provider: deepseek
-  model: deepseek-v4-flash
-
-llm-pi-ai:
-  providers:
-    deepseek:
-      displayName: local-mock(openai-chat)
-      apiKeyEnv: DSH_DEV_MOCK_KEY
-      baseURL: http://127.0.0.1:3917/v1
-      models:
-        - id: deepseek-v4-flash
-          name: Mock Flash
-permission:
-  defaultPreset: danger-full-access
+- id: agent-default-model
+  config:
+    provider: deepseek
+    model: deepseek-v4-flash
+- id: llm-pi-ai
+  config:
+    providers:
+      deepseek:
+        displayName: local-mock(openai-chat)
+        apiKeyEnv: DSH_DEV_MOCK_KEY
+        baseURL: http://127.0.0.1:{MOCK_PORT}/v1
+        models:
+          - id: deepseek-v4-flash
+            name: Mock Flash
+- id: permission
+  config:
+    defaultPreset: danger-full-access
 """
 
 # dev home 下统一管理的 profile；headless 用于零费用冒烟。
@@ -136,6 +143,60 @@ def _ensure_headless_disables() -> None:
     print(f"[dev] headless 补丁层已禁用 web 系插件: {', '.join(missing)}")
 
 
+# HMR 模块监听只对交互式 web profile 有意义（headless 每次任务都是新进程）。
+HMR_PROFILES = ("web",)
+
+DEV_HMR_ROW = """\
+# ── 开发热重载（仅 dev profile）────────────────────────────────────────
+# 监听 workspace 包产物：`pnpm -r build` 后插件在运行实例内即时替换，无需 dev restart。
+# dev profile 用 link: 安装，模块解析到本仓 packages/<name>（不含 node_modules 段），
+# 因此命中 dsh-hmr 的模块替换路径；生产 profile 的 tarball 布局不在其覆盖范围内。
+- id: hmr
+  config:
+    root: ["{packages_dir}"]
+    ignored: ["**/node_modules", "**/.*", "**/src/**", "**/tests/**", "**/docs/**", "cache", "data"]
+"""
+
+
+def append_patch_rows(patch: Path, rows: str, marker: str) -> bool:
+    """把 patch 行块追加到补丁文件（幂等：marker 已存在即跳过）。
+
+    空模板（尾部 `[]` 占位）会被去掉后再追加，避免生成非法的顶层数组。
+    @param patch - profile 的 cordis.patch.yml 路径。
+    @param rows - 完整的行块文本（含其自身的注释头）。
+    @param marker - 幂等判据，通常是行块注释头里的固定片段。
+    @returns 是否实际写入。
+    """
+    if not patch.exists():
+        return False
+    text = patch.read_text(encoding="utf-8")
+    if marker in text:
+        return False
+    stripped = text.rstrip()
+    if stripped.endswith("[]"):
+        stripped = stripped[: stripped.rfind("[]")].rstrip()
+    patch.write_text(stripped + "\n\n" + rows, encoding="utf-8")
+    return True
+
+
+def _ensure_hmr_root(profile: str) -> None:
+    """向 dev profile 注入 HMR 模块监听根（幂等；已有 hmr 行则不动，尊重用户配置）。"""
+    if profile not in HMR_PROFILES:
+        return
+    patch = _dev_profile_dir(profile) / "cordis.patch.yml"
+    if patch.exists() and "\n- id: hmr" in f"\n{patch.read_text(encoding='utf-8')}":
+        return
+    if append_patch_rows(patch, DEV_HMR_ROW.format(packages_dir=PACKAGES_DIR), "- id: hmr"):
+        print(f"[dev] HMR 模块监听已注入 {profile}/cordis.patch.yml（workspace 包热重载）")
+
+
+def _ensure_mock_rows(profile: str) -> None:
+    """向 dev profile 注入 mock LLM 接线行（幂等；patch 行在 prod 补丁之后，故 mock 生效）。"""
+    patch = _dev_profile_dir(profile) / "cordis.patch.yml"
+    if append_patch_rows(patch, MOCK_PATCH_ROWS, MOCK_PATCH_MARKER):
+        print(f"[dev] mock LLM 接线已注入 {profile}/cordis.patch.yml")
+
+
 def _link_workspace_packages(profile: str) -> None:
     pkg_json = _dev_profile_dir(profile) / "package.json"
     meta = read_json(pkg_json)
@@ -154,6 +215,8 @@ def _link_workspace_packages(profile: str) -> None:
         bundles.append("@dsh-plus/bundle-main")
     write_json(pkg_json, meta)
     _ensure_demo_tool_row(profile)
+    _ensure_hmr_root(profile)
+    _ensure_mock_rows(profile)
     if profile == "headless":
         _ensure_headless_disables()
     run([dsh_bin(), "plugin", "--profile", profile, "install"], env=dev_env())
@@ -162,10 +225,8 @@ def _link_workspace_packages(profile: str) -> None:
 def cmd_dev_init(_args) -> None:
     env = dev_env()
     DEV_RUN_DIR.mkdir(parents=True, exist_ok=True)
-    settings = DEV_HOME / "settings.yaml"
-    if not settings.exists():
-        settings.write_text(MOCK_SETTINGS, encoding="utf-8")
-        print(f"[dev] 已写入 mock 版 settings.yaml → {settings}")
+    # mock 接线不写 settings.yaml：0.2.x 的 settings 服务只导入有 volatile 字段的段，
+    # llm-pi-ai 的 providers 会被拒；改由 _link_workspace_packages 注入 patch 行。
     for extra in ("AGENTS.md", "skills"):
         src = Path.home() / ".dsh" / extra
         dst = DEV_HOME / extra
@@ -176,12 +237,14 @@ def cmd_dev_init(_args) -> None:
                 shutil.copy2(src, dst)
     for profile in PROFILES:
         _ensure_profile(env, profile)
-        _link_workspace_packages(profile)
+    # 复制生产补丁必须早于 dev 专属行注入：判据是「dev 补丁仍是空模板 []」。
     prod_patch = Path.home() / ".dsh/profiles/web/cordis.patch.yml"
     dev_patch = _dev_profile_dir("web") / "cordis.patch.yml"
     if prod_patch.exists() and dev_patch.read_text(encoding="utf-8").strip().endswith("[]"):
         shutil.copy2(prod_patch, dev_patch)
         print("[dev] 已复制生产 cordis.patch.yml（subagent 路由到 mock provider）")
+    for profile in PROFILES:
+        _link_workspace_packages(profile)
     print("[dev] 初始化完成：DSH_HOME=~/.dsh-dev，模型全部走本机 mock")
 
 

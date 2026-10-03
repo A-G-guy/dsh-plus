@@ -15,9 +15,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-from .cmd_dev import (HEADLESS_DISABLED_IDS, MOCK_SETTINGS, _dev_profile_dir,
-                      clear_mock_script, ensure_mock_running, write_mock_script)
-from .common import (DEV_HOME, dsh_bin, PROD_HOME, dev_env, fail,
+from .cmd_dev import (HEADLESS_DISABLED_IDS, MOCK_PATCH_MARKER, MOCK_PATCH_ROWS,
+                      _dev_profile_dir, append_patch_rows, clear_mock_script,
+                      ensure_mock_running, write_mock_script)
+from .common import (dsh_bin, PROD_HOME, dev_env, fail,
                      find_platform_shadows, read_json, run, write_json,
                      yaml_scalar)
 
@@ -34,7 +35,7 @@ SMOKE_SCRIPT = [
 
 
 def cmd_smoke(_args) -> None:
-    if not (DEV_HOME / "settings.yaml").exists():
+    if not (_dev_profile_dir() / "package.json").exists():
         fail("dev home 未初始化，请先运行: dshctl.py dev init")
     if not (_dev_profile_dir("headless") / "package.json").exists():
         fail("headless profile 未初始化，请先运行: dshctl.py dev init")
@@ -78,7 +79,6 @@ def _prod_linker() -> str:
 
 def _init_scratch_profile(scratch: Path, env: dict[str, str], linker: str) -> Path:
     """scratch home 初始化 headless profile 并覆写为被测布局。"""
-    (scratch / "settings.yaml").write_text(MOCK_SETTINGS, encoding="utf-8")
     run([dsh_bin(), "--profile", SMOKE_PROFILE, "--dump-config"], env=env)
     profile = scratch / "profiles" / SMOKE_PROFILE
     if not (profile / "package.json").exists():
@@ -92,9 +92,13 @@ def _init_scratch_profile(scratch: Path, env: dict[str, str], linker: str) -> Pa
     # 0.1.2-alpha 线起 boot 把「等待不存在的服务」当硬失败（rc 期为挂起）；
     # headless 无 webServer，与 dev headless 同策禁用 web 系插件。
     rows = "\n".join(f"- id: {pid}\n  disabled: true" for pid in HEADLESS_DISABLED_IDS)
-    (profile / "cordis.patch.yml").write_text(
+    patch = profile / "cordis.patch.yml"
+    patch.write_text(
         "# web 系插件在 headless 禁用（无 webServer/UI 面）\n" + rows + "\n",
         encoding="utf-8")
+    # mock 接线必须落到 patch 行：settings.yaml 只导入有 volatile 字段的段，
+    # llm-pi-ai 的 providers 会被拒（历史事故：冒烟打到真实网关）。
+    append_patch_rows(patch, MOCK_PATCH_ROWS, MOCK_PATCH_MARKER)
     return profile
 
 

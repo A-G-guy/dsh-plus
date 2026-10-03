@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-10-02 22:38"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/ui-mobile-fit"
+type: fact
 ---
 
 # @dsh-plus/ui-mobile-fit

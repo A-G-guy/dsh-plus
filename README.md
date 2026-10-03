@@ -20,31 +20,33 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 
 ## 插件一览
 
-| 包 | 版本 | 类型 | 平台 | 说明 | 文档 |
-|---|---|---|---|---|---|
-| [`@dsh-plus/ui-mobile-fit`](packages/ui-mobile-fit) | 0.1.3 | UI | 通用 | 纯 CSS 覆盖的移动端窄屏响应式适配，不 fork 上游、跟随升级 | [docs](packages/ui-mobile-fit/docs/README.md) |
-| [`@dsh-plus/remote-settings`](packages/remote-settings) | 0.1.0 | UI | 通用 | 修复非 loopback 访问（loopback-rewrite 反代）下设置→模型目录报错与插件配置卡片不渲染 | [docs](packages/remote-settings/docs/README.md) |
-| [`@dsh-plus/notify-email`](packages/notify-email) | 0.1.0 | service + UI | 通用 | 任务完成 / 等待决策 / 出错停止时向指定邮箱发送邮件通知 | [docs](packages/notify-email/docs/README.md) |
-| [`@dsh-plus/llm-pi`](packages/llm-pi) | 0.1.0 | service + UI | 通用 | 基于 pi-ai 的自定义 LLM 路由：三协议 route、官方目录继承、全量 compat、models.dev 兜底 | [docs](packages/llm-pi/docs/README.md) |
-| [`@dsh-plus/lifeboat`](packages/lifeboat) | 0.1.0 | service | 通用 | 故障救生艇：兄弟插件崩溃自动隔离（写 patch 层禁用）+ LLM 应急翻译 + 邮件告警 | [docs](packages/lifeboat/docs/README.md) |
-| [`@dsh-plus/reload`](packages/reload) | 0.1.0 | service + UI | Linux | 设置页「重新加载」按钮与 `/reload` 命令：两段确认+倒计时后重启 dsh-web（systemd，桌面/Windows 下按钮禁用并提示） | [docs](packages/reload/docs/README.md) |
-| [`@dsh-plus/usage-panel`](packages/usage-panel) | 0.1.0 | service + UI | 通用 | 全量会话 token 用量面板：实时+历史扫描双通道聚合，按日/模型报表，可选价目估算费用 | [docs](packages/usage-panel/docs/README.md) |
-| [`@dsh-plus/access-gate`](packages/access-gate) | 0.1.0 | service + UI | 通用 | Web 访问围栏（已合并官方认证）：官方 cookie 为唯一凭据，未认证导航渲染 token 输入页（PWA 可恢复），可选 IP 附加围栏，loopback 管理通道取当前认证链接 | [docs](packages/access-gate/docs/README.md) |
-| [`@dsh-plus/boot-retry`](packages/boot-retry) | 0.1.0 | service | 通用 | 弱网引导重试：经官方 `__DSH_TRANSPORT__.loadBundle` 缝注入零缓存重试加载器，消除一次抖动导致的「Failed to load plugins」；不改 URL/不缓存，HMR 语义不变 | [docs](packages/boot-retry/docs/README.md) |
-| [`@dsh-plus/web-cache-headers`](packages/web-cache-headers) | 0.1.0 | service | 通用 | 给 GUI 静态资源补长缓存：内容哈希 `/assets/*` 200 响应增量加 `immutable`，消除每次刷新重复传输 ~1.4MB（gzip 后约 500KB） | [docs](packages/web-cache-headers/docs/README.md) |
-| [`@dsh-plus/web-boot-timing`](packages/web-boot-timing) | 0.1.0 | service + UI | 通用 | 弱网首屏计时观测：五相时钟（ttfb/index/DCL/FCP/遮罩移除/首次输入）+ 资源分桶报告，输出 console/`globalThis` 钩子/localStorage 历史对比；纯观测零行为改动 | [docs](packages/web-boot-timing/docs/README.md) |
-| [`@dsh-plus/web-shell-sw`](packages/web-shell-sw) | 0.1.0 | service + UI | 通用 | 外壳 Service Worker：内容寻址资源 cache-first、index network-first 离线兜底；不碰 RPC/SSE/token 交换，`no-store` 永不入库，settings 一键注销恢复原生 | [docs](packages/web-shell-sw/docs/README.md) |
-| [`@dsh-plus/error-retry`](packages/error-retry) | 0.1.0 | service | 通用 | 特定报错纳入上游重试：模糊/正则匹配 `failure.message`（如 `content_filter` → `PI_AI_ERROR`）并改写载荷 `retryPolicy`，退避/持久事件/次数预算仍全由官方 `dsh-llm-retry` 执行，次数可配（默认 5） | [docs](packages/error-retry/docs/README.md) |
-| [`@dsh-plus/subagent-model`](packages/subagent-model) | 0.2.0 | service | 通用 | 子代理独立模型配置：按 provider 为 subagent/subagent_fork 注入 agentOptions（provider/model/思考程度），`default` 条目共享单条路由；主代理显式选择仍优先 | [docs](packages/subagent-model/docs/README.md) |
-| [`@dsh-plus/web-files`](packages/web-files) | 0.3.24 | service + UI | 通用 | Web 内嵌类 SFTP 文件浏览与编辑：目录导航/预览/编辑、图片直连预览、双分隔符路径判据 | [docs](packages/web-files/docs/README.md) |
-| [`@dsh-plus/image-studio`](packages/image-studio) | 0.1.18 | service + UI | 通用 | 图像工作室：OpenAI Images 协议文生图/图生图、全参数开关化、预设体系与可二次编辑画廊 | [docs](packages/image-studio/docs/README.md) |
-| [`@dsh-plus/secret-env`](packages/secret-env) | 0.1.20 | service + UI | 通用 | 密钥环境变量：以 `$DSH_VAR_*` 变量名向 agent 暴露密钥，执行期经 dsh-shell-env 注入，值不进消息流、不影响缓存率 | [docs](packages/secret-env/docs/README.md) |
-| [`@dsh-plus/web-search-services`](packages/web-search-services) | 0.1.6 | service | 通用·py | web_search 免费后端聚合（Tavily/Exa/OpenAI Chat），官方 web_search 工具零修改；需本机 Python（自动发现，Windows 兜底 `py -3`） | [docs](packages/web-search-services/docs/README.md) |
-| [`@dsh-plus/siyuan`](packages/siyuan) | 0.1.0 | service | 通用 | 思源笔记主插件：MCP tools/list × kernel CLI help 树自动派生能力清单（docker/native/http 连接与 token 自动发现、双源交叉校验、降级执行），注册 `siyuan` agent 预设（操作面仅思源工具 + web/提问/待办辅助行，精简版系统提示词不复述工具描述） | [docs](packages/siyuan/docs/README.md) |
-| [`@dsh-plus/siyuan-tools`](packages/siyuan-tools) | 0.1.0 | tool | 通用 | 思源笔记子插件（仅 siyuan 预设挂载）：能力 1:1 包装为 agent 作用域 DSH 工具，写操作按 DSH 审批策略确认（完全权限自动通过、绝不静默拒绝），写前数据历史快照，`siyuan:env` 环境快照，MCP 优先 CLI 兜底 | [docs](packages/siyuan-tools/docs/README.md) |
-| [`@dsh-plus/tool-text-transform`](packages/tool-text-transform) | 0.1.0 | tool | 通用 | 纯函数演示工具（uppercase / lowercase / reverse / length），插件链路参考实现 | [docs](packages/tool-text-transform/docs/README.md) |
-| [`@dsh-plus/bundle-main`](packages/bundle-main) | 0.1.0 | bundle | 通用 | 聚合编排层：按序 insert 正式插件行，单插件脱离 bundle 亦可独立安装 | — |
-| [`@dsh-plus/shared`](packages/shared) | 0.1.0 | library | 通用 | 工作区共享纯函数库（非插件；原子写委托官方 dsh-atomic-write） | — |
+| 包 | 类型 | 平台 | 说明 | 文档 |
+|---|---|---|---|---|
+| [`@dsh-plus/ui-mobile-fit`](packages/ui-mobile-fit) | UI | 通用 | 纯 CSS 覆盖的移动端窄屏响应式适配，不 fork 上游、跟随升级 | [docs](packages/ui-mobile-fit/docs/README.md) |
+| [`@dsh-plus/remote-settings`](packages/remote-settings) | UI | 通用 | 修复非 loopback 访问（loopback-rewrite 反代）下设置→模型目录报错与插件配置卡片不渲染 | [docs](packages/remote-settings/docs/README.md) |
+| [`@dsh-plus/notify-email`](packages/notify-email) | service + UI | 通用 | 任务完成 / 等待决策 / 出错停止时向指定邮箱发送邮件通知 | [docs](packages/notify-email/docs/README.md) |
+| [`@dsh-plus/llm-pi`](packages/llm-pi) | service + UI | 通用 | 基于 pi-ai 的自定义 LLM 路由：三协议 route、官方目录继承、全量 compat、models.dev 兜底 | [docs](packages/llm-pi/docs/README.md) |
+| [`@dsh-plus/lifeboat`](packages/lifeboat) | service | 通用 | 故障救生艇：兄弟插件崩溃自动隔离（写 patch 层禁用）+ LLM 应急翻译 + 邮件告警 | [docs](packages/lifeboat/docs/README.md) |
+| [`@dsh-plus/reload`](packages/reload) | service + UI | Linux | 设置页「重新加载」按钮与 `/reload` 命令：两段确认+倒计时后重启 dsh-web（systemd，桌面/Windows 下按钮禁用并提示） | [docs](packages/reload/docs/README.md) |
+| [`@dsh-plus/usage-panel`](packages/usage-panel) | service + UI | 通用 | 全量会话 token 用量面板：实时+历史扫描双通道聚合，按日/模型报表，可选价目估算费用 | [docs](packages/usage-panel/docs/README.md) |
+| [`@dsh-plus/access-gate`](packages/access-gate) | service + UI | 通用 | Web 访问围栏（已合并官方认证）：官方 cookie 为唯一凭据，未认证导航渲染 token 输入页（PWA 可恢复），可选 IP 附加围栏，loopback 管理通道取当前认证链接 | [docs](packages/access-gate/docs/README.md) |
+| [`@dsh-plus/boot-retry`](packages/boot-retry) | service | 通用 | 弱网引导重试：经官方 `__DSH_TRANSPORT__.loadBundle` 缝注入零缓存重试加载器，消除一次抖动导致的「Failed to load plugins」；不改 URL/不缓存，HMR 语义不变 | [docs](packages/boot-retry/docs/README.md) |
+| [`@dsh-plus/web-cache-headers`](packages/web-cache-headers) | service | 通用 | 给 GUI 静态资源补长缓存：内容哈希 `/assets/*` 200 响应增量加 `immutable`，消除每次刷新重复传输 ~1.4MB（gzip 后约 500KB） | [docs](packages/web-cache-headers/docs/README.md) |
+| [`@dsh-plus/web-boot-timing`](packages/web-boot-timing) | service + UI | 通用 | 弱网首屏计时观测：五相时钟（ttfb/index/DCL/FCP/遮罩移除/首次输入）+ 资源分桶报告，输出 console/`globalThis` 钩子/localStorage 历史对比；纯观测零行为改动 | [docs](packages/web-boot-timing/docs/README.md) |
+| [`@dsh-plus/web-shell-sw`](packages/web-shell-sw) | service + UI | 通用 | 外壳 Service Worker：内容寻址资源 cache-first、index network-first 离线兜底；不碰 RPC/SSE/token 交换，`no-store` 永不入库，settings 一键注销恢复原生 | [docs](packages/web-shell-sw/docs/README.md) |
+| [`@dsh-plus/error-retry`](packages/error-retry) | service | 通用 | 特定报错纳入上游重试：模糊/正则匹配 `failure.message`（如 `content_filter` → `PI_AI_ERROR`）并改写载荷 `retryPolicy`，退避/持久事件/次数预算仍全由官方 `dsh-llm-retry` 执行，次数可配（默认 5） | [docs](packages/error-retry/docs/README.md) |
+| [`@dsh-plus/subagent-model`](packages/subagent-model) | service | 通用 | 子代理独立模型配置：按 provider 为 subagent/subagent_fork 注入 agentOptions（provider/model/思考程度），`default` 条目共享单条路由；主代理显式选择仍优先 | [docs](packages/subagent-model/docs/README.md) |
+| [`@dsh-plus/web-files`](packages/web-files) | service + UI | 通用 | Web 内嵌类 SFTP 文件浏览与编辑：目录导航/预览/编辑、图片直连预览、双分隔符路径判据 | [docs](packages/web-files/docs/README.md) |
+| [`@dsh-plus/image-studio`](packages/image-studio) | service + UI | 通用 | 图像工作室：OpenAI Images 协议文生图/图生图、全参数开关化、预设体系与可二次编辑画廊 | [docs](packages/image-studio/docs/README.md) |
+| [`@dsh-plus/secret-env`](packages/secret-env) | service + UI | 通用 | 密钥环境变量：以 `$DSH_VAR_*` 变量名向 agent 暴露密钥，执行期经 dsh-shell-env 注入，值不进消息流、不影响缓存率 | [docs](packages/secret-env/docs/README.md) |
+| [`@dsh-plus/web-search-services`](packages/web-search-services) | service | 通用·py | web_search 免费后端聚合（Tavily/Exa/OpenAI Chat），官方 web_search 工具零修改；需本机 Python（自动发现，Windows 兜底 `py -3`） | [docs](packages/web-search-services/docs/README.md) |
+| [`@dsh-plus/siyuan`](packages/siyuan) | service | 通用 | 思源笔记主插件：MCP tools/list × kernel CLI help 树自动派生能力清单（docker/native/http 连接与 token 自动发现、双源交叉校验、降级执行），注册 `siyuan` agent 预设（操作面仅思源工具 + web/提问/待办辅助行，精简版系统提示词不复述工具描述） | [docs](packages/siyuan/docs/README.md) |
+| [`@dsh-plus/siyuan-tools`](packages/siyuan-tools) | tool | 通用 | 思源笔记子插件（仅 siyuan 预设挂载）：能力 1:1 包装为 agent 作用域 DSH 工具，写操作按 DSH 审批策略确认（完全权限自动通过、绝不静默拒绝），写前数据历史快照，`siyuan:env` 环境快照，MCP 优先 CLI 兜底 | [docs](packages/siyuan-tools/docs/README.md) |
+| [`@dsh-plus/tool-text-transform`](packages/tool-text-transform) | tool | 通用 | 纯函数演示工具（uppercase / lowercase / reverse / length），插件链路参考实现 | [docs](packages/tool-text-transform/docs/README.md) |
+| [`@dsh-plus/agent-preset-chat`](packages/agent-preset-chat) | persona | 通用 | 注册纯聊天模式 agent 预设（id=`chat`）：空工具目录 + complete persona 前缀，含遗留 `.agent-presets/chat` 迁移 | [docs](packages/agent-preset-chat/docs/README.md) |
+| [`@dsh-plus/bundle-main`](packages/bundle-main) | bundle | 通用 | 聚合编排层：按序 insert 正式插件行，单插件脱离 bundle 亦可独立安装 | — |
+| [`@dsh-plus/shared`](packages/shared) | library | 通用 | 工作区共享纯函数库（非插件；原子写委托官方 dsh-atomic-write） | — |
+各包版本号见对应 `packages/*/package.json` 与 npm 页面，不在此复述（避免与发版脱节）。
 
 平台列图例：**通用** = 无平台限制（web profile / 桌面端 / Windows 按设计接入，
 未注明处不含平台特判）；**通用·py** = 需要本机 Python 解释器；**Linux** = 依赖
@@ -57,7 +59,7 @@ systemd，桌面端/Windows 下相关能力显式降级。桌面/Windows 的验�
 
 - Node.js **≥ 22**（测试依赖 `node --test` 直接运行 TypeScript）
 - pnpm（经 corepack 启用）
-- 已安装 DSH（`@deepseek-ai/dsh`，基准版本 `0.1.6-alpha.2`）
+- 已安装 DSH（`@deepseek-ai/dsh`，兼容下限 `0.2.0`，当前基线 `0.2.0-rc.1`）
 
 ### 安装到 DSH
 

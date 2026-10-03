@@ -32,9 +32,131 @@
       "preset": "recommended",
       "complexity": {
         "useLiteralKeys": "off"
+      },
+      "suspicious": {
+        "noImportCycles": "error"
+      },
+      "correctness": {
+        "noPrivateImports": "error",
+        "noUndeclaredDependencies": "off"
+      },
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["@dsh-plus/*/src/*"],
+                "message": "包间只经 package.json exports 的公开入口导入，禁止 src 深路径"
+              },
+              {
+                "group": ["@dsh-plus/bundle-main", "@dsh-plus/bundle-main/*"],
+                "message": "bundle-main 是聚合编排层，任何包都不得依赖它"
+              }
+            ]
+          }
+        }
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["packages/*/src/**", "packages/*/tests/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUndeclaredDependencies": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/shared/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@dsh-plus/*/src/*"],
+                    "message": "包间只经 package.json exports 的公开入口导入，禁止 src 深路径"
+                  },
+                  {
+                    "group": ["@dsh-plus/bundle-main", "@dsh-plus/bundle-main/*"],
+                    "message": "bundle-main 是聚合编排层，任何包都不得依赖它"
+                  },
+                  {
+                    "group": ["@dsh-plus/*"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/siyuan-tools/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@dsh-plus/*/src/*"],
+                    "message": "包间只经 package.json exports 的公开入口导入，禁止 src 深路径"
+                  },
+                  {
+                    "group": ["@dsh-plus/bundle-main", "@dsh-plus/bundle-main/*"],
+                    "message": "bundle-main 是聚合编排层，任何包都不得依赖它"
+                  },
+                  {
+                    "group": [
+                      "@dsh-plus/*",
+                      "!@dsh-plus/shared",
+                      "!@dsh-plus/shared/client",
+                      "!@dsh-plus/siyuan"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/*/**", "!packages/shared/**", "!packages/siyuan-tools/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@dsh-plus/*/src/*"],
+                    "message": "包间只经 package.json exports 的公开入口导入，禁止 src 深路径"
+                  },
+                  {
+                    "group": ["@dsh-plus/bundle-main", "@dsh-plus/bundle-main/*"],
+                    "message": "bundle-main 是聚合编排层，任何包都不得依赖它"
+                  },
+                  {
+                    "group": ["@dsh-plus/*", "!@dsh-plus/shared", "!@dsh-plus/shared/client"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "assist": {
     "actions": {
       "source": {

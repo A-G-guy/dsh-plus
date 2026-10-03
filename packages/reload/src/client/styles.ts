@@ -23,6 +23,7 @@ export const rowCss = `
 .drl-dialogTitle{color:var(--dsw-alias-label-primary);margin:0;font-size:16px;font-weight:600;line-height:1.4}
 .drl-count{color:var(--dsw-alias-label-primary);font-size:44px;font-weight:600;line-height:1;text-align:center;padding:8px 0}
 .drl-text{color:var(--dsw-alias-label-secondary);margin:0;font-size:13px;line-height:1.6}
+.drl-multiline{white-space:pre-line}
 .drl-warning{color:var(--dsw-alias-label-error);margin:0;font-size:13px;line-height:1.6}
 .drl-reasons{color:var(--dsw-alias-label-tertiary);margin:0;padding-left:18px;font-size:12px;line-height:1.7}
 .drl-actions{justify-content:flex-end;gap:8px;display:flex;flex-wrap:wrap;padding-top:4px}

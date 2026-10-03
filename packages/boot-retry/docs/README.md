@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-09-19 19:28"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/boot-retry"
+type: fact
 ---
 
 # @dsh-plus/boot-retry

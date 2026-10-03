@@ -1,10 +1,39 @@
 # projects-go 门禁配置：只记录与内置默认的偏差（默认策略始终生效，勿复述默认值）。
+# 列表键默认叠加在内置默认之上（豁免、模式、取值；同名条目覆盖内置条目），
+# 只有身份类列表（docs.dirs、hook.checks、commit.types、lines.module.roots、
+# index.fields_*）整表替换；确需「只留这些」时，在对应表写 replace = true。
 # 门禁清单、触发时机与失败处理见 docs/repo/仓库管理规范.md「提交与门槛」。
 
 [docs]
 # 文档根：仓库文档 + 各插件契约文档（承接原 .md-doc-timestamp.json 的 doc_roots）。
 dirs = ["docs", "packages/*/docs"]
+# 文档语言为中文（AGENTS.md 文档规范）。计数只看正文：代码块、行内代码、URL、
+# 表格、手写区，以及标识符/路径/版本号/缩写等术语 token 均不计入，因此
+# 「中文夹英文术语」不会被判成英文（实测本仓 41 篇，zh 占比最低 0.59）。
+language = "zh"
 
-[agents]
-# 关闭人类区结构检查：AGENTS.md 不再要求 [HUMAN]/[/HUMAN] 手写区。
-enabled = false
+# 每篇文档必须带 type: fact|event；缺失即阻塞（AGENTS.md 文档规范的硬约束）。
+# 条目按 name 合并：这条覆盖内置的 type 规则（内置为 warn），无需复述整表。
+[[docs.required_fields]]
+name = "type"
+values = ["fact", "event"]
+level = "error"
+
+# event 文档只增不改，error 级下由 pre-commit 与 check 同时拦截：
+# pre-commit 已按索引执行文档规则，`check --staged` 与它结论一致。
+# last_modified 的自动维护改写在 append-only 判定中被豁免（只动该字段的
+# hunk 不算改写），因此元数据维护与该检查不再互斥。
+[docs.append_only]
+level = "error"
+
+[docs.scope]
+# 内置豁免（README/CHANGELOG/CONTRIBUTING/SECURITY/LICENSE/AGENTS）默认生效，
+# 这里只追加本仓特有的一类：DSH 技能目录布局固定为 <skill>/SKILL.md +
+# references/，无法挪入 docs/。
+exempt = ["scripts/dshctl/skills/**"]
+
+[lines.module]
+# 包/模块行数维度（内置关闭；AGENTS.md 的行数四档需要它）。
+enabled = true
+# roots 是身份列表，整表替换：只聚合各插件的包目录。
+roots = ["packages/*"]

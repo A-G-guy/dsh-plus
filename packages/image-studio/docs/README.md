@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-09-10 19:45"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/image-studio"
+type: fact
 ---
 
 # @dsh-plus/image-studio

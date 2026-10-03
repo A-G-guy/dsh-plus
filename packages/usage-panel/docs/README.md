@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-09-25 20:41"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/usage-panel"
+type: fact
 ---
 
 # @dsh-plus/usage-panel

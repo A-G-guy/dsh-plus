@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { test } from 'node:test'
 
 import { Config } from '../src/config.ts'
+import type { ApplyReport } from '../src/report.ts'
 import { createReloadHandler } from '../src/routes.ts'
 import { ReloadScheduler } from '../src/scheduler.ts'
 
@@ -48,8 +49,20 @@ function fakeRes(): { res: ServerResponse; done: Promise<Captured> } {
   return { res, done }
 }
 
-function makeHandler(overrides: { runningAgents?: number; pidMismatch?: boolean } = {}) {
+const APPLIED_REPORT: ApplyReport = {
+  status: 'applied',
+  text: '已即时生效：profile 组合层已重新对账。',
+  warnings: [],
+  pendingRestart: ['@dsh-plus/reload'],
+  capabilities: { profile: true, hmr: true, pluginPackages: true },
+  runningAgents: 0,
+}
+
+function makeHandler(
+  overrides: { runningAgents?: number; pidMismatch?: boolean; report?: ApplyReport } = {},
+) {
   const spawned: string[] = []
+  const forced: boolean[] = []
   const scheduler = new ReloadScheduler({
     unitName: 'dsh-web',
     confirmTokenTtlMs: 60000,
@@ -59,6 +72,10 @@ function makeHandler(overrides: { runningAgents?: number; pidMismatch?: boolean 
   const handler = createReloadHandler({
     scheduler,
     config: Config({}),
+    apply: (options) => {
+      forced.push(options.force)
+      return Promise.resolve(overrides.report ?? APPLIED_REPORT)
+    },
     pid: overrides.pidMismatch ? process.pid + 1 : process.pid,
     runner: (cmd, args) =>
       Promise.resolve(
@@ -70,7 +87,7 @@ function makeHandler(overrides: { runningAgents?: number; pidMismatch?: boolean 
       ),
     runningAgents: () => overrides.runningAgents ?? 0,
   })
-  return { handler, scheduler, spawned }
+  return { handler, scheduler, spawned, forced }
 }
 
 async function call(
@@ -184,4 +201,67 @@ test('given unknown endpoint or method, when called, then 404 or 405', async () 
   assert.equal((await call(handler, 'GET', '/nope')).status, 404)
   assert.equal((await call(handler, 'DELETE', '/health')).status, 405)
   assert.equal((await call(handler, 'GET', '/confirm')).status, 405)
+  assert.equal((await call(handler, 'GET', '/now')).status, 405)
+})
+
+test('given a clean apply, when POST now, then 200 with report and pending list', async () => {
+  const { handler, forced } = makeHandler()
+  const res = await call(handler, 'POST', '/now', {})
+  assert.equal(res.status, 200)
+  assert.equal(res.body.ok, true)
+  assert.equal(res.body.status, 'applied')
+  assert.deepEqual(res.body.pendingRestart, ['@dsh-plus/reload'])
+  assert.equal(res.body.text, APPLIED_REPORT.text)
+  assert.deepEqual(forced, [false])
+})
+
+test('given force flag, when POST now, then it is forwarded to apply', async () => {
+  const { handler, forced } = makeHandler()
+  const res = await call(handler, 'POST', '/now', { force: true })
+  assert.equal(res.status, 200)
+  assert.deepEqual(forced, [true])
+})
+
+test('given running sessions, when POST now, then 409 with the count', async () => {
+  const { handler } = makeHandler({
+    report: { ...APPLIED_REPORT, status: 'agents-running', runningAgents: 2 },
+  })
+  const res = await call(handler, 'POST', '/now', {})
+  assert.equal(res.status, 409)
+  assert.equal(res.body.error, 'agents running')
+  assert.equal(res.body.runningAgents, 2)
+})
+
+test('given no profile context, when POST now, then 501 unsupported', async () => {
+  const { handler } = makeHandler({
+    report: { ...APPLIED_REPORT, status: 'unsupported', text: '当前环境不支持进程内重载：' },
+  })
+  const res = await call(handler, 'POST', '/now', {})
+  assert.equal(res.status, 501)
+  assert.equal(res.body.error, 'in-process reload unsupported')
+})
+
+test('given a failed apply, when POST now, then 500 with the report text', async () => {
+  const { handler } = makeHandler({
+    report: { ...APPLIED_REPORT, status: 'failed', text: '重载失败：新增条目未激活' },
+  })
+  const res = await call(handler, 'POST', '/now', {})
+  assert.equal(res.status, 500)
+  assert.equal(res.body.error, 'in-process reload failed')
+  assert.match(String(res.body.text), /未激活/)
+})
+
+test('given a malformed now body, when POST, then 400', async () => {
+  const { handler } = makeHandler()
+  const emitter = new EventEmitter()
+  const req = emitter as unknown as IncomingMessage
+  req.method = 'POST'
+  req.url = '/dsh-plus/reload/now'
+  req.headers = { 'content-type': 'application/json' }
+  const { res, done } = fakeRes()
+  const pending = handler(req, res)
+  emitter.emit('data', Buffer.from('{broken'))
+  emitter.emit('end')
+  await pending
+  assert.equal((await done).status, 400)
 })

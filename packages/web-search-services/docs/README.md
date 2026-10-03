@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-09-21 13:03"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/web-search-services 文档索引"
+type: fact
 ---
 
 # @dsh-plus/web-search-services 文档索引

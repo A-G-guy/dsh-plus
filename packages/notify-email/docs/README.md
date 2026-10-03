@@ -1,6 +1,7 @@
 ---
-last_modified: "2026-08-31 15:30"
+last_modified: "2026-10-03 03:23"
 description: "@dsh-plus/notify-email"
+type: fact
 ---
 
 # @dsh-plus/notify-email

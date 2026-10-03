@@ -1,5 +1,7 @@
 /**
  * 「重新加载」设置行：渲染面。状态机逻辑在 flow.ts，这里只做映射。
+ * 主动作是进程内重载（默认，零中断），「重启服务」是次级动作（供换包等
+ * 只能重启的变更）；结果对话框里的 host 原文按 pre-line 原样呈现。
  * @module reload/client/row
  */
 import type { ReactElement, ReactNode } from 'react'
@@ -51,8 +53,76 @@ function CountdownDialog({ flow, t }: { flow: Flow; t: Translate }): ReactElemen
   )
 }
 
+/** 运行中会话防线：询问是否强制进程内重载（避免默认打断正在跑的会话）。 */
+function ForceAskDialog({ flow, t }: { flow: Flow; t: Translate }): ReactElement | null {
+  const phase = flow.phase
+  if (phase.kind !== 'forceAsk') return null
+  return (
+    <Overlay>
+      <h2 className="drl-dialogTitle">{t('forceTitle')}</h2>
+      <p className="drl-warning">{t('forceWarning').replace('{n}', String(phase.runningAgents))}</p>
+      <div className="drl-actions">
+        <button type="button" className="drl-btn" onClick={flow.dismiss}>
+          {t('forceWait')}
+        </button>
+        <button type="button" className="drl-btn drl-btnDanger" onClick={flow.applyForce}>
+          {t('forceRun')}
+        </button>
+      </div>
+    </Overlay>
+  )
+}
+
+/**
+ * 结果对话框：进程内重载报告（`result`，可按需直达重启）与重启通道自身失败
+ * 报告（`report`）共用同一渲染面。
+ */
+function ResultDialog({ flow, t }: { flow: Flow; t: Translate }): ReactElement | null {
+  const phase = flow.phase
+  if (phase.kind !== 'result' && phase.kind !== 'report') return null
+  const title =
+    phase.kind === 'report'
+      ? t('failedTitle')
+      : phase.status === 'applied'
+        ? t('appliedTitle')
+        : phase.status === 'unsupported'
+          ? t('unsupportedTitle')
+          : t('failedTitle')
+  const canRestart = phase.kind === 'result' && phase.pendingRestart.length > 0
+  return (
+    <Overlay>
+      <h2 className="drl-dialogTitle">{title}</h2>
+      <p className="drl-text drl-multiline">{phase.text}</p>
+      <div className="drl-actions">
+        <button type="button" className="drl-btn" onClick={flow.dismiss}>
+          {t('close')}
+        </button>
+        {canRestart && (
+          <button
+            type="button"
+            className="drl-btn drl-btnPrimary"
+            onClick={() => {
+              flow.dismiss()
+              flow.startRestart()
+            }}
+          >
+            {t('restartAction')}
+          </button>
+        )}
+      </div>
+    </Overlay>
+  )
+}
+
 function StatusDialog({ flow, t }: { flow: Flow; t: Translate }): ReactElement | null {
   const phase = flow.phase
+  if (phase.kind === 'applying') {
+    return (
+      <Overlay>
+        <p className="drl-text">{t('applying')}</p>
+      </Overlay>
+    )
+  }
   if (phase.kind === 'preparing') {
     return (
       <Overlay>
@@ -84,23 +154,6 @@ function StatusDialog({ flow, t }: { flow: Flow; t: Translate }): ReactElement |
       </Overlay>
     )
   }
-  if (phase.kind === 'failed') {
-    return (
-      <Overlay>
-        {phase.title.length > 0 && <h2 className="drl-dialogTitle">{phase.title}</h2>}
-        <ul className="drl-reasons">
-          {phase.lines.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        <div className="drl-actions">
-          <button type="button" className="drl-btn" onClick={flow.dismiss}>
-            {t('close')}
-          </button>
-        </div>
-      </Overlay>
-    )
-  }
   return null
 }
 
@@ -110,9 +163,9 @@ export interface ReloadRowProps {
 
 export function ReloadRow({ t }: ReloadRowProps): ReactElement {
   const flow = useReloadFlow(t)
-  const busy = flow.phase.kind !== 'idle'
-  // 桌面端由 Electron 应用管理生命周期，无系统级重启通道：置灰按钮并给出
-  // 平台化说明（服务端预检同样会拒绝，见 preflight systemdUnsupportedReasons）。
+  const busy = flow.phase.kind === 'applying' || flow.phase.kind === 'preparing'
+  // 桌面端由 Electron 应用管理生命周期，无系统级重启通道：只保留进程内重载，
+  // 「重启服务」置灰并给平台化说明（服务端预检同样会拒绝，见 preflight）。
   const desktop = isDesktopRuntime()
   return (
     <div className="drl-group">
@@ -121,14 +174,24 @@ export function ReloadRow({ t }: ReloadRowProps): ReactElement {
         <p className="drl-description">{desktop ? t('desktopHint') : t('description')}</p>
         <button
           type="button"
-          className="drl-btn drl-btnPrimary"
+          className="drl-btn"
           disabled={busy || desktop}
-          onClick={flow.start}
+          onClick={flow.startRestart}
+        >
+          {t('restartAction')}
+        </button>
+        <button
+          type="button"
+          className="drl-btn drl-btnPrimary"
+          disabled={busy}
+          onClick={flow.apply}
         >
           {t('action')}
         </button>
       </div>
       <CountdownDialog flow={flow} t={t} />
+      <ForceAskDialog flow={flow} t={t} />
+      <ResultDialog flow={flow} t={t} />
       <StatusDialog flow={flow} t={t} />
     </div>
   )

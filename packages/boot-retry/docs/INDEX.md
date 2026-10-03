@@ -1,11 +1,11 @@
 ---
 description: "Auto-generated index of this document folder."
-last_modified: "2026-10-02 22:42"
+last_modified: "2026-10-03 03:23"
 ---
 <!-- projects-go:generated -->
 
 # docs
 
-| Document | Description | Last modified |
-| --- | --- | --- |
-| [README](README.md) | @dsh-plus/boot-retry | 2026-09-19 19:28 |
+| Document | description | last_modified | type |
+| --- | --- | --- | --- |
+| [README](README.md) | @dsh-plus/boot-retry | 2026-10-03 03:23 | fact |
