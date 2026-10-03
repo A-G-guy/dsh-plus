@@ -1,7 +1,6 @@
 /**
- * 「邮件通知」配置卡片：经 injectPluginConfigCard 注册（legacy settings.plugin.item
- * 与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config，view 分发
- * summary/page）。
+ * 「邮件通知」配置卡片：经 injectPluginConfigCard 注册（插件页 plugins.row.config /
+ * plugins.bundle.config，view 分发 summary/page）。
  * 外壳与基础控件走 @dsh-plus/shared/client 套件（CardChrome/TextField/CheckRow），
  * 本文件只保留业务字段与保存/测试逻辑。交互对齐官方卡片：折叠/展开、
  * staged draft、未保存标记、保存/放弃；另加「发送测试邮件」。
@@ -18,7 +17,6 @@ import {
   CardLoading,
   type CardStatusState,
   CheckRow,
-  cardVariantFor,
   IDLE_STATUS,
   type NamespaceSettingsApi,
   type PluginConfigViewProps,
@@ -141,8 +139,6 @@ export function NotifyEmailCard(props: CardProps): ReactElement | string | null 
     () => scope.getSnapshot(),
   )
   const value = snapshot.value as ConfigValue | undefined
-  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
-  const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -175,11 +171,8 @@ export function NotifyEmailCard(props: CardProps): ReactElement | string | null 
   // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
   if (props.view === 'summary') return t('summaryLine')
 
-  // 插件页 page 视图内嵌宿主页面容器（已带页面级内边距与标题），用无边框分节。
-  const variant = cardVariantFor(props.view)
-
   if (value === undefined || draft === null) {
-    return <CardLoading prefix="dne" variant={variant} text={t('loading')} />
+    return <CardLoading prefix="dne" text={t('loading')} />
   }
   const edit = <K extends keyof Draft>(key: K, editValue: Draft[K]): void => {
     setDraft({ ...draft, [key]: editValue })
@@ -220,9 +213,6 @@ export function NotifyEmailCard(props: CardProps): ReactElement | string | null 
       prefix="dne"
       title={t('title')}
       description={t('description')}
-      open={open}
-      onToggle={setOpen}
-      variant={variant}
       statusBadge={{ text: t(draft.enabled ? 'enabledOn' : 'enabledOff'), on: draft.enabled }}
       dirty={dirty}
       dirtyLabel={t('unsaved')}

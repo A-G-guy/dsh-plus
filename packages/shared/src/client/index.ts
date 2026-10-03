@@ -12,14 +12,11 @@ export {
   type CardChromeProps,
   CardLoading,
   type CardStatusState,
-  type CardVariant,
   IDLE_STATUS,
 } from './card.tsx'
 export {
-  cardVariantFor,
   DSH_PLUS_BUNDLE,
   injectPluginConfigCard,
-  type PluginCardVariant,
   type PluginConfigCardReg,
   type PluginConfigViewProps,
 } from './config-slots.ts'

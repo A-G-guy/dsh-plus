@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 03:57"
 description: "@dsh-plus/subagent-model"
 type: fact
 ---
@@ -20,7 +20,10 @@ type: fact
 
 ## 配置
 
-配置 UI：webui **设置 → 插件 → 插件配置** 的「子代理模型配置」卡片（`settings.plugin.item` keyed 槽位，key = 下方命名空间；提供商/模型/思考档位下拉数据来自 host 同源「模型目录」端点 `/dsh-plus/subagent-model/catalog`）。与官方「子代理模型」卡片（主代理侧白名单）并存不冲突。
+配置 UI：侧边栏「插件」页里本行的「配置」页（`plugins.row.config` /
+`plugins.bundle.config` 两槽位；提供商/模型/思考档位下拉数据来自 host 同源
+「模型目录」端点 `/dsh-plus/subagent-model/catalog`）。与官方「子代理模型」卡片
+（主代理侧白名单）并存不冲突。
 
 settings 命名空间 `dsh-plus-subagent-model`（`$DSH_HOME/settings.yaml`，热生效）：
 

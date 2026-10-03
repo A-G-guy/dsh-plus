@@ -1,7 +1,7 @@
 /**
  * 浏览器半入口：注册 locale 字典 + 注册「访问控制」卡片
- * （injectPluginConfigCard 三槽位：legacy settings.plugin.item 与 0.1.6-alpha.2
- * 独立插件页的 plugins.row.config / plugins.bundle.config）。
+ * （injectPluginConfigCard 两槽位：插件页 plugins.row.config /
+ * plugins.bundle.config）。
  * 构建产物为 window.__ModuleLoader__.load({id, factory}) 形式的 CJS factory
  * （包装见 tsdown.config.ts）；样式沿用官方 data-plugin-css 约定，HMR 据此卸载。
  *

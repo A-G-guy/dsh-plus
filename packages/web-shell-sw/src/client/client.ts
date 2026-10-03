@@ -15,7 +15,7 @@
  * 移除 load 监听与未触发的定时器（已注册的 SW 不随 HMR 注销——它是部署级
  * 状态，不是会话级状态）。
  *
- * 同一入口另注册「外壳 Service Worker」配置卡片（injectPluginConfigCard 三槽位）：
+ * 同一入口另注册「外壳 Service Worker」配置卡片（injectPluginConfigCard 两槽位）：
  * 卡片改的是 settings 命名空间，注配置行在下次页面加载才被重新读取，故卡片
  * 提示「刷新后生效」。
  * 构建产物须为 window.__ModuleLoader__.load({id, factory}) 形式

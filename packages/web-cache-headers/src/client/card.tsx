@@ -1,7 +1,6 @@
 /**
- * 「静态资源长缓存」配置卡片：经 injectPluginConfigCard 注册（legacy
- * settings.plugin.item 与插件页 plugins.row.config / plugins.bundle.config，
- * view 分发 summary/page）。
+ * 「静态资源长缓存」配置卡片：经 injectPluginConfigCard 注册（插件页
+ * plugins.row.config / plugins.bundle.config，view 分发 summary/page）。
  * 只有 enabled 一个字段：关闭即卸下 writeHead 补丁；范围说明写进卡片
  * （哪些路径不在范围内），避免用户误以为能缓存 index.html。
  * 外壳与控件走 @dsh-plus/shared/client 套件（CardChrome/CheckRow/useNamespaceDraft）。
@@ -12,13 +11,12 @@ import {
   CardChrome,
   CardLoading,
   CheckRow,
-  cardVariantFor,
   type NamespaceSettingsApi,
   type PluginConfigViewProps,
   type Scope,
   useNamespaceDraft,
 } from '@dsh-plus/shared/client'
-import { type ReactElement, useState } from 'react'
+import type { ReactElement } from 'react'
 
 import type { Translate } from './i18n.ts'
 
@@ -53,23 +51,17 @@ export function WebCacheHeadersCard(props: CardProps): ReactElement | string | n
     Draft
   >({ scope, api, from: draftFromValue, patch: toPatch, saveFailedLabel: t('saveFailed') })
   // 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
-  const [open, setOpen] = useState(props.view === 'page')
 
   // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
   if (props.view === 'summary') return t('summaryLine')
 
-  // 插件页 page 视图内嵌宿主页面容器（已带页面级内边距与标题），用无边框分节。
-  const variant = cardVariantFor(props.view)
-  if (draft === null) return <CardLoading prefix="wch" variant={variant} text={t('loading')} />
+  if (draft === null) return <CardLoading prefix="wch" text={t('loading')} />
 
   return (
     <CardChrome
       prefix="wch"
       title={t('title')}
       description={t('description')}
-      open={open}
-      onToggle={setOpen}
-      variant={variant}
       statusBadge={{ text: t(draft.enabled ? 'enabledOn' : 'enabledOff'), on: draft.enabled }}
       dirty={dirty}
       dirtyLabel={t('unsaved')}

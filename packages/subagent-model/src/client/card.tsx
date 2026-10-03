@@ -1,6 +1,6 @@
 /**
- * 「子代理模型配置」配置卡片：经 injectPluginConfigCard 注册（legacy settings.plugin.item
- * 与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config，view 分发 summary/page）。
+ * 「子代理模型配置」配置卡片：经 injectPluginConfigCard 注册（插件页 plugins.row.config /
+ * plugins.bundle.config，view 分发 summary/page）。
  * 外壳与基础控件走 @dsh-plus/shared/client 套件（CardChrome/CheckRow/SelectField）。
  * 配置读写经共享层 ctx.remote.settings 直连（0.1.7 起 settingsScope 已由 configForms
  * 取代）：value 为 schema 解析后的命名空间值
@@ -16,7 +16,6 @@ import {
   CardLoading,
   type CardStatusState,
   CheckRow,
-  cardVariantFor,
   IDLE_STATUS,
   type NamespaceSettingsApi,
   type PluginConfigViewProps,
@@ -186,10 +185,10 @@ function CatalogStatus(props: {
 }
 
 /**
- * 子代理 provider 目录（展开后拉取一次；失败保留重试入口，重试即回到未加载态）。
+ * 子代理 provider 目录（挂载后拉取一次；失败保留重试入口，重试即回到未加载态）。
  * 与草稿播种共用同一个 catalog：目录到达后由调用方补缺失的空行。
  */
-function useCatalog(open: boolean): {
+function useCatalog(): {
   catalog: ModelCatalog | null
   catalogFailed: boolean
   retry(): void
@@ -197,7 +196,7 @@ function useCatalog(open: boolean): {
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null)
   const [catalogFailed, setCatalogFailed] = useState(false)
   useEffect(() => {
-    if (!open || catalog !== null) return
+    if (catalog !== null) return
     let alive = true
     fetchCatalog()
       .then((loaded) => {
@@ -211,7 +210,7 @@ function useCatalog(open: boolean): {
     return () => {
       alive = false
     }
-  }, [open, catalog])
+  }, [catalog])
   return {
     catalog,
     catalogFailed,
@@ -256,12 +255,10 @@ export function SubagentModelCard(props: CardProps): ReactElement | string | nul
     () => scope.getSnapshot(),
   )
   const value = snapshot.value as ConfigValue | undefined
-  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
-  const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<CardStatusState>(IDLE_STATUS)
-  const { catalog, catalogFailed, retry: retryCatalog } = useCatalog(open)
+  const { catalog, catalogFailed, retry: retryCatalog } = useCatalog()
 
   // 播种草稿（行集 = 已配置条目）；catalog 到达后只补缺失的 provider 空行，
   // 不覆盖在途编辑；后续 Host 更新同样不覆盖。
@@ -298,11 +295,8 @@ export function SubagentModelCard(props: CardProps): ReactElement | string | nul
   // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
   if (props.view === 'summary') return t('summaryLine')
 
-  // 插件页 page 视图内嵌宿主页面容器（已带页面级内边距与标题），用无边框分节。
-  const variant = cardVariantFor(props.view)
-
   if (value === undefined || draft === null) {
-    return <CardLoading prefix="dsm" variant={variant} text={t('loading')} />
+    return <CardLoading prefix="dsm" text={t('loading')} />
   }
   const edit = <K extends keyof Draft>(key: K, editValue: Draft[K]): void => {
     setDraft({ ...draft, [key]: editValue })
@@ -340,9 +334,6 @@ export function SubagentModelCard(props: CardProps): ReactElement | string | nul
       prefix="dsm"
       title={t('title')}
       description={t('description')}
-      open={open}
-      onToggle={setOpen}
-      variant={variant}
       statusBadge={{ text: t(draft.enabled ? 'enabledOn' : 'enabledOff'), on: draft.enabled }}
       dirty={dirty}
       dirtyLabel={t('unsaved')}

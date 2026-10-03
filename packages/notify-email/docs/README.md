@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 03:57"
 description: "@dsh-plus/notify-email"
 type: fact
 ---
@@ -49,11 +49,10 @@ dsh-settings-file 持久化到 `$DSH_HOME/settings.yaml`，热生效。
 
 ## WebUI 配置卡片
 
-浏览器半注册进官方 `settings.plugin.item` 插槽（设置 → 插件 → 插件配置），
-视觉与交互对齐官方卡片（staged draft、保存/放弃），另加「发送测试邮件」。
-该插槽为 **keyed** 槽位（0.1.2-alpha.2 复核不变）：卡片以本插件 settings 命名空间
-（`dsh-plus-notify-email`，字面量统一在 `src/ns.ts`）为 key 注册，官方配置页
-按 key 与 Host 已注册命名空间配对分发。
+浏览器半经 `plugins.row.config`（key = `<bundle 包名>#<row id>`）与
+`plugins.bundle.config`（key = 包名）注册，渲染在侧边栏「插件」页该行的「配置」页；
+`view: 'summary'` 出一行简介、`view: 'page'` 出无边框分节表单（staged draft、
+保存/放弃），另加「发送测试邮件」。settings 命名空间字面量统一在 `src/ns.ts`。
 
 **配置传输**：第三方命名空间对 `settings.*` RPC 全量开放（0.1.2-alpha.2 基线），
 卡片读写经 `ctx.remote.settings` 直连（`connection.api.settings` 已移除；

@@ -1,7 +1,7 @@
 /**
  * 浏览器半入口：注册 locale 字典 + 注册「静态资源长缓存」卡片
- * （injectPluginConfigCard 三槽位：legacy settings.plugin.item 与插件页
- * plugins.row.config / plugins.bundle.config）。
+ * （injectPluginConfigCard 两槽位：插件页 plugins.row.config /
+ * plugins.bundle.config）。
  * 构建产物为 window.__ModuleLoader__.load({id, factory}) 形式的 CJS factory
  * （包装见 tsdown.config.ts）；样式沿用官方 data-plugin-css 约定，HMR 据此卸载。
  * 配置读写经 ctx.remote.settings 直连（scope/api 来自 @dsh-plus/shared/client）。

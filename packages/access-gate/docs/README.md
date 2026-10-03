@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 03:57"
 description: "@dsh-plus/access-gate"
 type: fact
 ---
@@ -131,7 +131,8 @@ cordis 行级 `Config`（组合默认值）与 settings namespace `dsh-plus-acce
 
 ## WebUI 配置卡片
 
-浏览器半注册进官方 `settings.plugin.item` keyed 插槽（设置 → 插件 → 插件配置），
+浏览器半经 `plugins.row.config` / `plugins.bundle.config` 注册（侧边栏「插件」页 →
+该行「配置」页），
 配置读写走官方 settings RPC；卡片附「当前页面诊断」（本页判定/客户端 IP/放行原因/
 官方登录状态/白名单非法条目）。
 

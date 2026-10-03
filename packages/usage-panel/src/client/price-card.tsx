@@ -1,7 +1,6 @@
 /**
- * 价目配置卡片：经 injectPluginConfigCard 注册（legacy settings.plugin.item
- * 与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config，view 分发
- * summary/page）。
+ * 价目配置卡片：经 injectPluginConfigCard 注册（插件页 plugins.row.config /
+ * plugins.bundle.config，view 分发 summary/page）。
  * 价目行编辑（provider/model/四价）+ models.dev 一键导入（host 后台拉取，
  * 前端轮询目录状态：refreshing 期间禁用按钮，完成后经缓存文档折算导入）。
  * @module usage-panel/client/price-card
@@ -12,7 +11,6 @@ import {
   CardChrome,
   CardLoading,
   type CardStatusState,
-  cardVariantFor,
   IDLE_STATUS,
   type NamespaceSettingsApi,
   type PluginConfigViewProps,
@@ -246,8 +244,6 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
     () => scope.getSnapshot(),
   )
   const value = snapshot.value as ConfigValue | undefined
-  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
-  const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -283,11 +279,8 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
   // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
   if (props.view === 'summary') return t('cardSummary')
 
-  // 插件页 page 视图内嵌宿主页面容器（已带页面级内边距与标题），用无边框分节。
-  const variant = cardVariantFor(props.view)
-
   if (value === undefined || draft === null) {
-    return <CardLoading prefix="dup" variant={variant} text={t('loading')} />
+    return <CardLoading prefix="dup" text={t('loading')} />
   }
 
   const onSave = (): void => {
@@ -316,9 +309,6 @@ export function UsagePriceCard(props: CardProps): ReactElement | string | null {
       prefix="dup"
       title={t('cardTitle')}
       description={t('cardDescription')}
-      open={open}
-      onToggle={setOpen}
-      variant={variant}
       statusBadge={{
         text: t(priced > 0 ? 'enabledOn' : 'enabledOff'),
         on: priced > 0,

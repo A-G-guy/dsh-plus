@@ -1,6 +1,6 @@
 /**
- * 配置卡片（injectPluginConfigCard 三槽位，legacy key = settings 命名空间，
- * 0.1.6-alpha.2 起为插件页 row/bundle config，view 分发 summary/page）：
+ * 配置卡片（injectPluginConfigCard 两槽位 = 插件页 row/bundle config，
+ * view 分发 summary/page）：
  * 三组预设（提供商/参数/提示词）+ 高级项（并发/超时/代理/画廊上限）的
  * staged draft 编辑；提供商预设逐条附 API Key 管理（凭据端点，值不回显）。
  * JSON 字段（extraHeaders/paramSpecs）以文本镜像编辑，保存时解析 +
@@ -13,7 +13,6 @@ import {
   CardChrome,
   CardLoading,
   type CardStatusState,
-  cardVariantFor,
   IDLE_STATUS,
   type NamespaceSettingsApi,
   type PluginConfigViewProps,
@@ -153,8 +152,6 @@ export function StudioConfigCard(props: CardProps): ReactElement | string | null
     () => scope.getSnapshot(),
   )
   const value = snapshot.value as ImageStudioConfig | undefined
-  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
-  const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [baseline, setBaseline] = useState('')
   const [saving, setSaving] = useState(false)
@@ -176,11 +173,8 @@ export function StudioConfigCard(props: CardProps): ReactElement | string | null
   // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
   if (props.view === 'summary') return t('card.summary')
 
-  // 插件页 page 视图内嵌宿主页面容器（已带页面级内边距与标题），用无边框分节。
-  const variant = cardVariantFor(props.view)
-
   if (value === undefined || draft === null) {
-    return <CardLoading prefix="imsc" variant={variant} text={t('common.loading')} />
+    return <CardLoading prefix="imsc" text={t('common.loading')} />
   }
 
   const disabled = !snapshot.writable
@@ -236,9 +230,6 @@ export function StudioConfigCard(props: CardProps): ReactElement | string | null
       prefix="imsc"
       title={t('card.title')}
       description={t('card.description')}
-      open={open}
-      onToggle={setOpen}
-      variant={variant}
       statusBadge={{
         text:
           draft.providers.length > 0

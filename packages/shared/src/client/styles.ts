@@ -1,35 +1,32 @@
 /**
- * 配置卡片样式工厂（各插件 client 的公共收编版）。
- * 视觉规则与迁移前逐字一致（类名前缀换为各插件自身，DOM 类名不变），
- * 另补移动端与可达性增强（767px 断点 + pointer:coarse，对齐 ui-mobile-fit 约定）：
+ * 配置分节样式工厂（各插件 client 的公共收编版）。
+ *
+ * 目标宿主 dsh 0.2.1-alpha.1：插件页把配置视图放进已有页面级内边距的容器里
+ * （`div.detailSections[data-plugin-config]` 或 `section.detailSection[data-plugin-config]`），
+ * 外层无边框——故这里输出的是**无边框分节**（小节标题 13px/600、字段 12px 0、
+ * 横向零内边距、页脚非 sticky），度量对齐官方设置页
+ * （`@deepseek-ai/dsh-client-ui-primitives` 的 settings-form）。
+ *
+ * 移动端与可达性（767px 断点 + pointer:coarse，对齐 ui-mobile-fit 约定）：
  * - 窄屏 input/textarea 16px（防 iOS 聚焦缩放）、可点目标 ≥44px；
- * - footer 按钮等宽换行、状态文字独占一行；
- * - 展开态 body 底部 sticky 保存栏（长表单滚动中始终可达）。
- * - 分节形态（-section，插件页 page 视图内嵌宿主页面）：无边框/背景、横向零
- *   内边距，页脚不 sticky——官方插件页已提供页面级内边距，再叠一层卡片会
- *   缩窄移动端可用宽度（卡片套卡片）。
+ * - 页脚按钮等宽换行、状态文字独占一行。
  * 沿用官方 data-plugin / data-plugin-css 约定（HMR 据此卸载），不覆盖上游选择器。
  * @module @dsh-plus/shared/client/styles
  */
 
-/** 生成全套卡片 CSS；prefix 为插件类名前缀（如 'dne'），extra 为插件特有规则。 */
+/** 生成全套分节 CSS；prefix 为插件类名前缀（如 'dne'），extra 为插件特有规则。 */
 export function cardCss(prefix: string, extra = ''): string {
   return `
-.${prefix}-card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}
-.${prefix}-card:hover{border-color:var(--dsw-alias-label-dimmed)}
-.${prefix}-cardOpen{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-label-dimmed)}
-.${prefix}-header{appearance:none;width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}
-.${prefix}-header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
-.${prefix}-headText{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}
-.${prefix}-name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}
-.${prefix}-description{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1.5}
-.${prefix}-chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .16s;display:inline-flex}
-.${prefix}-chevronOpen{transform:rotate(180deg)}
+.${prefix}-section{box-sizing:border-box;flex-direction:column;width:100%;min-width:0;padding:16px 0;display:flex}
+.${prefix}-sectionHead{align-items:center;gap:8px;min-width:0;display:flex}
+.${prefix}-sectionTitle{min-width:0;color:var(--dsw-alias-label-primary);flex:1;margin:0;font-size:13px;font-weight:600;line-height:1.5}
+.${prefix}-sectionBadge{white-space:nowrap;border-radius:999px;flex:none;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}
+.${prefix}-sectionDesc{color:var(--dsw-alias-label-tertiary);margin:4px 0 0;font-size:12px;line-height:1.5}
+.${prefix}-sectionBody{flex-direction:column;min-width:0;display:flex}
+.${prefix}-sectionFooter{align-items:center;gap:8px;padding-top:16px;display:flex;flex-wrap:wrap}
 .${prefix}-pending{white-space:nowrap;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);border-radius:999px;flex:none;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}
-.${prefix}-statusBadge{white-space:nowrap;border-radius:999px;flex:none;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}
 .${prefix}-statusOn{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary)}
 .${prefix}-statusOff{color:var(--dsw-alias-label-tertiary)}
-.${prefix}-body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding-bottom:8px}
 .${prefix}-field{flex-direction:column;gap:6px;padding:12px 0;display:flex}
 .${prefix}-field+.${prefix}-field{border-top:1px solid var(--dsw-alias-border-l2)}
 .${prefix}-head{align-items:center;gap:8px;display:flex}
@@ -55,19 +52,9 @@ export function cardCss(prefix: string, extra = ''): string {
 .${prefix}-checkRow input:checked::after{left:16px;background:var(--dsw-alias-bg-base)}
 .${prefix}-checkRow input:disabled{opacity:.4;cursor:default}
 .${prefix}-checkRow input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
-/* 宿主内嵌分节形态（插件页 page 视图）：官方设置页同构——无边框/背景，
-   横向零内边距（宽度交给宿主页面容器），小节标题 13px/600，页脚非 sticky。 */
-.${prefix}-section{box-sizing:border-box;flex-direction:column;width:100%;min-width:0;padding:16px 0;display:flex}
-.${prefix}-sectionHead{align-items:center;gap:8px;min-width:0;display:flex}
-.${prefix}-sectionTitle{min-width:0;color:var(--dsw-alias-label-primary);flex:1;margin:0;font-size:13px;font-weight:600;line-height:1.5}
-.${prefix}-sectionBadge{white-space:nowrap;border-radius:999px;flex:none;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}
-.${prefix}-sectionDesc{color:var(--dsw-alias-label-tertiary);margin:4px 0 0;font-size:12px;line-height:1.5}
-.${prefix}-sectionBody{flex-direction:column;min-width:0;display:flex}
-.${prefix}-sectionFooter{align-items:center;gap:8px;padding-top:16px;display:flex;flex-wrap:wrap}
 .${prefix}-groupLabel{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600;padding:12px 0 2px;margin:0}
 .${prefix}-readOnly{color:var(--dsw-alias-label-tertiary);margin:12px 0 0;font-size:12px;line-height:1.5}
 .${prefix}-warn{color:var(--dsw-alias-label-error);margin:12px 0 0;font-size:12px;line-height:1.5}
-.${prefix}-footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px;display:flex;flex-wrap:wrap}
 .${prefix}-status{min-width:0;color:var(--dsw-alias-label-secondary);flex:1;margin:0;font-size:12px;line-height:1.5}
 .${prefix}-statusError{color:var(--dsw-alias-label-error)}
 .${prefix}-btn{appearance:none;font:inherit;cursor:pointer;border:1px solid #0000;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5}
@@ -77,16 +64,10 @@ export function cardCss(prefix: string, extra = ''): string {
 .${prefix}-btn:disabled{opacity:.4;cursor:default}
 .${prefix}-btn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
 @media (max-width:767px){
-.${prefix}-body{margin:0 10px}
-.${prefix}-header{padding:12px 12px}
 .${prefix}-input,.${prefix}-select{font-size:16px;height:40px}
 .${prefix}-checkRow{min-height:44px;padding:8px 0}
-.${prefix}-footer{position:sticky;bottom:0;background:var(--dsw-alias-bg-layer-2);margin:0 -10px;padding:10px 10px 6px;border-top:1px solid var(--dsw-alias-border-l2);border-bottom-left-radius:12px;border-bottom-right-radius:12px}
 .${prefix}-status{flex-basis:100%;flex:none}
 .${prefix}-btn{min-height:44px;flex:1;min-width:96px}
-.${prefix}-statusBadge{display:none}
-.${prefix}-sectionBadge{display:inline-block}
-.${prefix}-sectionFooter{position:static}
 }
 @media (pointer:coarse){
 .${prefix}-btn{min-height:44px}

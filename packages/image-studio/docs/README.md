@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 03:57"
 description: "@dsh-plus/image-studio"
 type: fact
 ---
@@ -10,7 +10,7 @@ type: fact
 不进请求体，用上游默认值），双预设体系（提示词/参数/提供商），并发生图任务，
 画廊持久化并支持从画廊二次编辑（衍生链）。service+ui 混合插件：node 半承载
 任务编排与画廊存储，浏览器半为侧栏 footer 入口 + overlay 工作台（文生图/
-图生图/画廊三标签 + 任务条）+ settings.plugin.item 配置卡片。
+图生图/画廊三标签 + 任务条）+ 插件页 row/bundle config 配置卡片。
 
 ## 能力总览
 
@@ -44,7 +44,7 @@ type: fact
 - `src/service.ts` — 编排：预设解析 → 参数归一化 → 凭据即时 resolve → 任务执行 → 入库。
 - `src/api.ts` — 同源 webServer 路由（见下表）。
 - `src/client/` — 浏览器半：`client.ts` 入口（sidebar.footer.action 入口按钮 +
-  shell.overlay 工作台 + settings.plugin.item 配置卡片）；`panel/` 面板组件
+  shell.overlay 工作台 + 插件页 row/bundle config 配置卡片）；`panel/` 面板组件
   （panel 根、generator 双端点表单、params-form 目录驱动参数面、picker 源图
   选择（画廊/本地上传两分区）、uploads 上传 hook 与触发按钮、gallery 画廊与
   详情、tasks 任务条、controller 开合与二次编辑种子、param-state 表单态
@@ -127,7 +127,8 @@ UI 只 describe 不回传值）。
 |---|---|---|
 | `sidebar.footer.action` | `image-studio-entry` | 侧栏底部入口按钮（`StudioEntryButton`） |
 | `shell.overlay` | `image-studio-panel` | 工作台面板（`StudioPanel`） |
-| `settings.plugin.item` | key = `dsh-plus-image-studio` | 配置卡片（`StudioConfigCard`） |
+| `plugins.row.config` | key = `@dsh-plus/bundle-main#dsh-plus-image-studio` | 行配置页（`StudioConfigCard`） |
+| `plugins.bundle.config` | key = `@dsh-plus/image-studio` | 包配置页（同一组件） |
 
 ### 配置读写
 

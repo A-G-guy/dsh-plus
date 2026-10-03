@@ -86,19 +86,16 @@ const cardExtra = `
 /* 价目卡片：字段视觉经 .dup-input（与套件 -input 同款圆角扁平）完全一致 */
 .dup-loading{color:var(--dsw-alias-label-tertiary);margin:0;padding:14px 16px;font-size:13px;line-height:1.5}
 .dup-btnSmall{padding:2px 10px;font-size:12px}
-.dup-priceRow{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);border-radius:10px;margin:12px 0 0;padding:10px 12px}
+.dup-priceRow{border-top:1px solid var(--dsw-alias-border-l2);margin:0;padding:10px 0 2px}
 .dup-priceHead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .dup-priceTitle{color:var(--dsw-alias-label-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dup-priceGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .dup-mini{display:flex;flex-direction:column;gap:4px;min-width:0}
 .dup-mini span{color:var(--dsw-alias-label-tertiary);font-size:11px}
 .dup-in{width:100%;box-sizing:border-box;height:30px;padding:0 10px;font-size:12px}
-/* 分节形态（插件页 page 视图）：价目行改为分隔线分组，去掉第二层内边距 */
-.dup-section .dup-priceRow{background:0 0;border:0;border-top:1px solid var(--dsw-alias-border-l2);border-radius:0;margin:0;padding:10px 0 2px}
 @media (max-width:767px){
 .dup-priceGrid{grid-template-columns:1fr}
 .dup-in{font-size:16px;height:40px}
-.dup-section .dup-priceRow{padding:10px 0 2px}
 }
 `
 

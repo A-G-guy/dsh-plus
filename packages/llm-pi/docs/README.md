@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 03:46"
+last_modified: "2026-10-04 03:57"
 description: "@dsh-plus/llm-pi 文档索引"
 type: fact
 ---
@@ -12,7 +12,8 @@ pi-ai 全量能力——三协议自定义 route、官方内置 provider/model �
 /withhold 字段写时拒绝**）、models.dev 目录兜底。
 另支持 `adapter: deepseek` 路由：直接复用官方 `DeepSeekAdapter`（视觉模型图片走
 Files API 文件通道、失败自动降级 base64），模型继承官方内置目录而非 pi-ai 目录。
-配置 UI 位于 webui「设置 → 插件 → 插件配置」，持久化到 `$DSH_HOME/settings.yaml`
+配置 UI 位于侧边栏「插件」页本行的「配置」页（`plugins.row.config` /
+`plugins.bundle.config`），持久化到 `$DSH_HOME/settings.yaml`
 （namespace `dsh-plus-llm-pi`）并热生效。
 
 ## 与官方 llm-pi-ai 的关系

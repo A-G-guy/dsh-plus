@@ -17,7 +17,7 @@
  * 安全边界：任何采集/输出异常被 try/catch 隔离并带上下文 warn——观测插件
  * 自身故障绝不影响 boot 或 UI。ctx.effect 兜底清理监听器与定时器。
  *
- * 同一入口另注册「启动计时观测」配置卡片（injectPluginConfigCard 三槽位）：
+ * 同一入口另注册「启动计时观测」配置卡片（injectPluginConfigCard 两槽位）：
  * 配置行在页面加载阶段注入，卡片改动刷新后生效。
  * 构建产物须为 window.__ModuleLoader__.load({id, factory}) 形式
  * （包装见 tsdown.config.ts 的 banner/footer）。

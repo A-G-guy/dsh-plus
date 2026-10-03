@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 03:46"
+last_modified: "2026-10-04 03:57"
 description: "@dsh-plus/web-shell-sw"
 type: fact
 ---
@@ -54,7 +54,7 @@ type: fact
 | settings.yaml | `dsh-plus-web-shell-sw.enabled` | `true` | 用户层，热生效（下一次页面加载执行注册/注销） |
 | cordis 行级 config | `enabled` | `true` | patch 层覆盖用 |
 
-插件页「配置」入口提供同名卡片（`src/client/`，三槽位注册）：一个 `enabled`
+插件页「配置」入口提供同名卡片（`src/client/`，两槽位注册）：一个 `enabled`
 开关 + 两条说明（生效时机＝下次页面加载、安全上下文要求）——注册/注销发生在
 页面加载阶段，开关不会即时改变当前页的注册状态，必须在卡片上说清。
 

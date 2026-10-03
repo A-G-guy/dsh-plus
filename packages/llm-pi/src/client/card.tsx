@@ -1,7 +1,6 @@
 /**
- * 「LLM 路由」配置卡片：经 injectPluginConfigCard 注册（legacy settings.plugin.item
- * 与 0.1.6-alpha.2 插件页 plugins.row.config / plugins.bundle.config，view 分发
- * summary/page）。
+ * 「LLM 路由」配置卡片：经 injectPluginConfigCard 注册（插件页
+ * plugins.row.config / plugins.bundle.config，view 分发 summary/page）。
  * 顶部：enabled / catalogUrl / catalogRefreshHours / 只读状态行（kitSource、
  * modelsDevStatus，来自模型目录端点）+ 保存（settings.update 全量深合并）与
  * 错误/成功提示；下方为 providers 路由列表（新增/删除/字段编辑/compat/模型
@@ -14,7 +13,6 @@ import {
   CardChrome,
   CardLoading,
   type CardStatusState,
-  cardVariantFor,
   IDLE_STATUS,
   type NamespaceSettingsApi,
   type PluginConfigViewProps,
@@ -125,8 +123,6 @@ export function LlmPiCard(props: CardProps): ReactElement | string | null {
     () => scope.getSnapshot(),
   )
   const value = snapshot.value as ConfigValue | undefined
-  // 0.1.6-alpha.2 插件页 page 视图为表单落地页，默认展开；旧槽位无 view，保持折叠。
-  const [open, setOpen] = useState(props.view === 'page')
   const [draft, setDraft] = useState<Draft | null>(null)
   const [epoch, setEpoch] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -160,11 +156,8 @@ export function LlmPiCard(props: CardProps): ReactElement | string | null {
   // 插件页 summary 视图只出一行简介（hooks 已全部落定，可安全提前返回）。
   if (props.view === 'summary') return t('summaryLine')
 
-  // 插件页 page 视图内嵌宿主页面容器（已带页面级内边距与标题），用无边框分节。
-  const variant = cardVariantFor(props.view)
-
   if (value === undefined || draft === null) {
-    return <CardLoading prefix="lpc" variant={variant} text={t('loading')} />
+    return <CardLoading prefix="lpc" text={t('loading')} />
   }
 
   const setProvider = (route: string, patch: Partial<ProviderDraft>): void => {
@@ -222,9 +215,6 @@ export function LlmPiCard(props: CardProps): ReactElement | string | null {
       prefix="lpc"
       title={t('title')}
       description={t('description')}
-      open={open}
-      onToggle={setOpen}
-      variant={variant}
       statusBadge={{ text: t(draft.enabled ? 'enabledOn' : 'enabledOff'), on: draft.enabled }}
       dirty={dirty}
       dirtyLabel={t('unsaved')}

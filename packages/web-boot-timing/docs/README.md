@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 03:46"
+last_modified: "2026-10-04 03:57"
 description: "@dsh-plus/web-boot-timing"
 type: fact
 ---
@@ -51,7 +51,7 @@ warn），观测故障绝不拖垮 boot；`ctx.effect` 兜底清理监听器与�
 
 `enabled: false` 后配置行不再注入，浏览器半零行为（无残留监听/存储写入）。
 
-插件页「配置」入口提供同名卡片（`src/client/`，三槽位注册）：`enabled` 开关 +
+插件页「配置」入口提供同名卡片（`src/client/`，两槽位注册）：`enabled` 开关 +
 `settleMs` 文本框（200–10000 整数，越界即禁用保存）。配置行在页面加载阶段注入，
 故卡片写明「保存后刷新生效」，并列出报告的三条输出去向。
 
