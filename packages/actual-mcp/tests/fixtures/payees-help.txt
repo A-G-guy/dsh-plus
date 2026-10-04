@@ -1,0 +1,15 @@
+Usage: actual payees [options] [command]
+
+Manage payees
+
+Options:
+  -h, --help             display help for command
+
+Commands:
+  list                   List all payees
+  common                 List frequently used payees
+  create [options]       Create a new payee
+  update [options] <id>  Update a payee
+  delete <id>            Delete a payee
+  merge [options]        Merge payees into a target payee
+  help [command]         display help for command

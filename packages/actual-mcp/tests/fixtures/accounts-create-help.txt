@@ -1,0 +1,10 @@
+Usage: actual accounts create [options]
+
+Create a new account
+
+Options:
+  --name <name>       Account name
+  --offbudget         Create as off-budget account (default: false)
+  --balance <amount>  Initial balance in cents (e.g. 50000 = 500.00) (default:
+                      "0")
+  -h, --help          display help for command

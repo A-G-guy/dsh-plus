@@ -1,0 +1,66 @@
+Usage: actual query run [options]
+
+Execute an AQL query
+
+Options:
+  --table <table>      Table to query (use "actual query tables" to list
+                       available tables)
+  --select <fields>    Comma-separated fields to select
+  --filter <json>      Filter as JSON (e.g. '{"amount":{"$lt":0}}')
+  --where <json>       Alias for --filter (cannot be used together with
+                       --filter)
+  --order-by <fields>  Fields with optional direction: field1:desc,field2
+                       (default: asc)
+  --limit <n>          Limit number of results
+  --offset <n>         Skip first N results (for pagination)
+  --last <n>           Show last N transactions (implies --table transactions,
+                       --order-by date:desc)
+  --count              Count matching rows instead of returning them
+  --group-by <fields>  Comma-separated fields to group by (use with aggregate
+                       selects)
+  --file <path>        Read full query object from JSON file (use - for stdin)
+  -h, --help           display help for command
+
+Examples:
+  # Show last 5 transactions (shortcut)
+  actual query run --last 5
+
+  # Transactions ordered by date descending
+  actual query run --table transactions --select "date,amount,payee.name" --order-by "date:desc" --limit 10
+
+  # Filter with JSON (negative amounts = expenses)
+  actual query run --table transactions --filter '{"amount":{"$lt":0}}' --limit 5
+
+  # Count transactions
+  actual query run --table transactions --count
+
+  # Group by category (use --file for aggregate expressions)
+  echo '{"table":"transactions","groupBy":["category.name"],"select":["category.name",{"amount":{"$sum":"$amount"}}]}' | actual query run --file -
+
+  # Pagination
+  actual query run --table transactions --order-by "date:desc" --limit 10 --offset 20
+
+  # Use --where (alias for --filter)
+  actual query run --table transactions --where '{"payee.name":"Grocery Store"}' --limit 5
+
+  # Read query from a JSON file
+  actual query run --file query.json
+
+  # Pipe query from stdin
+  echo '{"table":"transactions","limit":5}' | actual query run --file -
+
+Available tables: transactions, accounts, categories, payees, rules, schedules
+Use "actual query tables" and "actual query fields <table>" for schema info.
+
+Common filter operators: $eq, $ne, $lt, $lte, $gt, $gte, $like, $and, $or
+See ActualQL docs for full reference: https://actualbudget.org/docs/api/actual-ql/
+
+Tips:
+  - Amounts are stored as integer cents (e.g. 166500 = 1665.00).
+    Table and CSV output auto-formats these as decimals; JSON keeps raw cents.
+  - Filter "is_parent": false to avoid double-counting split transactions.
+  - Fetch all data in a single query with a date range instead of running
+    one query per month — rapid sequential requests may cause auth failures.
+  - date.month, date.year etc. are not supported as fields in AQL.
+    To group by month, fetch raw transactions with a date range filter
+    and aggregate locally (e.g. in a script).

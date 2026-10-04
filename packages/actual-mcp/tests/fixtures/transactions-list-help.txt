@@ -1,0 +1,9 @@
+Usage: actual transactions list [options]
+
+List transactions for an account
+
+Options:
+  --account <id>  Account ID
+  --start <date>  Start date (YYYY-MM-DD)
+  --end <date>    End date (YYYY-MM-DD)
+  -h, --help      display help for command

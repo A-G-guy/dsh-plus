@@ -1,0 +1,11 @@
+Usage: actual transactions add [options]
+
+Add transactions to an account
+
+Options:
+  --account <id>      Account ID
+  --data <json>       Transaction data as JSON array
+  --file <path>       Read transaction data from JSON file (use - for stdin)
+  --learn-categories  Learn category assignments (default: false)
+  --run-transfers     Process transfers (default: false)
+  -h, --help          display help for command

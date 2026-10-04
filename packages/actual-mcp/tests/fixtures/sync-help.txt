@@ -1,0 +1,9 @@
+Usage: actual sync [options]
+
+Sync the local cached budget with the server, print cache status, or clear the
+cache
+
+Options:
+  --status    Print cache status without syncing (default: false)
+  --clear     Delete the local cache; next command re-downloads (default: false)
+  -h, --help  display help for command

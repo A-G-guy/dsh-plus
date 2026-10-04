@@ -42,6 +42,9 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | [`@dsh-plus/web-search-services`](packages/web-search-services) | service | 通用·py | web_search 免费后端聚合（Tavily/Exa/OpenAI Chat），官方 web_search 工具零修改；需本机 Python（自动发现，Windows 兜底 `py -3`） | [docs](packages/web-search-services/docs/README.md) |
 | [`@dsh-plus/siyuan`](packages/siyuan) | service | 通用 | 思源笔记主插件：MCP tools/list × kernel CLI help 树自动派生能力清单（docker/native/http 连接与 token 自动发现、双源交叉校验、降级执行），注册 `siyuan` agent 预设（操作面仅思源工具 + web/提问/待办辅助行，精简版系统提示词不复述工具描述） | [docs](packages/siyuan/docs/README.md) |
 | [`@dsh-plus/siyuan-tools`](packages/siyuan-tools) | tool | 通用 | 思源笔记子插件（仅 siyuan 预设挂载）：能力 1:1 包装为 agent 作用域 DSH 工具，写操作按 DSH 审批策略确认（完全权限自动通过、绝不静默拒绝），写前数据历史快照，`siyuan:env` 环境快照，MCP 优先 CLI 兜底 | [docs](packages/siyuan-tools/docs/README.md) |
+| [`@dsh-plus/actual-mcp`](packages/actual-mcp) | lib + bin | 通用 | Actual Budget 能力的可移植封装（格式一）：把本机 `@actual-app/cli` 按 help 文本运行时派生为 MCP 服务，stdio 入口可被任意 MCP 宿主直接运行；零 DSH 依赖，同时是格式二的唯一能力来源 | [docs](packages/actual-mcp/docs/README.md) |
+| [`@dsh-plus/actual`](packages/actual) | service + UI | 通用 | Actual Budget 主插件：进程内挂载格式一的 MCP 服务端并从 `tools/list` 派生能力清单（CLI help 树交叉校验、会话失败降级为 CLI 目录、CLI×服务端版本探针与 warn/strict 策略），注册 `actual` agent 预设（操作面仅 Actual 工具 + web/提问/待办辅助行，精简版系统提示词不复述工具描述），附插件页配置卡片（地址/Sync ID/CLI/策略可 GUI 直改，密钥走行级注入） | [docs](packages/actual/docs/README.md) |
+| [`@dsh-plus/actual-tools`](packages/actual-tools) | tool | 通用 | Actual Budget 子插件（仅 actual 预设挂载）：能力 1:1 包装为 agent 作用域 DSH 工具，写操作按 DSH 审批策略确认（完全权限自动通过、绝不静默拒绝），`actual:env` 环境快照（含版本不匹配告警），MCP 优先 CLI 兜底 | [docs](packages/actual-tools/docs/README.md) |
 | [`@dsh-plus/tool-text-transform`](packages/tool-text-transform) | tool | 通用 | 纯函数演示工具（uppercase / lowercase / reverse / length），插件链路参考实现 | [docs](packages/tool-text-transform/docs/README.md) |
 | [`@dsh-plus/agent-preset-chat`](packages/agent-preset-chat) | persona | 通用 | 注册纯聊天模式 agent 预设（id=`chat`）：空工具目录 + complete persona 前缀，含遗留 `.agent-presets/chat` 迁移 | [docs](packages/agent-preset-chat/docs/README.md) |
 | [`@dsh-plus/bundle-main`](packages/bundle-main) | bundle | 通用 | 聚合编排层：按序 insert 正式插件行，单插件脱离 bundle 亦可独立安装 | — |
@@ -138,6 +141,9 @@ packages/
   web-search-services/  web_search 免费后端聚合（Python 桥接特例）
   siyuan/               思源笔记主插件（能力发现服务 + siyuan 预设注册）
   siyuan-tools/         思源笔记子插件（预设内工具包装 + 审批/写前快照安全网）
+  actual-mcp/           Actual 能力封装（格式一：CLI help 树 → stdio MCP 服务）
+  actual/               Actual 主插件（能力发现服务 + actual 预设注册 + 配置卡片）
+  actual-tools/         Actual 子插件（预设内工具包装 + 审批/环境快照）
   tool-text-transform/  演示工具（dev-only，不进生产 bundle）
   agent-preset-chat/    纯聊天 agent 预设（id=chat）
   bundle-main/          聚合编排层

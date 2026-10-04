@@ -1,0 +1,12 @@
+Usage: actual server [options] [command]
+
+Server utilities
+
+Options:
+  -h, --help           display help for command
+
+Commands:
+  version              Get server version
+  get-id [options]     Get entity ID by name
+  bank-sync [options]  Run bank synchronization
+  help [command]       display help for command

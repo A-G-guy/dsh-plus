@@ -1,0 +1,7 @@
+Usage: actual accounts balance [options] <id>
+
+Get account balance
+
+Options:
+  --cutoff <date>  Cutoff date (YYYY-MM-DD)
+  -h, --help       display help for command

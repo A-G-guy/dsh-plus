@@ -1,0 +1,9 @@
+Usage: actual server get-id [options]
+
+Get entity ID by name
+
+Options:
+  --type <type>  Entity type (choices: "accounts", "categories", "payees",
+                 "schedules")
+  --name <name>  Entity name
+  -h, --help     display help for command

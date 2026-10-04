@@ -1,0 +1,13 @@
+Usage: actual category-groups [options] [command]
+
+Manage category groups
+
+Options:
+  -h, --help             display help for command
+
+Commands:
+  list [options]         List category groups (excludes hidden by default)
+  create [options]       Create a new category group
+  update [options] <id>  Update a category group
+  delete [options] <id>  Delete a category group
+  help [command]         display help for command

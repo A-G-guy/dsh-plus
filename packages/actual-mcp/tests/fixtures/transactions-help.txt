@@ -1,0 +1,14 @@
+Usage: actual transactions [options] [command]
+
+Manage transactions
+
+Options:
+  -h, --help             display help for command
+
+Commands:
+  list [options]         List transactions for an account
+  add [options]          Add transactions to an account
+  import [options]       Import transactions to an account
+  update [options] <id>  Update a transaction
+  delete <id>            Delete a transaction
+  help [command]         display help for command

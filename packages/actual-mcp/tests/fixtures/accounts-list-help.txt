@@ -1,0 +1,7 @@
+Usage: actual accounts list [options]
+
+List all accounts
+
+Options:
+  --include-closed  Include closed accounts (default: false)
+  -h, --help        display help for command

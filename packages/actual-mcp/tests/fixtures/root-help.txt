@@ -1,0 +1,44 @@
+Usage: actual [options] [command]
+
+CLI for Actual Budget
+
+Options:
+  -V, --version                     output the version number
+  --server-url <url>                Actual server URL (env: ACTUAL_SERVER_URL)
+  --password <password>             Server password (env: ACTUAL_PASSWORD)
+  --session-token <token>           Session token (env: ACTUAL_SESSION_TOKEN)
+  --sync-id <id>                    Budget sync ID (env: ACTUAL_SYNC_ID)
+  --data-dir <path>                 Data directory (env: ACTUAL_DATA_DIR)
+  --encryption-password <password>  E2E encryption password (env:
+                                    ACTUAL_ENCRYPTION_PASSWORD)
+  --cache-ttl <seconds>             Cache TTL in seconds (env: ACTUAL_CACHE_TTL;
+                                    default: 60)
+  --refresh                         Force a sync on this call, ignoring the
+                                    cache (default: false)
+  --no-cache                        Alias for --refresh
+  --lock-timeout <seconds>          How long to wait for another CLI process to
+                                    release the lock (env: ACTUAL_LOCK_TIMEOUT;
+                                    default: 10)
+  --no-lock                         Disable the budget directory lock (use with
+                                    care, env: ACTUAL_NO_LOCK)
+  --format <format>                 Output format: json, table, csv (choices:
+                                    "json", "table", "csv", default: "json")
+  --verbose                         Show informational messages (default: false)
+  -h, --help                        display help for command
+
+Commands:
+  accounts                          Manage accounts
+  budgets                           Manage budgets
+  categories                        Manage categories
+  category-groups                   Manage category groups
+  transactions                      Manage transactions
+  payees                            Manage payees
+  tags                              Manage tags
+  rules                             Manage transaction rules
+  schedules                         Manage scheduled transactions
+  query                             Run AQL (Actual Query Language) queries
+  server                            Server utilities
+  sync [options]                    Sync the local cached budget with the
+                                    server, print cache status, or clear the
+                                    cache
+  help [command]                    display help for command

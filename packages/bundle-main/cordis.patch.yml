@@ -62,3 +62,10 @@
     # 注册，仅 siyuan 预设可见，不污染其他预设。
     - id: dsh-plus-siyuan
       name: '@dsh-plus/siyuan'
+    # actual：Actual Budget 能力发现服务（@actual-app/cli help 树运行时派生）
+    # + actual 预设注册。宿主行只提供 ctx.actual 服务与预设声明，不注册任何
+    # 模型面工具；工具由预设挂载的 @dsh-plus/actual-tools 在 agent 作用域注册，
+    # 仅 actual 预设可见，不污染其他预设。@dsh-plus/actual-mcp 是零 DSH 依赖的
+    # 可移植 MCP 服务（格式一），只作库 + bin，自身不是 cordis 行。
+    - id: dsh-plus-actual
+      name: '@dsh-plus/actual'

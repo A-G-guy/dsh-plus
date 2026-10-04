@@ -1,0 +1,13 @@
+Usage: actual schedules [options] [command]
+
+Manage scheduled transactions
+
+Options:
+  -h, --help             display help for command
+
+Commands:
+  list                   List all schedules
+  create [options]       Create a new schedule
+  update [options] <id>  Update a schedule
+  delete <id>            Delete a schedule
+  help [command]         display help for command

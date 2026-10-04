@@ -1,0 +1,12 @@
+Usage: actual query [options] [command]
+
+Run AQL (Actual Query Language) queries
+
+Options:
+  -h, --help      display help for command
+
+Commands:
+  run [options]   Execute an AQL query
+  tables          List available tables for querying
+  fields <table>  List fields for a given table
+  help [command]  display help for command

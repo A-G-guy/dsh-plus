@@ -1,0 +1,17 @@
+Usage: actual budgets [options] [command]
+
+Manage budgets
+
+Options:
+  -h, --help                   display help for command
+
+Commands:
+  list                         List all available budgets
+  download [options] <syncId>  Download a budget by sync ID
+  months                       List available budget months
+  month <month>                Get budget data for a specific month (YYYY-MM)
+  set-amount [options]         Set budget amount for a category in a month
+  set-carryover [options]      Enable/disable carryover for a category
+  hold-next-month [options]    Hold budget amount for next month
+  reset-hold [options]         Reset budget hold for a month
+  help [command]               display help for command

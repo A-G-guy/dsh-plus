@@ -1,0 +1,14 @@
+Usage: actual rules [options] [command]
+
+Manage transaction rules
+
+Options:
+  -h, --help             display help for command
+
+Commands:
+  list                   List all rules
+  payee-rules <payeeId>  List rules for a specific payee
+  create [options]       Create a new rule
+  update [options]       Update a rule
+  delete <id>            Delete a rule
+  help [command]         display help for command

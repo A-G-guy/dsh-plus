@@ -1,0 +1,16 @@
+Usage: actual accounts [options] [command]
+
+Manage accounts
+
+Options:
+  -h, --help              display help for command
+
+Commands:
+  list [options]          List all accounts
+  create [options]        Create a new account
+  update [options] <id>   Update an account
+  close [options] <id>    Close an account
+  reopen <id>             Reopen a closed account
+  delete <id>             Delete an account
+  balance [options] <id>  Get account balance
+  help [command]          display help for command

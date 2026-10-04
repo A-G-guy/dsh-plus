@@ -1,0 +1,13 @@
+Usage: actual categories [options] [command]
+
+Manage categories
+
+Options:
+  -h, --help             display help for command
+
+Commands:
+  list [options]         List categories (excludes hidden by default)
+  create [options]       Create a new category
+  update [options] <id>  Update a category
+  delete [options] <id>  Delete a category
+  help [command]         display help for command

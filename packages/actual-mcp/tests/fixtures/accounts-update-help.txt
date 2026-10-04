@@ -1,0 +1,8 @@
+Usage: actual accounts update [options] <id>
+
+Update an account
+
+Options:
+  --name <name>       New account name
+  --offbudget <bool>  Set off-budget status
+  -h, --help          display help for command

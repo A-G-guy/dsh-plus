@@ -1,0 +1,9 @@
+Usage: actual categories create [options]
+
+Create a new category
+
+Options:
+  --name <name>    Category name
+  --group-id <id>  Category group ID
+  --is-income      Mark as income category (default: false)
+  -h, --help       display help for command

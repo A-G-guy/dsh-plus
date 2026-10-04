@@ -1,0 +1,9 @@
+Usage: actual budgets set-amount [options]
+
+Set budget amount for a category in a month
+
+Options:
+  --month <month>    Budget month (YYYY-MM)
+  --category <id>    Category ID
+  --amount <amount>  Amount in cents (e.g. 50000 = 500.00)
+  -h, --help         display help for command

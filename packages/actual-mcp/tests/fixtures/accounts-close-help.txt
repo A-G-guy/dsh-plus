@@ -1,0 +1,8 @@
+Usage: actual accounts close [options] <id>
+
+Close an account
+
+Options:
+  --transfer-account <id>   Transfer remaining balance to this account
+  --transfer-category <id>  Transfer remaining balance to this category
+  -h, --help                display help for command

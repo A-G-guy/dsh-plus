@@ -1,0 +1,13 @@
+Usage: actual tags [options] [command]
+
+Manage tags
+
+Options:
+  -h, --help             display help for command
+
+Commands:
+  list                   List all tags
+  create [options]       Create a new tag
+  update [options] <id>  Update a tag
+  delete <id>            Delete a tag
+  help [command]         display help for command

@@ -1,0 +1,6 @@
+Usage: actual query fields [options] <table>
+
+List fields for a given table
+
+Options:
+  -h, --help  display help for command
