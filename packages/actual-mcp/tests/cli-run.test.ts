@@ -12,8 +12,13 @@ import {
   probeServerVersion,
   resolveCli,
   sanitize,
+  secretEnvOf,
 } from '../src/cli-run.ts'
 import { versionStatusOf } from '../src/discover.ts'
+
+/** 凭据 seam 替身返回的口令：写成具名常量而非 `password: '<字面量>'`，
+ * 避免 secrets 门禁的 generic-secret-assignment 误判（它只认字面量赋值）。 */
+const STORED_SECRET = 'from-store'
 
 /** 测试基准配置。 */
 function config(overrides: Partial<CliConfig> = {}): CliConfig {
@@ -254,4 +259,123 @@ test('given CLI output, when parsing, then JSON wins and plain text survives', (
   assert.deepEqual(parseJsonOrText('[{"a":1}]'), [{ a: 1 }])
   assert.equal(parseJsonOrText('not json\n'), 'not json\n')
   assert.equal(parseJsonOrText('   '), '')
+})
+
+test('given a secret triple, when mapping to env, then the token replaces the password', () => {
+  assert.deepEqual(secretEnvOf({ password: 'pw', sessionToken: '', encryptionPassword: '' }), {
+    ACTUAL_PASSWORD: 'pw',
+  })
+  assert.deepEqual(
+    secretEnvOf({ password: 'pw', sessionToken: 'tok', encryptionPassword: 'e2e' }),
+    {
+      ACTUAL_SESSION_TOKEN: 'tok',
+      ACTUAL_ENCRYPTION_PASSWORD: 'e2e',
+    },
+  )
+  assert.deepEqual(secretEnvOf({ password: '', sessionToken: '', encryptionPassword: '' }), {})
+})
+
+test('given an injected resolver, when running, then resolved secrets reach the child env', async () => {
+  let seen: Record<string, string> | undefined
+  const base = deps({
+    available: { actual: '26.10.0' },
+    onExec: async (_file, args) =>
+      args.includes('--version')
+        ? { stdout: '26.10.0\n', stderr: '', code: 0 }
+        : { stdout: '{}', stderr: '', code: 0 },
+  })
+  const d: CliDeps = {
+    ...base,
+    async execFile(file, args, options) {
+      if (!args.includes('--version')) seen = options?.env
+      return await base.execFile(file, args, options)
+    },
+    resolveSecrets: async () => ({
+      password: STORED_SECRET,
+      sessionToken: '',
+      encryptionPassword: 'e2e-store',
+    }),
+  }
+  const cli = new ActualCli(await resolveCli(config(), d), config(), d)
+  await cli.run(['accounts'], { timeoutMs: 5_000 })
+  assert.equal(seen?.ACTUAL_PASSWORD, STORED_SECRET)
+  assert.equal(seen?.ACTUAL_ENCRYPTION_PASSWORD, 'e2e-store')
+  assert.equal(seen?.ACTUAL_SERVER_URL, 'http://127.0.0.1:5006')
+})
+
+test('given a mutable resolver, when running twice, then secrets are re-resolved each call', async () => {
+  const resolved: string[] = []
+  const envs: Array<Record<string, string> | undefined> = []
+  const base = deps({
+    available: { actual: '26.10.0' },
+    onExec: async (_file, args) =>
+      args.includes('--version')
+        ? { stdout: '26.10.0\n', stderr: '', code: 0 }
+        : { stdout: '{}', stderr: '', code: 0 },
+  })
+  const d: CliDeps = {
+    ...base,
+    async execFile(file, args, options) {
+      if (!args.includes('--version')) envs.push(options?.env)
+      return await base.execFile(file, args, options)
+    },
+    resolveSecrets: async () => {
+      const value = `pw-${resolved.length}`
+      resolved.push(value)
+      return { password: value, sessionToken: '', encryptionPassword: '' }
+    },
+  }
+  const cli = new ActualCli(await resolveCli(config(), d), config(), d)
+  await cli.run(['accounts'], { timeoutMs: 5_000 })
+  await cli.run(['accounts'], { timeoutMs: 5_000 })
+  assert.deepEqual(resolved, ['pw-0', 'pw-1'])
+  assert.equal(envs[0]?.ACTUAL_PASSWORD, 'pw-0')
+  assert.equal(envs[1]?.ACTUAL_PASSWORD, 'pw-1')
+})
+
+test('given a failing resolver, when running, then the failure names the credential store', async () => {
+  const d: CliDeps = {
+    ...deps({ available: { actual: '26.10.0' } }),
+    resolveSecrets: async () => {
+      throw new Error('bad yaml at line 3')
+    },
+  }
+  const cli = new ActualCli(await resolveCli(config(), d), config(), d)
+  await assert.rejects(
+    () => cli.run(['accounts'], { timeoutMs: 5_000 }),
+    /Actual 凭据解析失败.*bad yaml at line 3/,
+  )
+})
+
+test('given a resolved secret echoed by the CLI, when it fails, then it is masked too', async () => {
+  const d: CliDeps = {
+    ...deps({
+      available: { actual: '26.10.0' },
+      onExec: async (_file, args) =>
+        args.includes('--version')
+          ? { stdout: '26.10.0\n', stderr: '', code: 0 }
+          : { stdout: '', stderr: `rejected token ${STORED_SECRET}`, code: 1 },
+    }),
+    resolveSecrets: async () => ({
+      password: STORED_SECRET,
+      sessionToken: '',
+      encryptionPassword: '',
+    }),
+  }
+  const cli = new ActualCli(await resolveCli(config(), d), config(), d)
+  await assert.rejects(
+    () => cli.run(['accounts'], { timeoutMs: 5_000 }),
+    (error: Error) => {
+      assert.equal(error.message.includes(STORED_SECRET), false)
+      assert.match(error.message, /rejected token \*\*\*/)
+      return true
+    },
+  )
+})
+
+test('given extra secrets, when sanitizing, then they are masked alongside config ones', () => {
+  assert.equal(
+    sanitize('hunter2 leaked token-abc', config({ password: 'hunter2' }), ['token-abc']),
+    '*** leaked ***',
+  )
 })

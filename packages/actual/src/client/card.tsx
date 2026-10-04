@@ -2,11 +2,12 @@
  * 「Actual Budget 连接」配置卡片：经 injectPluginConfigCard 注册（插件页
  * plugins.row.config / plugins.bundle.config，view 分发 summary/page）。
  *
- * 编辑范围只覆盖**非密钥**字段。密钥与高级字段没有编辑器，卡片内给出明确落点
- * （见 i18n 的 secretsBody / advancedBody）——按《插件开发指南》，可配置项要么
- * 有编辑器、要么写明为什么没有与改在哪里配。
+ * 编辑范围覆盖全部可公开字段与三行密钥：非密钥字段走 settings 草稿（脏判定 +
+ * 保存按钮），密钥走官方 credentials seam（各自即时保存，与草稿互不干扰）。
+ * 剩余无编辑器的字段在卡片内给出明确落点（见 i18n 的 advancedBody）——按
+ * 《插件开发指南》，可配置项要么有编辑器、要么写明为什么没有与改在哪里配。
  *
- * 字段按主题拆成两个小节组件，卡片本体只负责外壳、状态与保存动作。
+ * 字段按主题拆成小节组件，卡片本体只负责外壳、状态与保存动作。
  * @module @dsh-plus/actual/client/card
  */
 
@@ -32,11 +33,14 @@ import {
   validateDraft,
 } from './draft.ts'
 import type { Translate } from './i18n.ts'
+import type { CredentialsRemoteFace } from './secrets.ts'
+import { SecretsSection } from './secrets-section.tsx'
 
 export interface CardProps extends PluginConfigViewProps {
   t: Translate
   scope: Scope
   api: NamespaceSettingsApi
+  credentials: CredentialsRemoteFace
 }
 
 /** 小节共用的 props。 */
@@ -69,18 +73,11 @@ function violationProps(
 }
 
 /** 说明段落（无编辑器的字段在此交代落点）。 */
-function Note(props: {
-  title: string
-  body: string
-  snippet?: string
-  tail?: string
-}): ReactElement {
+function Note(props: { title: string; body: string }): ReactElement {
   return (
     <div className="act-note">
       <p className="act-noteTitle">{props.title}</p>
       <p className="act-noteBody">{props.body}</p>
-      {props.snippet !== undefined ? <code className="act-snippet">{props.snippet}</code> : null}
-      {props.tail !== undefined ? <p className="act-noteBody">{props.tail}</p> : null}
     </div>
   )
 }
@@ -174,7 +171,7 @@ function PolicySection(props: SectionProps): ReactElement {
 }
 
 export function ActualCard(props: CardProps): ReactElement | string | null {
-  const { t, scope, api } = props
+  const { t, scope, api, credentials } = props
   const { draft, dirty, saving, status, disabled, edit, reset, save } = useNamespaceDraft<
     ConfigValue,
     Draft
@@ -217,13 +214,8 @@ export function ActualCard(props: CardProps): ReactElement | string | null {
       />
       <p className="act-noteBody">{t('enabledHint')}</p>
       <ConnectionSection {...section} />
+      <SecretsSection t={t} face={credentials} />
       <PolicySection {...section} />
-      <Note
-        title={t('secretsTitle')}
-        body={t('secretsBody')}
-        snippet={t('secretsSnippet')}
-        tail={t('secretsTail')}
-      />
       <Note title={t('advancedTitle')} body={t('advancedBody')} />
     </CardChrome>
   )

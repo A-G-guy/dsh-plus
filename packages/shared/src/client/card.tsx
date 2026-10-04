@@ -13,6 +13,8 @@
  */
 import type { ReactNode } from 'react'
 
+import { Button } from './fields.tsx'
+
 export interface CardStatusState {
   kind: 'idle' | 'ok' | 'error'
   text: string
@@ -83,17 +85,14 @@ export function CardChrome(props: CardChromeProps): ReactNode {
             </p>
           ) : null}
           {props.actions.map((action) => (
-            <button
+            <Button
               key={action.key}
-              type="button"
-              className={`${p}-btn ${
-                action.variant === 'primary' ? `${p}-btnPrimary` : `${p}-btnGhost`
-              }`}
-              disabled={action.disabled === true}
+              prefix={p}
+              label={action.label}
+              variant={action.variant}
+              disabled={action.disabled}
               onClick={action.onClick}
-            >
-              {action.label}
-            </button>
+            />
           ))}
         </div>
       </div>

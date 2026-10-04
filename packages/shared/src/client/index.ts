@@ -27,7 +27,14 @@ export {
   useNamespaceDraft,
 } from './draft.ts'
 export { getJson, postJson } from './fetch.ts'
-export { CheckRow, SelectField, type SelectOption, TextField } from './fields.tsx'
+export {
+  Button,
+  type ButtonProps,
+  CheckRow,
+  SelectField,
+  type SelectOption,
+  TextField,
+} from './fields.tsx'
 export { type CommonDictKey, commonEn, commonZh, type Dict, mergeDict } from './i18n.ts'
 export {
   ChevronDownIcon,
@@ -62,6 +69,7 @@ export {
   createNamespaceApi,
   createSettingsScope,
   type NamespaceSettingsApi,
+  type RemoteResult,
   type Scope,
   type ScopeHostContext,
   type ScopeSnapshot,

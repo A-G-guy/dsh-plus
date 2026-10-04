@@ -8,7 +8,10 @@
  * 后立即按新配置重新发现。纯展示/策略字段（name/description/order/persona 等）
  * 不触发重建，它们在下一次预设注册或工具注册时自然生效。
  *
- * 密钥只经子进程环境变量下发；日志与状态均经脱敏。数据目录默认落在插件数据
+ * 密钥解析每次操作即时进行：行级 Config 声明的优先，否则问官方 credentials
+ * seam（`$DSH_HOME/.credentials.yaml`，浏览器半经官方 `remote.credentials`
+ * 命名空间写入）——改口令后下一次工具调用即生效，无需 /reload 或重启。
+ * 日志与状态均经脱敏。数据目录默认落在插件数据
  * 目录（与用户自有 CLI 的 `~/.actual-cli/data` 隔离，避免缓存与迁移互相踩）。
  * @module @dsh-plus/actual/service
  */
@@ -19,11 +22,13 @@ import {
   type ActualStatus,
   type CapabilityEntry,
   type CliConfig,
+  configSecretsOf,
   createNodeDeps,
 } from '@dsh-plus/actual-mcp'
 import { pluginDataPath, unwrapVolatile } from '@dsh-plus/shared'
 
 import type { ActualConfig, ActualConfigFields } from './config.ts'
+import { type CredentialsFace, resolveSecrets } from './credentials.ts'
 import { createInProcessSession } from './mcp-session.ts'
 import {
   ActualRuntime,
@@ -102,7 +107,12 @@ export class ActualService extends Service {
       cliVersionPolicy: config.cliVersionPolicy,
       toolCallTimeoutMs: config.toolCallTimeoutMs,
     }
-    const runtime = new ActualRuntime(runtimeConfig, this.deps, this.logger)
+    // 密钥按调用即时解析：`cli` 随签名变化换代，闭包始终指向当前那一代配置。
+    const deps: RuntimeDeps = {
+      ...this.deps,
+      resolveSecrets: () => resolveSecrets(this.credentialsSeam(), configSecretsOf(cli)),
+    }
+    const runtime = new ActualRuntime(runtimeConfig, deps, this.logger)
     const detach = runtime.onChange((manifest) => {
       for (const listener of [...this.listeners]) listener(manifest)
     })
@@ -156,6 +166,18 @@ export class ActualService extends Service {
   onChange(cb: (manifest: ActualManifest) => void): () => void {
     this.listeners.add(cb)
     return () => this.listeners.delete(cb)
+  }
+
+  /**
+   * credentials seam：**可选探测**而非硬 inject。
+   *
+   * 本插件在没挂 `dsh-credentials` 的 profile（headless/dev 精简组合）里也要能
+   * 起来，只是密钥退回「行级 Config + CLI 自身继承环境」；且探测发生在每次操作，
+   * seam 比本插件晚激活也能自然接上，不必声明时序。
+   */
+  private credentialsSeam(): CredentialsFace | null {
+    const found = (this.ctx as unknown as { get(key: string): unknown }).get('credentials')
+    return found === undefined || found === null ? null : (found as CredentialsFace)
   }
 
   dispose(): void {

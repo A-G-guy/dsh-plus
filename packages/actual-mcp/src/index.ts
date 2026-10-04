@@ -26,13 +26,17 @@ export {
   type CliConfig,
   type CliDeps,
   type CliRunOptions,
+  type CliSecrets,
   cliCandidates,
   cliEnv,
+  configSecretsOf,
   mergedEnv,
   parseJsonOrText,
   probeServerVersion,
   resolveCli,
+  SECRET_ENV,
   sanitize,
+  secretEnvOf,
 } from './cli-run.ts'
 export type {
   ActualCliBinding,

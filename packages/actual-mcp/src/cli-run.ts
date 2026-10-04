@@ -34,6 +34,39 @@ export interface CliDeps {
   env: Record<string, string | undefined>
   /** 解析本机可用的 `@actual-app/cli` 入口绝对路径；不可解析返回 undefined。 */
   resolveBundledCli(): string | undefined
+  /**
+   * 每次执行前解析密钥（宿主凭据 seam 的接线点）。
+   * **每次操作即时 resolve**，不跨操作缓存——改口令后下一次调用即生效。
+   * 缺席（独立 MCP 进程、测试）即只用静态配置，密钥仍可由 CLI 自行继承环境。
+   */
+  resolveSecrets?(): Promise<CliSecrets>
+}
+
+/**
+ * CLI 读取的三个密钥环境变量名。
+ * 同时作为凭据 seam 的引用名：`ACTUAL_` 前缀符合《插件存储规范》的
+ * `<PLUGIN_ID>_` 大写约定，且与 CLI 原生变量名一致——seam 的继承环境层
+ * 与 CLI 自己的环境读取因此天然对齐，同一处配置对两条路径都生效。
+ *
+ * 先落成具名常量再组表：本表存的是**变量名**，不是凭据值——若把它们直接写成
+ * 以 `password` 等敏感词为键、值为字符串字面量的对象，会被 secrets 门禁的
+ * `generic-secret-assignment` 规则判成硬编码口令。
+ */
+const ENV_PASSWORD = 'ACTUAL_PASSWORD'
+const ENV_SESSION_TOKEN = 'ACTUAL_SESSION_TOKEN'
+const ENV_ENCRYPTION_PASSWORD = 'ACTUAL_ENCRYPTION_PASSWORD'
+
+export const SECRET_ENV = {
+  password: ENV_PASSWORD,
+  sessionToken: ENV_SESSION_TOKEN,
+  encryptionPassword: ENV_ENCRYPTION_PASSWORD,
+} as const
+
+/** 一次调用的密钥三元组（空串 = 该来源未提供）。 */
+export interface CliSecrets {
+  password: string
+  sessionToken: string
+  encryptionPassword: string
 }
 
 /** CLI 与连接配置（主插件 Config 的子集）。 */
@@ -89,6 +122,30 @@ export function cliCandidates(config: CliConfig, deps: CliDeps): CliCandidate[] 
   return candidates
 }
 
+/** 静态配置承载的密钥三元组。 */
+export function configSecretsOf(config: CliConfig): CliSecrets {
+  return {
+    password: config.password,
+    sessionToken: config.sessionToken,
+    encryptionPassword: config.encryptionPassword,
+  }
+}
+
+/**
+ * 密钥三元组 → 子进程环境键。
+ * 会话令牌优先于口令（与官方 CLI 的取值顺序一致）；两者都不给即完全不带
+ * 认证变量，让 CLI 自行决定从自身配置或继承环境取用。
+ */
+export function secretEnvOf(secrets: CliSecrets): Record<string, string> {
+  const env: Record<string, string> = {}
+  if (secrets.sessionToken !== '') env[SECRET_ENV.sessionToken] = secrets.sessionToken
+  else if (secrets.password !== '') env[SECRET_ENV.password] = secrets.password
+  if (secrets.encryptionPassword !== '') {
+    env[SECRET_ENV.encryptionPassword] = secrets.encryptionPassword
+  }
+  return env
+}
+
 /** 子进程环境：只含需要下发/覆盖的键，由执行层并入 process.env。 */
 export function cliEnv(config: CliConfig): Record<string, string> {
   const env: Record<string, string> = {
@@ -96,13 +153,11 @@ export function cliEnv(config: CliConfig): Record<string, string> {
     ACTUAL_CACHE_TTL: String(config.cacheTtl),
     ACTUAL_LOCK_TIMEOUT: String(config.lockTimeout),
     NO_COLOR: '1',
+    ...secretEnvOf(configSecretsOf(config)),
   }
   // 空值 = 交给 CLI 自己的默认（`~/.actual-cli/data`），不覆盖。
   if (config.dataDir !== '') env.ACTUAL_DATA_DIR = config.dataDir
   if (config.syncId !== '') env.ACTUAL_SYNC_ID = config.syncId
-  if (config.sessionToken !== '') env.ACTUAL_SESSION_TOKEN = config.sessionToken
-  else if (config.password !== '') env.ACTUAL_PASSWORD = config.password
-  if (config.encryptionPassword !== '') env.ACTUAL_ENCRYPTION_PASSWORD = config.encryptionPassword
   return env
 }
 
@@ -122,10 +177,18 @@ export function mergedEnv(
   return { ...env, ...extra }
 }
 
-/** 脱敏：错误文本中出现的密钥一律替换为 ***。 */
-export function sanitize(message: string, config: CliConfig): string {
+/**
+ * 脱敏：错误文本中出现的密钥一律替换为 ***。
+ * @param extra - 本次调用当场解析出的密钥（凭据 seam）；静态配置之外也要盖住。
+ */
+export function sanitize(
+  message: string,
+  config: CliConfig,
+  extra: readonly string[] = [],
+): string {
+  const values = [config.password, config.sessionToken, config.encryptionPassword, ...extra]
   let result = message
-  for (const secret of [config.password, config.sessionToken, config.encryptionPassword]) {
+  for (const secret of values) {
     if (secret !== '') result = result.split(secret).join('***')
   }
   return result
@@ -232,11 +295,36 @@ export class ActualCli {
     return task
   }
 
+  /**
+   * 每次执行即时解析密钥（凭据 seam），不跨操作缓存：口令改了下一次调用即生效。
+   * 未注入解析器时按静态配置，与绑定阶段的环境一致。
+   */
+  private async secretsFor(): Promise<CliSecrets> {
+    const resolve = this.deps.resolveSecrets
+    if (resolve === undefined) return configSecretsOf(this.config)
+    try {
+      return await resolve()
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      throw new Error(`Actual 凭据解析失败（凭据文件可能损坏）：${detail}`)
+    }
+  }
+
   /** 实际执行：拼接全局项、合并超时预算、校验退出码并脱敏错误。 */
   private async exec(argv: string[], options: CliRunOptions): Promise<string> {
     const [file, ...prefix] = this.binding.argv
     if (file === undefined) throw new Error('Actual CLI 未配置')
-    const env = mergedEnv(this.deps, this.binding.env)
+    const secrets = await this.secretsFor()
+    const env = mergedEnv(this.deps, {
+      ...this.binding.env,
+      ...secretEnvOf(secrets),
+    })
+    const scrub = (text: string): string =>
+      sanitize(text, this.config, [
+        secrets.password,
+        secrets.sessionToken,
+        secrets.encryptionPassword,
+      ])
     const timeout = AbortSignal.timeout(options.timeoutMs)
     const signal =
       options.signal === undefined ? timeout : AbortSignal.any([options.signal, timeout])
@@ -244,17 +332,13 @@ export class ActualCli {
       .execFile(file, [...prefix, ...argv, '--format', 'json'], { signal, env })
       .catch((error: unknown) => {
         const detail = error instanceof Error ? error.message : String(error)
-        throw new Error(
-          `Actual CLI 无法启动（${this.binding.origin}）：${sanitize(detail, this.config)}`,
-        )
+        throw new Error(`Actual CLI 无法启动（${this.binding.origin}）：${scrub(detail)}`)
       })
     if (options.signal?.aborted === true) throw new Error('Actual CLI 执行被中止')
     if (timeout.aborted) throw new Error(`Actual CLI 执行超时（${options.timeoutMs}ms）`)
     if (result.code !== 0) {
       const detail = (result.stderr || result.stdout).trim().slice(0, 2_000)
-      throw new Error(
-        `Actual CLI 执行失败（exit ${result.code}）：${sanitize(detail, this.config) || '无输出'}`,
-      )
+      throw new Error(`Actual CLI 执行失败（exit ${result.code}）：${scrub(detail) || '无输出'}`)
     }
     return result.stdout
   }

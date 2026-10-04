@@ -1,11 +1,40 @@
 /**
- * 配置卡片的基础控件（各插件 client 的公共收编版）：文本/数字/密码/下拉字段
- * 与勾选行。视觉对齐官方卡片字段（label + hint + input 纵列）。
+ * 配置卡片的基础控件（各插件 client 的公共收编版）：文本/数字/密码/下拉字段、
+ * 勾选行与按钮。视觉对齐官方卡片字段（label + hint + input 纵列）与页脚按钮。
  * 类名前缀由 prefix 注入（如 'dne'），样式由 cardCss(prefix) 生成，DOM 结构
  * 与迁移前逐字一致，避免视觉回归。
  * @module @dsh-plus/shared/client/fields
  */
 import type { ReactElement } from 'react'
+
+/**
+ * 可选属性的显式 `| undefined`：调用方普遍写 `prop={cond ? v : undefined}`，
+ * exactOptionalPropertyTypes 下与「缺席」不同型，故并集是如实表达契约
+ * （同 CardChromeProps 的既有做法）。
+ */
+export interface ButtonProps {
+  prefix?: string
+  label: string
+  /** 缺省 ghost；primary 用于主操作。 */
+  variant?: 'ghost' | 'primary' | undefined
+  disabled?: boolean | undefined
+  onClick(): void
+}
+
+/** 卡片按钮（与 CardChrome 页脚同一套类名与视觉）。 */
+export function Button(props: ButtonProps): ReactElement {
+  const p = props.prefix ?? 'dshp'
+  return (
+    <button
+      type="button"
+      className={`${p}-btn ${props.variant === 'primary' ? `${p}-btnPrimary` : `${p}-btnGhost`}`}
+      disabled={props.disabled === true}
+      onClick={props.onClick}
+    >
+      {props.label}
+    </button>
+  )
+}
 
 /** 下拉选项（value + 展示文案）。 */
 export interface SelectOption {

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-05 04:17"
+last_modified: "2026-10-05 05:09"
 description: "@dsh-plus/actual-mcp：把 @actual-app/cli 按 help 文本运行时封装为 MCP 服务（格式一）的契约、派生规则与可移植用法"
 type: fact
 ---
@@ -57,8 +57,13 @@ undefined → `?? 80`），长描述会折到描述列（缩进远大于条目�
 ## 与 CLI 的边界（`src/cli-run.ts`）
 
 - **密钥只走子进程环境变量**（官方 CLI 原生读 `ACTUAL_PASSWORD` /
-  `ACTUAL_SESSION_TOKEN` / `ACTUAL_ENCRYPTION_PASSWORD`），绝不进 argv——
-  否则会经 `ps` 泄漏；错误文本再经 `sanitize` 兜一层，日志/状态/提示词全脱敏；
+  `ACTUAL_SESSION_TOKEN` / `ACTUAL_ENCRYPTION_PASSWORD`，见导出的 `SECRET_ENV`），
+  绝不进 argv——否则会经 `ps` 泄漏；错误文本再经 `sanitize` 兜一层
+  （当场解析出的密钥一并进入脱敏名单），日志/状态/提示词全脱敏；
+- **密钥来源可插拔**：`CliDeps.resolveSecrets` 是宿主凭据 seam 的接线点，在
+  `exec` **每次调用**前解析、不跨操作缓存（独立 MCP 进程与测试不注入，退回静态
+  配置，密钥仍可由 CLI 自行继承环境）；解析失败按「凭据文件不可用」报错，
+  不静默降级成无认证执行；
 - **调用串行化**：官方明示「每次调用新建连接、密集连续请求会触发限流或鉴权
   失败」，且 CLI 对预算目录加锁——并发只会自伤；
 - **显式候选强约束、自动候选可回退**：解析顺序
@@ -135,8 +140,8 @@ Actual 的服务端是 **CRDT 同步中继**，不做预算逻辑（全部在客
 
 - `help`/`derive`/`argv` 以**真实抓取的 help 原文**（`tests/fixtures/*.txt`）
   与合成 help 树双向钉住解析、并集、注记、枚举收敛与 argv 形态；
-- `cli-run` 覆盖候选解析顺序、环境下发（密钥只进 env）、脱敏、串行化、
-  退出码透出与超时；
+- `cli-run` 覆盖候选解析顺序、环境下发（密钥只进 env）、凭据解析钩子
+  （每次调用重新解析、解析失败与当场密钥的脱敏）、串行化、退出码透出与超时；
 - `discover` 串起「解析 → 采集 → 派生 → 调用」，断言 argv 真正到达 CLI；
 - `server` 用 `InMemoryTransport` 起真实 MCP 会话，断言 `tools/list`、
   `tools/call`、错误结果与越界枚举的拒绝；

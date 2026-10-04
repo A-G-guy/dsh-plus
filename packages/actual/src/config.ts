@@ -9,10 +9,12 @@
  * loader 以活动引用原位提交热更新——消费端必须 `unwrapVolatile` 现取即热
  * （见 service.ts 的 `current()`）。
  *
- * **密钥不进用户层**：`password` / `sessionToken` / `encryptionPassword` 标
- * `.role('secret')`，describe 视图剥除其值、写入用户层也会被遮蔽，因此配置卡片
- * 不提供编辑器——它们只允许 profile 行级注入（`!!js process.env.…`）。
- * 见《插件存储规范》：密钥走环境变量/官方凭据，不落 settings。
+ * **密钥不落 settings**：`password` / `sessionToken` / `encryptionPassword` 标
+ * `.role('secret')`，describe 视图剥除其值、写入用户层也会被遮蔽，因此不提供
+ * settings 编辑器。它们的落点有二：① 配置卡片的「凭据」小节（走官方
+ * credentials seam，写 `$DSH_HOME/.credentials.yaml`）；② profile 行级注入
+ * （`!!js process.env.…`）。行级声明了任一种认证即整组生效，否则回落到 seam。
+ * 见《插件存储规范》与 credentials.ts。
  * @module @dsh-plus/actual/config
  */
 
@@ -61,22 +63,20 @@ export const Config = z.object({
     .string()
     .role('secret')
     .description(
-      '服务器口令（空 = 用 ACTUAL_PASSWORD / ACTUAL_PASSWORD_FILE；与 sessionToken 二选一）——密钥不进用户层，仅 profile 行级注入',
+      '服务器口令（与 sessionToken 二选一）——不落 settings：卡片「凭据」小节写凭据文件，或在此行级注入',
     )
     .default('')
     .volatile(),
   sessionToken: z
     .string()
     .role('secret')
-    .description('会话令牌（优先于 password；空 = 用 ACTUAL_SESSION_TOKEN）——仅 profile 行级注入')
+    .description('会话令牌（优先于 password）——同上，卡片的「凭据」小节或行级注入')
     .default('')
     .volatile(),
   encryptionPassword: z
     .string()
     .role('secret')
-    .description(
-      '端到端加密口令（仅加密预算需要；空 = 用 ACTUAL_ENCRYPTION_PASSWORD）——仅 profile 行级注入',
-    )
+    .description('端到端加密口令（仅加密预算需要）——同上，卡片的「凭据」小节或行级注入')
     .default('')
     .volatile(),
   dataDir: z

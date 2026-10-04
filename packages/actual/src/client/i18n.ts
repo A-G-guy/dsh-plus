@@ -50,13 +50,21 @@ const ownZh = {
     '模型可见的工具名 = 前缀 + 命令族名（如 actual_accounts）。留空则直接用裸族名——query、server 等过于通用，不建议。',
   namePrefixInvalid: '只允许字母、数字、下划线与连字符',
 
-  secretsTitle: '服务器口令',
+  secretsTitle: '凭据',
   secretsBody:
-    '口令属密钥：它不进用户层配置，卡片也不提供输入框（写进来会被脱敏遮蔽，等于白填）。请在 profile 的 cordis.patch.yml 里做行级注入，口令本身放环境变量：',
-  secretsSnippet:
-    '- id: dsh-plus-actual\n  config:\n    syncId: !!js process.env.ACTUAL_SYNC_ID\n    password: !!js process.env.ACTUAL_PASSWORD',
-  secretsTail:
-    '把 ACTUAL_PASSWORD 放进 dsh 服务进程的环境（systemd 的 EnvironmentFile）。官方 CLI 还支持 ACTUAL_PASSWORD_FILE——更适合密钥文件；encrypted 预算另需 ACTUAL_ENCRYPTION_PASSWORD。改动环境变量后需重启 dsh 服务。',
+    '密钥单独存放，不进入会话、提示词与配置流，保存后立即生效（下一次工具调用即用新值）。三行都可留空：口令与会话令牌二选一即可，加密口令仅加密预算需要。',
+  secretPassword: '服务器口令',
+  secretPasswordHint: '自托管部署的登录口令。ACTUAL_LOGIN_METHOD=password 时用它换会话令牌。',
+  secretToken: '会话令牌',
+  secretTokenHint: '已有的会话令牌（优先于口令）。从浏览器开发者工具的 X-Actual-Token 头可取。',
+  secretEncryption: '端到端加密口令',
+  secretEncryptionHint: '仅当预算启用了端到端加密时需要；普通预算留空。',
+  secretSet: '已配置',
+  secretUnset: '未配置',
+  secretClear: '清除',
+  secretShadowed:
+    '该引用由 dsh 进程环境提供（只读层优先于凭据文件），卡片改不了：请改环境来源并重启 dsh。',
+  secretFailed: '凭据操作失败：',
 
   advancedTitle: '其余字段',
   advancedBody:
@@ -105,13 +113,24 @@ const ownEn = {
     'Model-visible tool name = prefix + command family (e.g. actual_accounts). Empty uses bare family names — query, server and tags are too generic, so a prefix is advised.',
   namePrefixInvalid: 'Letters, digits, underscore and hyphen only',
 
-  secretsTitle: 'Server password',
+  secretsTitle: 'Credentials',
   secretsBody:
-    'The password is a secret: it never enters the user-layer configuration, and this card offers no input for it (a value written here is masked away — filling it in would do nothing). Inject it at the profile row in cordis.patch.yml and keep the value in the environment:',
-  secretsSnippet:
-    '- id: dsh-plus-actual\n  config:\n    syncId: !!js process.env.ACTUAL_SYNC_ID\n    password: !!js process.env.ACTUAL_PASSWORD',
-  secretsTail:
-    'Put ACTUAL_PASSWORD into the dsh service process environment (systemd EnvironmentFile). The official CLI also supports ACTUAL_PASSWORD_FILE, which suits secret files better; an encrypted budget additionally needs ACTUAL_ENCRYPTION_PASSWORD. Restart the dsh service after changing environment variables.',
+    'Secrets live separately — they never enter the conversation, the prompt or the settings stream, and a save applies immediately (the next tool call uses it). All three may stay empty: password and session token are alternatives, and the encryption password is only needed for encrypted budgets.',
+  secretPassword: 'Server password',
+  secretPasswordHint:
+    'The login password of your self-hosted deployment. Exchanged for a session token when ACTUAL_LOGIN_METHOD=password.',
+  secretToken: 'Session token',
+  secretTokenHint:
+    'An existing session token; it takes precedence over the password. Read it from the X-Actual-Token header in devtools.',
+  secretEncryption: 'End-to-end encryption password',
+  secretEncryptionHint:
+    'Only needed when the budget has end-to-end encryption enabled; leave empty otherwise.',
+  secretSet: 'Configured',
+  secretUnset: 'Not configured',
+  secretClear: 'Clear',
+  secretShadowed:
+    'This reference comes from the dsh process environment, which shadows the credentials file and cannot be edited here. Change the environment source and restart dsh.',
+  secretFailed: 'Credential operation failed: ',
 
   advancedTitle: 'Remaining fields',
   advancedBody:
