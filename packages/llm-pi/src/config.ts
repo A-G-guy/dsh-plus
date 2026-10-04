@@ -5,7 +5,10 @@
  *
  * 与官方 llm-pi-ai 的差异：
  * - compat 是开放 dict，物化时按协议校验（见 compat.ts），写入即拒绝未知键；
- * - provider/model 均支持 extends 继承（见 inherit.ts）。
+ * - provider/model 均支持 extends 继承（见 inherit.ts），继承源只有 pi-ai 内置目录；
+ * - `api` 不在 schema 里钉死枚举：合法协议集合由已安装官方适配器现场推导
+ *   （见 official-surface/resolve-dsh），写时由 profiles.ts 以明确错误拒绝不支持者，
+ *   官方将来新增协议无需改本插件。
  * @module llm-pi/config
  */
 
@@ -17,13 +20,18 @@ import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 /** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
 export const SETTINGS_NS = NS_LITERAL
 
-/** 本插件可为手写 route 提供的协议实现（与官方 PROTOCOLS 表一致）。 */
-export const PROTOCOL_IDS = [
+/**
+ * 官方适配器不可用/推导失败时的协议兜底三元组（自 0.1.2-alpha 线以来的稳定集）。
+ * 运行期生效集合来自已安装官方包的 `supportedProtocols()`（见 resolve-dsh.ts），
+ * 本常量只用于 schema 描述、浏览器半首帧兜底与推导失败回退。
+ */
+export const FALLBACK_PROTOCOLS = [
   'openai-completions',
   'openai-responses',
   'anthropic-messages',
 ] as const
-export type ProtocolId = (typeof PROTOCOL_IDS)[number]
+/** 线协议标识；合法集合运行期推导，故此处是开放字符串而非字面量联合。 */
+export type ProtocolId = string
 
 /** pi-ai 思考档位，升级序。 */
 export const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -136,18 +144,15 @@ export interface ProviderProfileConfig {
   fileRefreshMarginSeconds?: number
 }
 
-/** 插件配置根。 */
+/** 插件配置根（模型目录唯一来自 pi-ai 内置目录，故无任何目录端点字段）。 */
 export interface LlmPiConfig {
   enabled: boolean
-  catalogUrl: string
-  catalogRefreshHours: number
-  catalogProxy: string
   providers: Record<string, ProviderProfileConfig>
 }
 
 /**
  * schema 的宽松输入面：cordis 行级 config 与 settings 用户层都可能只给部分键
- * （5 个根字段均有 schema 默认值），解析输出仍是完整的 {@link LlmPiConfig}。
+ * （2 个根字段均有 schema 默认值），解析输出仍是完整的 {@link LlmPiConfig}。
  */
 export type LlmPiConfigInput = Partial<LlmPiConfig>
 
@@ -208,18 +213,20 @@ const providerProfile = z.object({
   adapter: z
     .union(ADAPTER_KINDS)
     .description(
-      '路由适配器：pi=PiAiAdapter（默认，三协议）；deepseek=官方 DeepSeekAdapter（图片走 Files API 文件通道，失败自动降级 base64）',
+      '路由适配器：pi=PiAiAdapter（默认，协议集合随已装官方适配器推导）；deepseek=官方 DeepSeekAdapter（图片走 Files API 文件通道，失败自动降级 base64）',
     )
     .default('pi'),
   extends: z
     .string()
     .description(
-      'provider 级继承：内置 provider id，提供 api/baseURL 默认值与模型 extends 的缺省查找源',
+      'provider 级继承：pi-ai 内置 provider id，提供 api/baseURL 默认值与模型 extends 的缺省查找源',
     ),
   displayName: z.string().description('选择器显示名；缺省为 route 键'),
   api: z
-    .union(PROTOCOL_IDS)
-    .description('线协议；缺省逐模型取继承值的 api，全部一致时作为 route 协议'),
+    .string()
+    .description(
+      '线协议（合法集合由已装官方适配器运行期推导，见配置页「内置模型目录」状态行）；缺省逐模型取继承值的 api，全部一致时作为 route 协议',
+    ),
   baseURL: z.string().description('端点；缺省继承 extends 源 provider 的端点'),
   apiKeyEnv: z.string().role('credential-ref').description('凭据引用名（凭据服务/环境变量）'),
   headers: z.dict(z.string()).description('provider 请求头（Harness 署名头保留名优先）'),
@@ -334,21 +341,6 @@ export type LlmPiConfigFields = VolatileFields<LlmPiConfig>
 
 export const Config: z<LlmPiConfigInput, LlmPiConfigFields> = z.object({
   enabled: z.boolean().description('总开关（关闭则不注册任何 route）').default(true).volatile(),
-  catalogUrl: z
-    .string()
-    .description('models.dev 目录数据端点')
-    .default('https://models.dev/api.json')
-    .volatile(),
-  catalogRefreshHours: z
-    .number()
-    .description('models.dev 自动拉取间隔小时数；0 = 不自动拉取（可手动拉取或读已有缓存）')
-    .default(0)
-    .volatile(),
-  catalogProxy: z
-    .string()
-    .description('拉取 models.dev 目录时的 HTTP 代理地址（如 http://127.0.0.1:7890）；留空直连')
-    .default('')
-    .volatile(),
   providers: z
     .dict(providerProfile)
     .description('provider 路由表，键即 route 名')

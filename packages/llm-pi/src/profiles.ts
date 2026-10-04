@@ -35,10 +35,10 @@ import type {
 
 import {
   builtinProviderBaseUrl,
+  hasBuiltinProvider,
   inheritedCatalogEntries,
   type ModelBase,
 } from './catalog/builtin.ts'
-import type { ModelsDevSource } from './catalog/models-dev.ts'
 import { mergeCompat, validateCompat } from './compat.ts'
 import {
   DEFAULT_CONTEXT_WINDOW,
@@ -61,9 +61,8 @@ const NO_COST = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
 
 export interface BuildDeps {
   kit: DshKit
-  modelsDev?: ModelsDevSource
   /**
-   * 运行期宽松模式：数据源漂移（models.dev 刷新/内置目录变化）导致已写入的
+   * 运行期宽松模式：数据源漂移（dsh 树升级换 pi-ai 版本导致内置目录变化）使已写入的
    * extends 引用失效时，降级/跳过并告警，而不是抛错把整个 route 弄挂。
    * 写时校验（assertServiceable）保持严格（缺省），非法引用在写入处拒绝。
    */
@@ -82,6 +81,29 @@ function declaredInput(
   configured: readonly ('text' | 'image')[] | undefined,
 ): ('text' | 'image')[] | undefined {
   return configured === undefined || configured.length === 0 ? undefined : [...configured]
+}
+
+/**
+ * 归一化条目里"本层不处理、需原样进 pi-ai Model"的字段（继承自目录的未来
+ * 模型级字段，如 samplingParams）。官方 schema 当前的模型条目键（id/name/
+ * contextWindow/maxTokens/input/reasoningEfforts/compat）在此全部排除：
+ * 它们要么由本层显式翻译，要么不能出现在 pi-ai Model 上。
+ */
+function extraEntryFields(entry: PiAiModelProfile): Record<string, unknown> {
+  const known = new Set([
+    'id',
+    'name',
+    'contextWindow',
+    'maxTokens',
+    'input',
+    'reasoningEfforts',
+    'compat',
+  ])
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(entry)) {
+    if (!known.has(key) && value !== undefined) out[key] = value
+  }
+  return out
 }
 
 /** 显式 reasoningEfforts 字典的合法性校验（官方 resolveModelReasoning 同款规则）。 */
@@ -223,6 +245,9 @@ function materializeModel(
   // 用户手写层（上面两次 validateCompat）。
   return {
     entry: {
+      // 继承源的其余官方可继承字段先落定（官方 schema 接受的键集运行期推导），
+      // 表单显式字段随后覆盖：官方将来新增模型级字段即自动跟随，无需改本插件。
+      ...(base.extra ?? {}),
       id: entry.id,
       ...(name === entry.id ? {} : { name }),
       ...(contextWindow === DEFAULT_CONTEXT_WINDOW ? {} : { contextWindow }),
@@ -230,7 +255,7 @@ function materializeModel(
       ...(input.length === 1 && input[0] === 'text' ? {} : { input }),
       reasoningEfforts: reasoningEffortsFromBase(route, entry, base),
       ...(compat === undefined ? {} : { compat }),
-    },
+    } as PiAiModelProfile,
     api,
     baseUrl,
   }
@@ -261,7 +286,7 @@ function materializeRouteModels(
       seen.add(entry.id)
       let base: ModelBase
       try {
-        base = resolveModelBase(route, profile, entry, deps.kit, deps.modelsDev).base
+        base = resolveModelBase(route, profile, entry, deps.kit).base
       } catch (error) {
         // 运行期数据源漂移：已写入的引用在当前目录 miss。严格模式（写时校验）保持拒绝；
         // lenient 模式降级为手写条目并告警，避免整个 route 不可服务。
@@ -366,6 +391,20 @@ function normalizeRoute(
   // 注意：不做"route 名与内置 provider 名重名"的静态校验——内置名 ≠ 已注册
   // route（如官方 llm-pi-ai 配置清空后 anthropic 名可用）。真实冲突只在注册期
   // 暴露（DUPLICATE_ADAPTER），由 service 层逐个 route 注册降级处理。
+  if (profile.extends !== undefined && !hasBuiltinProvider(deps.kit, profile.extends)) {
+    // 继承源只有 pi-ai 内置目录（models.dev 兜底已移除）：写错 provider 名过去会
+    // 静默退化成手写条目，现在写入即拒绝并给出可用集合，避免"配了没生效"。
+    if (!deps.lenient) {
+      invalid(
+        route,
+        `extends ${JSON.stringify(profile.extends)} 不是 pi-ai ${deps.kit.versions.piAi ?? '?'} 的内置 provider；` +
+          `可用：${deps.kit.getBuiltinProviders().join(', ')}`,
+      )
+    }
+    deps.warn?.(
+      `llm-pi: provider "${route}" 的 extends ${JSON.stringify(profile.extends)} 不是当前 pi-ai 的内置 provider，已忽略该继承源`,
+    )
+  }
   if (profile.baseURL !== undefined && profile.baseURL.length === 0) invalid(route, 'baseURL 为空')
   if (profile.displayName !== undefined && profile.displayName.length === 0)
     invalid(route, 'displayName 为空')
@@ -395,11 +434,11 @@ function normalizeRoute(
   const materialized = materializeRouteModels(route, profile, deps, defaultInput)
   if (materialized === null) return undefined // lenient 下 route 无模型可服务，跳过注册
   const { api, baseUrl, models, configuredMaxTokens } = materialized
-  const factory = deps.kit.protocolFactories[api as keyof DshKit['protocolFactories']]
+  const factory = deps.kit.protocolFactories[api]
   if (factory === undefined) {
     invalid(
       route,
-      `api ${JSON.stringify(api)} 本插件无法服务（支持：openai-completions/openai-responses/anthropic-messages）`,
+      `api ${JSON.stringify(api)} 本插件无法服务（当前生效 pi-ai ${deps.kit.versions.piAi ?? '?'} 支持的协议：${deps.kit.protocols.join('/')}）`,
     )
   }
   const displayName = profile.displayName ?? route
@@ -462,6 +501,8 @@ function harnessApiKeyAuth(name: string) {
 export interface ResolverDeps {
   createProvider: DshKit['createProvider']
   protocolFactories: DshKit['protocolFactories']
+  /** 当前生效协议集合（写时错误消息用；与 protocolFactories 的键同源）。 */
+  protocols: string[]
   resolveRetryPolicy: DshKit['resolveRetryPolicy']
 }
 
@@ -550,16 +591,13 @@ export function resolveProfilesFallback(
     const displayName = source.displayName ?? provider
     const api = source.api
     if (api === undefined) {
-      invalid(
-        provider,
-        '需要 api：本插件仅支持 openai-completions/openai-responses/anthropic-messages',
-      )
+      invalid(provider, `需要 api：本插件只服务官方适配器声明的协议（${deps.protocols.join('/')}）`)
     }
-    const factory = deps.protocolFactories[api as keyof DshKit['protocolFactories']]
+    const factory = deps.protocolFactories[api]
     if (factory === undefined) {
       invalid(
         provider,
-        `api ${JSON.stringify(api)} 本插件无法服务（支持：openai-completions/openai-responses/anthropic-messages）`,
+        `api ${JSON.stringify(api)} 本插件无法服务（当前支持的协议：${deps.protocols.join('/')}）`,
       )
     }
     if (source.baseURL === undefined) {
@@ -589,6 +627,7 @@ export function resolveProfilesFallback(
       }
       if (entry.maxTokens !== undefined) configuredMaxTokens.set(entry.id, entry.maxTokens)
       return {
+        ...extraEntryFields(entry),
         id: entry.id,
         name: entry.name ?? entry.id,
         api,

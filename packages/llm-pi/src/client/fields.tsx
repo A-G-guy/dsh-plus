@@ -13,18 +13,30 @@ import type { HeaderPair } from './draft.ts'
 /**
  * 可折叠小节：复杂项（compat/retryPolicy 等）默认折叠，避免卡片过长；
  * 基础项（baseURL 等）保持展开。标题按钮切换展开态。
+ * 传 `open` 即为**受控**（由外部状态决定展开，如卡片级"全部收起"与
+ * 「从内置目录添加」联动展开目标 route）；不传则内部自管。
  */
 export interface CollapseSectionProps {
   id: string
   title: string
-  /** 默认展开态；复杂项传 false（默认折叠）。 */
+  /** 默认展开态；复杂项传 false（默认折叠）。受控模式下仅作初值语义的说明。 */
   defaultOpen: boolean
+  /** 受控展开态；传了就完全由外部决定。 */
+  open?: boolean
+  onToggle?(): void
+  /** 标题右侧的计数/状态副标题（如 compat「已设 3/19」）。 */
+  meta?: string
   disabled?: boolean
   children: ReactNode
 }
 
 export function CollapseSection(props: CollapseSectionProps): ReactElement {
-  const [open, setOpen] = useState(props.defaultOpen)
+  const [innerOpen, setInnerOpen] = useState(props.defaultOpen)
+  const open = props.open ?? innerOpen
+  const toggle = (): void => {
+    if (props.onToggle !== undefined) props.onToggle()
+    else setInnerOpen((value) => !value)
+  }
   return (
     <div className="lpc-collapse">
       <button
@@ -32,10 +44,13 @@ export function CollapseSection(props: CollapseSectionProps): ReactElement {
         className="lpc-collapseHead"
         id={props.id}
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={toggle}
       >
         <ChevronDownIcon className={`lpc-chevron${open ? ' lpc-chevronOpen' : ''}`} />
         <span className="lpc-collapseTitle">{props.title}</span>
+        {props.meta !== undefined && props.meta !== '' ? (
+          <span className="lpc-collapseMeta">{props.meta}</span>
+        ) : null}
       </button>
       {open ? <div className="lpc-collapseBody">{props.children}</div> : null}
     </div>

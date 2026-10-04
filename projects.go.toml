@@ -1,12 +1,14 @@
 # projects-go 门禁配置：只记录与内置默认的偏差（默认策略始终生效，勿复述默认值）。
 # 列表键默认叠加在内置默认之上（豁免、模式、取值；同名条目覆盖内置条目），
-# 只有身份类列表（docs.dirs、hook.checks、commit.types、lines.module.roots、
-# index.fields_*）整表替换；确需「只留这些」时，在对应表写 replace = true。
+# 只有归本工具所有的列表（docs.paths、hook.checks、commit.types、
+# lines.module.paths、index.fields_*）是整表替换；确需「只留这些」时，
+# 在对应表写 replace = true。键的命名规则与列表语义见 projects-go 的
+# docs/configuration.md。
 # 门禁清单、触发时机与失败处理见 docs/repo/仓库管理规范.md「提交与门槛」。
 
 [docs]
 # 文档根：仓库文档 + 各插件契约文档（承接原 .md-doc-timestamp.json 的 doc_roots）。
-dirs = ["docs", "packages/*/docs"]
+paths = ["docs", "packages/*/docs"]
 # 文档语言为中文（AGENTS.md 文档规范）。计数只看正文：代码块、行内代码、URL、
 # 表格、手写区，以及标识符/路径/版本号/缩写等术语 token 均不计入，因此
 # 「中文夹英文术语」不会被判成英文（实测本仓 41 篇，zh 占比最低 0.59）。
@@ -35,5 +37,5 @@ exempt = ["scripts/dshctl/skills/**"]
 [lines.module]
 # 包/模块行数维度（内置关闭；AGENTS.md 的行数四档需要它）。
 enabled = true
-# roots 是身份列表，整表替换：只聚合各插件的包目录。
-roots = ["packages/*"]
+# paths 是整表替换的列表：只聚合各插件的包目录。
+paths = ["packages/*"]

@@ -1,59 +1,103 @@
 ---
-last_modified: "2026-10-04 03:57"
+last_modified: "2026-10-04 14:05"
 description: "@dsh-plus/llm-pi 文档索引"
 type: fact
 ---
 
 # @dsh-plus/llm-pi 文档索引
 
-自定义 LLM 路由插件：在官方 `llm-pi-ai` 之外，以**自动跟随 dsh 上游**的方式提供
-pi-ai 全量能力——三协议自定义 route、官方内置 provider/model 继承 + 字段级覆盖、
-全量 compat（**门控表与取值约束从官方 `dsh-llm-pi-ai` 安装副本自动推导**，未知键
-/withhold 字段写时拒绝**）、models.dev 目录兜底。
+自定义 LLM 路由插件：在官方 `llm-pi-ai` 之外，以**自动跟随已装 dsh** 的方式提供
+pi-ai 全量能力——自定义 route（协议集合现场推导）、pi-ai 内置 provider/model 继承
++ 字段级覆盖、全量 compat（**门控表与取值约束从官方安装副本现场推导**，未知键
+/withhold 字段写时拒绝）、**内置模型目录浏览器**（模糊搜索/筛选/复制路径 id/
+一键 extend）。
 另支持 `adapter: deepseek` 路由：直接复用官方 `DeepSeekAdapter`（视觉模型图片走
 Files API 文件通道、失败自动降级 base64），模型继承官方内置目录而非 pi-ai 目录。
 配置 UI 位于侧边栏「插件」页本行的「配置」页（`plugins.row.config` /
-`plugins.bundle.config`），持久化到 `$DSH_HOME/settings.yaml`
-（namespace `dsh-plus-llm-pi`）并热生效。
+`plugins.bundle.config`），持久化到 settings（namespace `dsh-plus-llm-pi`）并热生效。
+
+## 模型目录：唯一来源是 pi-ai 内置目录
+
+- **没有第二份目录**：0.1.43 起移除 models.dev 兜底源（连同 `catalogUrl` /
+  `catalogRefreshHours` / `catalogProxy` 三个根字段、缓存文件与 `/catalog/refresh`
+  端点一并删除）。继承解析只有一级：**pi-ai 内置目录命中 → 否则手写条目**，
+  消除"测试跑的和生产跑的不是同一份目录"这一类问题。
+- **自带诊断而非沉默**：显式 `extends` 引用不存在时**写时拒绝**并报出引用名与当前
+  生效 pi-ai 版本；route 级 `extends` 不是内置 provider 时同样写时拒绝（列出可用
+  provider）。运行期（lenient）遇到目录漂移只降级/跳过并告警，不弄挂 route。
+- **迁移**：旧配置若用 models.dev 独有 provider 名做继承源，会在写入时被拒（提示
+  可用 provider 列表），按提示改为内置 provider 即可；残留的 `catalogUrl` 等键不再
+  被 schema 声明（解析层透传但不消费），从配置卡片保存一次即不再写出。
+
+## 自动跟随：动态面全部现场推导
+
+插件不认识"某个 pi-ai 版本"，只认识形状与推导结果。四类事实都取自**正在运行的那份
+官方副本**（dsh 树优先，vendored 副本兜底），官方升级即自动生效：
+
+| 事实 | 来源 | 推导失败时 |
+|---|---|---|
+| 线协议集合 | 官方包根 `supportedProtocols()`；协议实现按 `pi-ai/dist/api/<api>.lazy.js`（api id 即模块名）动态加载 | 回退内置三元组；单个协议加载失败只跳过该协议并记诊断 |
+| compat 门控 | 官方 bundle 文本的 `COMPAT_GATES`（运行期事实源） | 回退内置快照，**且未知键放行**（交官方自身校验），只拦快照中明确 withhold 的键 |
+| compat 取值约束 | 官方 `Config` schema 的 `providers.*.compat` 节点 | 跳过该字段的值校验（宁可放行不误拒） |
+| 模型条目字段集 | 官方 `Config` schema 的 `providers.*.models` 键集 | 回退已知七键（`id/name/contextWindow/maxTokens/input/reasoningEfforts/compat`） |
+
+- **继承透传**：`ModelBase.extra` 按上面的字段集把 pi-ai 目录给出的同名字段带进条目
+  （官方将来新增模型级字段即自动继承）；目录里出现而官方 schema 不接受的字段
+  （`cost` / `inputLimits` / `headers`）仍进浏览器的参数明细，但不参与继承。
+- **`api` 不在 schema 里钉死枚举**：合法集合运行期推导，非法协议在写时以
+  "本插件无法服务（当前生效 pi-ai X 支持的协议：…）"拒绝。
+- **版本显示与提示**：配置卡片状态行显示生效的 `pi-ai` / `dsh-llm-pi-ai` / `dsh`
+  版本、安装树路径、目录规模与数据生成时间、协议/compat 来源与全部降级诊断。
+  生效 pi-ai 超出 `VERIFIED_PI_AI_RANGE`（当前 `>=0.85.1 <0.88.0`）**只提示不阻断**
+  ——能不能用由运行期形状自检与逐项降级决定；peer 范围也写成 `>=0.85.1`（无上界），
+  不因版本号把插件挡在新版 dsh 之外。
+
+## 内置模型目录浏览器（配置页）
+
+配置页自上而下：根字段（开关 + 运行期状态）→「内置模型目录」（默认收起）→
+Provider 路由列表（每 route 收起，route 内模型行同样默认收起）。
+「内置模型目录」提供：
+
+- **模糊搜索**：多词 AND；分级 = 相等 > 前缀 > 词首前缀 > 子串 > 归一化 > 首字母
+  缩写（缩写要求首字符落在词首、命中跨度有上限，避免长路径乱命中），同分优先更短
+  的路径；
+- **筛选**：供应商、协议、能力（推理 / 图片输入）、"仅本插件可服务"（默认开，
+  并显示被隐藏的协议不受支持条数）；分页每页 30 条，"加载更多"追加；
+- **参数明细**：请求 id、显示名、上下文长度、输出上限、模态、请求协议、compat、
+  思考档位、`cost`/`inputLimits` 等其余目录字段（官方新增字段自动出现）、baseUrl；
+- **复制路径 id**：一键复制 `deepseek/deepseek-flash` 形式（非安全上下文回落
+  `execCommand`）；
+- **一键添加到 route**：写入 `{ id, extends: 'provider/model' }`（**不预填** 显示名/
+  容量——继承才能跟随目录升级），并自动展开目标 route。添加前三类必然失败的加法
+  会被拦下并给出原因：协议不受支持、目标 route 已有同 id、与目标 route 协议不一致
+  （含目标 route 已混用协议）；目标候选只列 `adapter: pi` 的 route。
 
 ## 与官方 llm-pi-ai 的关系
 
 - **不替换、不劫持**：官方插件照常运行；本插件注册自己的 route，重名 route 触发
   `DUPLICATE_ADAPTER` 并保留旧注册。
-- **自动跟随上游**：node 半通过 `process.argv[1]` 真实路径向上定位 dsh 安装树，
-  动态 import 树内的 `@deepseek-ai/dsh-llm-pi-ai` / `@earendil-works/pi-ai`——
-  与 dsh 本体共享同一模块实例，dsh 升级即自动获得新版 pi-ai 的逐模型代码级适配
-  （`resolve-dsh.ts`，套件形状自检 + 诊断日志）。仅在找不到 dsh 树时退化到
-  依赖里精确钉住的 vendored 副本（此时跨副本 `instanceof` 会让 `LlmError` 归类
-  退化为 UNKNOWN，功能不受影响）。
+- **自动跟随上游**：node 半通过 `process.argv[1]` / `installAnchor` 真实路径向上
+  定位 dsh 安装树，动态 import 树内的 `@deepseek-ai/dsh-llm-pi-ai` /
+  `@earendil-works/pi-ai`——与 dsh 本体共享同一模块实例（`resolve-dsh.ts`，
+  套件形状自检 + 诊断日志）。仅在找不到 dsh 树时退到 devDependencies 里的副本
+  （此时跨副本 `instanceof` 会让 `LlmError` 归类退化为 UNKNOWN，功能不受影响）。
+- **官方 Models 页已有"拉取可用模型 + 搜索"**（需 route 先配 `extends`）：与本插件
+  的目录浏览器重叠但不等价（后者可跨供应商浏览、看 compat/协议等参数、复制路径 id），
+  故两者并存；本插件不重复实现其表单。
 - **继承而非复制**：`PiAiAdapter` 构造 seam（`profiles` / `resolveApiKey` /
-  `resolveAttachments` / **`auth`（0.1.2-alpha 线必需）** / `resolveImageAccess` /
-  `onReplayDegrade` 回调）是官方给出的插件自有解析钩子；schema 校验完全在
-  adapter 之外，本插件自行实现配置层。
-- **src 子路径双轨（0.1.2-alpha 线新增面，alpha.2 包根仍未导出）**：`resolveProfiles` 与认证助手
-  （`credentialStoreFrom`/`authContextFrom`）仅从官方 `src/config.ts`/`src/auth.ts`
-  子路径导出，npm 发布形态不携带 src/——dsh 树 dev 布局（源码仓库）时经
-  src 子路径复用官方实现；npm 布局与 vendored 兜底时走插件等价实现
-  （profile 解析语义逐行对齐官方 resolveProfiles，compat 门控表逐字段镜像官方
-  catalog.ts COMPAT_GATES；认证助手为官方 auth.ts 等价移植，recordKeyFor 同源
-  注入），并经 assertKitShape 自检兜底。
+  `resolveAttachments` / `auth` / `resolveImageAccess` / `onReplayDegrade`）是官方
+  给出的插件自有解析钩子；schema 校验完全在 adapter 之外，本插件自行实现配置层。
+- **src 子路径双轨**：`resolveProfiles` 与认证助手仅从官方 `src/config.ts`/`src/auth.ts`
+  子路径导出，npm 发布形态不携带 src/——dev 布局时经 src 子路径复用官方实现，
+  其余形态走插件等价实现（profile 解析语义逐行对齐官方 resolveProfiles，compat
+  门控以官方现场表为准；认证助手为官方 auth.ts 等价移植），并经形状自检兜底。
 
 ## adapter: deepseek 路由（文件通道）
 
 provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapter`
 （`@deepseek-ai/dsh-llm-deepseek`，同树同实例）服务，而不是 PiAiAdapter：
 
-- **0.2.0 接线（破坏性）**：官方把 `resolveApiKey` 换成 `resolveAuth`
-  （认证头一次性给出，本插件同官方 `llm-deepseek-api-key` 给 `x-api-key`），
-  并把 `listModels` 改为读 `discoverModels`（缺省即空目录）——本插件补传
-  `discoverModels`，从当前物化 `connection.models` 经同树 `catalogModelInfo` 映射，
-  否则模型选择器对该 route 无项。套件形状自检（`checkDeepseekShape`）因此
-  同时要求 `catalogModelInfo`，缺项即判定 deepseek route 不可用。
-
-- **文件通道免费获得**：视觉模型的图片输入先经 Files API 上传为 file_id 引用
-  （配额清理、过期刷新、`file_id` 被拒后失效重传），上传失败自动降级 base64 内联——
-  全套策略在官方适配器内部，本插件只喂配置。
-- **继承官方内置目录**：模型条目只写 `id` 即继承同名官方模型的模态/像素预算等
+- **继承官方 deepseek 目录**：模型条目只写 `id` 即继承同名官方模型的模态/像素预算等
   能力（如 `deepseek-flash` 自动获得 image 模态 + `imageMaxBytes`）；route 级
   `extends: deepseek` 全量继承官方目录，模型级 `extends: 'deepseek/<id>'` 可起别名。
   官方目录取自 `resolveAdapterOptions({}, undefined)`，随 dsh 树升级自动更新。
@@ -65,6 +109,15 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
   `imageDetail` 已随 0.1.2-alpha.1 移除（官方 llm-deepseek 对含该字段的目录模型
   直接抛错）——旧配置含 `imageDetail` 时**写时拒绝**并提示改用
   `imagePixelBudget`/`imageMaxBytes`。
+- **0.2.0 接线（破坏性）**：官方把 `resolveApiKey` 换成 `resolveAuth`（认证头一次性
+  给出，本插件同官方 `llm-deepseek-api-key` 给 `x-api-key`），并把 `listModels` 改为
+  读 `discoverModels`（缺省即空目录）——本插件补传 `discoverModels`，从当前物化
+  `connection.models` 经同树 `catalogModelInfo` 映射，否则模型选择器对该 route 无项。
+  套件形状自检（`checkDeepseekShape`）因此同时要求 `catalogModelInfo`，缺项即判定
+  deepseek route 不可用。
+- **文件通道免费获得**：视觉模型的图片输入先经 Files API 上传为 file_id 引用
+  （配额清理、过期刷新、`file_id` 被拒后失效重传），上传失败自动降级 base64 内联——
+  全套策略在官方适配器内部，本插件只喂配置。
 - **与官方 `deepseek-official` 渠道隔离**：路由名独立；文件索引作用域为
   sha256(baseURL + apiKey)（官方实现），中转与官方分池互不串扰；实例/重试策略独立。
 - **配置子集**：共享字段（`displayName`/`baseURL`/`apiKeyEnv`/`defaultContextWindow`/
@@ -76,9 +129,6 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
   `transport`/`reasoning` 等）在 deepseek 路由上**写时拒绝**（防误以为生效）。
   `apiKeyEnv` 必填（DeepSeekAdapter 无环境自发现）；`baseURL` 必填，除非
   `extends: deepseek`（继承官方端点）。
-- **运行时依赖**：0.1.2-alpha.2 起基线（树内含 `dsh-llm-deepseek`；当前基线
-  0.1.6-alpha.2）；旧版 dsh 树下
-  deepseek 路由在写入/启动时以明确错误拒绝，pi 路由不受影响（kit 诊断有日志）。
 - 配置卡片的 deepseek 专有字段：表单未逐项渲染的 wire 字段（`adapter`/`thinking`/
   `reasoningEffort`、文件与图片限额组、三个 offload quantum、
   `filesApiTimeoutMs`/`fileExpiresAfterSeconds`/`fileRefreshMarginSeconds`，以及模型级
@@ -94,17 +144,15 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
 | 字段 | 类型 | 默认 | 说明 |
 |---|---|---|---|
 | `enabled` | boolean | true | 总开关（关闭则不注册任何 route；配置写错导致启动失败的逃生门） |
-| `catalogUrl` | string | models.dev | models.dev 目录数据端点 |
-| `catalogRefreshHours` | number | 0 | 自动拉取间隔小时数；0 = **不自动拉取**（可手动拉取或读已有缓存） |
-| `catalogProxy` | string | '' | 拉取目录时的 HTTP 代理地址（如 `http://127.0.0.1:7890`）；留空直连。仅 https 目标走代理 |
 | `providers` | dict | {} | 键 = route 名（即 provider id），值见下表 |
 
 ### provider（route）级
 
 | 字段 | 说明 |
 |---|---|
-| `extends` | 继承某个官方内置 provider：端点/整目录模型/协议缺省值 |
-| `displayName` / `api` / `baseURL` / `apiKeyEnv` / `headers` | 同官方语义；`apiKeyEnv` 是凭据引用名（凭据服务优先，环境变量兜底） |
+| `adapter` | `pi`（默认）/ `deepseek`；deepseek 路由不适用 pi-ai 继承，也不出现在目录浏览器的添加目标里 |
+| `extends` | 继承某个 **pi-ai 内置 provider**：端点/整目录模型/协议缺省值（非法值写时拒绝） |
+| `displayName` / `api` / `baseURL` / `apiKeyEnv` / `headers` | 同官方语义；`api` 合法集合运行期推导；`apiKeyEnv` 是凭据引用名（凭据服务优先，环境变量兜底） |
 | `compat` | route 级全量 compat（按 `api` 分型校验，未知键**写时拒绝**） |
 | `defaultContextWindow` / `defaultMaxTokens` / `defaultInput` | 模型与继承源都未标注时的兜底 |
 | `reasoning` / `thinkingBudgets` / `cacheRetention` / `transport` | 同官方语义 |
@@ -125,69 +173,57 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
 
 ## 继承语义
 
-模型解析按三级查找基座：**官方内置目录 → models.dev 快照 → 无基座（手写条目）**。
+模型解析只有一级查找：**pi-ai 内置目录 → 无基座（手写条目）**。
 
-1. 显式 `extends` 引用在两级都找不到时**写时拒绝**（报出引用名），静默退化不存在。
-2. 缺省 `extends` 且 route 有 extends 源：按同名模型继承；查不到则为手写条目。
-3. 手写条目必须经 route 级字段（或继承源）获得 `api`/`baseURL`，否则写时拒绝。
+1. 显式 `extends` 引用未命中时**写时拒绝**（报出引用名与生效 pi-ai 版本），静默退化不存在；
+2. 缺省 `extends` 且 route 有 extends 源：按同名模型继承；查不到则为手写条目；
+3. 手写条目必须经 route 级字段（或继承源）获得 `api`/`baseURL`，否则写时拒绝；
 4. 同一 route 内所有模型协议必须一致（单协议 route 不变量，与官方一致）；
    端点同样收敛为 route 级单一值（官方 schema 无模型级 baseUrl，模型间端点
-   不一致写时拒绝）。
-5. models.dev 来源的基座**只采信** `name`/`limit.context`/`limit.output`/`reasoning`，
-   模态与 compat 不采信（防过度声明，对齐官方注释口径），缺省 text-only。
-6. 自建条目的链式继承（extends 指向本插件另一条目）不支持——基座只来自两个目录源。
+   不一致写时拒绝）；
+5. 自建条目的链式继承（extends 指向本插件另一条目）不支持——基座只来自 pi-ai 目录；
+6. 继承来的其余官方可接受字段（字段集现场推导）随 `ModelBase.extra` 一并落进条目，
+   用户显式字段最终覆盖。
 
 compat 合并顺序：继承值（同协议才继承）→ route 级 → 模型级，逐字段后者胜出。
 字段门控以官方 `dsh-llm-pi-ai` 的 COMPAT_GATES 为唯一事实源，且**从官方安装副本
-现场推导、不再手抄**（`src/compat-gates.ts`）：从运行期 bundle 解析「协议 → 字段 →
-offer/withhold」分型，从官方导出的 Config schema 推导每个字段的取值约束
-（boolean / 整数 / 枚举 / 对象）。当前门控：completions 19 / responses 4 /
-anthropic 7 个 offer 字段；`openRouterRouting`/`zaiToolStream`/`supportsToolSearch`/
-`sendSessionAffinityHeaders`/`supportsToolReferences`/`supportsMidConvoEffort`/
-`allowedFallbackModels` 等官方为厂商内置的字段为 withhold——**写时拒绝**并提示以
-目录 provider 名为 route，不再静默丢弃。浏览器半的字段表也由服务端经
-`GET /catalog` 的 `compat` 字段下发（`installCompatFields`），UI 渲染与服务端校验
-**同源**，不存在第二份镜像。
+现场推导、不再手抄**（`src/official-surface.ts`）。当前门控：completions 19 /
+responses 4 / anthropic 7 个 offer 字段（官方表另有 mistral/bedrock/azure 等协议的
+门控，本插件不服务这些协议故不下发）；官方标 withhold 的字段**写时拒绝**并提示以
+目录 provider 名为 route。浏览器半的字段表由服务端经 `GET /catalog` 下发
+（`installCompatFields`），UI 渲染与服务端校验**同源**；协议下拉同理
+（`installProtocols`，兜底三元组）。
 
 > **历史（0.1.5-rc.1 教训）**：该表曾是手工镜像，而官方表在 npm 发布形态下不可静态
-> 引用（包根不导出、`src/` 不随发布）。0.1.5-rc.1 官方扩容 offer 字段（completions 的
-> `thinkingTokenBudgetField`/`vllmPriority`、responses 的 `supportsMaxOutputTokens`、
-> anthropic 的 `supportsMidConvoEffort`/`allowedFallbackModels`）而旧表漏收，导致官方
-> 可配字段被本插件**误拒**（静默功能缺失、无任何报错）。改为现场推导后官方新增字段
-> 自动可用；`tests/compat-gates.test.ts` 独立复算官方 bundle 逐字段守门推导正确性
-> （含"必须来自现场推导而非内置快照"的断言）。推导失败时回退内置快照并告警，
-> 绝不因推导失败弄挂启动。
+> 引用（包根不导出、`src/` 不随发布）。0.1.5-rc.1 官方扩容 offer 字段而旧表漏收，
+> 导致官方可配字段被本插件**误拒**（静默功能缺失、无任何报错）。改为现场推导后官方
+> 新增字段自动可用；`tests/official-surface.test.ts` 独立复算官方副本逐字段守门推导
+> 正确性（含"必须来自现场推导而非内置快照"的断言）。推导失败时回退内置快照并**放宽
+> 未知键**（只拦快照里明确的 withhold），避免重演同类事故。
 
 ## 运行机制
 
-- `startRuntime`：解析套件 → `ModelsDevSource`（**默认不自动拉取**；`catalogRefreshHours>0`
-  时按 TTL 后台刷新；配置卡片「手动拉取」或 `POST /catalog/refresh` 立即拉取，可配
-  `catalogProxy` 代理；缓存 `storages/dsh-plus-llm-pi/models-dev.json`，原子写）→
-  profiles 按原始 config 对象 identity 备忘 → `PiAiAdapter`（快照随 profiles
-  identity 失效）→ `registerAdapter` + `registerModelDiscovery` +
+- `startRuntime`：解析套件（dsh 树 → vendored，附版本/协议/字段集/compat 推导与
+  逐项诊断）→ profiles 按原始 config 对象 identity 备忘 → `PiAiAdapter`
+  （快照随 profiles identity 失效）→ `registerAdapter` + `registerModelDiscovery` +
   `registerConfigurableProviders`（官方 Models 页/拉取模型动作可见）。
-- 热更新走 0.1.7 volatile 原位提交（`loader/volatile-update` 换代 config 快照）：配置变更下一请求生效；route 集或
-  displayName/retryPolicy 变化 → `handle.replace` 原子重注册；
-  **写入被校验拒绝时保留旧注册**（官方同款护栏）。
+- 热更新走 0.1.7 volatile 原位提交（`loader/volatile-update` 换代 config 快照）：
+  配置变更下一请求生效；route 集或 displayName/retryPolicy 变化 → `handle.replace`
+  原子重注册；**写入被校验拒绝时保留旧注册**（官方同款护栏）。
 - **运行期宽松解析（lenient）**：`profiles()` 走宽松模式——已写入的 extends 引用
-  因数据源漂移（models.dev 刷新删模型/内置目录随 dsh 升级变化）失效时，
-  降级为手写条目并告警（缺 api/baseURL 时跳过该模型，route 全空则跳过注册），
-  不再抛错弄挂整个 route；写时校验（settings 写入）保持严格，非法引用在写入处拒绝。
-- **注册冲突降级**：整批 `registerAdapter` 遇 `DUPLICATE_ADAPTER`（route 名与其他
-  adapter 冲突）时降级为逐个 route 注册，跳过冲突者并告警——启动不再 fail-loud；
-  热更新原子 replace 被拒时保留旧注册。可配置 provider 目录同理：官方目录注册
-  是原子语义（任一条目撞既有声明整批不落盘），撞名（如 route 叫 `anthropic`
-  撞上官方内置目录条目）时逐个剔除冲突条目重试并告警，其余条目照常生效。
+  因 dsh 升级换 pi-ai 版本而失效时，降级为手写条目并告警（缺 api/baseURL 时跳过该
+  模型，route 全空则跳过注册）；写时校验（settings 写入）保持严格。
+- **注册冲突降级**：整批 `registerAdapter` 遇 `DUPLICATE_ADAPTER` 时降级为逐个 route
+  注册，跳过冲突者并告警；热更新原子 replace 被拒时保留旧注册。可配置 provider
+  目录同理逐个剔除冲突条目重试。
 - 配置读写走官方 remote.settings 直连（浏览器半 `createSettingsScope` /
-  `createNamespaceApi`，0.1.2-alpha 线起 `connection.api.settings` 已移除；
-  0.1.7 起 settingsScope 服务已删除（configForms 取代）；历史上非 loopback
-  页面其固定 memory 模式无数据），
-  保存为 `settings.update` 深合并（providers dict 全量替换语义）；写入经
-  `internal/config` waterfall 的 assertServiceable 把关（0.1.7 取代
-  installSection validate）。自定义端点仅剩模型目录：
-  `GET /dsh-plus/llm-pi/catalog?provider=&source=builtin|models-dev`
-  （响应附带 `kitSource` 与 models-dev 快照状态，供卡片状态行）、
-  `POST /dsh-plus/llm-pi/catalog/refresh`（手动拉取）。
+  `createNamespaceApi`），保存为 `settings.update` 深合并（providers dict 全量替换
+  语义）；写入经 `internal/config` waterfall 的 assertServiceable 把关。
+- 自定义端点只有目录通道（`config-api.ts`，单次注册按 pathname 分派）：
+  - `GET /dsh-plus/llm-pi/catalog` → `{ kit（来源/根/版本/协议/目录规模/诊断）,
+    providers, apis（provider→modelId→api 紧凑索引）, compat（字段表） }`；
+  - `GET /dsh-plus/llm-pi/catalog/models?q=&provider=&api=&reasoning=&image=&servable=&offset=&limit=`
+    → `{ total, servableHidden, offset, limit, items }`（每项含路径 id 与参数明细）。
 
 ## 边界与风险
 
@@ -204,10 +240,10 @@ anthropic 7 个 offer 字段；`openRouterRouting`/`zaiToolStream`/`supportsTool
 - schemastery 物化噪声（已踩过）：**dict 字段无 default 也会物化为 `{}`**
   （`compat`/`headers`/`thinkingBudgets`），`defaultInput` 物化为 `['text']`、
   模型 `input` 物化为 `[]`。凡"用户是否配置了该字段"的判定（如 adapter: deepseek
-  对 pi 专有字段的写时拒绝）必须按语义判空——空 dict/物化默认值视为未配置，
-  否则 settings 投递路径（解析值过 validate 钩子）会把合法配置误判拒绝，
-  fiber 在启动期 FAILED（lifeboat 会隔离插件）；单测若只喂原始对象则覆盖不到，
-  须先过 `Config['~standard'].validate` 再构建（见 tests/profiles-deepseek.test.ts）。
+  对 pi 专有字段的写时拒绝）必须按语义判空，否则 settings 投递路径会把合法配置
+  误判拒绝，fiber 在启动期 FAILED（lifeboat 会隔离插件）。
+- **官方打包形态变化**只影响推导：协议/字段集/compat 各自回退并记诊断，配置页
+  状态行可见；此时 compat 采用"未知键放行"策略，宁可少拦也不误拒。
 
 ## 开发
 
@@ -216,18 +252,20 @@ corepack pnpm --filter @dsh-plus/llm-pi build   # node 半 ESM + 浏览器半 CJ
 node --test packages/llm-pi/tests/*.test.ts        # 单测（vendored 套件，零网络）
 ```
 
-新增模型走 `extends` 继承内置目录即可（本仓生产配置示例：newapi 中转的
-anthropic 路由在 `k3`/`k3-256k` 之外再挂 `kimi-for-coding`
-= `extends: kimi-coding/kimi-for-coding`，中转侧无需登记 ID）。
-
-联调建议：用独立 `DSH_HOME` 起一个 dev 实例，模型后端指向本机 mock（OpenAI 兼容
-假后端），避免产生真实 API 费用。
+- 依赖对齐：devDependencies 的 `@deepseek-ai/*` 与 `@earendil-works/pi-ai` 跟随
+  本机安装的 dsh 线（当前 0.2.1-alpha.1 / pi-ai 0.87.1），供构建、类型与单测使用；
+  peer 里 `@earendil-works/pi-ai` 写成 `>=0.85.1`（无上界），运行时以形状自检为准。
+- 新增模型走目录浏览器一键 extend（或 `extends: provider/model` 手写）即可；
+  本仓生产配置示例：newapi 中转的 anthropic 路由在 `k3`/`k3-256k` 之外再挂
+  `kimi-for-coding` = `extends: kimi-coding/kimi-for-coding`，中转侧无需登记 ID。
+- 联调建议：用独立 `DSH_HOME` 起一个 dev 实例，模型后端指向本机 mock（OpenAI 兼容
+  假后端），避免产生真实 API 费用。
 
 ## 平台支持
 
 - dsh 树锚点链：`ctx.profileContext.installAnchor` → `realpath(argv[1])` 向上
   查找（要求同目录树同时含 `@deepseek-ai/dsh-llm-pi-ai` 与 `@earendil-works/pi-ai`）
   → vendored 副本兜底。桌面端 Electron 启动时 argv[1] 是 Electron 自身，
-  锚点是唯一可靠来源（诊断文案会显示套件来源 dsh-tree / vendored）。
+  锚点是唯一可靠来源（状态行显示生效来源与版本）。
 - `auth-inline` 的 `fileExists` 展开 `~/` 与 `~\` 两种前缀（Windows 反斜杠形态）。
-- 无其他平台特判：路由/compat/discovery 全为纯 TS；桌面端与 Windows 复用同链路。
+- 无其他平台特判：路由/compat/discovery/浏览 全为纯 TS；桌面端与 Windows 复用同链路。

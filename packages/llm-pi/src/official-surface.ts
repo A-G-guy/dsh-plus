@@ -1,24 +1,25 @@
 /**
- * compat 门控表的**自动继承**：从官方 `dsh-llm-pi-ai` 安装副本现场推导，
- * 取代早期的手抄镜像表（手抄遗漏即静默误拒官方可配字段，见 ADR/文档的
- * 0.1.5-rc.1 教训）。
+ * 官方适配面的**自动继承**：从已安装的官方副本（`dsh-llm-pi-ai` + `pi-ai`）
+ * 现场推导三样东西，取代早期的手抄镜像：
  *
- * 官方不导出该表（包根仅 7 个符号、`src/` 不随 npm 发布），但有两条稳定可用的
- * 机器可读来源，本模块同时消费：
+ * 1. **线协议集合**：官方包根导出的 `supportedProtocols()`（官方 PROTOCOLS 表
+ *    的唯一投影）。官方新增协议时本插件自动可用，不再需要改代码；
+ * 2. **compat 门控与取值约束**：门控取自运行期 bundle 的 `COMPAT_GATES`
+ *    （事实源：运行期拒绝哪些字段由它决定），取值约束取自导出的 Config schema
+ *    的 `providers.*.compat` 节点（boolean / number.step(1) / enum / 对象）；
+ * 3. **模型条目字段集**：Config schema 的 `providers.*.models` 键集——继承时按此
+ *    透传 pi-ai 目录的同名字段，官方将来新增模型级字段即自动跟随。
  *
- * 1. **运行期 bundle**（`lib/index.js`，即真正执行门控的那份代码）：
- *    `const COMPAT_GATES = { "openai-completions": COMPLETIONS_COMPAT_GATE, ... }`
- *    ——给出「协议 → 门控」映射（anthropic 在 bundle 内联，解析器同时支持
- *    命名常量与内联对象两种形态）。门控表取自这里而非 d.ts，因为它是**事实源**：
- *    运行期拒绝哪些字段由它决定。
- * 2. **导出的 Config schema**（schemastery 标准 schema）：`providers.*.compat`
- *    节点逐字段给出取值约束（boolean/number.step(1)/enum/对象），据此推导
- *    取值校验，不再手写 VALUE_SPECS。
+ * 历史教训（0.1.5-rc.1）：compat 门控曾是官方 catalog.ts 的手抄镜像，官方扩容
+ * offer 字段而旧表漏收，导致官方可配字段被本插件**误拒**（静默功能缺失、无报错）。
+ * 现改为现场推导，`tests/official-surface.test.ts` 直读官方副本守门推导正确性。
  *
- * 推导失败（官方改布局/改打包形态）时回退到 FALLBACK_TABLE（最后已知快照，
- * 随本文件版本冻结）并给出诊断——绝不因推导失败弄挂插件启动。
- * @module llm-pi/compat-gates
+ * 推导失败（官方改布局/改打包形态）时回退到 FALLBACK_*：compat 表用最后已知快照
+ * 且**放宽未知键**（见 compat.ts：宁可放行交给官方自身校验，也不误拒官方新字段），
+ * 协议回退三元组、模型字段回退已知七键，各自给出诊断——绝不因推导失败弄挂启动。
+ * @module llm-pi/official-surface
  */
+import { FALLBACK_PROTOCOLS } from './config.ts'
 
 /** 字段可配性：offer = 官方允许写；withhold = 官方为厂商内置、写时拒绝。 */
 export type CompatDisposition = 'offer' | 'withhold'
@@ -159,6 +160,49 @@ export function deriveSpecs(module: Record<string, unknown>): Record<string, Com
     if (spec !== undefined) out[field] = spec
   }
   return out
+}
+
+/**
+ * 从官方适配器模块推导线协议集合：官方包根导出的 `supportedProtocols()`
+ * （`Object.keys(PROTOCOLS)` 的投影，顺序即官方表顺序）。
+ * 非函数/返回空/含非字符串项都视为推导失败，调用方回退内置三元组。
+ */
+export function deriveProtocols(module: Record<string, unknown>): string[] | undefined {
+  const reader = module['supportedProtocols']
+  if (typeof reader !== 'function') return undefined
+  const value = (reader as () => unknown)()
+  if (!Array.isArray(value) || value.length === 0) return undefined
+  const ids = value.filter((id): id is string => typeof id === 'string' && id.length > 0)
+  return ids.length === value.length ? ids : undefined
+}
+
+/**
+ * 从官方 Config schema 推导模型条目字段集（`providers.*.models` 的元素键集）。
+ * 这些是官方适配器**接受**的模型级键；继承时按此透传 pi-ai 目录的同名字段。
+ */
+export function deriveModelEntryFields(module: Record<string, unknown>): string[] | undefined {
+  const config = module['Config'] as SchemaNode | undefined
+  const models = config?.dict?.['providers']?.inner?.dict?.['models']
+  const fields = models?.inner?.dict
+  if (fields === undefined) return undefined
+  const keys = Object.keys(fields)
+  return keys.length > 0 ? keys : undefined
+}
+
+/** 推导失败时的模型条目字段兜底（0.2.x 线实测键集）。 */
+export const FALLBACK_MODEL_ENTRY_FIELDS = [
+  'id',
+  'name',
+  'contextWindow',
+  'maxTokens',
+  'input',
+  'reasoningEfforts',
+  'compat',
+] as const
+
+/** 协议推导失败时的兜底三元组（转出为可变数组，便于调用方直接持有）。 */
+export function fallbackProtocols(): string[] {
+  return [...FALLBACK_PROTOCOLS]
 }
 
 /** 官方门控表不可解析时的最后已知快照（0.1.5-rc.2 实测值）。 */

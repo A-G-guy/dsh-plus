@@ -11,7 +11,7 @@ import { test } from 'node:test'
  * 扩容 offer 字段而旧表漏收，后果是官方可配字段被本插件**误判非法并拒写**
  * ——静默功能缺失、无任何报错。
  *
- * 现改为从官方安装副本现场推导（compat-gates.ts）：bundle 文本给分型、
+ * 现改为从官方安装副本现场推导（official-surface.ts）：bundle 文本给分型、
  * Config schema 给取值约束。本测试锁住三件事：
  * 1. 推导确实来自官方（source='official'，不是回退快照）；
  * 2. 推导结果与官方 bundle 逐字段一致（读原始文本独立复算，防推导器自身退化）；
@@ -161,4 +161,104 @@ test('取值约束由官方 schema 推导（整数/枚举/对象）', async () =
     () => compat.validateCompat('openai-completions', { chatTemplateKwargs: [1] }, 'test'),
     /必须是对象/,
   )
+})
+
+test('协议集合由官方 supportedProtocols() 现场推导（非内置三元组）', async () => {
+  const { deriveProtocols } = await import('../src/official-surface.ts')
+  const { loadVendoredKit } = await import('../src/resolve-dsh.ts')
+  const official = await import('@deepseek-ai/dsh-llm-pi-ai')
+  const derived = deriveProtocols(official as unknown as Record<string, unknown>)
+  assert.deepEqual(derived, [...official.supportedProtocols()])
+  const kit = loadVendoredKit()
+  assert.deepEqual(kit.protocols, [...official.supportedProtocols()])
+  assert.equal(kit.protocolSource, 'official')
+  // 每个协议都必须有工厂（自检通过即证明加载成功）
+  for (const api of kit.protocols) assert.equal(typeof kit.protocolFactories[api], 'function')
+})
+
+test('协议推导在缺少/异形 supportedProtocols 时回退内置三元组', async () => {
+  const { deriveProtocols, fallbackProtocols } = await import('../src/official-surface.ts')
+  assert.equal(deriveProtocols({}), undefined)
+  assert.equal(deriveProtocols({ supportedProtocols: 42 }), undefined)
+  assert.equal(deriveProtocols({ supportedProtocols: () => [] }), undefined)
+  assert.equal(deriveProtocols({ supportedProtocols: () => ['a', 1] }), undefined)
+  assert.deepEqual(fallbackProtocols(), [
+    'openai-completions',
+    'openai-responses',
+    'anthropic-messages',
+  ])
+})
+
+test('模型条目字段集由官方 Config schema 现场推导（与独立复算一致）', async () => {
+  const { deriveModelEntryFields } = await import('../src/official-surface.ts')
+  const { loadVendoredKit } = await import('../src/resolve-dsh.ts')
+  const official = (await import('@deepseek-ai/dsh-llm-pi-ai')) as unknown as Record<
+    string,
+    unknown
+  >
+  const derived = deriveModelEntryFields(official)
+  // 独立复算：直接读官方 Config schema 的 providers.*.models 元素键
+  const config = official['Config'] as {
+    dict: Record<
+      string,
+      { inner?: { dict: Record<string, unknown> }; dict: Record<string, unknown> }
+    >
+  }
+  const providers = config.dict['providers'] as unknown as {
+    inner?: { dict: Record<string, unknown> }
+    dict: Record<string, unknown>
+  }
+  const providerNode = providers.inner ?? providers
+  const models = providerNode.dict['models'] as unknown as {
+    inner?: { dict: Record<string, unknown> }
+    dict: Record<string, unknown>
+  }
+  const expected = Object.keys((models.inner ?? models).dict)
+  assert.deepEqual(derived, expected)
+  assert.deepEqual(loadVendoredKit().officialModelFields, expected)
+  // 官方 0.2.x 线的已知键集（推导结果不该是内置快照的假象）
+  assert.deepEqual(expected, [
+    'id',
+    'name',
+    'contextWindow',
+    'maxTokens',
+    'input',
+    'reasoningEfforts',
+    'compat',
+  ])
+})
+
+test('模型字段集推导失败时回退已知七键并给出诊断', async () => {
+  const { deriveModelEntryFields, FALLBACK_MODEL_ENTRY_FIELDS } = await import(
+    '../src/official-surface.ts'
+  )
+  assert.equal(deriveModelEntryFields({}), undefined)
+  assert.deepEqual(
+    [...FALLBACK_MODEL_ENTRY_FIELDS],
+    ['id', 'name', 'contextWindow', 'maxTokens', 'input', 'reasoningEfforts', 'compat'],
+  )
+  // 形状漂移（providers 不是 object 节点）同样判失败
+  assert.equal(
+    deriveModelEntryFields({ Config: { dict: { providers: { type: 'string' } } } }),
+    undefined,
+  )
+})
+
+test('compat 回退快照模式放宽未知键，但仍拒 withhold（避免误拒官方新字段）', async () => {
+  const compat = await import('../src/compat.ts')
+  const { FALLBACK_TABLE } = await import('../src/official-surface.ts')
+  const { loadVendoredKit } = await import('../src/resolve-dsh.ts')
+  try {
+    // 强制进入回退模式，模拟"官方打包形态变了、推导失败"
+    compat.installCompatTable(FALLBACK_TABLE)
+    compat.validateCompat('openai-completions', { someBrandNewOfficialField: true }, 'test')
+    assert.throws(
+      () => compat.validateCompat('openai-completions', { openRouterRouting: {} }, 'test'),
+      /withhold/,
+    )
+  } finally {
+    // 复原现场推导表（其它测试共用模块级生效表）
+    loadVendoredKit()
+  }
+  assert.equal(compat.compatTableInfo().source, 'official')
 })

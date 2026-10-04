@@ -1,12 +1,16 @@
 /**
- * 浏览器半内联常量：与服务端 packages/llm-pi/src/config.ts、compat.ts 逐字对齐。
+ * 浏览器半内联常量：与服务端 packages/llm-pi/src/config.ts 逐字对齐。
  * 浏览器半不能 import 服务端模块（tsdown 只打包 client 侧入口），
  * 改动服务端这些常量时必须同步本文件。
+ *
+ * 两个集合改为**服务端下发**（与服务端校验同源，浏览器半不再手抄）：
+ * - 线协议：取自已装官方适配器的 supportedProtocols()（`installProtocols`）；
+ * - compat 字段表：取自官方 bundle + Config schema 推导（`installCompatFields`）。
  * @module llm-pi/client/constants
  */
 
-/** 协议枚举（来源：config.ts PROTOCOL_IDS）。 */
-export const PROTOCOL_IDS = [
+/** 协议兜底集合（来源：config.ts FALLBACK_PROTOCOLS）；服务端下发前/失败时使用。 */
+export const FALLBACK_PROTOCOLS = [
   'openai-completions',
   'openai-responses',
   'anthropic-messages',
@@ -30,14 +34,30 @@ export const BUDGET_KEYS = ['minimal', 'low', 'medium', 'high'] as const
 export type CompatValue = 'boolean' | 'integer' | 'number' | 'object' | readonly string[]
 
 /**
+ * 生效协议集合：由服务端 /catalog 下发（服务端与官方适配器同源推导），
+ * 未拿到前用 FALLBACK_PROTOCOLS。
+ */
+let protocols: string[] = [...FALLBACK_PROTOCOLS]
+
+/** 安装服务端下发的协议集合（card 挂载时调用）。 */
+export function installProtocols(list: readonly string[]): void {
+  if (list.length > 0) protocols = [...list]
+}
+
+/** 当前可选协议（顺序即官方表顺序）。 */
+export function protocolOptions(): readonly string[] {
+  return protocols
+}
+
+/**
  * 逐协议 compat 字段表：**服务端推导结果经 /catalog 下发**，浏览器半不再手抄
- * （手抄遗漏官方新增字段 = UI 不渲染 + 保存被后端拒绝；见 compat-gates.ts）。
+ * （手抄遗漏官方新增字段 = UI 不渲染 + 保存被后端拒绝；见 official-surface.ts）。
  * 未拿到服务端表时用 EMPTY（UI 只渲染提示行），不放内置副本兜底——宁可少画
  * 控件，也不给出可能与官方不符的字段集。
  */
 let compatTable: Record<string, Record<string, CompatValue>> = {}
 
-/** 安装服务端下发的字段表（card 挂载/刷新目录时调用）。 */
+/** 安装服务端下发的字段表（card 挂载时调用）。 */
 export function installCompatFields(table: Record<string, Record<string, CompatValue>>): void {
   compatTable = table
 }

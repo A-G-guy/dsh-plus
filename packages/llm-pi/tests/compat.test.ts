@@ -1,11 +1,17 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { compatFieldsOf, mergeCompat, validateCompat } from '../src/compat.ts'
+import {
+  compatFieldsOf,
+  compatProtocols,
+  compatWithholdFieldsOf,
+  mergeCompat,
+  validateCompat,
+} from '../src/compat.ts'
 import { loadVendoredKit } from '../src/resolve-dsh.ts'
 
-// 门控表由套件加载流程从官方副本推导（compat-gates.ts）；本文件聚焦校验语义，
-// 推导正确性由 compat-gates.test.ts 守门。此处显式加载一次以安装推导表。
+// 门控表由套件加载流程从官方副本推导（official-surface.ts）；本文件聚焦校验语义，
+// 推导正确性由 official-surface.test.ts 守门。此处显式加载一次以安装推导表。
 loadVendoredKit()
 
 test('validateCompat 接受本协议 offer 字段', () => {
@@ -32,28 +38,34 @@ test('validateCompat 拒绝未知键并列出可配置字段（对齐官方门�
   )
 })
 
-test('validateCompat 拒绝官方 withhold 字段（官方目录已为对应厂商设置）', () => {
-  // 旧版可配、0.1.2-alpha.1 官方 catalog.ts COMPAT_GATES 标记 withhold 的字段
-  assert.throws(
-    () => validateCompat('openai-completions', { openRouterRouting: { x: 1 } }, 'test'),
-    /withhold/,
-  )
-  assert.throws(
-    () => validateCompat('openai-completions', { zaiToolStream: false }, 'test'),
-    /withhold/,
-  )
-  assert.throws(
-    () => validateCompat('openai-responses', { supportsToolSearch: true }, 'test'),
-    /withhold/,
-  )
-  assert.throws(
-    () => validateCompat('anthropic-messages', { supportsToolReferences: true }, 'test'),
-    /withhold/,
-  )
-  assert.throws(
-    () => validateCompat('anthropic-messages', { sendSessionAffinityHeaders: true }, 'test'),
-    /withhold/,
-  )
+test('validateCompat 拒绝官方 withhold 字段（逐个取自现场推导表，不写死字段名）', () => {
+  // 官方会随版本增删 withhold 字段：断言"表里标 withhold 的每一个都被拒"，
+  // 而不是钉住某几个可能被官方删掉的字段名（0.2.1-alpha.1 已删除 supportsToolReferences）。
+  let checked = 0
+  for (const api of compatProtocols()) {
+    for (const field of compatWithholdFieldsOf(api)) {
+      checked += 1
+      assert.throws(
+        () => validateCompat(api, { [field]: true }, 'test'),
+        /withhold/,
+        `${api}.${field} 标为 withhold 却未被拒绝`,
+      )
+    }
+  }
+  assert.ok(checked > 0, '现场推导表应至少有一个 withhold 字段')
+  // 官方目录已为对应厂商设置的典型项（当前线仍 withhold）在表内
+  assert.ok(compatWithholdFieldsOf('openai-completions').includes('openRouterRouting'))
+  assert.ok(compatWithholdFieldsOf('anthropic-messages').includes('sendSessionAffinityHeaders'))
+})
+
+test('compatProtocols 覆盖运行期协议（官方表可能另有本插件不服务的协议门控）', () => {
+  const table = compatProtocols()
+  // 官方 0.2.1-alpha.1 的 COMPAT_GATES 含 7 个协议，而 supportedProtocols() 只声明 3 个：
+  // 渲染兜底要覆盖"本插件能服务的全部协议"，不要求与官方表逐键相等。
+  for (const api of ['openai-completions', 'openai-responses', 'anthropic-messages']) {
+    assert.ok(table.includes(api), `${api} 应在生效表内`)
+  }
+  assert.ok(table.length >= 3)
 })
 
 test('validateCompat 拒绝错误值类型/枚举与无值键', () => {
@@ -101,7 +113,7 @@ test('mergeCompat 逐字段合并，后者覆盖前者，丢弃 undefined/null',
 
 test('compatFieldsOf 只列官方 offer 字段（对齐 catalog.ts COMPAT_GATES）', () => {
   // 官方门控 offer 计数：completions 19 / responses 4 / anthropic 7
-  // （逐字段一致性由 compat-gates-drift.test.ts 直读官方 bundle 守门）
+  // （逐字段一致性由 official-surface.test.ts 直读官方 bundle 守门）
   assert.equal(compatFieldsOf('openai-completions').length, 19)
   assert.equal(compatFieldsOf('openai-responses').length, 4)
   assert.equal(compatFieldsOf('anthropic-messages').length, 7)

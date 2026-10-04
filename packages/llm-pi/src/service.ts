@@ -8,6 +8,11 @@
  *   handle.replace 重注册；写入被校验拒绝时保留旧注册（官方同款护栏）；
  * - registerConfigurableProviders + registerModelDiscovery 让插件 route
  *   正常出现在官方 Models 页与"拉取可用模型"动作里。
+ *
+ * 模型目录唯一来自 pi-ai 内置目录（随已装 dsh 自动跟随），故无目录拉取/缓存；
+ * 运行期事实（生效版本、协议集合、目录规模、逐项降级诊断）经 kitInfo() 供配置页展示。
+ * 各步骤各拆成独立工厂函数（套件加载 / profiles 备忘 / adapter / 注册 / 目录），
+ * startRuntime 只负责编排。
  * @module llm-pi/service
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -20,9 +25,10 @@ import type { DirectoryRegistrationHandle } from '@deepseek-ai/dsh-llm'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import type {} from '@deepseek-ai/dsh-settings'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
-import { hasVolatileRefs, pluginDataPath, unwrapVolatile } from '@dsh-plus/shared'
+import { hasVolatileRefs, unwrapVolatile } from '@dsh-plus/shared'
 
-import { ModelsDevSource } from './catalog/models-dev.ts'
+import { buildApiIndex, listModelInfos, listProviders } from './catalog/browse.ts'
+import { compatTableInfo } from './compat.ts'
 import {
   Config,
   type LlmPiConfig,
@@ -33,18 +39,56 @@ import {
 import { DeepseekRouteRegistrar } from './deepseek-routes.ts'
 import { buildDirectoryEntries, commitDirectory, type DirectoryEntry } from './directory.ts'
 import { discoverModels } from './discovery.ts'
+import { type KitVersions, piAiVersionNotice, VERIFIED_PI_AI_RANGE } from './kit-meta.ts'
 import { assertServiceable, buildProfiles, isDraftRoute } from './profiles.ts'
 import { buildDeepseekRoutes, type ResolvedDeepseekRoute } from './profiles-deepseek.ts'
 import { type DshKit, resolveDshKit } from './resolve-dsh.ts'
 
+/** 配置页「运行期状态」所需的事实（纯 JSON，可直接进 HTTP 响应）。 */
+export interface LlmPiKitInfo {
+  /** 套件来源：dsh-tree / vendored。 */
+  source: string
+  /** 套件所在根（dsh 安装树根或 vendored 副本目录）。 */
+  root?: string
+  /** 实际生效版本（不是 manifest 上写的版本）。 */
+  versions: KitVersions
+  /** 本插件验证过的 pi-ai 区间（仅提示）。 */
+  verifiedRange: string
+  /** 生效版本超出验证区间时的提示文案；区间内/版本未知时省略。 */
+  versionNotice?: string
+  /** 当前可服务的线协议。 */
+  protocols: string[]
+  /** 协议集合来源：official（官方 supportedProtocols()）/ fallback（内置三元组）。 */
+  protocolSource: string
+  /** 内置目录规模与数据生成时间。 */
+  catalog: { providers: number; models: number; generatedAt?: number }
+  /** compat 门控表来源：official / fallback。 */
+  compatSource: string
+  /** 回退与逐项降级诊断（有内容时界面显式展示）。 */
+  diagnostics: string[]
+}
+
 export interface LlmPiRuntime {
   /** 当前生效配置（settings 用户层解析结果或 cordis 行级 config）。 */
   currentConfig(): LlmPiConfig
-  /** 运行时套件来源（dsh-tree / vendored）与回退诊断。 */
-  kitInfo(): { source: string; diagnostics: string[] }
-  /** models.dev 兜底源（配置卡片读状态用）。 */
-  modelsDev: ModelsDevSource
+  /** 运行期套件事实（配置卡片状态行 / meta 端点）。 */
+  kitInfo(): LlmPiKitInfo
+  /** 内置 provider 条目（meta 端点）。 */
+  providerEntries(): ReturnType<typeof listProviders>
+  /** 紧凑协议索引 `{provider: {modelId: api}}`（卡片推断 route 生效协议）。 */
+  apiIndex(): ReturnType<typeof buildApiIndex>
   kit: DshKit
+}
+
+type PiAdapter = InstanceType<DshKit['PiAiAdapter']>
+type ProfileMap = Map<string, ResolvedPiAiProviderProfile>
+type DeepseekMap = Map<string, ResolvedDeepseekRoute>
+
+/** 插件日志窄面（ctx.logger 的消费子集；便于把各步骤拆成独立函数）。 */
+interface PluginLogger {
+  info(message: string): void
+  warn(message: unknown): void
+  error(message: unknown): void
 }
 
 /** 注册时捕获的事实表；变化才重注册（按 provider 排序，免序误报）。 */
@@ -81,47 +125,41 @@ function makeResolveApiKey(ctx: Context, kit: DshKit) {
   }
 }
 
-/** 启动插件运行时：解析套件、挂载注册/发现/settings 联动。 */
-export async function startRuntime(
+/** 解析运行期套件并落启动日志（来源/生效版本/协议/逐项降级诊断）。 */
+async function loadRuntimeKit(
   ctx: Context,
-  rawConfig: LlmPiConfig | LlmPiConfigFields,
-): Promise<LlmPiRuntime> {
-  const logger = ctx.logger('llm-pi')
-  // cordis 行级 config 可能未经 schema 解析（insert 行无 config 键时为原始空对象），
-  // 在此统一规范化；0.1.7 loader 解析出的 volatile 活动字段形态直接透传
-  // （hasVolatileRefs 辨识——重复校验会把引用再包一层、破坏 loader 原位提交）。
-  const fields: LlmPiConfigFields = hasVolatileRefs(rawConfig)
-    ? (rawConfig as LlmPiConfigFields)
-    : Config((rawConfig ?? {}) as LlmPiConfigInput)
+  logger: PluginLogger,
+): Promise<{ kit: DshKit; diagnostics: string[] }> {
   const { kit, diagnostics } = await resolveDshKit(ctx.get('profileContext')?.installAnchor)
   for (const line of diagnostics) logger.warn(line)
-  logger.info(`运行时套件来源：${kit.source}`)
-
-  // 活动引用解包出平面快照：identity 仅在 volatile-update 重解包时换代
-  // （profiles 备忘依赖 raw === lastRaw；非 volatile 变更走 fiber reload 整树重建）。
-  let snapshot = unwrapVolatile(fields)
-  const modelsDev = new ModelsDevSource(
-    pluginDataPath('llm-pi', 'models-dev.json'),
-    snapshot.catalogUrl,
-    snapshot.catalogRefreshHours,
-    (message) => logger.warn(message),
-    snapshot.catalogProxy ?? '',
+  logger.info(
+    `运行时套件来源：${kit.source}；pi-ai ${kit.versions.piAi ?? '?'} / ` +
+      `dsh-llm-pi-ai ${kit.versions.piAiAdapter ?? '?'}；协议 ${kit.protocols.join('/')}`,
   )
-  void modelsDev.ensureLoaded()
+  const versionNotice = piAiVersionNotice(kit.versions.piAi)
+  if (versionNotice !== undefined) logger.warn(versionNotice)
+  return { kit, diagnostics }
+}
 
-  const current: () => LlmPiConfig = () => snapshot
+/**
+ * profiles / deepseek 路由解析器：按原始 config 对象 identity 备忘（官方同款模式）。
+ * 运行期走 lenient：目录漂移时降级/跳过并告警，而非抛错弄挂整个 route。
+ */
+function createProfileResolvers(options: {
+  kit: DshKit
+  current: () => LlmPiConfig
+  logger: PluginLogger
+}): { profiles(): ProfileMap; deepseekRoutes(): DeepseekMap } {
+  const { kit, current, logger } = options
   let lastRaw: LlmPiConfig | undefined
-  let memoized: Map<string, ResolvedPiAiProviderProfile> | undefined
-  let memoizedDeepseek: Map<string, ResolvedDeepseekRoute> | undefined
-  const deps = { kit, modelsDev }
-  /** 当前已解析 profiles，按原始 config identity 备忘（官方同款模式）。
-   *  运行期走 lenient：数据源漂移时降级/跳过并告警，而非抛错弄挂整个 route。 */
-  const profiles = (): Map<string, ResolvedPiAiProviderProfile> => {
+  let memoized: ProfileMap | undefined
+  let memoizedDeepseek: DeepseekMap | undefined
+  const profiles = (): ProfileMap => {
     const raw = current()
     if (raw === lastRaw && memoized !== undefined) return memoized
     const next = raw.enabled
       ? buildProfiles(raw.providers, {
-          ...deps,
+          kit,
           lenient: true,
           warn: (message) => logger.warn(message),
         })
@@ -137,20 +175,28 @@ export async function startRuntime(
     memoized = next
     return next
   }
-  /** deepseek 路由物化表（与 profiles 同一次备忘窗口）。 */
-  const deepseekRoutes = (): Map<string, ResolvedDeepseekRoute> => {
+  const deepseekRoutes = (): DeepseekMap => {
     profiles()
     return memoizedDeepseek ?? new Map()
   }
-  profiles() // 行级 config 不可服务则启动即失败（官方同款 fail-fast）
+  return { profiles, deepseekRoutes }
+}
 
-  const adapter = new kit.PiAiAdapter({
+/** 构造 PiAiAdapter（官方给出的接缝全部接上）。 */
+function createAdapter(options: {
+  ctx: Context
+  kit: DshKit
+  profiles(): ProfileMap
+  logger: PluginLogger
+}): PiAdapter {
+  const { ctx, kit, profiles, logger } = options
+  return new kit.PiAiAdapter({
     profiles,
     resolveApiKey: makeResolveApiKey(ctx, kit),
     resolveAttachments: () => ctx.get('attachments'),
-    // 0.1.2-alpha.2 必需（包根仍未导出官方 auth 助手）：登录/OAuth 类 provider 与 pi-ai 自有凭据写入的落点。
-    // dsh 树 dev 布局（src/auth.ts 存在）时为官方助手，其余形态为内联等价
-    // 实现（resolve-dsh.ts 探测，见 auth-inline.ts）。
+    // 0.1.2-alpha.2 必需（包根仍未导出官方 auth 助手）：登录/OAuth 类 provider 与
+    // pi-ai 自有凭据写入的落点。dsh 树 dev 布局（src/auth.ts 存在）时为官方助手，
+    // 其余形态为内联等价实现（resolve-dsh.ts 探测，见 auth-inline.ts）。
     auth: {
       credentials: kit.auth.credentialStoreFrom(ctx),
       authContext: kit.auth.authContextFrom(ctx),
@@ -175,26 +221,20 @@ export async function startRuntime(
       )
     },
   })
+}
 
-  const storedApiKey = async (provider: string | undefined): Promise<string | undefined> => {
-    if (provider === undefined) return undefined
-    const profile = profiles().get(provider)
-    if (profile === undefined) return undefined
-    return makeResolveApiKey(ctx, kit)(provider, profile)
-  }
-  ctx.llm.registerModelDiscovery(SETTINGS_NS, (request: Parameters<typeof discoverModels>[0]) =>
-    discoverModels(request, {
-      kit,
-      configProviders: () => current().providers ?? {},
-      storedApiKey,
-    }),
-  )
-
-  /**
-   * 注册 handle 组。正常路径单个 handle 整批注册/替换；整批注册遇
-   * DUPLICATE_ADAPTER（route 名与其他 adapter 冲突）时降级为逐个注册，
-   * 跳过冲突 route——启动不再 fail-loud，其余 route 照常服务。
-   */
+/**
+ * 注册 handle 组。正常路径单个 handle 整批注册/替换；整批注册遇
+ * DUPLICATE_ADAPTER（route 名与其他 adapter 冲突）时降级为逐个注册，
+ * 跳过冲突 route——启动不再 fail-loud，其余 route 照常服务。
+ */
+function createRegistrationController(options: {
+  ctx: Context
+  adapter: PiAdapter
+  profiles(): ProfileMap
+  logger: PluginLogger
+}): { ensureRegistration(): void } {
+  const { ctx, adapter, profiles, logger } = options
   interface RegistrationGroup {
     routes: string[]
     handle: { replace(routes: string[]): void }
@@ -228,10 +268,10 @@ export async function startRuntime(
   }
 
   const ensureRegistration = (): void => {
-    const current2 = profiles()
-    const facts = registrationFacts(current2)
+    const resolved = profiles()
+    const facts = registrationFacts(resolved)
     if (deepEqualJson(facts, registeredFacts)) return
-    const routes = [...current2.keys()]
+    const routes = [...resolved.keys()]
     if (registrations === undefined) {
       if (routes.length === 0) {
         registeredFacts = facts
@@ -256,10 +296,24 @@ export async function startRuntime(
     }
     registeredFacts = facts
   }
+  return { ensureRegistration }
+}
 
+/**
+ * 可配置 provider 目录（pi 路由 + deepseek 路由 + 草稿路由）。
+ * 草稿路由从原始配置直读——它们不进 adapter profiles。
+ */
+function createDirectoryController(options: {
+  ctx: Context
+  kit: DshKit
+  current: () => LlmPiConfig
+  profiles(): ProfileMap
+  deepseekRoutes(): DeepseekMap
+  logger: PluginLogger
+}): { ensureDirectory(): void } {
+  const { ctx, kit, current, profiles, deepseekRoutes, logger } = options
   let directory: DirectoryRegistrationHandle | undefined
   let directoryFacts: unknown
-  /** 草稿路由（无模型占位）从原始配置直读——它们不进 adapter profiles。 */
   const draftRoutes = (): { route: string; displayName: string }[] => {
     const providers = current().providers ?? {}
     return Object.entries(providers)
@@ -277,7 +331,7 @@ export async function startRuntime(
     // 备忘键为目标全集（含被冲突跳过的条目）：目标不变不重复尝试/告警
     if (deepEqualJson(entries, directoryFacts)) return
     if (entries.length === 0) {
-      // 空目录不可注册（INVALID_DIRECTORY）；等 settings 用户层供数后在 onChange 注册
+      // 空目录不可注册（INVALID_DIRECTORY）；等 settings 用户层供数后再注册
       directoryFacts = entries
       return
     }
@@ -291,7 +345,65 @@ export async function startRuntime(
     )
     directoryFacts = entries
   }
+  return { ensureDirectory }
+}
 
+/** 跑一步热更新动作，失败只告警（保留此前注册/目录）。 */
+function attempt(logger: PluginLogger, message: string, run: () => void): void {
+  try {
+    run()
+  } catch (error) {
+    logger.error(message)
+    logger.error(error)
+  }
+}
+
+/** 启动插件运行时：解析套件、挂载注册/发现/settings 联动。 */
+export async function startRuntime(
+  ctx: Context,
+  rawConfig: LlmPiConfig | LlmPiConfigFields,
+): Promise<LlmPiRuntime> {
+  const logger = ctx.logger('llm-pi')
+  // cordis 行级 config 可能未经 schema 解析（insert 行无 config 键时为原始空对象），
+  // 在此统一规范化；0.1.7 loader 解析出的 volatile 活动字段形态直接透传
+  // （hasVolatileRefs 辨识——重复校验会把引用再包一层、破坏 loader 原位提交）。
+  const fields: LlmPiConfigFields = hasVolatileRefs(rawConfig)
+    ? (rawConfig as LlmPiConfigFields)
+    : Config((rawConfig ?? {}) as LlmPiConfigInput)
+  const { kit, diagnostics } = await loadRuntimeKit(ctx, logger)
+
+  // 活动引用解包出平面快照：identity 仅在 volatile-update 重解包时换代
+  // （profiles 备忘依赖 raw === lastRaw；非 volatile 变更走 fiber reload 整树重建）。
+  let snapshot = unwrapVolatile(fields)
+  const current: () => LlmPiConfig = () => snapshot
+  const deps = { kit }
+  const { profiles, deepseekRoutes } = createProfileResolvers({ kit, current, logger })
+  profiles() // 行级 config 不可服务则启动即失败（官方同款 fail-fast）
+
+  const adapter = createAdapter({ ctx, kit, profiles, logger })
+  const storedApiKey = async (provider: string | undefined): Promise<string | undefined> => {
+    if (provider === undefined) return undefined
+    const profile = profiles().get(provider)
+    if (profile === undefined) return undefined
+    return makeResolveApiKey(ctx, kit)(provider, profile)
+  }
+  ctx.llm.registerModelDiscovery(SETTINGS_NS, (request: Parameters<typeof discoverModels>[0]) =>
+    discoverModels(request, {
+      kit,
+      configProviders: () => current().providers ?? {},
+      storedApiKey,
+    }),
+  )
+
+  const { ensureRegistration } = createRegistrationController({ ctx, adapter, profiles, logger })
+  const { ensureDirectory } = createDirectoryController({
+    ctx,
+    kit,
+    current,
+    profiles,
+    deepseekRoutes,
+    logger,
+  })
   const deepseekRegistrar = new DeepseekRouteRegistrar({
     ctx,
     kit,
@@ -310,26 +422,9 @@ export async function startRuntime(
   //   同款）：configEditor.edit 落盘前先跑 waterfall，handler throw 即拒绝整笔写入。
   const reconfigure = (): void => {
     snapshot = unwrapVolatile(fields)
-    try {
-      ensureRegistration()
-    } catch (error) {
-      logger.error('llm-pi: 更新被拒，保留此前注册的 route')
-      logger.error(error)
-    }
-    try {
-      ensureDeepseek()
-    } catch (error) {
-      logger.error('llm-pi: deepseek route 更新失败，保留此前注册')
-      logger.error(error)
-    }
-    try {
-      ensureDirectory()
-    } catch (error) {
-      logger.error('llm-pi: 更新被拒，保留此前的 configurable-provider 目录')
-      logger.error(error)
-    }
-    const cfg = current()
-    modelsDev.reconfigure(cfg.catalogUrl, cfg.catalogRefreshHours, cfg.catalogProxy ?? '')
+    attempt(logger, 'llm-pi: 更新被拒，保留此前注册的 route', ensureRegistration)
+    attempt(logger, 'llm-pi: deepseek route 更新失败，保留此前注册', ensureDeepseek)
+    attempt(logger, 'llm-pi: 更新被拒，保留此前的 configurable-provider 目录', ensureDirectory)
   }
   ctx.events.on('loader/volatile-update', reconfigure)
   ctx.on('internal/config', function (_raw: unknown, next: () => unknown) {
@@ -339,10 +434,34 @@ export async function startRuntime(
     return candidate
   })
 
+  /** 目录规模：按需从当前套件的 provider/模型清单汇总（不缓存，随套件固定）。 */
+  const kitInfo = (): LlmPiKitInfo => {
+    const providers = listProviders(kit)
+    const generatedAt = kit.catalogGeneratedAt
+    const notice = piAiVersionNotice(kit.versions.piAi)
+    return {
+      source: kit.source,
+      ...(kit.root === undefined ? {} : { root: kit.root }),
+      versions: kit.versions,
+      verifiedRange: VERIFIED_PI_AI_RANGE,
+      ...(notice === undefined ? {} : { versionNotice: notice }),
+      protocols: kit.protocols,
+      protocolSource: kit.protocolSource,
+      catalog: {
+        providers: providers.length,
+        models: providers.reduce((total, entry) => total + entry.modelCount, 0),
+        ...(generatedAt === undefined ? {} : { generatedAt }),
+      },
+      compatSource: compatTableInfo().source,
+      diagnostics,
+    }
+  }
+
   return {
     currentConfig: () => current(),
-    kitInfo: () => ({ source: kit.source, diagnostics }),
-    modelsDev,
+    kitInfo,
+    providerEntries: () => listProviders(kit),
+    apiIndex: () => buildApiIndex(listModelInfos(kit)),
     kit,
   }
 }

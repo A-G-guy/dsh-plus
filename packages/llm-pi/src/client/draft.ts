@@ -69,9 +69,6 @@ export interface ProviderDraft {
 
 export interface Draft {
   enabled: boolean
-  catalogUrl: string
-  catalogRefreshHours: string
-  catalogProxy: string
   providers: Record<string, ProviderDraft>
 }
 
@@ -355,9 +352,6 @@ export function emptyModelDraft(): ModelDraft {
 export function draftFromValue(value: ConfigValue): Draft {
   return {
     enabled: value.enabled,
-    catalogUrl: value.catalogUrl,
-    catalogRefreshHours: String(value.catalogRefreshHours),
-    catalogProxy: value.catalogProxy,
     providers: Object.fromEntries(
       Object.entries(value.providers).map(([route, provider]) => [
         route,
@@ -369,17 +363,44 @@ export function draftFromValue(value: ConfigValue): Draft {
 
 /** 提交补丁：完整配置对象，providers 全量替换；空值一律剔除。 */
 export function toPatch(draft: Draft): ConfigPatch {
-  const refreshHours = toNum(draft.catalogRefreshHours)
   return {
     enabled: draft.enabled,
-    catalogUrl: draft.catalogUrl.trim(),
-    // 保存动作在文本非法时不可用（card.tsx 的 invalid 门控），故写入路径必为合法数字；
-    // dirty 比较路径可能拿到非法文本的 undefined（JSON.stringify 时同键被丢弃），
-    // 此处仅把"保存前已校验"的运行期事实带到类型层，取值不变。
-    catalogRefreshHours: refreshHours as unknown as number,
-    catalogProxy: draft.catalogProxy.trim(),
     providers: Object.fromEntries(
       Object.entries(draft.providers).map(([route, provider]) => [route, providerToWire(provider)]),
     ),
+  }
+}
+
+/** 目录一键添加的结果：added=false 表示该 route 已有同 id 条目（原样返回草稿）。 */
+export interface AddModelResult {
+  draft: Draft
+  added: boolean
+}
+
+/**
+ * 把一个内置目录模型加进目标 route：只写 `id` + `extends`（**不预填**
+ * name/contextWindow/maxTokens——继承才能跟随 pi-ai 目录升级，预填会把值冻住）。
+ * 同 id 已存在时原样返回（added=false），不产生重复条目。
+ */
+export function addModelEntry(
+  draft: Draft,
+  route: string,
+  model: { id: string; path: string },
+): AddModelResult {
+  const provider = draft.providers[route]
+  if (provider === undefined) return { draft, added: false }
+  if (provider.models.some((entry) => entry.id.trim() === model.id)) {
+    return { draft, added: false }
+  }
+  const entry: ModelDraft = { ...emptyModelDraft(), id: model.id, extends: model.path }
+  return {
+    draft: {
+      ...draft,
+      providers: {
+        ...draft.providers,
+        [route]: { ...provider, models: [...provider.models, entry] },
+      },
+    },
+    added: true,
   }
 }

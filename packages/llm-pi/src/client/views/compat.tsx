@@ -2,10 +2,12 @@
  * compat 覆盖编辑器：按当前 api 渲染字段组（与服务端 compat.ts 字段表一致）。
  * boolean → 三态下拉（未设置/true/false），枚举 → 下拉（含未设置），
  * object → JSON 文本框（本地文本状态，合法时写入草稿，非法仅提示）。
- * 未知/非法值由后端校验兜底（PUT 失败会返回校验明细）。
+ * 未知/非法值由后端校验兜底（保存失败会返回校验明细）。
+ * 字段多（如 completions 19 项）时提供字段名过滤，折叠标题显示"已设 M/K"。
  * @module llm-pi/client/views/compat
  */
 import type { ReactElement } from 'react'
+import { useState } from 'react'
 
 import { COMPAT_FALLBACK_API, compatFieldSpec, compatFieldsOf } from '../constants.ts'
 import { CollapseSection, IntegerField, JsonField, SelectField } from '../fields.tsx'
@@ -25,6 +27,9 @@ export function pruneCompatForApi(
   return next
 }
 
+/** 字段数超过该值时提供过滤框（19 项一屏放不下）。 */
+const FILTER_THRESHOLD = 10
+
 export interface CompatEditorProps {
   idPrefix: string
   api: string
@@ -37,9 +42,14 @@ export interface CompatEditorProps {
 }
 
 export function CompatEditor(props: CompatEditorProps): ReactElement {
+  const [filter, setFilter] = useState('')
   const effective =
     props.api !== '' && compatFieldsOf(props.api).length > 0 ? props.api : COMPAT_FALLBACK_API
-  const fields = compatFieldsOf(effective)
+  const allFields = compatFieldsOf(effective)
+  const needle = filter.trim().toLowerCase()
+  const fields =
+    needle === '' ? allFields : allFields.filter((f) => f.toLowerCase().includes(needle))
+  const setCount = allFields.filter((field) => props.compat[field] !== undefined).length
   const setField = (field: string, value: unknown): void => {
     const next = { ...props.compat }
     if (value === undefined) delete next[field]
@@ -47,13 +57,31 @@ export function CompatEditor(props: CompatEditorProps): ReactElement {
     props.onEdit(next)
   }
   return (
-    <div className={`lpc-field lpc-wide`}>
+    <div className={'lpc-field lpc-wide'}>
       <CollapseSection
         id={`${props.idPrefix}-collapse`}
         title={props.t('compatGroup')}
+        meta={
+          allFields.length === 0
+            ? ''
+            : `${props.t('compatSetCount')} ${setCount}/${allFields.length}`
+        }
         defaultOpen={false}
       >
         {props.api === '' ? <p className="lpc-hint">{props.t('compatApiHint')}</p> : null}
+        {allFields.length > FILTER_THRESHOLD ? (
+          <div className="lpc-catBar">
+            <input
+              className="lpc-input lpc-catSearch"
+              type="search"
+              value={filter}
+              placeholder={props.t('compatFilter')}
+              aria-label={props.t('compatFilter')}
+              disabled={props.disabled === true}
+              onChange={(event) => setFilter(event.target.value)}
+            />
+          </div>
+        ) : null}
         <div className="lpc-grid">
           {fields.map((field) => {
             const spec = compatFieldSpec(effective, field)

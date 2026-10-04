@@ -56,10 +56,12 @@ type _LbCooldown = Expect<Equal<LifeboatConfig['alertCooldownMs'], number>>
 type _LbPatchFile = Expect<Equal<LifeboatConfig['patchFile'], string>>
 
 // ── llm-pi ────────────────────────────────────────────────────────────────
+// 0.1.43 起模型目录唯一来自 pi-ai 内置目录，根字段只剩 enabled + providers
+// （协议集合/兼容门控/模型字段集都改为运行期现场推导，不再是 schema 形状）。
 type LlmPiConfig = UnwrapVolatile<Schemastery.TypeT<typeof LlmPiSchema>>
 type _LpEnabled = Expect<Equal<LlmPiConfig['enabled'], boolean>>
-type _LpCatalogUrl = Expect<Equal<LlmPiConfig['catalogUrl'], string>>
-type _LpRefreshHours = Expect<Equal<LlmPiConfig['catalogRefreshHours'], number>>
+// 根形状即契约：多出/少掉根字段（如旧的目录端点键）必须在这里被拦下。
+type _LpRootKeys = Expect<Equal<keyof LlmPiConfig, 'enabled' | 'providers'>>
 
 // ── notify-email ──────────────────────────────────────────────────────────
 type NotifyEmailConfig = UnwrapVolatile<Schemastery.TypeT<typeof NotifyEmailSchema>>
@@ -114,9 +116,8 @@ export type {
   _LbCooldown,
   _LbEnabled,
   _LbPatchFile,
-  _LpCatalogUrl,
   _LpEnabled,
-  _LpRefreshHours,
+  _LpRootKeys,
   _NeDryRun,
   _NeEnabled,
   _NeTo,

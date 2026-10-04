@@ -11,7 +11,7 @@ import {
   BUDGET_KEYS,
   CACHE_RETENTION_OPTIONS,
   MODALITIES,
-  PROTOCOL_IDS,
+  protocolOptions,
   THINKING_LEVELS,
   TRANSPORT_OPTIONS,
 } from '../constants.ts'
@@ -158,7 +158,7 @@ export function ProviderSelectFields(props: ProviderScalarFieldsProps): ReactEle
         id={`${props.id}-api`}
         label={t('api')}
         value={draft.api}
-        options={PROTOCOL_IDS}
+        options={protocolOptions()}
         unsetLabel={t('compatUnset')}
         disabled={props.disabled === true}
         onEdit={(value) =>

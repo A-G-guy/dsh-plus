@@ -1,26 +1,27 @@
 /**
  * 逐协议 compat 校验：门控表与取值约束**从官方 dsh-llm-pi-ai 安装副本自动继承**
- * （见 compat-gates.ts），不再手抄镜像。
+ * （见 official-surface.ts），不再手抄镜像。
  *
- * 语义：官方门控表是 compat 可配性的唯一事实源——按协议分型（offer/withhold），
- * withhold 字段（官方内置目录已为对应厂商设置，如 openRouterRouting/zaiToolStream/
- * sendSessionAffinityHeaders/supportsToolSearch/supportsMidConvoEffort 等）写时
- * 拒绝并提示以目录 provider 名为 route；未知键拒绝；无值键（null/undefined）拒绝
- * （对齐官方 assertOfferedCompatFields："写了但没生效"的表面状态不允许）。
- *
- * 历史：本表曾是手抄镜像，0.1.5-rc.1 官方扩容 offer 字段而旧表漏收，导致官方可配
- * 字段被本插件**误拒**（静默功能缺失、无任何报错）。现改为现场推导：官方新增字段
- * 即自动可用，`tests/compat-gates.test.ts` 直读官方 bundle 守门推导正确性。
+ * 语义分两档，取决于门控表当时来自哪里：
+ * - **official（现场推导成功）**：官方门控表是兼容性的唯一事实源——按协议分型
+ *   （offer/withhold），withhold 字段（官方内置目录已为对应厂商设置，如
+ *   openRouterRouting/zaiToolStream/sendSessionAffinityHeaders 等）写时拒绝并提示以
+ *   目录 provider 名为 route；未知键拒绝；无值键（null/undefined）拒绝（对齐官方
+ *   assertOfferedCompatFields："写了但没生效"的表面状态不允许）。
+ * - **fallback（推导失败，用最后已知快照）**：只拒绝快照中明确 withhold 的键，
+ *   **未知键放行**交给官方适配器自身校验——表落后时"误拒官方新字段"比"多放一个键"
+ *   严重得多（0.1.5-rc.1 教训：静默功能缺失、无任何报错）。
  *
  * pi-ai 侧消费语义：getCompat 逐字段 `??` 覆盖 detectCompat 的 baseURL/名称猜测；
  * undefined 视为未设置（无法显式清空检测值）。
  * @module llm-pi/compat
  */
-import type { CompatDisposition, CompatTable, CompatValue } from './compat-gates.ts'
-import { FALLBACK_TABLE } from './compat-gates.ts'
-import type { ProtocolId } from './config.ts'
 
-export type { CompatDisposition, CompatValue } from './compat-gates.ts'
+import type { ProtocolId } from './config.ts'
+import type { CompatDisposition, CompatTable, CompatValue } from './official-surface.ts'
+import { FALLBACK_TABLE } from './official-surface.ts'
+
+export type { CompatDisposition, CompatValue } from './official-surface.ts'
 
 /**
  * 生效门控表：由 resolve-dsh 的套件加载流程经 {@link installCompatTable} 注入
@@ -52,6 +53,23 @@ export function compatFieldsOf(api: ProtocolId | string): readonly string[] {
   if (gate === undefined) return []
   return Object.entries(gate).flatMap(([field, disposition]) =>
     disposition === 'offer' ? [field] : [],
+  )
+}
+
+/**
+ * 生效表里出现过的协议键（运行期协议列表为空时的渲染兜底：
+ * 套件异常也要让表单能画出来）。
+ */
+export function compatProtocols(): string[] {
+  return Object.keys(active.gates)
+}
+
+/** 某协议被官方 withhold 的字段（内置目录已为对应厂商设置，写时拒绝）。 */
+export function compatWithholdFieldsOf(api: ProtocolId | string): readonly string[] {
+  const gate = active.gates[api]
+  if (gate === undefined) return []
+  return Object.entries(gate).flatMap(([field, disposition]) =>
+    disposition === 'withhold' ? [field] : [],
   )
 }
 
@@ -114,13 +132,17 @@ export function validateCompat(
   where: string,
 ): void {
   if (compat === undefined) return
-  const gate = active.gates[api]
+  const table = active
+  const gate = table.gates[api]
   if (gate === undefined) {
     throw new Error(
-      `${where}: 协议 ${JSON.stringify(api)} 无 compat 字段表（支持：${Object.keys(active.gates).join(', ')}）`,
+      `${where}: 协议 ${JSON.stringify(api)} 无 compat 字段表（可配协议：${Object.keys(table.gates).join(', ')}）`,
     )
   }
   const offered = compatFieldsOf(api)
+  // 回退快照可能落后于官方：未知键放行给官方适配器自身校验，只拦快照里明确的
+  // withhold（详见文件头"语义分两档"）。
+  const permissive = table.source === 'fallback'
   for (const [key, value] of Object.entries(compat)) {
     const disposition = gate[key]
     if (disposition !== 'offer') {
@@ -130,10 +152,12 @@ export function validateCompat(
             '请以目录 provider 名作为 route 名（继承目录值），或移除该字段',
         )
       }
-      throw new Error(
-        `${where}: compat.${key} 不是 ${api} 协议的合法字段（可配置字段：${offered.join(', ')}；` +
-          `官方全部可配字段：${allOfferedFields().join(', ')}）`,
-      )
+      if (!permissive) {
+        throw new Error(
+          `${where}: compat.${key} 不是 ${api} 协议的合法字段（可配置字段：${offered.join(', ')}；` +
+            `官方全部可配字段：${allOfferedFields().join(', ')}）`,
+        )
+      }
     }
     if (value === undefined || value === null) {
       throw new Error(`${where}: compat.${key} 未设置值；给出值或移除该键（留空不会生效）`)

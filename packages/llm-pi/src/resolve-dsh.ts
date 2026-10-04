@@ -7,10 +7,17 @@
  *    桌面端 Electron 下 argv[1] 探测走不通）→ realpath(argv[1]) 向上找到同时
  *    含 node_modules/@deepseek-ai/dsh-llm-pi-ai 与 node_modules/@earendil-works/pi-ai
  *    的目录，按文件路径动态 import——与 dsh 官方插件共享同一模块实例；
- * 2. vendored：回退到本插件 dependencies 里的固定版本副本（裸 import）。
+ * 2. vendored：回退到本插件 devDependencies 里的副本（裸 import）。
  *
- * 两条路径产物都过形状自检（assertKitShape）：上游重构导致形状漂移时
- * 抛错，由调用方决定回退或放弃注册——绝不让坏套件进入消息链路。
+ * 两条路径产物都过形状自检（assertKitShape）：上游重构导致形状漂移时抛错，
+ * 由调用方决定回退或放弃注册——绝不让坏套件进入消息链路。
+ *
+ * **自动跟随（版本不参与分支）**：插件不认识"某个 pi-ai 版本"，只认识形状与
+ * 现场推导出的适配面。协议集合取自已装官方包的 `supportedProtocols()`，每个协议
+ * 的惰性工厂按 `pi-ai/dist/api/<api>.lazy.js`（api id 即模块名，pi-ai 包导出约定）
+ * 动态加载；缺失的协议逐项跳过并记诊断，其余协议照常。compat 门控/取值约束与
+ * 模型条目字段集同样现场推导（official-surface.ts）。生效版本只用于状态行显示，
+ * 超出已验证区间也只是提示（kit-meta.ts），永不阻断。
  *
  * 0.1.2-alpha 线的新面（0.1.2-alpha.2 复核包根仍未导出、仅 src 子路径有）：
  * - resolveProfiles（config.ts）：官方解析链，dev 布局树可经 src 子路径复用；
@@ -55,8 +62,16 @@ import {
   credentialStoreFrom as inlineCredentialStoreFrom,
 } from './auth-inline.ts'
 import { installCompatTable } from './compat.ts'
-import { deriveGates, deriveSpecs, FALLBACK_TABLE } from './compat-gates.ts'
-import type { ProtocolId } from './config.ts'
+import { collectTreeVersions, collectVendoredVersions, type KitVersions } from './kit-meta.ts'
+import {
+  deriveGates,
+  deriveModelEntryFields,
+  deriveProtocols,
+  deriveSpecs,
+  FALLBACK_MODEL_ENTRY_FIELDS,
+  FALLBACK_TABLE,
+  fallbackProtocols,
+} from './official-surface.ts'
 import { type ResolverDeps, resolveProfilesFallback } from './profiles.ts'
 
 /**
@@ -88,6 +103,19 @@ export interface AuthHelpers {
 export interface DshKit {
   /** 解析来源：dsh 安装树 / 插件 vendored 兜底副本。 */
   source: 'dsh-tree' | 'vendored'
+  /** 套件所在根（dsh 安装树根 / vendored 包所在 node_modules 的父目录），诊断用。 */
+  root?: string
+  /** 实际生效版本（状态行显示；不参与任何分支判断）。 */
+  versions: KitVersions
+  /** 当前可服务的线协议（顺序即官方表顺序；无工厂的协议已被剔除）。 */
+  protocols: string[]
+  /** 协议集合来源：official = 官方 supportedProtocols()；fallback = 内置三元组。 */
+  protocolSource: 'official' | 'fallback'
+  protocolFactories: Record<string, () => unknown>
+  /** 官方 Config schema 接受的模型条目键集（继承透传白名单，现场推导）。 */
+  officialModelFields: string[]
+  /** 内置目录数据生成时间（毫秒）；官方未导出该信息时省略。 */
+  catalogGeneratedAt?: number
   PiAiAdapter: typeof PiAiAdapterType
   LlmError: typeof DshLlm.LlmError
   resolveRetryPolicy: typeof DshLlm.resolveRetryPolicy
@@ -99,8 +127,6 @@ export interface DshKit {
   builtinProviders: typeof vendoredCatalog.builtinProviders
   getBuiltinProviders: typeof vendoredCatalog.getBuiltinProviders
   getBuiltinModels: typeof vendoredCatalog.getBuiltinModels
-  /** 三协议的 pi-ai api 实现工厂（与官方 PROTOCOLS 表同来源）。 */
-  protocolFactories: Record<ProtocolId, () => unknown>
   /**
    * profile 解析链：dsh 树 dev 布局（src/config.ts 存在）时为官方
    * resolveProfiles；npm 形态（无 src）与 vendored 兜底时为插件等价实现。
@@ -149,9 +175,13 @@ function assertKitShape(kit: DshKit, origin: string): void {
   if (typeof kit.createProvider !== 'function') problems.push('pi-ai createProvider 缺失')
   if (typeof kit.getBuiltinModels !== 'function') problems.push('pi-ai getBuiltinModels 缺失')
   if (typeof kit.builtinProviders !== 'function') problems.push('pi-ai builtinProviders 缺失')
-  for (const [api, factory] of Object.entries(kit.protocolFactories)) {
-    if (typeof factory !== 'function') problems.push(`协议工厂 ${api} 缺失`)
+  if (kit.protocols.length === 0) problems.push('没有可服务的线协议（协议工厂全部加载失败）')
+  for (const api of kit.protocols) {
+    if (typeof kit.protocolFactories[api] !== 'function') {
+      problems.push(`协议 ${api} 的工厂缺失`)
+    }
   }
+  if (kit.officialModelFields.length === 0) problems.push('官方模型条目字段集为空')
   if (typeof kit.LlmError !== 'function') problems.push('dsh-llm LlmError 缺失')
   if (typeof kit.resolveRetryPolicy !== 'function') problems.push('dsh-llm resolveRetryPolicy 缺失')
   if (typeof kit.resolveProfiles !== 'function') problems.push('resolveProfiles 缺失')
@@ -206,31 +236,26 @@ function findDshTreeRoot(startDir: string): string | undefined {
   return undefined
 }
 
+/** dsh 树内与官方插件同源加载的核心模块（协议工厂按推导结果另加载）。 */
 interface TreeModules {
   piAiAdapter: Record<string, unknown>
   llm: Record<string, unknown>
   piAi: Record<string, unknown>
   catalog: Record<string, unknown>
-  completions: Record<string, unknown>
-  responses: Record<string, unknown>
-  anthropic: Record<string, unknown>
 }
 
-/** 从 dsh 安装树按文件路径动态 import 全部套件模块（与官方插件同实例）。 */
+/** 从 dsh 安装树按文件路径动态 import 核心套件模块（与官方插件同实例）。 */
 async function importTreeModules(root: string): Promise<TreeModules> {
   const nm = join(root, 'node_modules')
   const load = (absPath: string): Promise<Record<string, unknown>> =>
     import(pathToFileURL(absPath).href) as Promise<Record<string, unknown>>
-  const [piAiAdapter, llm, piAi, catalog, completions, responses, anthropic] = await Promise.all([
+  const [piAiAdapter, llm, piAi, catalog] = await Promise.all([
     load(join(nm, '@deepseek-ai', 'dsh-llm-pi-ai', 'lib', 'index.js')),
     load(join(nm, '@deepseek-ai', 'dsh-llm', 'lib', 'index.js')),
     load(join(nm, '@earendil-works', 'pi-ai', 'dist', 'index.js')),
     load(join(nm, '@earendil-works', 'pi-ai', 'dist', 'providers', 'all.js')),
-    load(join(nm, '@earendil-works', 'pi-ai', 'dist', 'api', 'openai-completions.lazy.js')),
-    load(join(nm, '@earendil-works', 'pi-ai', 'dist', 'api', 'openai-responses.lazy.js')),
-    load(join(nm, '@earendil-works', 'pi-ai', 'dist', 'api', 'anthropic-messages.lazy.js')),
   ])
-  return { piAiAdapter, llm, piAi, catalog, completions, responses, anthropic }
+  return { piAiAdapter, llm, piAi, catalog }
 }
 
 /**
@@ -282,72 +307,227 @@ async function importTreeDeepseek(root: string): Promise<{ kit?: DeepSeekKit; pr
   }
 }
 
-function protocolFactoriesOf(mods: TreeModules): DshKit['protocolFactories'] {
-  return {
-    'openai-completions': mods.completions['openAICompletionsApi'] as () => unknown,
-    'openai-responses': mods.responses['openAIResponsesApi'] as () => unknown,
-    'anthropic-messages': mods.anthropic['anthropicMessagesApi'] as () => unknown,
+/**
+ * 取惰性协议模块里的工厂：约定每个 `api/<api>.lazy.js` 只导出一个 `*Api`
+ * 工厂函数。名字不符时退化为"唯一函数导出"，多函数且无 `*Api` 命名则判失败
+ * （宁可跳过该协议，也不猜错工厂）。
+ */
+function protocolFactoryOf(module: Record<string, unknown>): (() => unknown) | undefined {
+  const functions = Object.entries(module).filter(
+    (entry): entry is [string, () => unknown] => typeof entry[1] === 'function',
+  )
+  const named = functions.filter(([name]) => /Api$/.test(name))
+  if (named.length === 1) return named[0]?.[1]
+  if (functions.length === 1) return functions[0]?.[1]
+  return undefined
+}
+
+/** pi-ai 的惰性协议实现目录（dsh 树布局）。 */
+function piAiApiDir(root: string): string {
+  return join(root, 'node_modules', '@earendil-works', 'pi-ai', 'dist', 'api')
+}
+
+/** 内置三元组的静态加载（协议推导失败或全部工厂加载失败时的兜底）。 */
+async function loadFallbackTreeFactories(
+  root: string,
+  diagnostics: string[],
+): Promise<Record<string, () => unknown>> {
+  const dir = piAiApiDir(root)
+  const out: Record<string, () => unknown> = {}
+  for (const api of fallbackProtocols()) {
+    const file = join(dir, `${api}.lazy.js`)
+    if (!existsSync(file)) continue
+    try {
+      const factory = protocolFactoryOf((await import(pathToFileURL(file).href)) as never)
+      if (factory !== undefined) out[api] = factory
+    } catch {
+      // 单个兜底协议加载失败：静默留给 assertKitShape 汇总（下方诊断已说明回退）
+    }
   }
+  if (Object.keys(out).length < fallbackProtocols().length) {
+    diagnostics.push(
+      `pi-ai 协议兜底三元组未能全部加载（${Object.keys(out).join('/') || '空'}）；` +
+        '请检查 dsh 安装树里 @earendil-works/pi-ai/dist/api 的形态',
+    )
+  }
+  return out
+}
+
+/**
+ * 按官方声明的协议集合加载 pi-ai 惰性工厂（api id 即模块名）。
+ * 逐项失败只跳过该协议并记诊断；一个都加载不到时回退内置三元组。
+ */
+async function loadTreeProtocols(
+  root: string,
+  derived: string[],
+  diagnostics: string[],
+): Promise<{ protocols: string[]; protocolFactories: Record<string, () => unknown> }> {
+  const dir = piAiApiDir(root)
+  const out: Record<string, () => unknown> = {}
+  for (const api of derived) {
+    const file = join(dir, `${api}.lazy.js`)
+    if (!existsSync(file)) {
+      diagnostics.push(
+        `pi-ai 未提供协议 "${api}" 的惰性实现（缺 ${file}）；该协议不可用，其余协议不受影响`,
+      )
+      continue
+    }
+    try {
+      const factory = protocolFactoryOf((await import(pathToFileURL(file).href)) as never)
+      if (factory === undefined) {
+        diagnostics.push(`协议 "${api}" 的实现模块未导出唯一 *Api 工厂；该协议不可用`)
+        continue
+      }
+      out[api] = factory
+    } catch (error) {
+      diagnostics.push(
+        `协议 "${api}" 的实现加载失败（${error instanceof Error ? error.message : String(error)}）；该协议不可用`,
+      )
+    }
+  }
+  if (Object.keys(out).length > 0) {
+    return { protocols: derived.filter((api) => out[api] !== undefined), protocolFactories: out }
+  }
+  diagnostics.push('官方声明的协议一个都加载不到；回退内置三元组')
+  const fallback = await loadFallbackTreeFactories(root, diagnostics)
+  return {
+    protocols: fallbackProtocols().filter((api) => fallback[api] !== undefined),
+    protocolFactories: fallback,
+  }
+}
+
+function protocolFactoriesOf(
+  protocols: string[],
+  factories: Record<string, () => unknown>,
+): DshKit['protocolFactories'] {
+  const out: DshKit['protocolFactories'] = {}
+  for (const api of protocols) {
+    const factory = factories[api]
+    if (factory !== undefined) out[api] = factory
+  }
+  return out
 }
 
 /** 插件等价解析链的套件依赖（与 PiAiAdapter 同源，杜绝跨源混用）。 */
 function treeResolverDeps(
   mods: TreeModules,
   protocolFactories: DshKit['protocolFactories'],
+  protocols: string[],
 ): ResolverDeps {
   return {
     createProvider: mods.piAi['createProvider'] as DshKit['createProvider'],
     protocolFactories,
+    protocols,
     resolveRetryPolicy: mods.llm['resolveRetryPolicy'] as DshKit['resolveRetryPolicy'],
   }
 }
 
+/** 官方适配面推导结果（协议/模型字段/compat 表/compat 来源）。 */
+interface OfficialSurface {
+  protocols: string[]
+  protocolSource: 'official' | 'fallback'
+  officialModelFields: string[]
+  catalogGeneratedAt?: number
+}
+
+/** 读内置目录数据生成时间（官方未导出/形状变化时省略）。 */
+function catalogGeneratedAtOf(catalog: Record<string, unknown>): number | undefined {
+  const reader = catalog['getBuiltinModelDataGeneratedAt']
+  if (typeof reader !== 'function') return undefined
+  try {
+    const value = (reader as () => unknown)()
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /**
- * 从官方安装副本推导 compat 门控表（bundle 文本给分型、Config schema 给取值约束），
- * 并安装为插件生效表。任一环节失败回退 FALLBACK_TABLE 并给诊断——绝不因推导失败
- * 弄挂插件启动（宁可放宽校验，也不误拒官方可配字段）。
+ * 从官方安装副本推导适配面并安装 compat 生效表（bundle 文本给分型、Config schema
+ * 给取值约束与模型条目字段集、supportedProtocols() 给协议集合）。
+ * 任一环节失败都逐项回退并记诊断——绝不因推导失败弄挂插件启动。
  */
-function installOfficialCompatTable(
-  bundlePath: string,
-  module: Record<string, unknown>,
-  diagnostics: string[],
-): void {
-  const label = 'compat 门控表'
+function installOfficialSurface(options: {
+  bundlePath: string
+  adapterModule: Record<string, unknown>
+  catalogModule: Record<string, unknown>
+  origin: string
+  diagnostics: string[]
+}): OfficialSurface {
+  const { bundlePath, adapterModule, origin, diagnostics } = options
+  const compatLabel = 'compat 门控表'
   try {
     const bundle = readFileSync(bundlePath, 'utf8')
     const gates = deriveGates(bundle)
     if (gates === undefined) {
       // 官方改打包形态导致 COMPAT_GATES 不可解析：用冻结快照并告警。
+      // 快照模式下未知 compat 键**放行**（交给官方自身校验），只拦快照里明确的
+      // withhold——表落后时"误拒官方新字段"比"多放一个键"严重得多。
       diagnostics.push(
-        `${label}未能从官方 bundle 解析 COMPAT_GATES（${bundlePath}）；` +
-          `使用内置快照（官方新增字段可能被误拒，请检查 dsh-llm-pi-ai 打包形态）`,
+        `${compatLabel}未能从官方 bundle 解析 COMPAT_GATES（${bundlePath}）；` +
+          `使用内置快照（未知字段放行、withhold 仍拒绝；请检查 dsh-llm-pi-ai 打包形态）`,
       )
       installCompatTable(FALLBACK_TABLE)
-      return
+    } else {
+      // 取值约束：推导值优先，内置快照补缺（官方 schema 未覆盖的字段保持可写）。
+      const specs = { ...FALLBACK_TABLE.specs, ...deriveSpecs(adapterModule) }
+      installCompatTable({ gates, specs, source: 'official' })
     }
-    // 取值约束：推导值优先，内置快照补缺（官方 schema 未覆盖的字段保持可写）。
-    const specs = { ...FALLBACK_TABLE.specs, ...deriveSpecs(module) }
-    installCompatTable({ gates, specs, source: 'official' })
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
-    diagnostics.push(`${label}推导失败（${reason}）；使用内置快照`)
+    diagnostics.push(`${compatLabel}推导失败（${reason}）；使用内置快照（未知字段放行）`)
     installCompatTable(FALLBACK_TABLE)
+  }
+
+  const derivedProtocols = deriveProtocols(adapterModule)
+  if (derivedProtocols === undefined) {
+    diagnostics.push(
+      `${origin}：官方 supportedProtocols() 不可用；协议集合回退内置三元组 ${fallbackProtocols().join('/')}`,
+    )
+  }
+  const fields = deriveModelEntryFields(adapterModule)
+  if (fields === undefined) {
+    diagnostics.push(
+      `${origin}：官方 Config schema 的模型条目字段集不可推导；` +
+        `继承字段回退已知键 ${FALLBACK_MODEL_ENTRY_FIELDS.join('/')}（官方新增字段可能不被继承）`,
+    )
+  }
+  const generatedAt = catalogGeneratedAtOf(options.catalogModule)
+  return {
+    protocols: derivedProtocols ?? fallbackProtocols(),
+    protocolSource: derivedProtocols === undefined ? 'fallback' : 'official',
+    officialModelFields: fields ?? [...FALLBACK_MODEL_ENTRY_FIELDS],
+    ...(generatedAt === undefined ? {} : { catalogGeneratedAt: generatedAt }),
   }
 }
 
-function kitFromTree(
-  mods: TreeModules,
-  auth: Record<string, unknown> | undefined,
-  config: Record<string, unknown> | undefined,
-): DshKit {
-  const protocolFactories = protocolFactoriesOf(mods)
-  const resolverDeps = treeResolverDeps(mods, protocolFactories)
-  const officialResolveProfiles = config?.['resolveProfiles']
-  const officialCredentialStoreFrom = auth?.['credentialStoreFrom']
-  const officialAuthContextFrom = auth?.['authContextFrom']
+function kitFromTree(options: {
+  mods: TreeModules
+  auth: Record<string, unknown> | undefined
+  config: Record<string, unknown> | undefined
+  surface: OfficialSurface
+  protocols: string[]
+  protocolFactories: DshKit['protocolFactories']
+  root: string
+  versions: KitVersions
+}): DshKit {
+  const { mods, surface, protocols, protocolFactories, root, versions } = options
+  const resolverDeps = treeResolverDeps(mods, protocolFactories, protocols)
+  const officialResolveProfiles = options.config?.['resolveProfiles']
+  const officialCredentialStoreFrom = options.auth?.['credentialStoreFrom']
+  const officialAuthContextFrom = options.auth?.['authContextFrom']
   const recordKeyFor = mods.piAiAdapter['recordKeyFor'] as (providerId: string) => CredentialKey
   return {
     source: 'dsh-tree',
+    root,
+    versions,
+    protocols,
+    protocolSource: surface.protocolSource,
+    protocolFactories,
+    officialModelFields: surface.officialModelFields,
+    ...(surface.catalogGeneratedAt === undefined
+      ? {}
+      : { catalogGeneratedAt: surface.catalogGeneratedAt }),
     PiAiAdapter: mods.piAiAdapter['PiAiAdapter'] as DshKit['PiAiAdapter'],
     LlmError: mods.llm['LlmError'] as DshKit['LlmError'],
     resolveRetryPolicy: mods.llm['resolveRetryPolicy'] as DshKit['resolveRetryPolicy'],
@@ -359,7 +539,6 @@ function kitFromTree(
     builtinProviders: mods.catalog['builtinProviders'] as DshKit['builtinProviders'],
     getBuiltinProviders: mods.catalog['getBuiltinProviders'] as DshKit['getBuiltinProviders'],
     getBuiltinModels: mods.catalog['getBuiltinModels'] as DshKit['getBuiltinModels'],
-    protocolFactories,
     resolveProfiles:
       officialResolveProfiles !== undefined
         ? (officialResolveProfiles as ResolveProfiles)
@@ -399,27 +578,53 @@ function vendoredAdapterBundlePath(): string {
   return fileURLToPath(import.meta.resolve('@deepseek-ai/dsh-llm-pi-ai'))
 }
 
-/**
- * vendored 兜底副本套件（导出供单测直接使用，免走 dsh 树解析）。
- * npm 发布形态不携带 src/、lib 仅 index.js/invariant.js——resolveProfiles 与
- * auth 助手在此无条件走插件等价实现（内联，见文件头说明）；compat 门控表则
- * 仍从 vendored 副本的 bundle + Config schema 现场推导（与 dsh 树同一推导链）。
- */
-export function loadVendoredKit(): DshKit {
-  const deepseek = loadVendoredDeepseek()
-  const protocolFactories = {
+/** vendored 副本的静态协议工厂表（devDependencies 钉版，故无需动态加载）。 */
+function vendoredProtocolFactories(): Record<string, () => unknown> {
+  return {
     'openai-completions': vendoredCompletions,
     'openai-responses': vendoredResponses,
     'anthropic-messages': vendoredAnthropic,
   }
-  // 与 dsh 树路径同源推导：vendored 副本同样是官方发布包（lib/index.js + Config）
-  installOfficialCompatTable(
-    vendoredAdapterBundlePath(),
-    vendoredPiAiAdapter as unknown as Record<string, unknown>,
-    [],
-  )
+}
+
+/**
+ * vendored 兜底副本套件（导出供单测直接使用，免走 dsh 树解析）。
+ * 副本是**钉版**的，故协议工厂走静态导入，协议集合取"官方声明 ∩ 静态工厂"；
+ * npm 发布形态不携带 src/、lib 仅 index.js/invariant.js——resolveProfiles 与
+ * auth 助手在此无条件走插件等价实现（内联，见文件头说明）；compat 门控表则
+ * 仍从 vendored 副本的 bundle + Config schema 现场推导（与 dsh 树同一推导链）。
+ * @param diagnostics 可选诊断收集器（回退原因与逐项降级说明）。
+ */
+export function loadVendoredKit(diagnostics: string[] = []): DshKit {
+  const staticFactories = vendoredProtocolFactories()
+  const surface = installOfficialSurface({
+    bundlePath: vendoredAdapterBundlePath(),
+    adapterModule: vendoredPiAiAdapter as unknown as Record<string, unknown>,
+    catalogModule: vendoredCatalog as unknown as Record<string, unknown>,
+    origin: 'vendored 副本',
+    diagnostics,
+  })
+  const protocols = surface.protocols.filter((api) => staticFactories[api] !== undefined)
+  const protocolFactories = protocolFactoriesOf(protocols, staticFactories)
+  const resolverDeps: ResolverDeps = {
+    createProvider: vendoredPiAi.createProvider,
+    protocolFactories,
+    protocols,
+    resolveRetryPolicy: vendoredLlm.resolveRetryPolicy,
+  }
+  const deepseek = loadVendoredDeepseek()
   const kit: DshKit = {
     source: 'vendored',
+    versions: collectVendoredVersions(),
+    protocols,
+    // 官方声明里若有本副本未携带工厂的协议（副本钉版），集合仍是"官方声明"的
+    // 子集，故来源标注跟随推导结果；一个都不剩时按回退处理（assertKitShape 兜底）。
+    protocolSource: protocols.length > 0 ? surface.protocolSource : 'fallback',
+    protocolFactories,
+    officialModelFields: surface.officialModelFields,
+    ...(surface.catalogGeneratedAt === undefined
+      ? {}
+      : { catalogGeneratedAt: surface.catalogGeneratedAt }),
     PiAiAdapter: vendoredPiAiAdapter.PiAiAdapter,
     LlmError: vendoredLlm.LlmError,
     resolveRetryPolicy: vendoredLlm.resolveRetryPolicy,
@@ -431,13 +636,7 @@ export function loadVendoredKit(): DshKit {
     builtinProviders: vendoredCatalog.builtinProviders,
     getBuiltinProviders: vendoredCatalog.getBuiltinProviders,
     getBuiltinModels: vendoredCatalog.getBuiltinModels,
-    protocolFactories,
-    resolveProfiles: (providers) =>
-      resolveProfilesFallback(providers, {
-        createProvider: vendoredPiAi.createProvider,
-        protocolFactories,
-        resolveRetryPolicy: vendoredLlm.resolveRetryPolicy,
-      }),
+    resolveProfiles: (providers) => resolveProfilesFallback(providers, resolverDeps),
     auth: {
       credentialStoreFrom: (ctx) =>
         inlineCredentialStoreFrom(ctx, vendoredPiAiAdapter.recordKeyFor),
@@ -475,7 +674,7 @@ export function dshTreeAnchor(
 /**
  * 解析运行时套件：优先 dsh 安装树（自动跟随上游），失败回退 vendored 副本；
  * 两者都过不了形状自检时抛错（调用方应记日志并放弃注册 route）。
- * 返回的 diagnostics 记录回退原因，供配置卡片与日志展示。
+ * 返回的 diagnostics 记录回退原因与逐项降级说明，供配置卡片与日志展示。
  * @param installAnchor profile 的 dsh 安装锚点（`ctx.profileContext.installAnchor`）。
  */
 export async function resolveDshKit(installAnchor?: string | undefined): Promise<{
@@ -488,13 +687,33 @@ export async function resolveDshKit(installAnchor?: string | undefined): Promise
     const treePkgDir = join(anchor, 'node_modules', '@deepseek-ai', 'dsh-llm-pi-ai')
     try {
       const mods = await importTreeModules(anchor)
+      const surface = installOfficialSurface({
+        bundlePath: join(treePkgDir, 'lib', 'index.js'),
+        adapterModule: mods.piAiAdapter,
+        catalogModule: mods.catalog,
+        origin: 'dsh 安装树',
+        diagnostics,
+      })
+      const { protocols, protocolFactories } = await loadTreeProtocols(
+        anchor,
+        surface.protocols,
+        diagnostics,
+      )
       const [auth, config] = await Promise.all([
         probeSubmodule(treePkgDir, 'auth'),
         probeSubmodule(treePkgDir, 'config'),
       ])
-      const kit = kitFromTree(mods, auth, config)
+      const kit = kitFromTree({
+        mods,
+        auth,
+        config,
+        surface,
+        protocols,
+        protocolFactories,
+        root: anchor,
+        versions: collectTreeVersions(anchor),
+      })
       assertKitShape(kit, 'dsh-tree')
-      installOfficialCompatTable(join(treePkgDir, 'lib', 'index.js'), mods.piAiAdapter, diagnostics)
       if (auth === undefined) {
         diagnostics.push(
           'dsh 树不含 dsh-llm-pi-ai/src（npm 发布形态）；认证助手使用插件内联等价实现',
@@ -524,7 +743,7 @@ export async function resolveDshKit(installAnchor?: string | undefined): Promise
       '未能从 profileContext.installAnchor / process.argv[1] 定位 dsh 安装树；回退 vendored 副本',
     )
   }
-  const kit = loadVendoredKit()
+  const kit = loadVendoredKit(diagnostics)
   if (kit.deepseek === undefined) {
     diagnostics.push(
       'vendored 副本的 dsh-llm-deepseek 形状不兼容；adapter: deepseek 的 route 不可用',

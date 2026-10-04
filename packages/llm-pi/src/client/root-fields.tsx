@@ -1,36 +1,54 @@
 /**
- * 「LLM 路由」卡片的根字段组：总开关、目录端点/刷新间隔/代理，以及运行期诊断行
- * （kitSource 与 models-dev 快照状态，来自模型目录端点而非配置数据）。
+ * 卡片根字段组：总开关 + 运行期状态行。
+ *
+ * 状态行回答的是"我现在到底在跑哪一份 pi-ai"——插件按文件路径动态加载已装 dsh 树
+ * 里的套件（见 resolve-dsh.ts），manifest 上写的版本**不是**生效版本。这里显示
+ * 生效版本、安装树、目录规模与数据日期、可服务协议、compat 表来源，以及逐项降级
+ * 诊断；版本超出验证区间时给出提示（提示而非阻断）。
  * @module llm-pi/client/root-fields
  */
 
-import { CheckRow, TextField } from '@dsh-plus/shared/client'
+import { CheckRow } from '@dsh-plus/shared/client'
 import type { ReactElement } from 'react'
 
-import type { WireModelsDevStatus } from './api.ts'
-import { type Draft, numTextOk } from './draft.ts'
+import type { WireKitInfo } from './api.ts'
+import type { Draft } from './draft.ts'
 import type { Translate } from './i18n.ts'
 
-/** models-dev 状态行文案（缺席/错误/未拉取/正常四态）。 */
-function modelsDevText(status: WireModelsDevStatus | null, t: Translate): string {
-  if (status === null) return t('modelsDevEmpty')
-  if (status.error !== null) return `${t('modelsDevError')}${status.error}`
-  if (status.fetchedAt === null) return t('modelsDevEmpty')
-  return `${t('modelsDevStatusLine')}：${status.providers} 个 provider，快照 ${status.fetchedAt}`
+/** 时间戳 → 本地日期（秒级精度足够）。 */
+function formatTime(ms: number | undefined, fallback: string): string {
+  if (ms === undefined || !Number.isFinite(ms)) return fallback
+  return new Date(ms).toLocaleString()
+}
+
+/** 生效版本三连（缺失显示"未知"）。 */
+function versionsText(kit: WireKitInfo, t: Translate): string {
+  const unknown = t('runtimeVersionUnknown')
+  return [
+    `pi-ai ${kit.versions.piAi ?? unknown}`,
+    `dsh-llm-pi-ai ${kit.versions.piAiAdapter ?? unknown}`,
+    ...(kit.versions.dsh === undefined ? [] : [`dsh ${kit.versions.dsh}`]),
+  ].join(' · ')
+}
+
+/** 来源标签：现场推导 / 回退快照。 */
+function sourceLabel(t: Translate, source: string): string {
+  return source === 'official' ? t('runtimeDerived') : t('runtimeFallback')
 }
 
 export interface RootFieldsProps {
   t: Translate
   draft: Draft
   disabled: boolean
-  kitSource: string | null
-  modelsDevStatus: WireModelsDevStatus | null
+  kit: WireKitInfo | null
+  /** 目录索引拉取失败原因（失败时状态行显式提示，其余字段照常可编辑）。 */
+  kitError: string
   /** 根字段编辑（合并式写入并清空状态行）。 */
   onEdit(patch: Partial<Draft>): void
 }
 
 export function RootFields(props: RootFieldsProps): ReactElement {
-  const { t, draft, disabled, onEdit } = props
+  const { t, draft, disabled, kit, onEdit } = props
   return (
     <>
       <CheckRow
@@ -41,44 +59,38 @@ export function RootFields(props: RootFieldsProps): ReactElement {
         disabled={disabled}
         onEdit={(value) => onEdit({ enabled: value })}
       />
-      <TextField
-        prefix="lpc"
-        id="lpc-catalogUrl"
-        label={t('catalogUrl')}
-        hint={t('catalogUrlHint')}
-        value={draft.catalogUrl}
-        disabled={disabled}
-        onEdit={(value) => onEdit({ catalogUrl: value })}
-      />
-      <TextField
-        prefix="lpc"
-        id="lpc-catalogRefresh"
-        label={t('catalogRefreshHours')}
-        hint={t('catalogRefreshHoursHint')}
-        value={draft.catalogRefreshHours}
-        numeric
-        disabled={disabled}
-        invalid={!numTextOk(draft.catalogRefreshHours)}
-        invalidLabel={t('invalidNumber')}
-        onEdit={(value) => onEdit({ catalogRefreshHours: value })}
-      />
-      <TextField
-        prefix="lpc"
-        id="lpc-catalogProxy"
-        label={t('catalogProxy')}
-        hint={t('catalogProxyHint')}
-        value={draft.catalogProxy}
-        disabled={disabled}
-        onEdit={(value) => onEdit({ catalogProxy: value })}
-      />
-      <p className="lpc-statusRow">
-        {t('kitSource')}：{props.kitSource ?? ''}
-      </p>
-      <div className="lpc-statusRow">
-        <span>
-          {t('modelsDevStatus')}：{modelsDevText(props.modelsDevStatus, t)}
-        </span>
-      </div>
+      <p className="lpc-groupLabel">{t('runtimeGroup')}</p>
+      {props.kitError !== '' ? (
+        <p className="lpc-invalid">{`${t('browserFailed')}${props.kitError}`}</p>
+      ) : null}
+      {kit === null ? (
+        <p className="lpc-hint">{t('browserLoading')}</p>
+      ) : (
+        <>
+          <p className="lpc-statusRow">
+            {`${t('runtimeSource')}：${kit.source}${kit.root === undefined ? '' : ` · ${t('runtimeRoot')} ${kit.root}`}`}
+          </p>
+          <p className="lpc-statusRow">{`${t('runtimeVersions')}：${versionsText(kit, t)}`}</p>
+          <p className="lpc-statusRow">
+            {`${t('runtimeCatalog')}：${kit.catalog.providers} ${t('runtimeCatalogUnit')} ${kit.catalog.models} ${t('runtimeCatalogModels')} · ${t('runtimeCatalogGenerated')} ${formatTime(kit.catalog.generatedAt, t('runtimeVersionUnknown'))}`}
+          </p>
+          <p className="lpc-statusRow">
+            {`${t('runtimeProtocols')}：${kit.protocols.join(' / ')}（${sourceLabel(t, kit.protocolSource)}）`}
+          </p>
+          <p className="lpc-statusRow">
+            {`${t('runtimeCompat')}：${sourceLabel(t, kit.compatSource)}`}
+          </p>
+          {kit.versionNotice !== undefined ? (
+            <p className="lpc-invalid">{`${t('runtimeNotice')}：${kit.versionNotice}`}</p>
+          ) : null}
+          {kit.diagnostics.length > 0 ? (
+            <>
+              <p className="lpc-catDetailLabel">{t('runtimeDiagnostics')}</p>
+              <pre className="lpc-catJson">{kit.diagnostics.join('\n')}</pre>
+            </>
+          ) : null}
+        </>
+      )}
     </>
   )
 }

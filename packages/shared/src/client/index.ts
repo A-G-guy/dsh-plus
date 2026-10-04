@@ -14,6 +14,7 @@ export {
   type CardStatusState,
   IDLE_STATUS,
 } from './card.tsx'
+export { copyText } from './clipboard.ts'
 export {
   DSH_PLUS_BUNDLE,
   injectPluginConfigCard,

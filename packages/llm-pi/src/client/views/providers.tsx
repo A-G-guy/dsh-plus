@@ -1,7 +1,8 @@
 /**
- * Provider 路由编辑：每个 route 一张可折叠小节（键名 + 标量字段 +
- * headers 键值对 + retryPolicy JSON + compat + 模型目录）。
- * 支持新增 route（输入键名）与删除 route。
+ * Provider 路由编辑：每个 route 一张**受控**折叠小节（展开态由卡片持有，
+ * 以便「从内置目录添加」后自动展开目标 route、以及卡片级"全部收起"）。
+ * 小节内容：基础字段 + 请求头 + 高级设置（其余字段 / retryPolicy / compat）
+ * + 模型目录（行默认折叠，见 views/models.tsx）。
  * @module llm-pi/client/views/providers
  */
 
@@ -18,17 +19,25 @@ import { ProviderScalarFields, ProviderSelectFields } from './provider-fields.ts
 
 export interface ProvidersSectionProps {
   providers: Record<string, ProviderDraft>
+  /** route → 展开态（卡片持有；缺失即收起）。 */
+  openRoutes: Record<string, boolean>
   epoch: number
   disabled?: boolean
   t: Translate
   onAddRoute(key: string): void
   onRemoveRoute(route: string): void
   onPatchProvider(route: string, patch: Partial<ProviderDraft>): void
+  onToggleRoute(route: string, open: boolean): void
+  onCollapseAll(): void
+  onExpandAll(): void
+  /** 打开「内置模型目录」并把该 route 设为添加目标。 */
+  onAddFromCatalog(route: string): void
 }
 
 export function ProvidersSection(props: ProvidersSectionProps): ReactElement {
   const [newRoute, setNewRoute] = useState('')
   const [routeError, setRouteError] = useState('')
+  const routes = Object.keys(props.providers)
   const submitAdd = (): void => {
     const key = newRoute.trim()
     if (key === '') {
@@ -45,7 +54,29 @@ export function ProvidersSection(props: ProvidersSectionProps): ReactElement {
   }
   return (
     <div className="lpc-section">
-      <p className="lpc-groupLabel">{props.t('providersGroup')}</p>
+      <div className="lpc-modelHead">
+        <span className="lpc-modelTitle">{props.t('providersGroup')}</span>
+        {routes.length > 1 ? (
+          <>
+            <button
+              type="button"
+              className="lpc-btn lpc-btnGhost lpc-btnSmall"
+              disabled={props.disabled === true}
+              onClick={props.onCollapseAll}
+            >
+              {props.t('providersCollapseAll')}
+            </button>
+            <button
+              type="button"
+              className="lpc-btn lpc-btnGhost lpc-btnSmall"
+              disabled={props.disabled === true}
+              onClick={props.onExpandAll}
+            >
+              {props.t('providersExpandAll')}
+            </button>
+          </>
+        ) : null}
+      </div>
       <div className="lpc-addRoute">
         <input
           className={`lpc-input${routeError !== '' ? ' lpc-inputInvalid' : ''}`}
@@ -72,11 +103,14 @@ export function ProvidersSection(props: ProvidersSectionProps): ReactElement {
           key={route}
           route={route}
           draft={draft}
+          open={props.openRoutes[route] === true}
           epoch={props.epoch}
           disabled={props.disabled === true}
           t={props.t}
+          onToggle={() => props.onToggleRoute(route, props.openRoutes[route] !== true)}
           onRemove={() => props.onRemoveRoute(route)}
           onPatch={(patch) => props.onPatchProvider(route, patch)}
+          onAddFromCatalog={() => props.onAddFromCatalog(route)}
         />
       ))}
     </div>
@@ -86,19 +120,24 @@ export function ProvidersSection(props: ProvidersSectionProps): ReactElement {
 export interface ProviderSectionProps {
   route: string
   draft: ProviderDraft
+  open: boolean
   epoch: number
   disabled?: boolean
   t: Translate
+  onToggle(): void
   onRemove(): void
   onPatch(patch: Partial<ProviderDraft>): void
+  onAddFromCatalog(): void
 }
 
 export function ProviderSection(props: ProviderSectionProps): ReactElement {
-  const [open, setOpen] = useState(false)
   const { route, draft, t } = props
   const id = route.replace(/[^a-zA-Z0-9_-]/g, '_')
+  const adapter = typeof draft.extra['adapter'] === 'string' ? draft.extra['adapter'] : 'pi'
   const summary =
-    draft.api !== '' ? draft.api : draft.extends !== '' ? `extends ${draft.extends}` : ''
+    draft.api !== '' ? draft.api : draft.extends !== '' ? `extends ${draft.extends}` : adapter
+  const modelCount = draft.models.length
+  const meta = modelCount > 0 ? `${modelCount}` : ''
   const fieldProps = {
     id,
     draft,
@@ -112,12 +151,13 @@ export function ProviderSection(props: ProviderSectionProps): ReactElement {
         <button
           type="button"
           className="lpc-routeToggle"
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
+          aria-expanded={props.open}
+          onClick={props.onToggle}
         >
-          <ChevronDownIcon className={`lpc-chevron${open ? ' lpc-chevronOpen' : ''}`} />
+          <ChevronDownIcon className={`lpc-chevron${props.open ? ' lpc-chevronOpen' : ''}`} />
           <span className="lpc-routeKey">{route}</span>
           {summary !== '' ? <span className="lpc-routeApi">{summary}</span> : null}
+          {meta !== '' ? <span className="lpc-collapseMeta">{meta}</span> : null}
         </button>
         <button
           type="button"
@@ -128,7 +168,7 @@ export function ProviderSection(props: ProviderSectionProps): ReactElement {
           {t('deleteRoute')}
         </button>
       </div>
-      {open ? (
+      {props.open ? (
         <div className="lpc-routeBody">
           <p className="lpc-groupLabel">{t('providerFields')}</p>
           <ProviderScalarFields {...fieldProps} />
@@ -186,12 +226,12 @@ export function ProviderSection(props: ProviderSectionProps): ReactElement {
           <ModelsTable
             route={route}
             api={draft.api}
-            defaultProvider={draft.extends}
             models={draft.models}
             epoch={props.epoch}
             disabled={props.disabled === true}
             t={t}
             onModels={(models) => props.onPatch({ models })}
+            onAddFromCatalog={props.onAddFromCatalog}
           />
         </div>
       ) : null}

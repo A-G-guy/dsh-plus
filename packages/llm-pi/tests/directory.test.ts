@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { ModelsDevSource } from '../src/catalog/models-dev.ts'
 import type { ProviderProfileConfig } from '../src/config.ts'
 import { buildDirectoryEntries, commitDirectory, type DirectoryEntry } from '../src/directory.ts'
 import { assertServiceable, buildProfiles } from '../src/profiles.ts'
@@ -82,12 +81,6 @@ test('草稿路由（无 models 无 extends）进目录条目，displayName 缺�
 
 test('草稿路由被 buildProfiles 跳过（不进 adapter），写时校验不拒绝', () => {
   const kit = loadVendoredKit()
-  const modelsDev = new ModelsDevSource(
-    '/tmp/nonexistent-draft-test.json',
-    'http://127.0.0.1:1/x',
-    0,
-    () => {},
-  )
   const providers: Record<string, ProviderProfileConfig> = {
     'newapi-chat': { displayName: 'newapi(chat)' },
     'newapi-response': {
@@ -98,10 +91,10 @@ test('草稿路由被 buildProfiles 跳过（不进 adapter），写时校验不
       models: [{ id: 'gpt-5.6-sol' }],
     },
   }
-  const profiles = buildProfiles(providers, { kit, modelsDev })
+  const profiles = buildProfiles(providers, { kit })
   // Given 草稿 + 正常路由 —— When 物化 —— Then 草稿跳过、正常路由照常
   assert.equal(profiles.has('newapi-chat'), false)
   assert.ok(profiles.has('newapi-response'))
   // 严格写时校验同样放行草稿（assertServiceable 收完整 config，providers 为其字段）
-  assertServiceable({ providers }, { kit, modelsDev })
+  assertServiceable({ providers }, { kit })
 })
