@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 16:31"
 description: "@dsh-plus/remote-settings"
 type: fact
 ---
@@ -43,12 +43,10 @@ authority）+ 浏览器令牌 cookie 认证把关；但浏览器侧 `dsh-client-
 `persistence`/`forms`/表单均为官方运行期属性（非公开契约）；上游实现漂移导致
 任一前置面不命中时，对应阶段 no-op，整体不产生副作用。
 
-## 历史迁移
+## 版本边界
 
-- 0.1.7-alpha.2 起 `settingsScope` 服务被移除（修复面迁至 `configForms`），
-  旧版 inject `settingsScope` 会在启动时报
-  `pending (waiting for service: settingsScope)`——本插件已随基线迁移；
-- 0.1.6 及以前仅翻 describe mirror（`settingsScope.describe()`），见 git 历史。
+修复面所在的服务随官方版本变化（`settingsScope` → `configForms`）；迁移记录见
+[官方版本变更记录](../../../docs/reference/官方版本变更记录.md)，本插件已随当前基线迁移。
 
 ## 契约
 

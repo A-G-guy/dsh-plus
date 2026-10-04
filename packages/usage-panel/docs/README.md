@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 03:46"
+last_modified: "2026-10-04 16:31"
 description: "@dsh-plus/usage-panel"
 type: fact
 ---
@@ -78,9 +78,10 @@ models.dev 的 provider id 不同名，精确匹配会全军覆没）：
 | 手工条目 | 行级 config `prices[]` | 插件配置页卡片（settings 命名空间 `dsh-plus-usage-panel`） | 小集合，人工增删改 |
 | 导入价目 | `$DSH_HOME/dsh-plus/usage-panel/prices.json` | `POST /prices-import`（整体替换，原子写） | models.dev 全量（数千条） |
 
-批量导入价目**绝不进配置文件**：0.1.7 起 `settings.update` 整值序列化进
-profile 的 `cordis.patch.yml`，数千条价目会淹没配置、每次保存都重写全量
-（曾致该文件 4.3 万行）。故导入只落 `prices.json`，config 只留手工小集合。
+批量导入价目**绝不进配置文件**：`settings.update` 整值序列化进 profile 的
+`cordis.patch.yml`，数千条价目会淹没配置、每次保存都重写全量（案例见
+[事故记录](../../../docs/repo/事故记录.md)）。故导入只落 `prices.json`，
+config 只留手工小集合。
 
 配置（settings namespace `dsh-plus-usage-panel`，插件配置页卡片编辑，五个字段全部
 有编辑器；两个间隔字段只接受区间内整数，越界即禁用保存）：

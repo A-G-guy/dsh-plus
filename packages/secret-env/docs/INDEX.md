@@ -1,6 +1,6 @@
 ---
 description: "Auto-generated index of this document folder."
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 16:31"
 ---
 <!-- projects-go:generated -->
 
@@ -8,4 +8,4 @@ last_modified: "2026-10-03 03:23"
 
 | Document | description | last_modified | type |
 | --- | --- | --- | --- |
-| [README](README.md) | @dsh-plus/secret-env | 2026-10-03 03:23 | fact |
+| [README](README.md) | @dsh-plus/secret-env | 2026-10-04 16:31 | fact |

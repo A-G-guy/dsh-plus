@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 03:57"
+last_modified: "2026-10-04 16:31"
 description: "@dsh-plus/access-gate"
 type: fact
 ---
@@ -11,7 +11,7 @@ browser-auth 合并**——官方 cookie 为唯一访问凭据，本插件补齐
 （静态资产、插件自有路由、可选 IP 附加围栏、IP 信任自动登录）并恢复 PWA 可用性。
 service+ui 混合插件（node 半拦截判定，浏览器半提供配置卡片）。
 
-## 与官方认证的关系（0.2.0 起，合并决策）
+## 与官方认证的关系
 
 官方（dsh 0.1.2-alpha 线）browser-auth 的覆盖与缺口：
 
@@ -21,9 +21,10 @@ service+ui 混合插件（node 半拦截判定，浏览器半提供配置卡片�
 - 官方 cookie：`dsh-auth-<sha256(authority)>`，HttpOnly + SameSite=Strict，
   默认 30 天，**绑定具体 host:port**；启动令牌每进程随机生成，重启即换。
 
-合并后语义：本插件不再持有自有 token/cookie/登录端点（旧 `dsh_gate` 通道删除——
-它本就只能过 gate、换不来应用可用性，官方 `/api` 无 cookie 仍 401）。凭据校验
-委托 `connection.requestRejection()`。
+本插件不持有自有 token/cookie/登录端点（自有 `dsh_gate` 通道只能过 gate、
+换不来应用可用性，官方 `/api` 无 cookie 仍 401）；凭据校验委托
+`connection.requestRejection()`。合并背景见
+[官方版本变更记录](../../../docs/reference/官方版本变更记录.md)。
 
 ## 放行规则
 
@@ -125,9 +126,9 @@ cordis 行级 `Config`（组合默认值）与 settings namespace `dsh-plus-acce
 | `trustForwardedFor` | true | 仅当入口代理强制覆盖 XFF 时开启（tailscale serve 满足） |
 | `autoLoginTrustedIps` | false | IP 信任自动登录：白名单来源未认证时自动铸造官方 cookie（免 token）；默认关闭 |
 
-**旧配置迁移**：0.1.x 的 `token`/`cookieMaxAgeHours`/`loginFailLimit`/`loginCooldownMs`
-键已删除；schemastery 透传忽略未知键（有测试钉死），旧 settings.yaml 不阻断加载，
-旧值自然失效。旧的 `dsh_gate` cookie 不再有任何效力。
+**旧配置迁移**：`token`/`cookieMaxAgeHours`/`loginFailLimit`/`loginCooldownMs` 键
+已不在 schema 内；schemastery 透传忽略未知键（有测试钉死），旧 settings.yaml 不阻断
+加载，旧值自然失效。旧 `dsh_gate` cookie 无效力。
 
 ## WebUI 配置卡片
 

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 16:31"
 description: "@dsh-plus/siyuan-tools 文档索引"
 type: fact
 ---
@@ -60,9 +60,9 @@ MCP `tools/call` 优先，连接失联且该能力有 CLI 兜底计划时改走
      附带 `displayReason`（en/zh）本地化展示文案；
    - `never`（**完全权限预设** `danger-full-access` 的配对值 / 无人值守）→
      **直接放行**——完全权限模式下写操作全部自动通过；
-   - 审批服务缺席、调用无会话 → 放行。ask 绝不静默降级为拒绝（早期实现
-     不看策略、盲发 ask，在 `never` 策略下会被官方桥接判成
-     `the user rejected tool …` 而用户根本看不到弹窗——已修复）。
+   - 审批服务缺席、调用无会话 → 放行。ask 绝不静默降级为拒绝（盲发 ask 在 `never`
+     策略下会被官方桥接判成 `the user rejected tool …` 而用户看不到弹窗，案例见
+     [事故记录](../../../docs/repo/事故记录.md)）。
 
 理由形如 `确认 SiYuan document action=move：写操作，通过审批后执行。`——
 对应思源的「写操作确认、读操作免确认」，但确认权完全交给 DSH 权限体系。

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 16:31"
 description: "@dsh-plus/web-files"
 type: fact
 ---
@@ -37,12 +37,12 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
   不经 `/read` 的二进制拒绝）；非图片经 `/media` 请求由服务端 415
   拒绝。桌面端头部全屏按钮（lucide Maximize/Minimize，经 shared 统一
   出口）切换 `wf-modal-fullscreen`；移动端本就真全屏，按钮隐藏。
-- 会话内「打开文件」手势不再接管（2026 起移除，原 `src/open-path.ts`
-  已删）：官方侧栏文件能力已覆盖 GUI 内查看诉求，ui-chat openFile →
-  openWorkspacePath 交还宿主实现（桌面端/Windows 走原生打开）。面板
-  内部的 /stat 定位入口（目录导航、文件先定位父目录再打开，`src/panel/
-  panel.tsx` 的 `openExternal` + `src/paths.ts` 双分隔符 `parentPath`）
-  仍然保留。
+- 会话内「打开文件」手势不接管（原 `src/open-path.ts` 已删）：官方侧栏文件能力已
+  覆盖 GUI 内查看诉求，ui-chat openFile → openWorkspacePath 交还宿主实现
+  （桌面端/Windows 走原生打开），移除背景见
+  [官方版本变更记录](../../../docs/reference/官方版本变更记录.md)。面板内部的 /stat
+  定位入口（目录导航、文件先定位父目录再打开，`src/panel/panel.tsx` 的
+  `openExternal` + `src/paths.ts` 双分隔符 `parentPath`）仍然保留。
 - 列表排序（`src/panel/sort.ts` 纯函数 + 单测）：名称/大小/修改时间
   × 升/降序，目录恒优先，平手回退名称升序；工具栏下拉选择
   （`src/panel/toolbar-menus.tsx`，与新建菜单同处）。排序按目录
@@ -107,7 +107,5 @@ slot 注入 / primitives / 语言包任一环节因上游升级失配时静默�
   （官方 dsh-atomic-write，Windows EPERM/EBUSY/EACCES 瞬态重试；用户文件
   0o666、插件偏好 0o600）；上传字节为流式 tmp + `commitTmpFile`（rename 失败
   回退复制）。
-- **已移除**：会话内「打开文件」手势接管（原 `src/open-path.ts`）——官方侧栏
-  文件能力已覆盖，交还宿主 openWorkspacePath（桌面端/Windows 走原生打开）。
 - 读回路径 `readFileText` 的 UTF-8 fatal 解码与二进制 415 拒绝为两端统一语义，
   无 GBK 支持（明确不在范围）。

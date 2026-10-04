@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 14:05"
+last_modified: "2026-10-04 16:31"
 description: "@dsh-plus/llm-pi 文档索引"
 type: fact
 ---
@@ -18,10 +18,11 @@ Files API 文件通道、失败自动降级 base64），模型继承官方内置
 
 ## 模型目录：唯一来源是 pi-ai 内置目录
 
-- **没有第二份目录**：0.1.43 起移除 models.dev 兜底源（连同 `catalogUrl` /
-  `catalogRefreshHours` / `catalogProxy` 三个根字段、缓存文件与 `/catalog/refresh`
-  端点一并删除）。继承解析只有一级：**pi-ai 内置目录命中 → 否则手写条目**，
-  消除"测试跑的和生产跑的不是同一份目录"这一类问题。
+- **没有第二份目录**：继承解析只有一级——**pi-ai 内置目录命中 → 否则手写条目**，
+  不存在 models.dev 兜底源与 `catalogUrl` / `catalogRefreshHours` / `catalogProxy`
+  根字段、目录缓存文件与 `/catalog/refresh` 端点，消除"测试跑的和生产跑的不是同一份
+  目录"这一类问题（变更决策见
+  [ADR 0007](../../../docs/repo/adr/0007-llm-pi目录唯一来源与动态面现场推导.md)）。
 - **自带诊断而非沉默**：显式 `extends` 引用不存在时**写时拒绝**并报出引用名与当前
   生效 pi-ai 版本；route 级 `extends` 不是内置 provider 时同样写时拒绝（列出可用
   provider）。运行期（lenient）遇到目录漂移只降级/跳过并告警，不弄挂 route。
@@ -101,20 +102,18 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
   能力（如 `deepseek-flash` 自动获得 image 模态 + `imageMaxBytes`）；route 级
   `extends: deepseek` 全量继承官方目录，模型级 `extends: 'deepseek/<id>'` 可起别名。
   官方目录取自 `resolveAdapterOptions({}, undefined)`，随 dsh 树升级自动更新。
-  注意**官方目录的模型代号会变**：0.1.6-alpha.2 移除了 `deepseek-v4-flash` 与
-  `deepseek-v4-flash-vision-exp`，改为 `deepseek-flash`（image 模态）与
-  `deepseek-v4-pro`（纯文本）。写死的旧代号未命中官方目录时按"手写条目"处理
-  （不报错，但拿不到继承能力）；显式 `extends: 'deepseek/<旧代号>'` 则会**写入即拒绝**。
-  另注意官方端点随协议切换变为 `https://api.deepseek.com/anthropic`（Messages 协议）。
-  `imageDetail` 已随 0.1.2-alpha.1 移除（官方 llm-deepseek 对含该字段的目录模型
-  直接抛错）——旧配置含 `imageDetail` 时**写时拒绝**并提示改用
-  `imagePixelBudget`/`imageMaxBytes`。
-- **0.2.0 接线（破坏性）**：官方把 `resolveApiKey` 换成 `resolveAuth`（认证头一次性
-  给出，本插件同官方 `llm-deepseek-api-key` 给 `x-api-key`），并把 `listModels` 改为
-  读 `discoverModels`（缺省即空目录）——本插件补传 `discoverModels`，从当前物化
+  注意**官方目录的模型代号会变**：写死的旧代号（如 `deepseek-v4-flash`）未命中官方
+  目录时按"手写条目"处理（不报错，但拿不到继承能力）；显式
+  `extends: 'deepseek/<旧代号>'` 则会**写入即拒绝**。官方端点与模型代号的历次变更见
+  [官方版本变更记录](../../../docs/reference/官方版本变更记录.md)。`imageDetail` 不在
+  官方目录字段内（含该字段的目录模型官方直接抛错）——旧配置含 `imageDetail` 时
+  **写时拒绝**并提示改用 `imagePixelBudget`/`imageMaxBytes`。
+- **接线**：认证头经 `resolveAuth` 一次性给出（同官方 `llm-deepseek-api-key` 给
+  `x-api-key`）；模型发现经 `discoverModels`（官方缺省即空目录），本插件从当前物化
   `connection.models` 经同树 `catalogModelInfo` 映射，否则模型选择器对该 route 无项。
-  套件形状自检（`checkDeepseekShape`）因此同时要求 `catalogModelInfo`，缺项即判定
-  deepseek route 不可用。
+  套件形状自检（`checkDeepseekShape`）因此要求 `catalogModelInfo`，缺项即判定
+  deepseek route 不可用。破坏性变更背景见
+  [官方版本变更记录](../../../docs/reference/官方版本变更记录.md)。
 - **文件通道免费获得**：视觉模型的图片输入先经 Files API 上传为 file_id 引用
   （配额清理、过期刷新、`file_id` 被拒后失效重传），上传失败自动降级 base64 内联——
   全套策略在官方适配器内部，本插件只喂配置。
@@ -157,7 +156,7 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
 | `defaultContextWindow` / `defaultMaxTokens` / `defaultInput` | 模型与继承源都未标注时的兜底 |
 | `reasoning` / `thinkingBudgets` / `cacheRetention` / `transport` | 同官方语义 |
 | `timeoutMs` / `websocketConnectTimeoutMs` / `streamIdleTimeoutMs` / `retryPolicy` | 同官方语义 |
-| `maxRequestImageBytes` | 单请求 base64 图片载荷上限（字节）；缺省 20MiB（0.1.2-alpha.1 起官方必需字段，旧配置免改自动生效） |
+| `maxRequestImageBytes` | 单请求 base64 图片载荷上限（字节）；缺省 20MiB（官方必需字段，旧配置免改自动生效） |
 | `requestImagePixelBudget` / `requestImageMaxBytes` | 单请求每个确定性内联图片版本的像素总预算 / 编码字节目标；缺省官方同值（2048² / 1MiB） |
 | `models` | 模型条目数组；**缺省且 provider 有 extends 时继承该源全部模型**；两者皆无即"草稿路由"——不注册进 adapter（无模型可服务），但仍出现在可配置 provider 目录里，便于先占位后补模型 |
 
@@ -187,19 +186,18 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
 
 compat 合并顺序：继承值（同协议才继承）→ route 级 → 模型级，逐字段后者胜出。
 字段门控以官方 `dsh-llm-pi-ai` 的 COMPAT_GATES 为唯一事实源，且**从官方安装副本
-现场推导、不再手抄**（`src/official-surface.ts`）。当前门控：completions 19 /
+现场推导而非手抄**（`src/official-surface.ts`）。当前门控：completions 19 /
 responses 4 / anthropic 7 个 offer 字段（官方表另有 mistral/bedrock/azure 等协议的
 门控，本插件不服务这些协议故不下发）；官方标 withhold 的字段**写时拒绝**并提示以
 目录 provider 名为 route。浏览器半的字段表由服务端经 `GET /catalog` 下发
 （`installCompatFields`），UI 渲染与服务端校验**同源**；协议下拉同理
 （`installProtocols`，兜底三元组）。
 
-> **历史（0.1.5-rc.1 教训）**：该表曾是手工镜像，而官方表在 npm 发布形态下不可静态
-> 引用（包根不导出、`src/` 不随发布）。0.1.5-rc.1 官方扩容 offer 字段而旧表漏收，
-> 导致官方可配字段被本插件**误拒**（静默功能缺失、无任何报错）。改为现场推导后官方
-> 新增字段自动可用；`tests/official-surface.test.ts` 独立复算官方副本逐字段守门推导
-> 正确性（含"必须来自现场推导而非内置快照"的断言）。推导失败时回退内置快照并**放宽
-> 未知键**（只拦快照里明确的 withhold），避免重演同类事故。
+> 门控表取自官方安装副本现场推导（`src/official-surface.ts`）。官方表在 npm 发布形态下
+> 不可静态引用（包根不导出、`src/` 不随发布），手工镜像曾漏收官方扩容字段导致官方可配
+> 字段被误拒（案例见 [事故记录](../../../docs/repo/事故记录.md)）。推导失败时回退内置
+> 快照并放宽未知键（只拦快照中明确的 withhold），`tests/official-surface.test.ts` 独立
+> 复算官方副本逐字段守门。
 
 ## 运行机制
 
@@ -207,7 +205,7 @@ responses 4 / anthropic 7 个 offer 字段（官方表另有 mistral/bedrock/azu
   逐项诊断）→ profiles 按原始 config 对象 identity 备忘 → `PiAiAdapter`
   （快照随 profiles identity 失效）→ `registerAdapter` + `registerModelDiscovery` +
   `registerConfigurableProviders`（官方 Models 页/拉取模型动作可见）。
-- 热更新走 0.1.7 volatile 原位提交（`loader/volatile-update` 换代 config 快照）：
+- 热更新走 volatile 原位提交（`loader/volatile-update` 换代 config 快照）：
   配置变更下一请求生效；route 集或 displayName/retryPolicy 变化 → `handle.replace`
   原子重注册；**写入被校验拒绝时保留旧注册**（官方同款护栏）。
 - **运行期宽松解析（lenient）**：`profiles()` 走宽松模式——已写入的 extends 引用
@@ -234,14 +232,14 @@ responses 4 / anthropic 7 个 offer 字段（官方表另有 mistral/bedrock/azu
 - `registerConfigurableProviders([])` 会抛 `INVALID_DIRECTORY`：空目录不注册，
   待 settings 用户层供数后自动补注册。
 - 迁移 route 名后，旧会话绑定旧 route 名，不能在新 route 上继续（dsh 原生语义）。
-- schemastery 陷阱（已踩过）：array 字段缺省物化为 `[]`（`defaultInput` 必须给
-  schema 默认值）；settings 层 deepFreeze 的解析值不能再过带键约束 dict 的 schema
-  二次校验——0.1.7 起为活动引用，`unwrapVolatile` 每次现取而非缓存快照。
-- schemastery 物化噪声（已踩过）：**dict 字段无 default 也会物化为 `{}`**
-  （`compat`/`headers`/`thinkingBudgets`），`defaultInput` 物化为 `['text']`、
-  模型 `input` 物化为 `[]`。凡"用户是否配置了该字段"的判定（如 adapter: deepseek
-  对 pi 专有字段的写时拒绝）必须按语义判空，否则 settings 投递路径会把合法配置
-  误判拒绝，fiber 在启动期 FAILED（lifeboat 会隔离插件）。
+- schemastery 陷阱：array 字段缺省物化为 `[]`（`defaultInput` 必须给 schema 默认值）；
+  settings 层 deepFreeze 的解析值不能再过带键约束 dict 的 schema 二次校验——
+  volatile 字段为活动引用，`unwrapVolatile` 每次现取而非缓存快照。
+- schemastery 物化噪声：**dict 字段无 default 也会物化为 `{}`**（`compat`/`headers`/
+  `thinkingBudgets`），`defaultInput` 物化为 `['text']`、模型 `input` 物化为 `[]`。
+  凡"用户是否配置了该字段"的判定（如 adapter: deepseek 对 pi 专有字段的写时拒绝）
+  必须按语义判空，否则 settings 投递路径会把合法配置误判拒绝，fiber 在启动期 FAILED
+  （lifeboat 会隔离插件）。
 - **官方打包形态变化**只影响推导：协议/字段集/compat 各自回退并记诊断，配置页
   状态行可见；此时 compat 采用"未知键放行"策略，宁可少拦也不误拒。
 

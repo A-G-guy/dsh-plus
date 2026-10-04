@@ -8,7 +8,7 @@
 [![npm @dsh-plus](https://img.shields.io/badge/npm-%40dsh--plus-CB3837?logo=npm&logoColor=white)](https://www.npmjs.com/org/dsh-plus)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![dsh](https://img.shields.io/badge/dsh-0.2.0--rc.1-blue)](https://www.npmjs.com/package/@deepseek-ai/dsh)
+[![dsh](https://img.shields.io/badge/dsh-0.2.1--alpha.1-blue)](https://www.npmjs.com/package/@deepseek-ai/dsh)
 
 </div>
 
@@ -25,7 +25,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | [`@dsh-plus/ui-mobile-fit`](packages/ui-mobile-fit) | UI | 通用 | 纯 CSS 覆盖的移动端窄屏响应式适配，不 fork 上游、跟随升级 | [docs](packages/ui-mobile-fit/docs/README.md) |
 | [`@dsh-plus/remote-settings`](packages/remote-settings) | UI | 通用 | 修复非 loopback 访问（loopback-rewrite 反代）下设置→模型目录报错与插件配置卡片不渲染 | [docs](packages/remote-settings/docs/README.md) |
 | [`@dsh-plus/notify-email`](packages/notify-email) | service + UI | 通用 | 任务完成 / 等待决策 / 出错停止时向指定邮箱发送邮件通知 | [docs](packages/notify-email/docs/README.md) |
-| [`@dsh-plus/llm-pi`](packages/llm-pi) | service + UI | 通用 | 基于 pi-ai 的自定义 LLM 路由：三协议 route、官方目录继承、全量 compat、models.dev 兜底 | [docs](packages/llm-pi/docs/README.md) |
+| [`@dsh-plus/llm-pi`](packages/llm-pi) | service + UI | 通用 | 基于 pi-ai 的自定义 LLM 路由：协议集合现场推导、官方目录继承与字段级覆盖、全量 compat、内置模型目录浏览器 | [docs](packages/llm-pi/docs/README.md) |
 | [`@dsh-plus/lifeboat`](packages/lifeboat) | service | 通用 | 故障救生艇：兄弟插件崩溃自动隔离（写 patch 层禁用）+ LLM 应急翻译 + 邮件告警 | [docs](packages/lifeboat/docs/README.md) |
 | [`@dsh-plus/reload`](packages/reload) | service + UI | Linux | 设置页「重新加载」按钮与 `/reload` 命令：两段确认+倒计时后重启 dsh-web（systemd，桌面/Windows 下按钮禁用并提示） | [docs](packages/reload/docs/README.md) |
 | [`@dsh-plus/usage-panel`](packages/usage-panel) | service + UI | 通用 | 全量会话 token 用量面板：实时+历史扫描双通道聚合，按日/模型报表，可选价目估算费用 | [docs](packages/usage-panel/docs/README.md) |
@@ -59,7 +59,7 @@ systemd，桌面端/Windows 下相关能力显式降级。桌面/Windows 的验�
 
 - Node.js **≥ 22**（测试依赖 `node --test` 直接运行 TypeScript）
 - pnpm（经 corepack 启用）
-- 已安装 DSH（`@deepseek-ai/dsh`，兼容下限 `0.2.0`，当前基线 `0.2.0-rc.1`）
+- 已安装 DSH（`@deepseek-ai/dsh`，兼容下限 `0.2.0`，当前基线 `0.2.1-alpha.1`）
 
 ### 安装到 DSH
 
@@ -73,13 +73,13 @@ dsh plugin --profile web add @dsh-plus/ui-mobile-fit
 dsh plugin --profile web add @dsh-plus/bundle-main
 ```
 
-安装后重启 dsh web 生效；带配置界面的插件在 webui「设置 → 插件 → 插件配置」中调整，
-持久化到 `$DSH_HOME/settings.yaml` 并热生效。
+安装后重启 dsh web 生效；带配置界面的插件在 webui 侧边栏「插件」页对应行的
+「配置」入口调整，持久化到 profile 行级覆盖层（`cordis.patch.yml`）并热生效。
 
 **桌面端（官方 DSH Desktop）**：插件不经 CLI 安装——在桌面端 GUI 内
 「设置 → 插件 → 安装插件」搜索 `@dsh-plus/…` 安装（桌面端内置 pnpm 管理，
 profile 为 `desktop`，配置落 `$DSH_HOME/profiles/desktop`；CLI 不接受
-`--profile desktop`）。带配置卡片的插件在同一页「插件配置」调整，与 web 端一致。
+`--profile desktop`）。带配置卡片的插件在该页对应行的「配置」入口调整，与 web 端一致。
 
 **Windows**：CLI 安装与开发在 Git Bash/WSL 下照常（`dsh plugin add` 同命令）；
 插件运行时的平台适配见下方「平台与桌面端支持」。
@@ -119,16 +119,27 @@ dsh plugin --profile web add link:packages/ui-mobile-fit
 ```
 packages/
   ui-mobile-fit/        移动端窄屏适配（UI 覆盖）
+  remote-settings/      非 loopback 页面设置平面修复
   notify-email/         任务结束邮件通知
   llm-pi/               自定义 LLM 路由
   lifeboat/             故障救生艇（隔离/应急翻译/告警）
-  reload/               设置按钮 + /reload 命令重启 dsh-web
+  reload/               设置按钮 + /reload 命令重载或重启 dsh-web
   usage-panel/          用量统计面板（token 聚合/报表/费用估算）
   access-gate/          Web 访问围栏（合并官方认证 / token 输入页恢复 PWA / IP 附加围栏）
+  boot-retry/           弱网引导重试（零缓存重试加载器）
+  web-cache-headers/    GUI 静态资源 immutable 缓存头
+  web-boot-timing/      弱网首屏计时观测
+  web-shell-sw/         外壳 Service Worker（离线兜底）
+  error-retry/          特定报错纳入上游重试
+  subagent-model/       子代理独立模型配置
   web-files/            Web 内嵌类 SFTP 文件浏览与编辑
-  tool-text-transform/  演示工具（dev-only，不进生产 bundle）
+  image-studio/         图像工作室（文生图/图生图/画廊）
+  secret-env/           环境变量密钥注入（$DSH_VAR_*）
+  web-search-services/  web_search 免费后端聚合（Python 桥接特例）
   siyuan/               思源笔记主插件（能力发现服务 + siyuan 预设注册）
   siyuan-tools/         思源笔记子插件（预设内工具包装 + 审批/写前快照安全网）
+  tool-text-transform/  演示工具（dev-only，不进生产 bundle）
+  agent-preset-chat/    纯聊天 agent 预设（id=chat）
   bundle-main/          聚合编排层
   shared/               共享纯函数库
 scripts/

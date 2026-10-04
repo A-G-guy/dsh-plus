@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 16:31"
 description: "@dsh-plus/siyuan 文档索引"
 type: fact
 ---
@@ -157,4 +157,4 @@ type: fact
   提示词不变量（含族名×动作防过时校验）、运行时健康/降级/过滤/执行路径/
   快照（全部离线，fixture = 录制的 tools/list 与 cobra help，纯产品元数据）。
 - 运行 `python3 scripts/dshctl.py test` 覆盖 lint/typecheck/build/单测。
-- 子插件（工具包装与安全策略）见 [../siyuan-tools/docs/README.md](../siyuan-tools/docs/README.md)。
+- 子插件（工具包装与安全策略）见 [siyuan-tools 文档](../../siyuan-tools/docs/README.md)。

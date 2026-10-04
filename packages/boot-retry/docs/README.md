@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-04 16:31"
 description: "@dsh-plus/boot-retry"
 type: fact
 ---
@@ -75,11 +75,11 @@ bootstrap 脚本（`@deepseek-ai/dsh-client-modules` 单模块 combo，实测 gz
 
 ### 为什么不声明模块级 `inject = ['webServer']`
 
-初版这么写，被 `dshctl smoke-prod` 实测捕获：headless profile 里没有 `webServer`
-服务，硬 inject 使本行**永久 pending**，`assertEntriesActivated` 判定
-`1 entry did not activate`，**整个 boot 失败**——即本插件会让一个本来正常的
-headless profile 起不来。现改为 `apply` 内 `ctx.inject(['webServer'], ...)`
-惰性等待：服务缺席时本行照常 active，只是什么都不注册。
+硬 inject 会让 headless profile（无 `webServer` 服务）的本行**永久 pending**，
+`assertEntriesActivated` 判定 `1 entry did not activate`，**整个 boot 失败**——
+即本插件会让一个本来正常的 headless profile 起不来（案例见
+[事故记录](../../../docs/repo/事故记录.md)）。故改为 `apply` 内
+`ctx.inject(['webServer'], ...)` 惰性等待：服务缺席时本行照常 active，只是什么都不注册。
 （`tests/` 有对应回归用例，`inject` 必须为空数组。）
 
 ## 配置
