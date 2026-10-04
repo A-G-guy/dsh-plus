@@ -26,7 +26,8 @@ const ownZh = {
 
   syncId: '预算 Sync ID',
   syncIdHint:
-    'Actual 客户端 → 设置 → 显示高级设置 → Sync ID。留空则读环境变量 ACTUAL_SYNC_ID。多数命令都需要它。',
+    'Actual 客户端 → 设置 → 显示高级设置 → Sync ID，即 budgets list 里的 groupId；' +
+    '不要填同一条目里的 cloudFileId（填错会报 Budget not found）。留空则读环境变量 ACTUAL_SYNC_ID。',
 
   cliCommand: 'CLI 命令',
   cliCommandHint:
@@ -88,7 +89,8 @@ const ownEn = {
 
   syncId: 'Budget sync ID',
   syncIdHint:
-    'Actual client → Settings → Show advanced settings → Sync ID. Empty falls back to the ACTUAL_SYNC_ID environment variable. Most commands need it.',
+    'Actual client → Settings → Show advanced settings → Sync ID, i.e. the groupId in budgets list; ' +
+    'not the cloudFileId of the same entry (a wrong value reports Budget not found). Empty falls back to ACTUAL_SYNC_ID.',
 
   cliCommand: 'CLI command',
   cliCommandHint:

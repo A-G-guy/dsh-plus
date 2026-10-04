@@ -221,7 +221,7 @@ test('given a connected session, when invoking, then the MCP path is used', asyn
   assert.deepEqual(session.calls, [{ name: 'accounts', args: { action: 'list' } }])
 })
 
-test('given an unavailable session, when invoking, then the direct CLI path is used', async () => {
+test('given an unavailable session, when invoking, then the direct CLI path is used and keeps the MCP envelope', async () => {
   const { runtime, session } = harness()
   const manifest = await runtime.discover()
   // 会话在发现后掉线：模拟传输层失效
@@ -233,11 +233,28 @@ test('given an unavailable session, when invoking, then the direct CLI path is u
       timeoutMs: 5_000,
     },
   )
-  assert.deepEqual(value, {
-    ok: true,
-    argv: ['accounts', 'list', '--format', 'json'],
-  })
   assert.deepEqual(session.calls, [], '会话掉线时不得再走 MCP 通道')
+  // 值来自 CLI 替身（{ok, argv}）而非会话；mcp 源条目在 DSH 侧由官方适配器
+  // 注册，故兜底也必须交回同形状的信封。
+  const envelope = value as { content?: { type: string; text: string }[] }
+  assert.equal(envelope.content?.length, 1)
+  assert.equal(envelope.content?.[0]?.type, 'text')
+  assert.match(envelope.content?.[0]?.text ?? '', /"ok": true/)
+  assert.match(envelope.content?.[0]?.text ?? '', /accounts/)
+})
+
+test('given a cli-source catalog, when invoking, then the raw CLI value is returned unwrapped', async () => {
+  const { runtime } = harness({ failConnect: true })
+  const manifest = await runtime.discover()
+  const value = await runtime.invoke(
+    entryOf(manifest.entries, 'accounts'),
+    { action: 'list' },
+    {
+      timeoutMs: 5_000,
+    },
+  )
+  // cli 源条目注册为裸 ToolDefinition 并自行渲染原始值——不该被包成信封
+  assert.deepEqual(value, { ok: true, argv: ['accounts', 'list', '--format', 'json'] })
 })
 
 test('given allow and deny, when discovering, then exposure is filtered on raw family names', async () => {

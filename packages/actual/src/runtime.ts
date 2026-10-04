@@ -13,6 +13,7 @@ import {
   type CapabilityEntry,
   type CliConfig,
   type CliDeps,
+  callToolResultOf,
   computeDrift,
   createEntryInvoker,
   discover,
@@ -137,6 +138,11 @@ export class ActualRuntime {
   /**
    * 执行一次能力调用：**MCP 优先，CLI 兜底**。
    *
+   * 返回值形状由 `entry.source` 决定（它同时决定子插件用哪个注册器）：
+   * `'mcp'` → canonical MCP 结果信封（官方 `createMcpToolDefinition` 要求）；
+   * `'cli'` → CLI 原始值（裸 ToolDefinition 自行渲染）。兜底路径也必须守这条
+   * 契约——否则会话掉线后同一个工具会因形状不同而失败。
+   *
    * 兜底只在 MCP 会话本身不可用时触发——工具失败已由服务端表示为错误结果并
    * 转成异常，绝不重放（写操作重放会造成重复记账）。
    */
@@ -150,7 +156,8 @@ export class ActualRuntime {
     }
     if (entry.cli !== undefined && this.cliInvoker !== undefined) {
       this.logger.warn(`Actual MCP 会话不可用，降级为 CLI 直连执行：${entry.name}`)
-      return await this.cliInvoker(entry, args, options)
+      const value = await this.cliInvoker(entry, args, options)
+      return entry.source === 'mcp' ? callToolResultOf(value) : value
     }
     throw new Error(
       `Actual MCP 不可达且该能力无 CLI 回退：${entry.name}（${this.lastError ?? '未连接'}）`,

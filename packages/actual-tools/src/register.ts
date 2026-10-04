@@ -3,9 +3,10 @@
  *
  * 两类来源共用一套注册/换代机制：
  * - `source: 'mcp'`（主源）经官方 `createMcpToolDefinition` 适配——canonical 输出、
- *   镜像投影、错误语义全沿用官方实现；
+ *   镜像投影、错误语义全沿用官方实现，因此 `call` 必须交回 canonical MCP 结果
+ *   信封（由 `@dsh-plus/actual` 的 invoke 保证）；
  * - `source: 'cli'`（MCP 会话不可用时的降级目录）注册为裸 ToolDefinition，
- *   入参按原始 JSON Schema 自校验。
+ *   入参按原始 JSON Schema 自校验，值经 `formatToolValue` 渲染。
  * @module @dsh-plus/actual-tools/register
  */
 
@@ -16,7 +17,7 @@ import {
   type ToolDefinition,
   validateJsonSchemaValue,
 } from '@deepseek-ai/dsh-tools'
-import type { ActualManifest, CapabilityEntry } from '@dsh-plus/actual'
+import { type ActualManifest, type CapabilityEntry, formatToolValue } from '@dsh-plus/actual'
 
 import type { ActualToolsConfig } from './config.ts'
 
@@ -49,12 +50,6 @@ export function publicNameOf(config: ActualToolsConfig, rawName: string): string
   return config.namePrefix + rawName
 }
 
-/** CLI 输出渲染：字符串原样，其余 pretty JSON。 */
-export function formatValue(value: unknown): string {
-  if (typeof value === 'string') return value
-  return JSON.stringify(value, null, 2) ?? String(value)
-}
-
 /** 降级目录条目：裸 ToolDefinition，入参按原始 Schema 自校验。 */
 function cliDefinition(deps: RegisterDeps, entry: CapabilityEntry, name: string): ToolDefinition {
   const timeoutMs = deps.config.toolCallTimeoutMs
@@ -65,7 +60,7 @@ function cliDefinition(deps: RegisterDeps, entry: CapabilityEntry, name: string)
     timeoutMs,
     output: {
       schema: {},
-      render: (_args, value) => [{ type: 'text', text: formatValue(value) }],
+      render: (_args, value) => [{ type: 'text', text: formatToolValue(value) }],
     },
     async execute(args, exec) {
       const violations = validateJsonSchemaValue(entry.inputSchema as JsonSchemaNode, args)

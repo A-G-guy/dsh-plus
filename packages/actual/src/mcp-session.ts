@@ -3,8 +3,10 @@
  * 接到官方客户端上——**格式二（DSH 工具）由格式一（MCP tools/list）引出**，
  * 与思源「MCP 为主源、CLI 为兜底」同构，且不额外起进程。
  *
- * 工具调用的返回值经「JSON → 文本 → JSON」往返，与直连 CLI 路径形状一致；
- * 服务端已把工具失败表示为 `isError` 结果，这里转成异常上抛，绝不触发兜底重放
+ * 成功时**原样返回 canonical MCP 结果信封**（`CallToolResult`），不在此层解包：
+ * DSH 侧 `source: 'mcp'` 的条目由官方 `createMcpToolDefinition` 注册，它的
+ * `call` 必须返回该信封（裸值会被判为 invalid MCP result 或渲染成空内容）。
+ * 失败信封（`isError`）在此转成异常上抛，绝不触发 CLI 兜底重放
  * （写操作重放会造成重复记账）。
  * @module @dsh-plus/actual/mcp-session
  */
@@ -13,7 +15,6 @@ import {
   type CapabilityEntry,
   createActualMcpServer,
   type EntryInvoker,
-  parseJsonOrText,
 } from '@dsh-plus/actual-mcp'
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client'
 
@@ -24,6 +25,7 @@ export interface McpSessionLike {
   connect(timeoutMs: number): Promise<void>
   /** `tools/list` → 能力条目（`source` 由调用方补齐）。 */
   listTools(): Promise<Pick<CapabilityEntry, 'name' | 'description' | 'inputSchema'>[]>
+  /** 执行一次工具：成功返回 canonical MCP 结果信封，失败（`isError`）抛错。 */
   callTool(
     name: string,
     args: Record<string, unknown>,
@@ -119,9 +121,9 @@ class InProcessSession implements McpSessionLike {
       }
     }
     const result = await client.callTool({ name, arguments: args }, requestOptions)
-    const text = textOf(result)
-    if ((result as { isError?: unknown }).isError === true) throw new Error(text)
-    return parseJsonOrText(text)
+    // 成功即原样交回信封；仅失败信封升级为异常（调用方据此报错，且不触发兜底重放）。
+    if ((result as { isError?: unknown }).isError === true) throw new Error(textOf(result))
+    return result
   }
 
   async close(): Promise<void> {

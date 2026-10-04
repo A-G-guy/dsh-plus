@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-05 04:17"
+last_modified: "2026-10-05 06:35"
 description: "@dsh-plus/actual-tools：仅被 actual 预设挂载的 DSH 工具包装（写确认策略、环境快照、CLI 兜底）"
 type: fact
 ---
@@ -27,11 +27,17 @@ Actual Budget 子插件：**仅被 `actual` 预设挂载**，把主插件
 - **降级条目**（MCP 会话不可用时的 CLI help 树目录）：裸 `ToolDefinition`——
   `parameters` = help 树派生的原始 Schema（`additionalProperties: false`），
   执行时先 `validateJsonSchemaValue` 自校验，`--format json` 输出作 canonical 值，
-  渲染为字符串原样 / 其余 pretty JSON；
+  经 `formatToolValue` 渲染（字符串原样 / 其余 pretty JSON / 空输出占位）；
 - **命名**：`namePrefix`（默认 `actual_`）+ 裸族名（`actual_accounts`、
   `actual_query`、`actual_category-groups`）；
 - **换代**：清单签名（含 `source`）一致则跳过；变化则整代 dispose 后同步重建
   （模型侧不会出现半代目录）；单条注册冲突只丢弃该条并记 error。
+
+**两条路径的返回值形状不同，且由 `entry.source` 绑定**：官方适配器要求 `call`
+交回 canonical `CallToolResult` 信封，裸 ToolDefinition 则消费原始值。故
+`ctx.actual.invoke` 按 `source` 返回对应形状（会话掉线后的 CLI 兜底同样如此），
+本包两种注册器原样对接、不做形状转换——转换只会把适配器拒收的风险重新引进来。
+渲染统一走 `@dsh-plus/actual` 再导出的 `formatToolValue`，不在此包另写一份。
 
 ### 执行
 

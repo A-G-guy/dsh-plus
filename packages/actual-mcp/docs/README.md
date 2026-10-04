@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-05 05:09"
+last_modified: "2026-10-05 06:35"
 description: "@dsh-plus/actual-mcp：把 @actual-app/cli 按 help 文本运行时封装为 MCP 服务（格式一）的契约、派生规则与可移植用法"
 type: fact
 ---
@@ -52,7 +52,13 @@ undefined → `?? 80`），长描述会折到描述列（缩进远大于条目�
   置真（保守判定），写工具标 `destructiveHint`；
 - 工具失败返回 `isError: true` 的结果并携带 CLI 原文——**不抛协议错误**，
   模型始终能读到真实原因；
-- 入参先经 `fromJsonSchema` 校验，越界枚举在触达执行器之前即被拒。
+- 入参先经 `fromJsonSchema` 校验，越界枚举在触达执行器之前即被拒；
+- **成功结果一律是 canonical `CallToolResult` 信封**，由 `callToolResultOf`
+  统一构造：单个文本块承载 CLI 输出（字符串原样，其余 pretty JSON）；空输出给
+  `(no output)` 占位——空文本在模型侧与「什么都没发生」无法区分。该函数是
+  **值→结果的唯一映射处**，主插件的 CLI 兜底也经它构造，因为 DSH 侧
+  `source: 'mcp'` 的条目由官方 `createMcpToolDefinition` 注册、其 `call` 必须
+  返回信封：裸数组/标量被判 `invalid MCP result`，裸对象渲染成空内容。
 
 ## 与 CLI 的边界（`src/cli-run.ts`）
 

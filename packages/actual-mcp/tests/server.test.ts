@@ -5,7 +5,7 @@ import { Client, InMemoryTransport } from '@modelcontextprotocol/client'
 
 import type { CapabilityEntry } from '../src/contract.ts'
 import type { EntryInvoker } from '../src/invoke.ts'
-import { createActualMcpServer } from '../src/server.ts'
+import { callToolResultOf, createActualMcpServer, formatToolValue } from '../src/server.ts'
 
 const READ_ENTRY: CapabilityEntry = {
   name: 'accounts',
@@ -89,6 +89,40 @@ test('given a successful call, when invoking, then the CLI value is rendered as 
       const content = result.content as { type: string; text: string }[]
       assert.equal(content[0]?.type, 'text')
       assert.equal(content[0]?.text, '[\n  {\n    "id": "a1",\n    "name": "Checking"\n  }\n]')
+    },
+  )
+})
+
+test('given business values of every shape, when building a result, then it is one text block', () => {
+  // 值→结果的唯一映射：服务端与主插件的 CLI 兜底共用，形状必须稳定。
+  assert.deepEqual(callToolResultOf([1, 2]), {
+    content: [{ type: 'text', text: '[\n  1,\n  2\n]' }],
+  })
+  assert.deepEqual(callToolResultOf({ a: 1 }), {
+    content: [{ type: 'text', text: '{\n  "a": 1\n}' }],
+  })
+  assert.deepEqual(callToolResultOf('raw text'), { content: [{ type: 'text', text: 'raw text' }] })
+  assert.deepEqual(callToolResultOf(0), { content: [{ type: 'text', text: '0' }] })
+})
+
+test('given empty output, when building a result, then an explicit placeholder replaces it', () => {
+  // 空文本在模型侧与「什么都没发生」无法区分，故成功但无输出要显式占位。
+  for (const empty of ['', '   ', '\n']) {
+    assert.equal(formatToolValue(empty), '(no output)')
+    assert.deepEqual(callToolResultOf(empty), {
+      content: [{ type: 'text', text: '(no output)' }],
+    })
+  }
+})
+
+test('given an empty CLI result, when calling the tool, then the placeholder reaches the client', async () => {
+  await withClient(
+    [READ_ENTRY],
+    async () => '',
+    async (client) => {
+      const result = await client.callTool({ name: 'accounts', arguments: { action: 'list' } })
+      const content = result.content as { type: string; text: string }[]
+      assert.equal(content[0]?.text, '(no output)')
     },
   )
 })

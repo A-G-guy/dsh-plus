@@ -2,14 +2,13 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
-import type { ActualManifest, CapabilityEntry } from '@dsh-plus/actual'
+import { type ActualManifest, type CapabilityEntry, callToolResultOf } from '@dsh-plus/actual'
 
 import { type ActualToolsConfig, Config } from '../src/config.ts'
 import {
   applyManifest,
   buildDefinition,
   emptyToolState,
-  formatValue,
   publicNameOf,
   type RegisterDeps,
 } from '../src/register.ts'
@@ -183,7 +182,42 @@ test('given one conflicting registration, when applying, then the rest stay regi
   assert.match(errors[0] ?? '', /register actual_transactions failed/)
 })
 
-test('given a value, when rendering, then strings pass through and objects pretty-print', () => {
-  assert.equal(formatValue('raw text'), 'raw text')
-  assert.equal(formatValue([1, 2]), '[\n  1,\n  2\n]')
+test('given an MCP definition, when the result is an array or an object, then the official adapter accepts it and renders text', async () => {
+  // 回归：`source: 'mcp'` 的条目走官方 createMcpToolDefinition，它的 call 必须交回
+  // canonical MCP 结果信封。曾因直接回裸值导致数组输出被判 invalid MCP result、
+  // 对象输出渲染成空内容（模型侧读不到任何数据）。
+  const ctx = fakeRegisterCtx().ctx
+  const payloads: unknown[] = [
+    [{ id: 'a1', name: 'Checking', balance: 721107 }],
+    { version: { version: '26.10.0' } },
+  ]
+  for (const payload of payloads) {
+    const deps: RegisterDeps = {
+      ctx,
+      config: configWith(),
+      invoke: async () => callToolResultOf(payload),
+      logger: { error: () => {} },
+    }
+    const definition = buildDefinition(deps, MCP_ENTRY, 'actual_transactions')
+    const value = await definition.execute({ action: 'list' }, runContext())
+    const rendered = definition.output?.render({}, value as never) as {
+      type: string
+      text: string
+    }[]
+    assert.equal(rendered?.length, 1)
+    assert.equal(rendered?.[0]?.type, 'text')
+    assert.match(rendered?.[0]?.text ?? '', /a1|26\.10\.0/)
+  }
+})
+
+test('given an MCP definition, when the result is a bare value, then the official adapter rejects it', async () => {
+  // 反向钉住同一条契约：裸值不是合法结果，故 invoke 必须给信封而非业务值本身。
+  const deps: RegisterDeps = {
+    ctx: fakeRegisterCtx().ctx,
+    config: configWith(),
+    invoke: async () => [{ id: 'a1' }],
+    logger: { error: () => {} },
+  }
+  const definition = buildDefinition(deps, MCP_ENTRY, 'actual_transactions')
+  await assert.rejects(definition.execute({ action: 'list' }, runContext()), /invalid MCP result/)
 })

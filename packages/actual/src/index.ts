@@ -40,10 +40,12 @@ export {
   actionOf,
   askDisplayReason,
   type ClassifySettings,
+  callToolResultOf,
   classifyAction,
   DEFAULT_ALWAYS_ASK,
   DEFAULT_READ_ACTIONS,
   DEFAULT_READ_TOOLS,
+  formatToolValue,
   toSettings,
 } from '@dsh-plus/actual-mcp'
 export { ACTUAL_PRESET_ID, actualPresetDefinition } from './definition.ts'

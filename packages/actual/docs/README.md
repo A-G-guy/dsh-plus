@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-05 05:09"
+last_modified: "2026-10-05 06:35"
 description: "@dsh-plus/actual：Actual Budget 能力发现主插件与 actual agent 预设的契约、配置项与部署方式"
 type: fact
 ---
@@ -35,6 +35,11 @@ ToolDefinition，执行面仍是同一条 CLI 链路，**可用性不受影响**
 **执行**：`invoke` 在 MCP 会话可用时走 `tools/call`，会话不可用时按条目自带的
 `cli` 计划直连。工具失败已由 MCP 服务端表示为 `isError` 结果并转成异常，因此
 **绝不重放**——写操作重放会造成重复记账。
+
+**返回值形状由 `entry.source` 决定**（它同时决定子插件用哪个注册器）：`'mcp'`
+交回 canonical MCP 结果信封（官方 `createMcpToolDefinition` 的硬要求，裸值会被
+判 `invalid MCP result` 或渲染成空内容），`'cli'` 交回 CLI 原始值由裸
+ToolDefinition 自行渲染——两条路径（含会话掉线后的 CLI 兜底）都必须守这条契约。
 
 **发现失败**：`discover()` 单飞；失败记 `lastError`（已脱敏）并按
 1s→30s 指数退避重连，连续 10 次后放弃一次告警，等待 `/reload` 触发。
@@ -120,7 +125,7 @@ GUI 覆盖不到的字段见卡片内的「其余字段」说明；密钥推荐�
 | `password` | `''` | 🔑 | 服务器口令；空则问凭据 seam 的 `ACTUAL_PASSWORD` |
 | `sessionToken` | `''` | 🔑 | 会话令牌，优先于 `password`；空则问 `ACTUAL_SESSION_TOKEN` |
 | `encryptionPassword` | `''` | 🔑 | 端到端加密口令（仅加密预算需要） |
-| `syncId` | `''` | ✅ | 预算 Sync ID（空 = 用 `ACTUAL_SYNC_ID`；多数命令必需） |
+| `syncId` | `''` | ✅ | 预算 Sync ID（空 = 用 `ACTUAL_SYNC_ID`；多数命令必需）。**取 `budgets list` 里的 `groupId`**，不是同一条目的 `cloudFileId`（服务端 file id，填错必报 `Budget not found`） |
 | `dataDir` | `''` → 插件数据目录 `cli-data` | — | CLI 本地缓存目录，与用户自有 CLI 隔离 |
 | `cacheTtl` / `lockTimeout` | `60` / `10` | — | 官方 CLI 同名参数（秒） |
 | `cliCommand` | `[]` | ✅ | CLI argv 前缀；空 = 自动（`ACTUAL_CLI` → PATH → 包内） |
@@ -167,12 +172,14 @@ GUI 覆盖不到的字段见卡片内的「其余字段」说明；密钥推荐�
 
 ## 测试
 
-`tests/{runtime,definition,prompt,draft,credentials,refs}.test.ts`：
+`tests/{runtime,mcp-session,definition,prompt,draft,credentials,refs}.test.ts`：
 
 - `runtime` 用真实 help fixture + 替身 MCP 会话覆盖：清单来源与 12 个族、
   每个条目的 CLI 兜底计划、版本策略 warn/strict/unknown 三态、越界与降级
-  两条 invoke 路径、allow/deny 过滤、订阅通知与退订、密钥脱敏、dispose 清理、
-  CLI 不可用时的错误与重连；
+  两条 invoke 路径（含**返回值形状随 `entry.source`**：mcp 给信封、cli 给原始值）、
+  allow/deny 过滤、订阅通知与退订、密钥脱敏、dispose 清理、CLI 不可用时的错误与重连；
+- `mcp-session` 用**真实服务端 × 真实客户端**（InMemoryTransport）盯住往返形状：
+  数组/对象结果原样交回信封、空输出得到 `(no output)` 占位、失败信封转成异常；
 - `definition` 钉住预设只挂预期行（含 auxTools 开关与 persona 覆盖）；
 - `prompt` 钉住提示词骨架、无关注入的缺席、不复述工具用法，以及**引用的每个
   动作都真实存在于 help fixture**；

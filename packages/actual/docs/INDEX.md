@@ -1,6 +1,6 @@
 ---
 description: "Auto-generated index of this document folder."
-last_modified: "2026-10-05 05:09"
+last_modified: "2026-10-05 06:35"
 ---
 <!-- projects-go:generated -->
 
@@ -8,4 +8,4 @@ last_modified: "2026-10-05 05:09"
 
 | Document | description | last_modified | type |
 | --- | --- | --- | --- |
-| [README](README.md) | @dsh-plus/actual：Actual Budget 能力发现主插件与 actual agent 预设的契约、配置项与部署方式 | 2026-10-05 05:09 | fact |
+| [README](README.md) | @dsh-plus/actual：Actual Budget 能力发现主插件与 actual agent 预设的契约、配置项与部署方式 | 2026-10-05 06:35 | fact |

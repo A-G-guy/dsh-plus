@@ -76,4 +76,9 @@ export {
 } from './help.ts'
 export { createEntryInvoker, type EntryInvoker, type InvokeOptions } from './invoke.ts'
 export { createNodeDeps } from './node-io.ts'
-export { type ActualMcpHost, createActualMcpServer, formatToolValue } from './server.ts'
+export {
+  type ActualMcpHost,
+  callToolResultOf,
+  createActualMcpServer,
+  formatToolValue,
+} from './server.ts'
