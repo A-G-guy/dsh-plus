@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-06 00:35"
+last_modified: "2026-10-06 01:55"
 description: "@dsh-plus/actual-tools：仅被 actual 预设挂载的 DSH 工具包装（写确认策略、环境快照、CLI 兜底）"
 type: fact
 ---
@@ -11,10 +11,10 @@ Actual Budget 子插件：**仅被 `actual` 预设挂载**，把主插件
 工具——预设外完全不可见，不污染其他预设。
 
 > 预设的完整工具目录 = 本插件包装的全部 Actual 派生工具（官方 CLI 的 12 个族
-> 外加伴侣 CLI 声明的 `report`/`dashboard` 两族）+ `auxTools` 时官方挂载的三行
+> 外加伴侣 CLI 声明的 `report`/`dashboard`/`reference` 三族）+ `auxTools` 时官方挂载的三行
 > 辅助工具（web_search/web_fetch、ask_user_question、todo_write）。
 > 辅助行不经本插件的审批链路（`owned` 不含，交还瀑布，与 standard 预设行为
-> 一致）；Actual 的族名（`accounts`/`query`/`tags`/`server`/`report`/`dashboard`…）与辅助工具
+> 一致）；Actual 的族名（`accounts`/`query`/`tags`/`server`/`report`/`dashboard`/`reference`…）与辅助工具
 > 无重名，且主插件 `namePrefix` 默认 `actual_`，因此不需要思源那套
 > `effectiveDeny` 让位机制。
 

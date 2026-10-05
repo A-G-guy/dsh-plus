@@ -1,7 +1,7 @@
 ---
-description: "@dsh-plus/actual-reports：补上官方 API/CLI 缺失的自定义报表与仪表盘能力（伴侣 CLI），含运行期依赖解析、官方流程镜像、两族语义与错误模型"
+description: "@dsh-plus/actual-reports：补上官方 API/CLI 缺失的自定义报表与仪表盘能力（伴侣 CLI），含运行期依赖解析、官方流程镜像、report/dashboard/reference 三族语义与错误模型"
 type: fact
-last_modified: "2026-10-06 00:35"
+last_modified: "2026-10-06 01:55"
 ---
 
 # @dsh-plus/actual-reports
@@ -9,7 +9,8 @@ last_modified: "2026-10-06 00:35"
 官方 `@actual-app/api` 与 `@actual-app/cli` 都没有自定义报表与仪表盘的公开操作面：
 报表只能在界面里改，仪表盘更是连 CLI 入口都没有（界面里那个「报告」入口点进去
 就是仪表盘）。本包以**伴侣 CLI**的形态补上这块能力，并由 `@dsh-plus/actual-mcp`
-把它的能力描述符合并进工具目录（官方 CLI 派生的 12 个族 + 本包声明的 2 个族）。
+把它的能力描述符合并进工具目录（官方 CLI 派生的 12 个族 + 本包声明的 3 个族：
+`report`、`dashboard`、`reference`）。
 
 ## 为什么是伴侣 CLI，而不是库或插件
 
@@ -81,24 +82,59 @@ last_modified: "2026-10-06 00:35"
   本包在写前就用显式错误拦下。`layout` 只改几何字段（多给字段即报错）。
 - 官方语义如实透出：`reset` 是「恢复默认组件集」而不是清空；`delete` 会连带删除
   该页全部组件、且拒绝删除最后一个页面（官方英文错误原样上抛）。
-- 组件 `meta` 的形状随类型而变（服务端认得 14 种类型，见工具描述），本包不代为编造：
-  模型先用 `widgets` 读现场同类组件照抄 meta；只有报表组件的形状是固定的
-  `{"id":"<报表 id>"}`。官方默认仪表盘里能读到的实例形状（实测）：`summary-card` 为
-  `{name, content, timeFrame, conditions, conditionsOp}`、`spending-card` 为
-  `{name, mode}`、`markdown-card` 为 `{content}`、`net-worth-card`/`cash-flow-card`
-  可以是空对象。
+- 组件 `meta` 的形状随类型而变，本包不代为编造：字段名与类型用 `reference widgets`
+  取（读的是本机官方模型源码，见下节），现场同类组件的实例用 `widgets` 读；
+  只有报表组件的形状是固定的 `{"id":"<报表 id>"}`。
+
+## 参考族（`reference`）
+
+动作：`widgets`、`prefs`（只读，需打开预算读偏好表）、`source`、`report-options`
+（只读，**不打开预算**——不加载官方 api、不取锁、不下载预算）。
+
+界面里才有的语义（组件类型与 meta 字段、实验开关、报表字段取值、卡片渲染细节）
+过去只能联网翻官方仓库。实际上这些都在本机：官方 CLI 自带 `@actual-app/core` 的
+**源码**，服务端又静态托管整个 Web 客户端（含 source map 里的原始源码）。参考族把
+这两处变成可查询的数据：
+
+- `widgets`：从本机 `@actual-app/core` 的 `src/types/models/dashboard.ts` 现场解析出
+  组件类型、每个类型 meta 的字段名/类型/可选性，以及同文件里的共享类型（`TimeFrame`、
+  `SummaryContent` 等）。**不内置模型快照**：字段名写错不会报错，界面里只是渲染不出来，
+  所以宁可每次现场解析，解析不出就报错（`--type <类型>` 可只取一个类型）。
+- `prefs`：实验开关全集取自本机 core 的 `FeatureFlag` 声明，取值取自当前预算的
+  `preferences` 表；未设置的开关按未开启处理（与界面一致）。实验类组件（公式卡等）
+  开关没开时**写入会成功但界面什么都不渲染**，所以写之前先查。
+- `source`：`--list` / `--grep` / `--file` 三选一，`--kind core`（本机官方源码）或
+  `--kind client`（服务端托管的客户端源码）。客户端源码由「首页 → 入口 bundle →
+  `__vite__mapDeps` 的 chunk 列表 → 各 chunk 的 `.map`」现场发现，按资产名（内嵌内容
+  哈希）缓存在 `<dataDir>/client-source/<服务端>/`；默认最多读 8 份资产（`--max-assets`），
+  首页 HTML 每次重读以便发现新版本。返回值里带覆盖率（读了几份、跳过了几份），
+  读不全或没找到时显式报错并给出下一步。
+- `report-options`：报表定义的合法取值（实时区间、粒度、分组、口径、排序、模式）与
+  静态区间写法；`--verify` 额外用本机客户端源码逐字核对上表，返回 `found`/`missing`。
+
+边界：参考族只读本机与服务端资产，不写预算、不发外网请求；`--kind client` 也只是读
+`serverUrl` 指向的那台服务端。资产布局与预期不符（没有 chunk 清单、没有 source map、
+连不上）时显式报错，并提示改用 `--kind core` 或 `--core-dir`。
 
 ## 动作表是唯一事实来源
 
-`src/actions.ts` 同时驱动 argv 解析、帮助文本与暴露给模型/宿主的工具 schema
-（`src/capability.ts`），三者不可能漂移；`@dsh-plus/actual-mcp` 只做搬运与执行
-（`entry.reports` 执行计划 → `[node, <本包 bin>] report|dashboard …`，并下发
+各族定义在 `src/actions-report.ts` / `src/actions-dashboard.ts` / `src/actions-reference.ts`，
+由 `src/actions.ts` 登记；同一张表驱动 argv 解析、帮助文本与暴露给模型/宿主的工具
+schema（`src/capability.ts`），三者不可能漂移。`@dsh-plus/actual-mcp` 只做搬运与执行
+（`entry.reports` 执行计划 → `[node, <本包 bin>] report|dashboard|reference …`，并下发
 `DSH_ACTUAL_CLI_ENTRY`）。因此新增动作只需改动作表一处。
+
+`needsBudget: false` 的动作（`widgets`、`source`、`report-options`）由 `cli.ts` 直接执行，
+不加载官方 api、不取锁、不同步预算——查组件字段不该付一次同步的代价；这类动作拿到
+的预算访问面是守卫对象，一旦被访问就报「本地动作接线错误」。
 
 ## 测试
 
 `tests/` 全部零网络零时钟：日期/区间移植（`dates`）、计算口径（`compute`）、
-模型白名单（`model`）、锁与缓存判定（`lock`、`env`）、能力描述符（`capability`）、
-CLI 端到端（`cli`，含退出码与错误文案）、仪表盘读写（`dashboard`）。
+模型白名单（`model`）、锁与缓存判定（`lock`、`env`）、api 定位优先级（`api-path`）、
+能力描述符（`capability`）、CLI 端到端（`cli`，含退出码、错误文案与「本地动作不开预算」）、
+仪表盘读写（`dashboard`）、参考族（`reference`：模型解析、偏好与实验开关、core/client
+源码检索与缓存、报表词汇核对、各条失败路径）。
 预算替身（`tests/fixtures/fake-budget.ts`）只按表返回已聚合行、记录查询与 handler
-调用，并按官方语义复刻仪表盘写入，因此断言的是「怎么调、怎么读回」而不是替身自身。
+调用，并按官方语义复刻仪表盘写入；本地依赖替身（`tests/fixtures/local-deps.ts`）给
+内存文件系统与可编程 HTTP，因此断言的是「怎么调、怎么读回」而不是替身自身。

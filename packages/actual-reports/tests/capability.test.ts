@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { DASHBOARD_FAMILY, FAMILIES, REPORT_FAMILY } from '../src/actions.ts'
+import { DASHBOARD_FAMILY, FAMILIES, REFERENCE_FAMILY, REPORT_FAMILY } from '../src/actions.ts'
 import { ACTION_NAMES, FAMILY_CAPABILITIES, findCapability } from '../src/capability.ts'
 import { runnerOf } from '../src/cli.ts'
 
@@ -27,8 +27,34 @@ test('报表族能力：名字、只读标记与执行计划', () => {
   )
   assert.deepEqual(
     FAMILY_CAPABILITIES.map((item) => item.name),
-    ['report', 'dashboard'],
+    ['report', 'dashboard', 'reference'],
   )
+})
+
+test('参考族能力：全只读、不打开预算、schema 与动作表同源', () => {
+  const capability = findCapability('reference')
+  assert.ok(capability)
+  assert.equal(capability.readOnly, true, '参考族只读')
+  assert.deepEqual(
+    capability.reports.actions.map((item) => item.action),
+    ACTION_NAMES(REFERENCE_FAMILY),
+  )
+  for (const action of REFERENCE_FAMILY.actions) {
+    assert.equal(action.readOnly, true, `${action.action} 应为只读`)
+  }
+  const skipBudget = REFERENCE_FAMILY.actions
+    .filter((item) => item.needsBudget === false)
+    .map((item) => item.action)
+  assert.deepEqual(
+    skipBudget,
+    ['widgets', 'source', 'report-options'],
+    '只有要读偏好表的动作才开预算',
+  )
+  const properties = capability.inputSchema.properties as Record<string, Record<string, unknown>>
+  assert.deepEqual(properties.action?.enum, ACTION_NAMES(REFERENCE_FAMILY))
+  assert.equal(properties.verify?.type, 'boolean')
+  assert.equal(properties.grep?.type, 'string')
+  assert.deepEqual(capability.inputSchema.required, ['action'])
 })
 
 test('仪表盘族能力：动作表、只读标记与执行器接线齐备', () => {

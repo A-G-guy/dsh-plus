@@ -95,7 +95,7 @@ test('伴侣 CLI 可解析时报表族入目录，不可解析时只留告警', 
   const available = reportsCapabilities(depsOf([]))
   assert.deepEqual(
     available.entries.map((entry) => entry.name),
-    ['report', 'dashboard'],
+    ['report', 'dashboard', 'reference'],
   )
   assert.equal(available.warning, undefined)
   assert.equal(available.entries[0]?.reports?.kind, 'reports')
@@ -109,7 +109,7 @@ test('发现结果包含扩展族，且该族不计入交叉校验漂移', async
   const discovery = await discover({ ...CONFIG, cliCommand: [] }, depsOf([]))
   assert.ok(discovery.entries.some((entry) => entry.name === 'report'))
   const extras = discovery.entries.filter((entry) => entry.reports !== undefined).map((e) => e.name)
-  assert.deepEqual(extras, ['report', 'dashboard'])
+  assert.deepEqual(extras, ['report', 'dashboard', 'reference'])
   const drift = computeDrift(discovery.entries, discovery.tree.families, [], extras)
   assert.equal(drift.cliOnly.includes('report'), false)
   assert.equal(drift.mcpOnly.includes('report'), false)

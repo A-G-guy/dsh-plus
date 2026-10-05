@@ -24,6 +24,7 @@ function configOf(overrides: Partial<ReportsConfig> = {}): ReportsConfig {
     noLock: false,
     cliEntry: '',
     apiPath: '',
+    coreDir: '',
     ...overrides,
   }
 }
@@ -43,8 +44,10 @@ function ioOf(files: string[], pathValue = '/usr/bin:/opt/npm/bin'): ReportsIo {
       mtimeMs: async () => undefined,
       touch: async () => undefined,
       exists: async (path: string) => known.has(path),
+      isDirectory: async () => false,
       realpath: async (path: string) => path,
     },
+    http: { getText: async () => undefined },
     now: () => 0,
     sleep: async () => undefined,
     pid: 1,

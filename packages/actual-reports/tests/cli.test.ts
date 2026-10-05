@@ -5,7 +5,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -475,6 +475,53 @@ test('帮助与表格输出', async () => {
     assert.match(text, /【系列合计】/)
     assert.match(text, /【逐区间合计】/)
     assert.match(text, /100\.00/)
+  } finally {
+    await rm(harnessed.dataDir, { recursive: true, force: true })
+  }
+})
+
+/** 本机 core 源码替身（写在临时目录里，走真实文件系统）。 */
+const FAKE_MODEL = `export type SummaryWidget = AbstractWidget<
+  'summary-card',
+  { name?: string; content?: string } | null
+>;
+`
+
+test('参考族：本地动作不加载官方 api、不打开预算', async () => {
+  const harnessed = await harness(FIXTURE)
+  const coreDir = join(harnessed.dataDir, 'core')
+  try {
+    await mkdir(join(coreDir, 'src', 'types', 'models'), { recursive: true })
+    await writeFile(join(coreDir, 'src', 'types', 'models', 'dashboard.ts'), FAKE_MODEL)
+
+    const code = await runCli(['reference', 'widgets', '--core-dir', coreDir], harnessed.runtime)
+    assert.equal(code, 0, harnessed.errors.join('\n'))
+    assert.deepEqual(harnessed.apiCalls, [], '本地动作不该下载/加载/同步预算')
+    const payload = jsonOf(harnessed)
+    assert.equal(payload.source, join(coreDir, 'src', 'types', 'models', 'dashboard.ts'))
+    const types = payload.types as { type: string; fields: { name: string }[] }[]
+    assert.deepEqual(
+      types.map((item) => item.type),
+      ['summary-card'],
+    )
+    assert.deepEqual(
+      types[0]?.fields.map((item) => item.name),
+      ['name', 'content'],
+    )
+  } finally {
+    await rm(harnessed.dataDir, { recursive: true, force: true })
+  }
+})
+
+test('参考族：--help 与未知族文案都把参考族列出来', async () => {
+  const harnessed = await harness(FIXTURE)
+  try {
+    assert.equal(await runCli(['--help'], harnessed.runtime), 0)
+    assert.match(harnessed.output.join('\n'), /reference/)
+
+    harnessed.errors.length = 0
+    assert.equal(await runCli(['nope', 'list'], harnessed.runtime), 2)
+    assert.match(errorOf(harnessed), /可用族：report \/ dashboard \/ reference/)
   } finally {
     await rm(harnessed.dataDir, { recursive: true, force: true })
   }

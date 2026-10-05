@@ -10,7 +10,7 @@
  */
 
 import { fileURLToPath } from 'node:url'
-import { type ActionContext, type ActionResult, todayOf } from './action.ts'
+import { type ActionAccess, type ActionContext, type ActionResult, todayOf } from './action.ts'
 import {
   type ActionSpec,
   FAMILIES,
@@ -19,13 +19,14 @@ import {
   findFamily,
   type OptionSpec,
 } from './actions.ts'
-import type { LoadedApi } from './api.ts'
+import type { ActualApiModule, LoadedApi } from './api.ts'
 import { loadApi, resolveApiPath } from './api.ts'
 import { ACTION_NAMES } from './capability.ts'
 import { runDashboardAction } from './dashboard-commands.ts'
 import { dayFromDate } from './dates.ts'
 import { type ReportsConfig, resolveConfig } from './env.ts'
 import { createNodeIo, type ReportsIo } from './node-io.ts'
+import { runReferenceAction } from './reference-commands.ts'
 import type { OutputFormat } from './render.ts'
 import { renderJson } from './render.ts'
 import { runReportAction } from './report-commands.ts'
@@ -64,7 +65,13 @@ const GLOBAL_SPECS: readonly OptionSpec[] = [
     prop: 'cliEntry',
     flag: 'cli-entry',
     type: 'string',
-    description: '官方 CLI 入口（用于定位它自带的 api）',
+    description: '官方 CLI 入口（用于定位它自带的 api 与 core）',
+  },
+  {
+    prop: 'coreDir',
+    flag: 'core-dir',
+    type: 'string',
+    description: '直接指定 @actual-app/core 包根（reference 族读本机源码用）',
   },
   { prop: 'help', flag: 'help', type: 'boolean', description: '显示帮助' },
   { prop: 'version', flag: 'version', type: 'boolean', description: '显示版本' },
@@ -355,23 +362,33 @@ export async function runCli(argv: string[], runtime: CliRuntime): Promise<numbe
       readTextFile: (path) => runtime.readTextFile(path),
       homedir: () => runtime.io.homedir(),
     })
-    const loaded = await runtime.loadApi(config, runtime.io)
     const log = (message: string): void => {
       if (parsed.verbose) runtime.writeError(message)
     }
-    const result = await withBudget(
-      config,
-      loaded,
-      { mutates: !parsed.action.readOnly, log },
-      runtime.io,
-      async (context) =>
-        await runnerOf(parsed.family.family)(parsed.action.action, {
-          access: { api: loaded.module, call: context.call },
-          flags: parsed.flags,
-          format: parsed.format,
-          today: effectiveToday(parsed.flags, runtime.io),
-        }),
-    )
+    const base = {
+      flags: parsed.flags,
+      format: parsed.format,
+      today: effectiveToday(parsed.flags, runtime.io),
+      local: { config, io: runtime.io },
+    }
+    const runner = runnerOf(parsed.family.family)
+    let result: ActionResult
+    if (parsed.action.needsBudget === false) {
+      result = await runner(parsed.action.action, { ...base, access: localOnlyAccess() })
+    } else {
+      const loaded = await runtime.loadApi(config, runtime.io)
+      result = await withBudget(
+        config,
+        loaded,
+        { mutates: !parsed.action.readOnly, log },
+        runtime.io,
+        async (context) =>
+          await runner(parsed.action.action, {
+            ...base,
+            access: { api: loaded.module, call: context.call },
+          }),
+      )
+    }
     runtime.write(parsed.format === 'json' ? renderJson(result.payload) : result.text)
     return 0
   } catch (error) {
@@ -402,9 +419,17 @@ function overridesOf(flags: Record<string, string | boolean>): {
   dataDir?: string
   apiPath?: string
   cliEntry?: string
+  coreDir?: string
 } {
   const overrides: Record<string, string> = {}
-  for (const prop of ['serverUrl', 'syncId', 'dataDir', 'apiPath', 'cliEntry'] as const) {
+  for (const prop of [
+    'serverUrl',
+    'syncId',
+    'dataDir',
+    'apiPath',
+    'cliEntry',
+    'coreDir',
+  ] as const) {
     const value = flags[prop]
     if (typeof value === 'string' && value !== '') overrides[prop] = value
   }
@@ -415,6 +440,20 @@ function overridesOf(flags: Record<string, string | boolean>): {
 const RUNNERS: Record<string, (action: string, context: ActionContext) => Promise<ActionResult>> = {
   report: runReportAction,
   dashboard: runDashboardAction,
+  reference: runReferenceAction,
+}
+
+/**
+ * 本地动作的预算访问守卫。
+ *
+ * `needsBudget: false` 的动作不打开预算（因此不加载官方 api、不取锁、不同步），
+ * 碰到 `access` 就说明族里的本地动作误用了预算——属接线错误，当场报出来。
+ */
+function localOnlyAccess(): ActionAccess {
+  const deny = (): never => {
+    throw new Error('该动作按声明不需要预算会话，却访问了预算（本地动作接线错误）')
+  }
+  return { api: { q: deny, aqlQuery: deny } as unknown as ActualApiModule, call: deny }
 }
 
 /** Node 运行期实现（bin 入口用）。 */

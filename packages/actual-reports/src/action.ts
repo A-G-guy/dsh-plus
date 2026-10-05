@@ -8,11 +8,25 @@
 
 import type { ActualApiModule } from './api.ts'
 import { dayFromDate } from './dates.ts'
+import type { ReportsConfig } from './env.ts'
+import type { ReportsIo } from './node-io.ts'
 import type { OutputFormat } from './render.ts'
 
 /** 动作入参（已解析的布尔/字符串/JSON 文本值）。 */
 export interface ActionFlags {
   [prop: string]: string | boolean | undefined
+}
+
+/**
+ * 不依赖预算会话的本地依赖。
+ *
+ * 本地动作（`reference` 族的 widgets / source / report-options）只读「本机已安装的
+ * 官方资产」与「服务端静态托管的客户端资产」，不必打开预算：拿到服务端地址与缓存
+ * 目录即可。
+ */
+export interface LocalDeps {
+  config: ReportsConfig
+  io: ReportsIo
 }
 
 /** 一次动作执行所需的上下文。 */
@@ -22,6 +36,8 @@ export interface ActionContext {
   format: OutputFormat
   /** 今天的 `yyyy-MM-dd`（注入时钟，测试可固定）。 */
   today: string
+  /** 本地依赖（本地动作用；需要预算的动作不读它）。 */
+  local: LocalDeps
 }
 
 /** 预算访问面：官方 server handler 调用 + AQL 查询。 */

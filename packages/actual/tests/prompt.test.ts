@@ -181,6 +181,19 @@ test('given the default persona, when checking report guidance, then it matches 
   )
 })
 
+test('given the default persona, when customizing widgets, then it points at the local reference tool', () => {
+  assert.match(DEFAULT_PERSONA_PREFIX, /readable from the installed Actual/)
+  assert.match(
+    DEFAULT_PERSONA_PREFIX,
+    /ask the reference tool \(widgets \/ prefs \/ source \/ report-options\), which reads the installed Actual — not the web/,
+  )
+  // 参考族的只读动作必须与分类口径一致：免审批清单里要有它们
+  assert.match(
+    DEFAULT_PERSONA_PREFIX,
+    /data \/ widgets \/ prefs \/ source \/ report-options\) run directly/,
+  )
+})
+
 test('given the default persona, when checking safety clauses, then confirmation and secrets are covered', () => {
   assert.match(DEFAULT_PERSONA_PREFIX, /confirmed through the approval dialog/)
   assert.match(DEFAULT_PERSONA_PREFIX, /run directly under full permission/)

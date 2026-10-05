@@ -13,6 +13,7 @@ import type { ActionContext } from '../src/action.ts'
 import { runDashboardAction } from '../src/dashboard-commands.ts'
 import { buildWidgetRow } from '../src/dashboard-store.ts'
 import { type FakeBudgetFixture, fakeBudget } from './fixtures/fake-budget.ts'
+import { fakeLocal } from './fixtures/local-deps.ts'
 
 /** 基准现场：一页两个组件（一个是报表组件，一个是失效引用）。 */
 const FIXTURE: FakeBudgetFixture = {
@@ -53,12 +54,14 @@ function contextOf(
   calls: { name: string; args: unknown }[]
 } {
   const fake = fakeBudget(fixture)
+  const local = fakeLocal()
   return {
     context: {
       access: { api: fake.api, call: fake.call },
       flags,
       format: 'json',
       today: '2025-03-15',
+      local: { config: local.config, io: local.io },
     },
     calls: fake.calls,
   }

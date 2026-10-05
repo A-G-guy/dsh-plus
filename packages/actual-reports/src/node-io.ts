@@ -31,13 +31,35 @@ export interface ReportsFs {
   /** 触碰 mtime（心跳续租）。 */
   touch(path: string): Promise<void>
   exists(path: string): Promise<boolean>
+  /** 是否为目录（不存在返回 false）。 */
+  isDirectory(path: string): Promise<boolean>
   /** 解析真实路径（软链展开）；不存在时抛错。 */
   realpath(path: string): Promise<string>
 }
 
-/** 注入面：文件系统 + 时间 + 进程事实。 */
+/** HTTP 取回的文本（非 2xx 时 text 为空串，只看 status）。 */
+export interface HttpText {
+  status: number
+  text: string
+}
+
+/** HTTP 窄面（只收本包用到的动作）。
+ *
+ * 本包只访问 `serverUrl` 指向的 Actual 服务端：一是官方 API 的同步端点，二是
+ * 它静态托管的客户端资产（`reference source` 读客户端语义时用）。
+ */
+export interface ReportsHttp {
+  /**
+   * GET 文本。
+   * @returns 连不上/超时时返回 undefined（调用方据此给出显式错误），HTTP 状态照实返回。
+   */
+  getText(url: string, timeoutMs: number): Promise<HttpText | undefined>
+}
+
+/** 注入面：文件系统 + 网络 + 时间 + 进程事实。 */
 export interface ReportsIo {
   fs: ReportsFs
+  http: ReportsHttp
   now(): number
   sleep(ms: number): Promise<void>
   /** 当前进程号（读者标记与存活判定用）。 */
@@ -116,6 +138,14 @@ export const nodeFs: ReportsFs = {
       throw error
     }
   },
+  async isDirectory(path) {
+    try {
+      return (await stat(path)).isDirectory()
+    } catch (error) {
+      if (codeOf(error) === 'ENOENT') return false
+      throw error
+    }
+  },
   async realpath(path) {
     const { realpath } = await import('node:fs/promises')
     return await realpath(path)
@@ -133,10 +163,28 @@ export function pidAlive(pid: number): boolean {
   }
 }
 
+/** 真实 HTTP 实现（只走宿主 fetch，不引入依赖）。 */
+export const nodeHttp: ReportsHttp = {
+  async getText(url, timeoutMs) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const response = await fetch(url, { signal: controller.signal })
+      if (!response.ok) return { status: response.status, text: '' }
+      return { status: response.status, text: await response.text() }
+    } catch {
+      return undefined
+    } finally {
+      clearTimeout(timer)
+    }
+  },
+}
+
 /** 真实 I/O 面。 */
 export function createNodeIo(): ReportsIo {
   return {
     fs: nodeFs,
+    http: nodeHttp,
     now: () => Date.now(),
     sleep: async (ms) => await new Promise((resolve) => setTimeout(resolve, ms)),
     pid: process.pid,

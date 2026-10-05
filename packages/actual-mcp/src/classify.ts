@@ -22,7 +22,12 @@ export const DEFAULT_READ_ACTIONS: readonly string[] = [
   'month',
   'months',
   'payee-rules',
+  // 伴侣报表 CLI 的 `reference prefs`：只读偏好表；官方 CLI 无 prefs 动作，无歧义。
+  'prefs',
+  'report-options',
   'run',
+  // 伴侣报表 CLI 的 `reference source`：只读本机/服务端资产；官方 CLI 无 source 动作。
+  'source',
   'tables',
   'version',
   // 伴侣报表 CLI 的 `dashboard widgets`：只读列举组件；官方 CLI 无 widgets 动作，无歧义。

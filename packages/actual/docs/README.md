@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-06 00:35"
+last_modified: "2026-10-06 01:55"
 description: "@dsh-plus/actual：Actual Budget 能力发现主插件与 actual agent 预设的契约、配置项与部署方式"
 type: fact
 ---
@@ -175,7 +175,7 @@ GUI 覆盖不到的字段见卡片内的「其余字段」说明；密钥推荐�
 `tests/{runtime,mcp-session,definition,prompt,draft,credentials,refs}.test.ts`：
 
 - `runtime` 用真实 help fixture + 替身 MCP 会话覆盖：清单来源与 12 个官方族
-  （扩展族 `report`/`dashboard` 由伴侣 CLI 声明并入，不计漂移）、
+  （扩展族 `report`/`dashboard`/`reference` 由伴侣 CLI 声明并入，不计漂移）、
   每个条目的 CLI 兜底计划、版本策略 warn/strict/unknown 三态、越界与降级
   两条 invoke 路径（含**返回值形状随 `entry.source`**：mcp 给信封、cli 给原始值）、
   allow/deny 过滤、订阅通知与退订、密钥脱敏、dispose 清理、CLI 不可用时的错误与重连；

@@ -1,6 +1,6 @@
 ---
 description: "Auto-generated index of this document folder."
-last_modified: "2026-10-06 00:35"
+last_modified: "2026-10-06 01:55"
 ---
 <!-- projects-go:generated -->
 
@@ -8,6 +8,7 @@ last_modified: "2026-10-06 00:35"
 
 | Document | description | last_modified | type |
 | --- | --- | --- | --- |
+| [0010-定制语义现场读本机资产](0010-定制语义现场读本机资产.md) | ADR 0010：定制类官方语义改为运行期读本机资产（core 模型源码 + 服务端客户端 source map），不内置版本化快照 | 2026-10-06 01:55 | event |
 | [0009-伴侣CLI补齐官方缺失的报表与仪表盘能力](0009-伴侣CLI补齐官方缺失的报表与仪表盘能力.md) | ADR 0009：自定义报表与仪表盘能力以伴侣 CLI（@dsh-plus/actual-reports）补齐，运行期复用官方 CLI 的 api 解析，并新增第四条分层例外 | 2026-10-06 00:35 | event |
 | [0008-Actual能力封装以MCP为主源-CLI由部署方提供](0008-Actual能力封装以MCP为主源-CLI由部署方提供.md) | ADR 0008：Actual 能力封装以 MCP 为主源、工具由其派生，CLI 由部署方提供而非打进依赖 | 2026-10-05 04:17 | event |
 | [0007-llm-pi目录唯一来源与动态面现场推导](0007-llm-pi目录唯一来源与动态面现场推导.md) | ADR 0007：llm-pi 模型目录唯一来自 pi-ai 内置目录，协议/compat/字段集全部现场推导 | 2026-10-04 14:10 | event |

@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/actual-reports",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh-plus companion CLI: Actual Budget 自定义报表与仪表盘能力（读定义、按官方口径本地算数、经官方 report/* 与 dashboard-* 通道写入）——运行时从检测到的官方 CLI 解析 @actual-app/api，零新增依赖",
   "type": "module",
   "main": "lib/index.js",

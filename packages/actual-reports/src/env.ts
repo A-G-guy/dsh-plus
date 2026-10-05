@@ -25,6 +25,8 @@ export interface ConfigOverrides {
   cliEntry?: string
   /** 直接指定 @actual-app/api 入口（调试/自定义部署用）。 */
   apiPath?: string
+  /** 直接指定 @actual-app/core 包根（源码参考用；缺省从官方 CLI 解析）。 */
+  coreDir?: string
 }
 
 /** 解析所需的外部事实（注入以便单测）。 */
@@ -50,6 +52,8 @@ export interface ReportsConfig {
   cliEntry: string
   /** 显式 api 入口（可能为空）。 */
   apiPath: string
+  /** 显式 core 包根（可能为空：此时从官方 CLI 解析）。 */
+  coreDir: string
 }
 
 /** 非负整数环境变量解析；给了非法值即报错。 */
@@ -152,5 +156,6 @@ export async function resolveConfig(
     noLock: parseBooleanFlag(env.ACTUAL_NO_LOCK, 'ACTUAL_NO_LOCK', false),
     cliEntry: pick(overrides.cliEntry, env.DSH_ACTUAL_CLI_ENTRY),
     apiPath: pick(overrides.apiPath, env.DSH_ACTUAL_API_PATH),
+    coreDir: pick(overrides.coreDir, env.DSH_ACTUAL_CORE_DIR),
   }
 }
