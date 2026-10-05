@@ -14,6 +14,8 @@
 export const DEFAULT_READ_ACTIONS: readonly string[] = [
   'balance',
   'common',
+  // 伴侣报表 CLI 的 `report data`：只读试算（不落盘）；官方 CLI 无 data 动作，无歧义。
+  'data',
   'fields',
   'get-id',
   'list',
@@ -23,6 +25,8 @@ export const DEFAULT_READ_ACTIONS: readonly string[] = [
   'run',
   'tables',
   'version',
+  // 伴侣报表 CLI 的 `dashboard widgets`：只读列举组件；官方 CLI 无 widgets 动作，无歧义。
+  'widgets',
 ]
 
 /** 无 action 属性时按工具名判读的只读名单（本 CLI 的 `sync` 属写侧，故默认空）。 */

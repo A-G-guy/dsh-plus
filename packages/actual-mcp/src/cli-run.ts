@@ -35,6 +35,11 @@ export interface CliDeps {
   /** 解析本机可用的 `@actual-app/cli` 入口绝对路径；不可解析返回 undefined。 */
   resolveBundledCli(): string | undefined
   /**
+   * 解析伴侣 CLI（`@dsh-plus/actual-reports` 的可执行入口）绝对路径；
+   * 不可解析返回 undefined（该族随后不进目录，绝不挂一个调不动的工具）。
+   */
+  resolveReportsCli?(): string | undefined
+  /**
    * 每次执行前解析密钥（宿主凭据 seam 的接线点）。
    * **每次操作即时 resolve**，不跨操作缓存——改口令后下一次调用即生效。
    * 缺席（独立 MCP 进程、测试）即只用静态配置，密钥仍可由 CLI 自行继承环境。
@@ -287,12 +292,29 @@ export class ActualCli {
 
   /** 串行执行一条 CLI 调用，返回 stdout。 */
   run(argv: string[], options: CliRunOptions): Promise<string> {
-    const task = this.tail.then(
-      () => this.exec(argv, options),
-      () => this.exec(argv, options),
-    )
-    this.tail = task.catch(() => undefined)
-    return task
+    return this.enqueue(() => this.exec(this.binding.argv, argv, options, {}))
+  }
+
+  /**
+   * 以**同一条串行队列**执行伴侣 CLI：换 argv 前缀与少量附加环境，其余语义
+   * （密钥下发、`--format json`、超时、脱敏、退出码）与官方 CLI 完全一致。
+   *
+   * 队列共享是硬要求：两条链路都要读写同一个预算目录，并发只会自伤。
+   */
+  runWith(
+    argvPrefix: string[],
+    argv: string[],
+    options: CliRunOptions,
+    extraEnv: Record<string, string> = {},
+  ): Promise<string> {
+    return this.enqueue(() => this.exec(argvPrefix, argv, options, extraEnv))
+  }
+
+  /** 入队：失败不阻塞后续调用（用 catch 把尾部归一）。 */
+  private enqueue(task: () => Promise<string>): Promise<string> {
+    const run = this.tail.then(task, task)
+    this.tail = run.catch(() => undefined)
+    return run
   }
 
   /**
@@ -311,13 +333,19 @@ export class ActualCli {
   }
 
   /** 实际执行：拼接全局项、合并超时预算、校验退出码并脱敏错误。 */
-  private async exec(argv: string[], options: CliRunOptions): Promise<string> {
-    const [file, ...prefix] = this.binding.argv
+  private async exec(
+    argvPrefix: string[],
+    argv: string[],
+    options: CliRunOptions,
+    extraEnv: Record<string, string>,
+  ): Promise<string> {
+    const [file, ...prefix] = argvPrefix
     if (file === undefined) throw new Error('Actual CLI 未配置')
     const secrets = await this.secretsFor()
     const env = mergedEnv(this.deps, {
       ...this.binding.env,
       ...secretEnvOf(secrets),
+      ...extraEnv,
     })
     const scrub = (text: string): string =>
       sanitize(text, this.config, [

@@ -256,16 +256,23 @@ export function buildCatalog(tree: HelpTree, options: CatalogOptions = {}): Cata
   return { entries, warnings }
 }
 
-/** MCP tools/list 与 CLI help 树的交叉校验。 */
+/**
+ * MCP tools/list 与 CLI help 树的交叉校验。
+ *
+ * @param extraFamilies - 由伴侣 CLI 声明、本就不在官方 help 树里的族名（如 report）；
+ *   它们既不算「CLI 独有」也不算漂移，避免把有意的扩展报成告警。
+ */
 export function computeDrift(
   mcpEntries: CapabilityEntry[],
   families: Map<string, CommanderHelp>,
   unmapped: string[],
+  extraFamilies: readonly string[] = [],
 ): { mcpOnly: string[]; cliOnly: string[]; unmapped: string[] } {
   const mcpNames = new Set(mcpEntries.map((entry) => entry.name))
+  const familyNames = new Set([...families.keys(), ...extraFamilies])
   return {
-    mcpOnly: [...mcpNames].filter((name) => !families.has(name)).sort(),
-    cliOnly: [...families.keys()].filter((name) => !mcpNames.has(name)).sort(),
+    mcpOnly: [...mcpNames].filter((name) => !familyNames.has(name)).sort(),
+    cliOnly: [...familyNames].filter((name) => !mcpNames.has(name)).sort(),
     unmapped: [...unmapped].sort(),
   }
 }

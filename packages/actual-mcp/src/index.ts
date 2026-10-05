@@ -9,6 +9,19 @@
  * @module @dsh-plus/actual-mcp
  */
 
+/**
+ * 伴侣报表能力描述符：经本包统一出口转发，供已依赖本包的消费方（主插件/预设侧）
+ * 复用同一份 schema 与执行计划，不必为一个只读用途新增依赖边。
+ */
+export {
+  FAMILY_CAPABILITIES,
+  familyCapability,
+  findCapability,
+  type ReportsActionPlan,
+  type ReportsArgPlan,
+  type ReportsCapability,
+  type ReportsPlan,
+} from '@dsh-plus/actual-reports'
 export { type ArgvPlan, buildArgv } from './argv.ts'
 export {
   actionOf,
@@ -66,6 +79,7 @@ export {
   type Discovery,
   discover,
   mapLimit,
+  reportsCapabilities,
   versionStatusOf,
 } from './discover.ts'
 export {
@@ -74,7 +88,13 @@ export {
   type CommanderHelp,
   parseCommanderHelp,
 } from './help.ts'
-export { createEntryInvoker, type EntryInvoker, type InvokeOptions } from './invoke.ts'
+export {
+  buildReportsArgv,
+  createEntryInvoker,
+  type EntryInvoker,
+  type InvokeOptions,
+  REPORTS_CLI_ENTRY_ENV,
+} from './invoke.ts'
 export { createNodeDeps } from './node-io.ts'
 export {
   type ActualMcpHost,

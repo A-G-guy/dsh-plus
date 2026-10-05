@@ -194,12 +194,45 @@
       }
     },
     {
+      "includes": ["packages/actual-mcp/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@dsh-plus/*/src/*"],
+                    "message": "包间只经 package.json exports 的公开入口导入，禁止 src 深路径"
+                  },
+                  {
+                    "group": ["@dsh-plus/bundle-main", "@dsh-plus/bundle-main/*"],
+                    "message": "bundle-main 是聚合编排层，任何包都不得依赖它"
+                  },
+                  {
+                    "group": [
+                      "@dsh-plus/*",
+                      "!@dsh-plus/shared",
+                      "!@dsh-plus/shared/client",
+                      "!@dsh-plus/actual-reports"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "packages/*/**",
         "!packages/shared/**",
         "!packages/siyuan-tools/**",
         "!packages/actual/**",
-        "!packages/actual-tools/**"
+        "!packages/actual-tools/**",
+        "!packages/actual-mcp/**"
       ],
       "linter": {
         "rules": {

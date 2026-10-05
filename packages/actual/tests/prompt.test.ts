@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 
-import { parseCommanderHelp } from '@dsh-plus/actual-mcp'
+import { FAMILY_CAPABILITIES, parseCommanderHelp } from '@dsh-plus/actual-mcp'
 
 import { DEFAULT_PERSONA_PREFIX } from '../src/prompt.ts'
 
@@ -40,9 +40,13 @@ const WRITE_ACTIONS = [
   'bank-sync',
 ]
 
-/** 提示词「读动作」段落枚举的全部动作。 */
+/**
+ * 提示词「读动作」段落枚举的全部动作。
+ * `data` 来自伴侣报表 CLI（官方 help 树里没有），其存在性由能力描述符保证。
+ */
 const READ_ACTIONS = [
   'list',
+  'widgets',
   'month',
   'months',
   'balance',
@@ -53,6 +57,7 @@ const READ_ACTIONS = [
   'run',
   'common',
   'payee-rules',
+  'data',
 ]
 
 /** 由 fixture 还原「族名 → 子命令集」。 */
@@ -119,6 +124,10 @@ test('given the default persona, when extracting action enumerations, then each 
   const tree = await fixtureTree()
   const known = new Set<string>()
   for (const actions of tree.values()) for (const action of actions) known.add(action)
+  // 伴侣 CLI 的动作由能力描述符声明（同一份动作表驱动 argv 解析与工具 schema）。
+  for (const capability of FAMILY_CAPABILITIES) {
+    for (const action of capability.reports.actions) known.add(action.action)
+  }
 
   for (const action of [...READ_ACTIONS, ...WRITE_ACTIONS]) {
     assert.ok(
@@ -143,6 +152,33 @@ test('given the default persona, when checking Actual-specific domain facts, the
   assert.match(DEFAULT_PERSONA_PREFIX, /CRDT sync relay/)
   assert.match(DEFAULT_PERSONA_PREFIX, /every call opens a new server connection/)
   assert.match(DEFAULT_PERSONA_PREFIX, /bound to ONE budget/)
+})
+
+test('given the default persona, when checking report guidance, then it matches the companion capability descriptor', () => {
+  assert.match(DEFAULT_PERSONA_PREFIX, /saved custom reports are budget objects/)
+  assert.match(DEFAULT_PERSONA_PREFIX, /Reports screen in the UI is actually the dashboard/)
+  assert.match(DEFAULT_PERSONA_PREFIX, /report tool's data action re-runs the same aggregation/)
+  assert.match(DEFAULT_PERSONA_PREFIX, /overrides argument to try a change/)
+  assert.match(
+    DEFAULT_PERSONA_PREFIX,
+    /Deleting a report that a dashboard widget still references is refused/,
+  )
+  assert.match(DEFAULT_PERSONA_PREFIX, /a budget holds several dashboard pages/)
+  assert.match(DEFAULT_PERSONA_PREFIX, /12-column grid/)
+  assert.match(DEFAULT_PERSONA_PREFIX, /custom-report widget's meta is exactly/)
+  assert.match(
+    DEFAULT_PERSONA_PREFIX,
+    /every other action of the report and dashboard tools is a write/,
+  )
+  // 提示词不得复述工具参数用法：报表族的 JSON 参数说明只留在工具 schema 里。
+  for (const duplicated of ['--definition', '--report-id', '--overrides']) {
+    assert.equal(DEFAULT_PERSONA_PREFIX.includes(duplicated), false, `不得复述参数：${duplicated}`)
+  }
+  assert.equal(
+    FAMILY_CAPABILITIES.some((capability) => capability.name === 'report'),
+    true,
+    '报表族必须仍在能力描述符里（提示词引用了它）',
+  )
 })
 
 test('given the default persona, when checking safety clauses, then confirmation and secrets are covered', () => {

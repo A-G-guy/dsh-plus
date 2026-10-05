@@ -66,6 +66,9 @@ test('given the stdio entry point, when an MCP host connects, then the derived c
         'query',
         'server',
         'sync',
+        // 伴侣 CLI（@dsh-plus/actual-reports）声明的扩展族：官方 API 不提供报表/仪表盘能力。
+        'report',
+        'dashboard',
       ],
     )
     const accounts = tools.find((tool) => tool.name === 'accounts')

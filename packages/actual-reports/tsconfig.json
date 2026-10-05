@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // 纯 Node 库（零 DSH 依赖、零 npm 依赖）：不给 DOM，防止误用 window/document。
+    "lib": ["ES2022"]
+  },
+  "include": ["src", "tests"]
+}

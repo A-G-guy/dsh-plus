@@ -7,6 +7,8 @@
  * @module @dsh-plus/actual-mcp/contract
  */
 
+import type { ReportsPlan } from '@dsh-plus/actual-reports'
+
 /** 能力条目的来源：MCP tools/list 或 CLI help 树降级派生。 */
 export type CapabilitySource = 'mcp' | 'cli'
 
@@ -25,7 +27,14 @@ export interface CliPlan {
   positionalByProp?: Record<string, string>
 }
 
-/** 一个可包装为 DSH 工具 / MCP 工具的能力。 */
+/**
+ * 一个可包装为 DSH 工具 / MCP 工具的能力。
+ *
+ * 两类条目并存：
+ * - 官方 CLI 派生（`cli` 计划）——格式一/格式二的能力来源；
+ * - 伴侣 CLI 扩展（`reports` 计划）——官方 API 未提供的能力（自定义报表/仪表盘），
+ *   由 `@dsh-plus/actual-reports` 声明，源码同源故不落 help 树。
+ */
 export interface CapabilityEntry {
   /** 工具名（默认取 CLI 命令族名，可经 namePrefix 加前缀）。 */
   name: string
@@ -39,6 +48,8 @@ export interface CapabilityEntry {
   readOnly?: boolean
   /** CLI 执行计划（MCP 条目在派生时一并附带，供进程内执行与降级兜底）。 */
   cli?: CliPlan
+  /** 伴侣 CLI 执行计划（报表/仪表盘族）；与 `cli` 互斥。 */
+  reports?: ReportsPlan
 }
 
 /** MCP tools/list 与 CLI help 树的交叉校验结果。 */

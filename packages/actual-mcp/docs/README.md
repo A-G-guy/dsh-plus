@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-05 06:35"
+last_modified: "2026-10-06 00:35"
 description: "@dsh-plus/actual-mcp：把 @actual-app/cli 按 help 文本运行时封装为 MCP 服务（格式一）的契约、派生规则与可移植用法"
 type: fact
 ---
@@ -23,7 +23,9 @@ Actual Budget 能力封装的**格式一**：把本机 `@actual-app/cli` 按 hel
 
 ## 派生规则（`src/derive.ts`，纯函数，fixture 钉住）
 
-- **有子命令的族 → 一个族工具 + `action` 枚举**（12 个族共 12 个工具）；
+- **有子命令的族 → 一个族工具 + `action` 枚举**（12 个族共 12 个工具；
+  外加伴侣 CLI 声明的 `report`/`dashboard` 两族，见
+  [adr/0009](../../../docs/repo/adr/0009-伴侣CLI补齐官方缺失的报表与仪表盘能力.md)）；
   枚举值的逐动作短描述拼进 `action.description`，那是 schema 里唯一能承载
   逐动作语义的位置；
 - **无子命令的族**（`sync`）→ 直连工具，位置参数进 `required`；

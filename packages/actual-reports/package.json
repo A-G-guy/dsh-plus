@@ -1,0 +1,36 @@
+{
+  "name": "@dsh-plus/actual-reports",
+  "version": "0.1.0",
+  "description": "dsh-plus companion CLI: Actual Budget 自定义报表与仪表盘能力（读定义、按官方口径本地算数、经官方 report/* 与 dashboard-* 通道写入）——运行时从检测到的官方 CLI 解析 @actual-app/api，零新增依赖",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "bin": {
+    "dsh-plus-actual-reports": "./lib/bin/report.js",
+    "actual-reports": "./lib/bin/report.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsdown src/index.ts src/bin/report.ts -d lib --format esm --dts --no-fixed-extension"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/A-G-guy/dsh-plus.git",
+    "directory": "packages/actual-reports"
+  }
+}

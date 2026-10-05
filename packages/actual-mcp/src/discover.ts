@@ -4,6 +4,8 @@
  * @module @dsh-plus/actual-mcp/discover
  */
 
+import { FAMILY_CAPABILITIES } from '@dsh-plus/actual-reports'
+
 import {
   type CliConfig,
   type CliDeps,
@@ -146,6 +148,42 @@ export async function collectInvokeHelp(
   return parseCommanderHelp(text)
 }
 
+/**
+ * 伴侣 CLI 声明的能力条目（报表/仪表盘族）。
+ *
+ * 这些能力官方 API 与官方 CLI 都不提供，故不在 help 树里，也不属于 MCP tools/list；
+ * 由 `@dsh-plus/actual-reports` 声明后直接入目录。伴侣 CLI 解析不到时**不入目录**
+ * （宁缺不假：绝不挂一个调不动的工具），只记一条告警。
+ *
+ * @returns 条目与可选的告警文本。
+ */
+export function reportsCapabilities(deps: CliDeps): {
+  entries: CapabilityEntry[]
+  warning?: string
+} {
+  if (deps.resolveReportsCli?.() === undefined) {
+    return {
+      entries: [],
+      warning:
+        '报表/仪表盘能力未启用：找不到伴侣 CLI（@dsh-plus/actual-reports）。' +
+        '重新安装本插件包即可恢复；本机 CLI 能力不受影响。',
+    }
+  }
+  return {
+    entries: FAMILY_CAPABILITIES.map((capability) => {
+      const entry: CapabilityEntry = {
+        name: capability.name,
+        description: capability.description,
+        inputSchema: capability.inputSchema,
+        source: 'cli',
+        reports: capability.reports,
+      }
+      if (capability.readOnly) entry.readOnly = true
+      return entry
+    }),
+  }
+}
+
 /** 一次完整发现的产物。 */
 export interface Discovery {
   binding: ActualCliBinding
@@ -178,8 +216,16 @@ export async function discover(
   const deadlineMs = options.deadlineMs ?? DEFAULT_DEADLINE_MS
   const tree = await collectHelpTree(deps, binding, { deadlineMs })
   const { entries, warnings } = buildCatalog(tree, options)
+  const extension = reportsCapabilities(deps)
+  if (extension.warning !== undefined) warnings.push(extension.warning)
   const serverVersion = await probeServerVersion(deps, config.serverUrl)
-  return { binding, tree, entries, warnings, serverVersion }
+  return {
+    binding,
+    tree,
+    entries: [...entries, ...extension.entries],
+    warnings,
+    serverVersion,
+  }
 }
 
 /** 解析版本字符串的 `major.minor`。 */

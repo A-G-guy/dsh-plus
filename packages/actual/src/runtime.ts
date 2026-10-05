@@ -216,7 +216,8 @@ export class ActualRuntime {
       await this.replaceSession(found.entries, invoker)
       const tools = await this.requireSession().listTools()
       const { entries, unmapped } = mapTools(tools, found.entries)
-      const drift = computeDrift(entries, found.tree.families, unmapped)
+      const extras = extensionFamiliesOf(found.entries)
+      const drift = computeDrift(entries, found.tree.families, unmapped, extras)
       if (drift.cliOnly.length > 0 || drift.unmapped.length > 0) {
         this.logger.info(
           `Actual 能力交叉校验：MCP-only=${drift.mcpOnly.join(',') || '-'} ` +
@@ -229,7 +230,7 @@ export class ActualRuntime {
       await this.closeSession()
       return {
         entries: found.entries,
-        drift: computeDrift([], found.tree.families, []),
+        drift: computeDrift([], found.tree.families, [], extensionFamiliesOf(found.entries)),
         source: 'cli',
       }
     }
@@ -308,8 +309,18 @@ export class ActualRuntime {
 }
 
 /**
+ * 伴侣 CLI 声明的族名（不属于官方 help 树，也不应记为漂移）。
+ */
+function extensionFamiliesOf(entries: readonly CapabilityEntry[]): string[] {
+  return entries.filter((entry) => entry.reports !== undefined).map((entry) => entry.name)
+}
+
+/**
  * MCP `tools/list` → 能力条目：按裸族名回填 `cli` 执行计划与只读注解，
  * 回填不到计划的记入 `unmapped`（交叉校验会报告）。
+ *
+ * 伴侣 CLI 扩展（`reports` 计划）**不在** MCP tools/list 里——官方服务端不提供
+ * 报表/仪表盘能力——因此按声明直接并入；它们不进 `unmapped`，也不进漂移。
  */
 function mapTools(
   tools: readonly Pick<CapabilityEntry, 'name' | 'description' | 'inputSchema'>[],
@@ -330,7 +341,8 @@ function mapTools(
     if (source?.readOnly === true) entry.readOnly = true
     return entry
   })
-  return { entries, unmapped }
+  const extensions = derivedEntries.filter((entry) => entry.reports !== undefined)
+  return { entries: [...entries, ...extensions], unmapped }
 }
 
 /** 提取错误文本（异常或任意值）。 */

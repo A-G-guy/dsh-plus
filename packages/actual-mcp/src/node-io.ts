@@ -90,7 +90,27 @@ function resolveBundledCli(): string | undefined {
   }
 }
 
+/**
+ * 定位伴侣 CLI（`@dsh-plus/actual-reports` 的可执行入口）。
+ *
+ * 该包是本包的依赖，因此在同一棵 node_modules 里必然可解析；解析不到说明
+ * 安装不完整——此时报表族不入目录（`discover` 会记一条告警）。
+ */
+function resolveReportsCli(): string | undefined {
+  try {
+    const require = createRequire(import.meta.url)
+    return join(
+      dirname(require.resolve('@dsh-plus/actual-reports/package.json')),
+      'lib',
+      'bin',
+      'report.js',
+    )
+  } catch {
+    return undefined
+  }
+}
+
 /** 装配 Node 侧真实 I/O 依赖。 */
 export function createNodeDeps(): CliDeps {
-  return { execFile, fetchJson, env: process.env, resolveBundledCli }
+  return { execFile, fetchJson, env: process.env, resolveBundledCli, resolveReportsCli }
 }
