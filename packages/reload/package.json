@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/reload",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "dsh-plus service+ui plugin: 设置页「重新加载」按钮与 /reload 命令——默认进程内重载 profile 组合层（零中断、不刷新页面）并点名只能重启生效的插件，重启服务保留为次级动作",
   "type": "module",
   "main": "lib/index.js",

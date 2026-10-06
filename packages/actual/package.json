@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/actual",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "dsh-plus service + UI plugin: Actual Budget 能力发现（@actual-app/cli help 树运行时派生 × 进程内 MCP tools/list）、actual agent 预设注册与配置卡片——零手工工具清单",
   "type": "module",
   "main": "lib/index.js",
