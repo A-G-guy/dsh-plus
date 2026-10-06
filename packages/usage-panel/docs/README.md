@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 16:31"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/usage-panel"
 type: fact
 ---
@@ -22,7 +22,7 @@ service+ui 混合插件（node 半折叠用量数据，浏览器半提供设置�
 无手动扫描入口：设置页只展示同步状态（进行中进度 / 最近完成时间 / 最近
 错误），历史数据由后台自动补齐。
 
-usage 折叠规则（对齐 0.1.3 dsh-session 官方 token-meter 会计口径，
+usage 折叠规则（对齐官方 dsh-session 的 token-meter 会计口径，
 `src/usage-fold.ts`）：
 
 - 会计源是 assistant 结算事件（`assistant/message` / `assistant/attempt`）；

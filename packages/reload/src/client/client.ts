@@ -18,9 +18,6 @@ import { startRestartWatchdog } from './watchdog.ts'
 
 export const name = 'dsh-plus-reload'
 
-/** health 未下发间隔（旧版 host）时的兜底轮询间隔；权威值是 host 配置 watchdogIntervalSeconds。 */
-const WATCHDOG_FALLBACK_INTERVAL_MS = 30_000
-
 /** 浏览器半需要的 cordis 服务 key（loader 据此注入；package.json 的 dsh.client.inject 管包加载顺序）。 */
 export const inject = ['slots', 'locale'] as const
 
@@ -56,7 +53,6 @@ export function apply(ctx: Context): void {
     const watchdog = startRestartWatchdog({
       fetchHealth,
       reload: () => location.reload(),
-      fallbackIntervalMs: WATCHDOG_FALLBACK_INTERVAL_MS,
       setIntervalFn: (fn, ms) => setInterval(fn, ms),
       clearIntervalFn: (handle) => clearInterval(handle as number),
     })

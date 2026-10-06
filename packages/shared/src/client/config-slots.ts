@@ -9,7 +9,7 @@
  *
  * 页面自己画标题、图标、面包屑与页面级内边距（`detailSections` 内无边框容器），
  * 故 page 视图输出无边框分节（见 card.tsx），summary 视图只返回一行文本。
- * 0.1.5 及更早的 `settings.plugin.item` 槽位已随官方插件页迁移删除，不再注册。
+ * 旧 `settings.plugin.item` 槽位已随官方插件页迁移删除，不再注册。
  *
  * @module @dsh-plus/shared/client/config-slots
  */

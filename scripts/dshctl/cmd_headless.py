@@ -12,10 +12,9 @@ import sys
 import time
 from pathlib import Path
 
-from .cmd_dev import (_dev_profile_dir, clear_mock_script, ensure_mock_running,
-                      write_mock_script)
+from .cmd_dev import clear_mock_script, ensure_mock_running, write_mock_script
 from .cmd_mock import _default_marker, build_entries, load_spec
-from .common import DEV_HOME, DEV_RUN_DIR, dsh_bin, dev_env, fail
+from .common import DEV_HOME, DEV_RUN_DIR, dev_env, dev_profile_ready, dsh_bin, fail
 
 TAIL_ON_FAILURE = 20
 
@@ -43,9 +42,9 @@ def _resolve_script(args) -> tuple[str, list[dict], str | None]:
 
 
 def cmd_hl(args) -> None:
-    if not (DEV_HOME / "settings.yaml").exists():
+    if not dev_profile_ready():
         fail("dev home 未初始化，请先运行: dshctl.py dev init")
-    if not (_dev_profile_dir("headless") / "package.json").exists():
+    if not dev_profile_ready("headless"):
         fail("headless profile 未初始化，请先运行: dshctl.py dev init")
     prompt, entries, marker = _resolve_script(args)
     ensure_mock_running()

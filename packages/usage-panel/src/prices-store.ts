@@ -1,7 +1,7 @@
 /**
  * 价目独立存储：models.dev 导入的批量价目不进配置文件。
  *
- * cordis.patch.yml 是 profile 行级覆盖层（0.1.7 起 settings.update 整值
+ * cordis.patch.yml 是 profile 行级覆盖层（ settings.update 整值
  * 序列化进该文件），数千条导入价目会淹没配置、且每次保存都重写全量。
  * 导入结果落 `$DSH_HOME/dsh-plus/usage-panel/prices.json`；config.prices
  * 只留手工小集合，费用估算按「手工覆盖导入」合并（见 pricing.mergePriceEntries）。

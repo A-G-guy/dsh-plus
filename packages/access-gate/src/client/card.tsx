@@ -3,7 +3,7 @@
  * plugins.bundle.config，view 分发 summary/page）。
  * 外壳与基础控件走 @dsh-plus/shared/client 套件（CardChrome/TextField/CheckRow），
  * 本文件保留业务字段（白名单 textarea/诊断面板）与保存逻辑。
- * 配置读写经共享层 ctx.remote.settings 直连（0.1.7 起 settingsScope 已由
+ * 配置读写经共享层 ctx.remote.settings 直连（settingsScope 已由
  * configForms 取代）：value 为 schema 解析后的视图，保存经 settings.update 深合并。
  * 卡片顶部「当前页面诊断」读 /dsh-plus/gate/status（本页放行原因/客户端 IP/
  * 官方 cookie 状态）。

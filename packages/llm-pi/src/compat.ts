@@ -10,7 +10,7 @@
  *   assertOfferedCompatFields："写了但没生效"的表面状态不允许）。
  * - **fallback（推导失败，用最后已知快照）**：只拒绝快照中明确 withhold 的键，
  *   **未知键放行**交给官方适配器自身校验——表落后时"误拒官方新字段"比"多放一个键"
- *   严重得多（0.1.5-rc.1 教训：静默功能缺失、无任何报错）。
+ *   严重得多（教训：静默功能缺失、无任何报错）。
  *
  * pi-ai 侧消费语义：getCompat 逐字段 `??` 覆盖 detectCompat 的 baseURL/名称猜测；
  * undefined 视为未设置（无法显式清空检测值）。
@@ -122,7 +122,7 @@ function checkValue(field: string, spec: CompatValue, value: unknown, where: str
 
 /**
  * 校验一份 compat 字典对指定协议合法（对齐官方门控语义 + schema 值约束）：
- * - 未知键/withhold 字段拒绝（官方写时拒绝，替代旧版静默丢弃）；
+ * - 未知键/withhold 字段拒绝（与官方写时拒绝同款）；
  * - 值类型/枚举按官方 schema 校验；
  * - 无值键（null/undefined）拒绝（官方 assertOfferedCompatFields 同款）。
  */

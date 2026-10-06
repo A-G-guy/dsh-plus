@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 03:57"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/web-shell-sw"
 type: fact
 ---
@@ -51,7 +51,7 @@ type: fact
 
 | 位置 | 键 | 默认 | 说明 |
 |---|---|---|---|
-| settings.yaml | `dsh-plus-web-shell-sw.enabled` | `true` | 用户层，热生效（下一次页面加载执行注册/注销） |
+| settings 用户层 | `dsh-plus-web-shell-sw.enabled` | `true` | profile 行级覆盖层，热生效（下一次页面加载执行注册/注销） |
 | cordis 行级 config | `enabled` | `true` | patch 层覆盖用 |
 
 插件页「配置」入口提供同名卡片（`src/client/`，两槽位注册）：一个 `enabled`

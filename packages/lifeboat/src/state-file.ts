@@ -1,7 +1,7 @@
 /**
  * journal 的文件持久化（$DSH_HOME/dsh-plus/lifeboat/state.json）。
  *
- * 存储规范：运行期状态属非配置数据，不进 settings.yaml；本模块自带实现，
+ * 存储规范：运行期状态属非配置数据，不进 settings 用户层；本模块自带实现，
  * 维持零 dsh-plus 内部依赖铁律（不 import @dsh-plus/shared）。
  * schema 刻意宽松：lifeboat 是最后防线，自身数据问题绝不能让它起不来。
  * @module lifeboat/state-file

@@ -2,7 +2,7 @@
  * 引导脚本生成：把「官方 loadBundle 缝的零缓存重试包装」渲染成一段内联
  * classic script，经 `webserver/index-inject` 注入到 index.html 的 head。
  *
- * 为什么必须是内联 classic 脚本（注入时序，实测于 0.1.5-rc.2）：
+ * 为什么必须是内联 classic 脚本（注入时序；0.2.1-alpha.1 实测）：
  * index.html 的 head 里依次是
  *   1) 模块表引导队列（inline classic）
  *   2) application 批次 <link rel=preload as=script>    ← 预加载在此启动

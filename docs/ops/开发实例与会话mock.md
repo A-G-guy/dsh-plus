@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-07 00:39"
 description: "开发实例与会话 mock"
 type: fact
 ---
@@ -100,9 +100,9 @@ dshctl.py pw run -- <任意 playwright-cli 命令>   # 会话不存在则自动�
 
 - RPC 端口为生产端口（3080/3081）一律拒绝。
 - 会触发模型调用的命令（session send / chat / mock run）先校验目标实例默认
-  模型是本机 mock（`deepseek/deepseek-v4-flash`），否则拒绝。若修改 dev
-  settings.yaml 的默认模型，需同步 `scripts/dshctl/rpc.py` 的
-  MOCK_PROVIDER/MOCK_MODEL。
+  模型是本机 mock（`deepseek/deepseek-v4-flash`），否则拒绝。若修改 dev profile
+  接线（`~/.dsh-dev/profiles/web/cordis.patch.yml` 的 mock 行）里的默认模型，
+  需同步 `scripts/dshctl/rpc.py` 的 MOCK_PROVIDER/MOCK_MODEL。
 - mock 脚本队列是全局单文件（`~/.dsh-dev/run/mock-script.jsonl`），并发执行
   多个 mock run/hl 会互相抢条目。
 - match 是请求体原文子串匹配：prompt/match 中避免引号/换行。

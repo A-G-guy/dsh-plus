@@ -2,7 +2,7 @@
  * 「子代理模型配置」配置卡片：经 injectPluginConfigCard 注册（插件页 plugins.row.config /
  * plugins.bundle.config，view 分发 summary/page）。
  * 外壳与基础控件走 @dsh-plus/shared/client 套件（CardChrome/CheckRow/SelectField）。
- * 配置读写经共享层 ctx.remote.settings 直连（0.1.7 起 settingsScope 已由 configForms
+ * 配置读写经共享层 ctx.remote.settings 直连（settingsScope 已由 configForms
  * 取代）：value 为 schema 解析后的命名空间值
  * （enabled + entries），行集合 = 目录返回的已注册子代理 provider
  * ∪ 已配置条目，保存时全量写回 entries（未配置的新 provider 行以默认空值

@@ -1,6 +1,6 @@
 /**
  * image-studio 服务主体：
- * - 配置：0.1.7 volatile 活动引用（三组预设 + 并发/超时/代理/画廊上限/
+ * - 配置：volatile 活动引用（三组预设 + 并发/超时/代理/画廊上限/
  *   上传保留时长；loader 原位提交热生效）；
  * - TaskRunner 并发生图：提交即排队，成功自动入画廊（元数据 + 图片落盘）；
  * - 提供商预设按 id 即时 resolve credentials（不缓存）；
@@ -82,7 +82,7 @@ export class ImageStudioService extends Service {
 
   constructor(ctx: ContextT, config: ImageStudioConfig | ImageStudioConfigFields) {
     super(ctx, 'imageStudio')
-    // 0.1.7 替代 installSection/setSource：活动引用原位提交，现取即热。
+    // 替代 installSection/setSource：活动引用原位提交，现取即热。
     this.current = () => unwrapVolatile(config)
     this.log = (message) => ctx.logger('image-studio').warn(message)
     this.pruning = null
@@ -259,26 +259,19 @@ export class ImageStudioService extends Service {
     }
   }
 
-  /** 源图引用规范化（sources 优先；旧 sourceIds 等价于全部 gallery 引用）。 */
+  /** 源图引用规范化（缺省空数组；引用形态统一在 assertRef 收窄）。 */
   private sourceRefsOf(request: GenerateRequest): SourceRef[] {
-    if (request.sources !== undefined) {
-      if (!Array.isArray(request.sources)) {
-        throw new ImageStudioError('invalid-request', 'sources 必须是数组')
-      }
-      return request.sources.map((ref) => this.assertRef(ref))
+    if (request.sources === undefined) return []
+    if (!Array.isArray(request.sources)) {
+      throw new ImageStudioError('invalid-request', 'sources 必须是数组')
     }
-    const legacy = request.sourceIds ?? []
-    if (!Array.isArray(legacy)) {
-      throw new ImageStudioError('invalid-request', 'sourceIds 必须是数组')
-    }
-    return legacy.map((id) => this.assertRef({ kind: 'gallery', id }))
+    return request.sources.map((ref) => this.assertRef(ref))
   }
 
-  /** 遮罩引用规范化（mask 优先；旧 maskId 等价于 gallery 引用）。 */
+  /** 遮罩引用规范化（缺省无遮罩）。 */
   private maskRefOf(request: GenerateRequest): SourceRef | null {
-    if (request.mask !== undefined) return this.assertRef(request.mask)
-    if (request.maskId === undefined) return null
-    return this.assertRef({ kind: 'gallery', id: request.maskId })
+    if (request.mask === undefined) return null
+    return this.assertRef(request.mask)
   }
 
   /** 引用形态校验（请求体来自浏览器，kind 封闭集合 + id uuid 形态）。 */

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 03:57"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/web-boot-timing"
 type: fact
 ---
@@ -45,8 +45,8 @@ warn），观测故障绝不拖垮 boot；`ctx.effect` 兜底清理监听器与�
 
 | 位置 | 键 | 默认 | 说明 |
 |---|---|---|---|
-| settings.yaml | `dsh-plus-web-boot-timing.enabled` | `true` | 用户层，热生效（下一次页面加载生效） |
-| settings.yaml | `dsh-plus-web-boot-timing.settleMs` | `1500` | load 后结算延迟（200–10000，步长 100） |
+| settings 用户层 | `dsh-plus-web-boot-timing.enabled` | `true` | profile 行级覆盖层，热生效（下一次页面加载生效） |
+| settings 用户层 | `dsh-plus-web-boot-timing.settleMs` | `1500` | load 后结算延迟（200–10000，步长 100） |
 | cordis 行级 config | `enabled` / `settleMs` | 同上 | patch 层覆盖用，settings 缺席时生效 |
 
 `enabled: false` 后配置行不再注入，浏览器半零行为（无残留监听/存储写入）。

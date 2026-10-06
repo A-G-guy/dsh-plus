@@ -43,10 +43,6 @@ export interface GenerateRequest {
   sources?: SourceRef[]
   /** 可选遮罩（官方要求 PNG；与源图同一引用形态）。 */
   mask?: SourceRef
-  /** @deprecated 旧客户端兼容：等价于 kind='gallery' 的 sources。 */
-  sourceIds?: string[]
-  /** @deprecated 旧客户端兼容：等价于 kind='gallery' 的 mask。 */
-  maskId?: string
 }
 
 /** 任务记录 wire 视图。 */

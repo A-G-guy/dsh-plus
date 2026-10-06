@@ -3,8 +3,8 @@
  * - settings.section 官方插槽注册「用量统计」独立设置页；
  * - 价目卡片经 injectPluginConfigCard 两槽位注册（插件页 plugins.row.config /
  *   plugins.bundle.config）。
- * 配置读写经 ctx.remote.settings 直连（0.1.2-alpha.1 起 connection.api.settings
- * 已移除；0.1.7 起 settingsScope 服务亦删除——configForms 取代，自始直连）。
+ * 配置读写经 ctx.remote.settings 直连（connection.api.settings
+ * 已移除； settingsScope 服务亦删除——configForms 取代，自始直连）。
  * @module @dsh-plus/usage-panel/client
  */
 import type { Context } from '@deepseek-ai/cordis'

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-07 00:39"
 description: "ADR 0004：GUI 静态资源 immutable 缓存头走进程级 writeHead 拦截"
 type: event
 ---
@@ -22,14 +22,11 @@ type: event
 （穿越防护/MIME/HEAD/gzip 交互）并硬解 dist 路径；core 未来注册同名路由会
 throw 撞车。
 
-## 理由（维护成本对比）
+## 理由
 
-| 维度 | writeHead 拦截（采纳） | 前缀路由自服务（否决） |
-|---|---|---|
-| dsh 服务耦合 | 无（inject 为空） | webServer 服务 + dist 包布局 |
-| 路由撞车风险 | 无（零注册） | core 未来注册 `/assets` 即 throw |
-| core 文件服务变更 | 无需同步 | MIME/语义漂移需跟版 |
-| 共存性 | 已有 cache-control 自动跳过 | 需自行处理双策略 |
+被否方案（注册 `/assets` 前缀路由自服务文件）的代价：绑定 webServer 服务与 dist 包布局、
+core 未来注册同名路由即 throw、MIME 与语义漂移需跟版、双策略并存要自行处理；采纳方案的
+耦合与注册数均为零。
 
 唯一耦合点：`/assets/` 路径约定（Vite 产物结构，固化于 index.html 引用）与
 core 经 writeHead 写响应（node:http 统一用法）。两者稳定性远高于路由表与

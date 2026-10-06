@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 16:31"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/remote-settings"
 type: fact
 ---
@@ -14,7 +14,7 @@ type: fact
 - 启动期已构造的官方表单（chat/composer/agent-loop/welcome 等）钉死 memory：
 - 不订阅 mirror、写入被 `enqueue` 拦截，仅翻 mirror 无法自愈。
 
-## 根因（0.1.7-alpha.2 基线）
+## 根因
 
 服务端设置 RPC 可达性由统一 /api 信任围栏（loopback 或 `--trusted-host` 声明的
 authority）+ 浏览器令牌 cookie 认证把关；但浏览器侧 `dsh-client-ui-settings`
@@ -45,8 +45,8 @@ authority）+ 浏览器令牌 cookie 认证把关；但浏览器侧 `dsh-client-
 
 ## 版本边界
 
-修复面所在的服务随官方版本变化（`settingsScope` → `configForms`）；迁移记录见
-[官方版本变更记录](../../../docs/reference/官方版本变更记录.md)，本插件已随当前基线迁移。
+修复面所在的服务是官方 `configForms`（旧 `settingsScope` 服务已不存在，本插件不为其
+留兼容分支）。
 
 ## 契约
 

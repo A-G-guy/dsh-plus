@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 16:31"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/access-gate"
 type: fact
 ---
@@ -13,7 +13,7 @@ service+ui 混合插件（node 半拦截判定，浏览器半提供配置卡片�
 
 ## 与官方认证的关系
 
-官方（dsh 0.1.2-alpha 线）browser-auth 的覆盖与缺口：
+官方 browser-auth 的覆盖与缺口：
 
 - 官方守护：index（`?token=` 启动令牌交换签发 cookie）、`/api`、connection WS；
 - 官方缺口：**静态资产公开**、插件自有路由（如插件自建 WS）不在认证范围、
@@ -23,8 +23,7 @@ service+ui 混合插件（node 半拦截判定，浏览器半提供配置卡片�
 
 本插件不持有自有 token/cookie/登录端点（自有 `dsh_gate` 通道只能过 gate、
 换不来应用可用性，官方 `/api` 无 cookie 仍 401）；凭据校验委托
-`connection.requestRejection()`。合并背景见
-[官方版本变更记录](../../../docs/reference/官方版本变更记录.md)。
+`connection.requestRejection()`。
 
 ## 放行规则
 
@@ -116,8 +115,7 @@ dsh-host-webserver 无中间件机制，本插件对 `ctx.webServer` 服务实�
 ## 配置
 
 cordis 行级 `Config`（组合默认值）与 settings namespace `dsh-plus-access-gate`
-（用户层）共用同一 schemastery schema，经 dsh-settings-file 落
-`$DSH_HOME/settings.yaml` 热生效。
+（用户层＝profile 行级覆盖层 `cordis.patch.yml`）共用同一 schemastery schema，写入即热生效。
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
@@ -125,10 +123,6 @@ cordis 行级 `Config`（组合默认值）与 settings namespace `dsh-plus-acce
 | `allowedIps` | [] | 附加 IP 围栏：精确 IP 或 CIDR（v4/v6）；空 = 不限制来源 IP |
 | `trustForwardedFor` | true | 仅当入口代理强制覆盖 XFF 时开启（tailscale serve 满足） |
 | `autoLoginTrustedIps` | false | IP 信任自动登录：白名单来源未认证时自动铸造官方 cookie（免 token）；默认关闭 |
-
-**旧配置迁移**：`token`/`cookieMaxAgeHours`/`loginFailLimit`/`loginCooldownMs` 键
-已不在 schema 内；schemastery 透传忽略未知键（有测试钉死），旧 settings.yaml 不阻断
-加载，旧值自然失效。旧 `dsh_gate` cookie 无效力。
 
 ## WebUI 配置卡片
 
@@ -141,7 +135,7 @@ cordis 行级 `Config`（组合默认值）与 settings namespace `dsh-plus-acce
 
 - 本机直连 gate 层永久放行：远程全锁时 ssh 隧道访问 `127.0.0.1:3080`，经
   `/dsh-plus/gate/launch-url` 取当前令牌完成官方登录后改配置。
-- 配错即时可逆：卡片写 settings.yaml 热生效；白名单改坏只影响远程，本机不受影响。
+- 配错即时可逆：卡片写 profile 行级覆盖层热生效；白名单改坏只影响远程，本机不受影响。
 - 回滚：`dshctl uninstall-prod @dsh-plus/access-gate`（或用户 patch 层
   `- id: dsh-plus-access-gate` + `disabled: true`）+ 重启。
 - upstream 形状变化：apply 期 fail-loud，lifeboat 隔离，webui 回到无围栏可用状态。

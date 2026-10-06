@@ -39,7 +39,7 @@ import {
 import { envNameOf, suffixOf } from './names.ts'
 import { SETTINGS_NS } from './ns.ts'
 
-/** settings 服务窄面（0.1.7 只需 update 写入用户层；describe 读由 loader 并入 config）。 */
+/** settings 服务窄面（只需 update 写入用户层；describe 读由 loader 并入 config）。 */
 interface SettingsLike {
   update(ns: string, patch: Record<string, unknown>): Promise<void>
 }
@@ -69,7 +69,7 @@ export class SecretEnvService extends Service {
 
   constructor(ctx: Context, config: SecretEnvConfig | SecretEnvConfigFields | undefined) {
     super(ctx, 'secretEnv')
-    // 0.1.7 替代 installSection/setSource：活动引用原位提交——索引读取经
+    // 替代 installSection/setSource：活动引用原位提交——索引读取经
     // readIndex 现取平面快照，用户层写入走 loader 落盘 + 原位提交热生效。
     this.base = config !== undefined ? unwrapVolatile(config) : { secrets: [], masked: [] }
     this.readIndex = config !== undefined ? () => unwrapVolatile(config) : undefined

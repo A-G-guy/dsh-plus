@@ -1,15 +1,12 @@
 /**
  * dsh 服务插件：把「纯聊天模式」注册为官方 agent preset（id=`chat`）。
  *
- * 遗留形态 `$DSH_HOME/.agent-presets/chat/{preset.yml,agent.cordis.yml}`
- * 自官方 preset registry 起不再被任何代码读取（见官方技能
- * editing-cordis-compositions），本插件是它在新机制下的等价物：
- * 预设声明经 `ctx.agentPresets.register()` 注册，出现在设置 → Agent 预设
- * 的名单里，可被会话选择。
+ * 预设声明经 `ctx.agentPresets.register()` 注册（官方 preset registry 是唯一
+ * 读取方；`$DSH_HOME/.agent-presets/` 目录已无读取方），出现在设置 →
+ * Agent 预设的名单里，可被会话选择。
  *
- * 预设语义（与遗留 agent.cordis.yml 逐字段一致）：仅一行 `persona`，
- * prefix 为空且 `complete: true` —— 系统提示词即该行本身，工具目录为空、
- * 无 skill 目录、不注入运行时上下文；会话/对话主流程不变。
+ * 预设语义：仅一行 `persona`，prefix 为空且 `complete: true` —— 系统提示词即
+ * 该行本身，工具目录为空、无 skill 目录、不注入运行时上下文；会话/对话主流程不变。
  *
  * 设计取舍：
  * - 独立插件而非 cordis.patch.yml 里的裸 `@deepseek-ai/dsh-agent-preset`
@@ -37,7 +34,7 @@ export type { AgentPresetChatConfig }
 export { Config }
 
 /**
- * chat 预设的子插件声明：唯一一行 persona（自遗留 agent.cordis.yml 迁移）。
+ * chat 预设的子插件声明：唯一一行 persona。
  *
  * - `prefix: ''` + `complete: true`：该行即完整系统提示词，全局身份、
  *   Web 定向与工具指引不再追加任何文本；

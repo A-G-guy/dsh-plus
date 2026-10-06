@@ -84,8 +84,8 @@ test('collectTreeVersions：读树内 pi-ai / 官方适配器 / dsh 本体三个
 })
 
 test('collectTreeVersions：根不是 dsh 本体时不给 dsh 版本；缺清单的版本键省略', async () => {
-  await withFakeTree({ adapter: '0.2.0-rc.1' }, async (root) => {
-    assert.deepEqual(collectTreeVersions(root), { piAiAdapter: '0.2.0-rc.1' })
+  await withFakeTree({ adapter: '0.2.1-alpha.1' }, async (root) => {
+    assert.deepEqual(collectTreeVersions(root), { piAiAdapter: '0.2.1-alpha.1' })
   })
 })
 

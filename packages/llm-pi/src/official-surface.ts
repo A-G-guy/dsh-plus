@@ -10,7 +10,7 @@
  * 3. **模型条目字段集**：Config schema 的 `providers.*.models` 键集——继承时按此
  *    透传 pi-ai 目录的同名字段，官方将来新增模型级字段即自动跟随。
  *
- * 历史教训（0.1.5-rc.1）：compat 门控曾是官方 catalog.ts 的手抄镜像，官方扩容
+ * 历史教训（详见 docs/repo/事故记录.md）：compat 门控曾是官方的手抄镜像，官方扩容
  * offer 字段而旧表漏收，导致官方可配字段被本插件**误拒**（静默功能缺失、无报错）。
  * 现改为现场推导，`tests/official-surface.test.ts` 直读官方副本守门推导正确性。
  *
@@ -205,10 +205,20 @@ export function fallbackProtocols(): string[] {
   return [...FALLBACK_PROTOCOLS]
 }
 
-/** 官方门控表不可解析时的最后已知快照（0.1.5-rc.2 实测值）。 */
+/**
+ * 官方门控表不可解析时的兜底快照（0.2.1-alpha.1 现场推导值）。
+ *
+ * 只在官方改打包形态、`COMPAT_GATES` 解析失败时启用（此时未知键放行、只拦快照里
+ * 明确 withhold 的键，见 compat.ts 的「语义分两档」）。快照过期会重新引入
+ * 「误拒官方新字段」那类静默故障，故由 tests/official-surface.test.ts 的
+ * 「兜底快照不得过期」用例与现场推导逐协议比对守门。
+ */
 export const FALLBACK_TABLE: CompatTable = {
   source: 'fallback',
   gates: {
+    'mistral-conversations': {
+      supportsMidConvoSystemMessages: 'withhold',
+    },
     'openai-completions': {
       supportsStore: 'offer',
       supportsDeveloperRole: 'offer',
@@ -234,7 +244,8 @@ export const FALLBACK_TABLE: CompatTable = {
       zaiToolStream: 'withhold',
       supportsOpenAIGrammarTools: 'withhold',
       sendSessionAffinityHeaders: 'withhold',
-      deferredToolsMode: 'withhold',
+      supportsMidConvoSystemMessages: 'withhold',
+      supportsMidConvoToolAdditions: 'withhold',
       sessionAffinityFormat: 'withhold',
     },
     'openai-responses': {
@@ -247,6 +258,31 @@ export const FALLBACK_TABLE: CompatTable = {
       supportsAdditionalTools: 'withhold',
       supportsToolSearch: 'withhold',
       supportsExplicitPromptCacheMode: 'withhold',
+      supportsMidConvoSystemMessages: 'withhold',
+    },
+    'azure-openai-responses': {
+      supportsDeveloperRole: 'offer',
+      supportsMaxOutputTokens: 'offer',
+      supportsStrictMode: 'offer',
+      supportsLongCacheRetention: 'offer',
+      sessionAffinityFormat: 'withhold',
+      supportsOpenAIGrammarTools: 'withhold',
+      supportsAdditionalTools: 'withhold',
+      supportsToolSearch: 'withhold',
+      supportsExplicitPromptCacheMode: 'withhold',
+      supportsMidConvoSystemMessages: 'withhold',
+    },
+    'openai-codex-responses': {
+      supportsDeveloperRole: 'offer',
+      supportsMaxOutputTokens: 'offer',
+      supportsStrictMode: 'offer',
+      supportsLongCacheRetention: 'offer',
+      sessionAffinityFormat: 'withhold',
+      supportsOpenAIGrammarTools: 'withhold',
+      supportsAdditionalTools: 'withhold',
+      supportsToolSearch: 'withhold',
+      supportsExplicitPromptCacheMode: 'withhold',
+      supportsMidConvoSystemMessages: 'withhold',
     },
     'anthropic-messages': {
       supportsEagerToolInputStreaming: 'offer',
@@ -257,9 +293,14 @@ export const FALLBACK_TABLE: CompatTable = {
       allowEmptySignature: 'offer',
       supportsStrictTools: 'offer',
       sendSessionAffinityHeaders: 'withhold',
-      supportsToolReferences: 'withhold',
+      sessionAffinityFormat: 'withhold',
+      supportsMidConvoSystemMessages: 'withhold',
+      supportsMidConvoToolChanges: 'withhold',
       supportsMidConvoEffort: 'withhold',
       allowedFallbackModels: 'withhold',
+    },
+    'bedrock-converse-stream': {
+      supportsStrictMode: 'offer',
     },
   },
   specs: {

@@ -1,6 +1,6 @@
 /**
  * 配置单一事实源：cordis 行级 Config（组合默认）与 settings namespace
- * （用户层，$DSH_HOME/settings.yaml 热生效）共用同一 schemastery schema。
+ * （用户层＝profile 行级覆盖层 cordis.patch.yml，热生效）共用同一 schemastery schema。
  * 三组纯用户配置：提示词预设 / 参数预设 / 提供商预设（API key 不在此，
  * 走 credentials，引用名由 preset id 派生）。
  * @module image-studio/config
@@ -72,7 +72,7 @@ const ProviderPreset: z<ProviderPresetEntry, ProviderPresetEntry> = z.object({
   extraHeaders: z.dict(z.string()).description('附加请求头（部分中转需要）').default({}),
 })
 
-// 0.1.7：全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
+// 全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
 // loader 原位提交活动引用，current() 现取即热。
 export const Config = z.object({
   promptPresets: z.array(PromptPreset).description('提示词预设').default([]).volatile(),
@@ -109,7 +109,7 @@ export const Config = z.object({
     .volatile(),
 })
 
-/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+/** 活动字段形态（loader 解析产物：volatile 字段为活动引用）。 */
 export type ImageStudioConfigFields = Schemastery.TypeT<typeof Config>
 /** 平面配置形态（消费面的读取形态，由活动引用解包得到）。 */
 export type ImageStudioConfig = UnwrapVolatile<ImageStudioConfigFields>

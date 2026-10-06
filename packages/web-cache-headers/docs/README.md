@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 03:57"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/web-cache-headers"
 type: fact
 ---
@@ -28,13 +28,13 @@ dsh 前端 dist 由 `dsh-host-frontend-static` 经 webserver fallback 服务，�
 
 选进程级拦截而非注册 `/assets` 前缀路由：零路由注册（不与 core 未来路由撞车）、
 零文件服务/MIME/dist 路径知识（core 改动无需同步）。这是跟随 dsh 更新
-维护成本最低的切面，详见仓库 ADR 0004。
+维护成本最低的切面，详见 [ADR 0004](../../../docs/repo/adr/0004-GUI静态资源immutable缓存头-进程级writeHead拦截.md)。
 
 ## 配置
 
 | 位置 | 键 | 默认 | 说明 |
 |---|---|---|---|
-| settings.yaml | `dsh-plus-web-cache-headers.enabled` | `true` | 用户层，热生效（无需 /reload） |
+| settings 用户层 | `dsh-plus-web-cache-headers.enabled` | `true` | profile 行级覆盖层，热生效（无需 /reload） |
 | cordis 行级 config | `enabled` | `true` | patch 层覆盖用，settings 缺席时生效 |
 
 `enabled: false` 即时卸下补丁，响应头恢复 dsh 原生行为。
@@ -62,3 +62,6 @@ dsh 前端 dist 由 `dsh-host-frontend-static` 经 webserver fallback 服务，�
 
 若 dsh 上游为 `dsh-host-frontend-static` 原生支持哈希资源缓存头，本插件配置
 `enabled: false` 即可退役，无需删代码。
+
+0.2.1-alpha.1 复核：官方静态应答仍只写 `content-type`（`dsh-host-frontend-static`
+的 index/资产应答，未见 `cache-control`/`etag`），退役条件未满足。

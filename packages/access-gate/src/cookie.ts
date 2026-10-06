@@ -6,8 +6,8 @@
  * 浏览器落罐，后续 /api、WS 的官方 requestRejection() 自然通过，
  * 用户全程无感、免启动 token。
  *
- * 契约（对 dsh 0.1.2-alpha.2 / 0.1.3-alpha.2 官方 client-connection
- * browser-auth 逐行核实，见 docs/README.md「信任模型」）：
+ * 契约（对官方 client-connection browser-auth 逐行核实，见 docs/README.md
+ * 「信任模型」；0.2.1-alpha.1 复核不变）：
  * - 签名密钥持久化于 $DSH_HOME/.credentials.yaml
  *   （records → client-connection/browser-session → payload.secret，
  *   base64url 无填充 32B；跨重启不变）；

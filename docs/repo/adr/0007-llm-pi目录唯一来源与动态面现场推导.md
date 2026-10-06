@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 14:10"
+last_modified: "2026-10-07 00:39"
 description: "ADR 0007：llm-pi 模型目录唯一来自 pi-ai 内置目录，协议/compat/字段集全部现场推导"
 type: event
 ---
@@ -10,7 +10,8 @@ type: event
 - 背景：插件要"自动跟随已装 dsh 内部的 pi-ai"，而官方 pi-ai 每版都在改模型目录、
   改 compat 字段集；同时仓库里存在过第二份目录（models.dev 兜底快照），
   于是出现"测试跑的目录 ≠ 生产跑的目录"，以及"官方扩容字段而插件手抄表漏收 →
-  官方可配字段被误拒"（0.1.5-rc.1 事故，见包文档）两类问题。
+  官方可配字段被误拒"（见[事故记录](../事故记录.md)的「llm-pi compat 门控表手工镜像漏收
+  官方字段」）两类问题。
 
 ## 决定
 
@@ -35,14 +36,9 @@ type: event
 5. **目录浏览器放进配置卡，不做独立设置页**：一键 extend 直接改卡片草稿，保存语义
    仍是"草稿 → 保存"，避免两个页面同写一个 settings 命名空间互相覆盖（一份持久化
    数据只有一个写入方）。
-6. **依赖对齐**：本包 devDependencies 的 `@deepseek-ai/*` 对齐本机安装的 dsh 线
-   （0.2.1-alpha.1）、pi-ai 对齐 0.87.1，使构建/类型/单测面对的就是运行期那份套件。
-   核对中发现**全仓都停在 0.2.0-rc.1**，导致 11 个包逐包 `tsc` 报
-   `Property 'webServer'/'credentials' does not exist on type 'Context'`（平台包的
-   类型增强与代码目标线错位，与本次功能改动无关，已用独立 worktree 在 HEAD 复现）。
-   故一并执行 `dshctl platform-sync 0.2.1-alpha.1` + 基座包手工对齐
-   （cordis `4.0.5-alpha.1` / schemastery `3.18.5-alpha.1`）：**24/24 包类型检查与
-   公共契约转绿，零代码改动**——印证"devDeps 必须跟随运行期平台线"这条纪律。
+6. **依赖对齐**：本包 devDependencies 的 `@deepseek-ai/*` 对齐本机安装的 dsh 线、
+   pi-ai 对齐同版，使构建/类型/单测面对的就是运行期那份套件（纪律见
+   [adr/0010](0010-devDeps跟随运行期平台线.md)）。
 
 ## 后果
 

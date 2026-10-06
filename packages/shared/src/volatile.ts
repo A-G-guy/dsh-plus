@@ -1,5 +1,5 @@
 /**
- * 0.1.7 配置活动引用（schemastery `.volatile()`）解包工具。
+ * 配置活动引用（schemastery `.volatile()`）解包工具。
  *
  * 平台在 loader 解析层把 volatile 字段校验为稳定的活动引用
  * （cosmokit `Volatile<T>`，`get()` 读当前不可变快照，loader 提交时

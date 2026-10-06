@@ -311,7 +311,7 @@ test('edit 请求携带源图（multipart）且画廊记录 sourceIds', async ()
       providerPresetId: 'packy',
       endpoint: 'edit',
       prompt: '加上帽子',
-      sourceIds: [sourceImageId],
+      sources: [{ kind: 'gallery', id: sourceImageId }],
       paramSpecs: { input_fidelity: { enabled: true, value: 'high' } },
     })
     for (let i = 0; i < 100; i += 1) {

@@ -129,7 +129,7 @@ test('compatFieldsOf 只列官方 offer 字段（对齐 catalog.ts COMPAT_GATES�
   assert.ok(compatFieldsOf('openai-completions').includes('supportsFinishReason'))
 })
 
-test('0.1.5-rc.1 起官方新增 offer 字段可用（旧表漏收会误拒）', () => {
+test('官方新增 offer 字段自动可用（手抄旧表漏收会误拒）', () => {
   // completions：vLLM 思考预算字段名与端点优先级
   validateCompat(
     'openai-completions',

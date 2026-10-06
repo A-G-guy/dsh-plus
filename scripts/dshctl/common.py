@@ -278,6 +278,21 @@ def find_package(name_or_dir: str) -> Path:
     fail(f"找不到包: {name_or_dir}（可用: {', '.join(p.name for p in package_dirs())}）")
 
 
+def dev_profile_dir(profile: str = DEV_PROFILE) -> Path:
+    """dev home 内的 profile 目录（与生产 PROD_HOME 严格分离）。"""
+    return DEV_HOME / "profiles" / profile
+
+
+def dev_profile_ready(profile: str = DEV_PROFILE) -> bool:
+    """dev profile 是否已初始化：判据是 dsh 首次使用时落下的 profile 模板。
+
+    `$DSH_HOME/settings.yaml` 自 0.2.x 起废弃（启动时被改名 `.imported` 并并入
+    profile 的 `cordis.patch.yml`），不能再用作初始化标记——据它判定会让
+    dev seed / hl 等命令恒报「dev home 未初始化」。
+    """
+    return (dev_profile_dir(profile) / "package.json").exists()
+
+
 def dev_env() -> dict[str, str]:
     """开发实例专用环境：DSH_HOME 切到 dev、真实密钥覆盖为 dummy。"""
     env = dict(os.environ)

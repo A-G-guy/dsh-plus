@@ -12,15 +12,13 @@
 export interface HealthLike {
   ok: boolean
   bootId: string
-  /** host 下发的轮询间隔毫秒数；0 = 关闭被动检测；缺省走 fallback。 */
-  watchdogIntervalMs?: number
+  /** host 下发的轮询间隔毫秒数；0 = 关闭被动检测。 */
+  watchdogIntervalMs: number
 }
 
 export interface WatchdogDeps {
   fetchHealth(): Promise<HealthLike>
   reload(): void
-  /** health 未下发 watchdogIntervalMs（旧版 host）时的兜底间隔。 */
-  fallbackIntervalMs: number
   setIntervalFn(fn: () => void, ms: number): unknown
   clearIntervalFn(handle: unknown): void
 }
@@ -53,7 +51,7 @@ export function startRestartWatchdog(deps: WatchdogDeps): Watchdog {
       if (stopped) return
       if (baseline === null) {
         baseline = health.bootId
-        const interval = health.watchdogIntervalMs ?? deps.fallbackIntervalMs
+        const interval = health.watchdogIntervalMs
         if (interval > 0) timer = deps.setIntervalFn(() => void check(), interval)
         return
       }

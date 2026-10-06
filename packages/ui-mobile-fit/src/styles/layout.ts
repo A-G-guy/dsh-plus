@@ -57,9 +57,8 @@ export const layoutCss = /* css */ `
     padding-left: 48px;
   }
 
-  /* 外移按钮常显面板图标：上游 rail 态默认显示 brand mark（0.1.2-alpha.2 基线
-     类名 _railMark，历史曾名 _railFish）、仅 hover 才换面板图标，触屏无
-     hover 会导致展开入口不可辨识 */
+  /* 外移按钮常显面板图标：上游 rail 态默认显示 brand mark（_railMark）、仅
+     hover 才换面板图标，触屏无 hover 会导致展开入口不可辨识 */
   [class*="_frame"][data-sidebar-collapsed] [class*="_sidebarCol"] [class*="_toggle"] [class*="_panelIcon"] {
     display: inline !important;
   }
@@ -87,16 +86,11 @@ export const layoutCss = /* css */ `
     width: 100% !important;
   }
 
-  /* 右列（0.1.6-alpha.1 上游由 _detailsCol 更名为 _rightbarCol，data 钩子为
-     data-rightbar-collapsed）。上游把它做成"轨道"：面板自身 absolute 右贴边，
-     由 data-sidebar-right-open 控制滑入；且 SidebarRight 内
-     autoFullscreen = viewportWidth < 768 与本插件断点重合——窄屏下右面板
-     已由上游置为 position:fixed inset:0 全屏、轨道宽度归 0。故此处只做必要的
-     防御：轨道最小宽度归零（中列不被挤压）。旧版"手动 drawer 化列容器"的规则
-     一并删除——它锚定的 _detailsCol 自 0.1.5 起即不存在，属长期静默失效的死选择器。 */
-  [class*="_frame"] > [class*="_rightbarCol"] {
-    min-width: 0;
-  }
+  /* 右列（data 钩子 data-rightbar-collapsed）：上游把它做成"轨道"——面板自身
+     absolute 右贴边，由 data-sidebar-right-open 控制滑入；且 SidebarRight 内
+     autoFullscreen = viewportWidth < 768 与本插件断点重合，窄屏下右面板已由上游
+     置为 position:fixed inset:0 全屏、轨道宽度归 0（轨道自身的 min-width:0 亦由
+     上游提供），故本插件不需要任何右列规则。 */
 
   /* 列脱离文档流后 grid 自动放置会让后续列前移，必须显式钉回各自轨道 */
   [class*="_frame"] > [class*="_sidebarCol"] {
@@ -112,11 +106,6 @@ export const layoutCss = /* css */ `
   [class*="_frame"] > [class*="_rightbarCol"] {
     grid-column: 3;
     grid-row: 1;
-  }
-
-  /* 中列最小宽度归零兜底（上游已 min-width:0，防御内联 grid 变更） */
-  [class*="_centerCol"] {
-    min-width: 0;
   }
 
   /* IME 上浮：behaviors.ts 仅在键盘弹出期间给 <html> 挂 data-dsh-ime。

@@ -7,7 +7,7 @@ import { test } from 'node:test'
  * 门控表自动继承的守门测试。
  *
  * 历史：本插件的 compat 门控表曾是官方 catalog.ts 的**手抄镜像**，而官方表在
- * npm 发布形态下不导出、`src/` 不随发布，只能"升级时人工核对"。0.1.5-rc.1 官方
+ * npm 发布形态下不导出、`src/` 不随发布，只能"升级时人工核对"。官方
  * 扩容 offer 字段而旧表漏收，后果是官方可配字段被本插件**误判非法并拒写**
  * ——静默功能缺失、无任何报错。
  *
@@ -261,4 +261,36 @@ test('compat 回退快照模式放宽未知键，但仍拒 withhold（避免误�
     loadVendoredKit()
   }
   assert.equal(compat.compatTableInfo().source, 'official')
+})
+
+test('兜底快照不得过期：与现场推导逐协议逐字段一致', async () => {
+  // 快照只在官方改打包形态、COMPAT_GATES 解析失败时启用。它一旦落后于官方，
+  // 就会引入「官方可写字段被本插件误拒」的静默故障（手抄镜像教训的反面），
+  // 故强制与现场推导对齐：官方升级后本用例先红，提示刷新快照。
+  const compat = await installDerived()
+  const { FALLBACK_TABLE } = await import('../src/official-surface.ts')
+  const protocols = [...compat.compatProtocols()].sort()
+  assert.deepEqual(
+    Object.keys(FALLBACK_TABLE.gates).sort(),
+    protocols,
+    '兜底快照的协议集与现场推导不一致（官方新增/改名协议，请刷新快照）',
+  )
+  for (const api of protocols) {
+    const snapshot: Record<string, string> = {}
+    for (const field of [...compat.compatFieldsOf(api), ...compat.compatWithholdFieldsOf(api)]) {
+      snapshot[field] = compat.compatDispositionOf(api, field) as string
+    }
+    assert.deepEqual(
+      FALLBACK_TABLE.gates[api],
+      snapshot,
+      `${api} 的兜底快照与现场推导不一致（请刷新快照）`,
+    )
+    for (const field of Object.keys(snapshot)) {
+      assert.deepEqual(
+        FALLBACK_TABLE.specs[field],
+        compat.compatFieldSpec(api, field),
+        `${api}.${field} 的兜底取值约束与现场推导不一致（请刷新快照）`,
+      )
+    }
+  }
 })

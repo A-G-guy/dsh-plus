@@ -1,7 +1,7 @@
 ---
 description: ADR 0005：架构门禁采用 biome 内置规则，不引入依赖图工具
 type: event
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-07 00:39"
 ---
 
 # ADR 0005：架构门禁采用 biome 内置规则，不引入依赖图工具
@@ -53,10 +53,8 @@ last_modified: "2026-10-03 03:23"
 3. 不引入 dependency-cruiser，不自研检查器；传递可达性类规则暂缓（见「后果与边界」）。
 4. 架构例外只能改 `biome.json` 登记，并在本 ADR 或仓库管理规范说明理由；
    禁止用 `biome-ignore` 逐行绕过架构规则。
-5. 文档「event 只增不改」的 append_only 检查降为 warn 级：该检查按 `git diff -U0 HEAD`
-   的删除行数判定，而 `projects-go doc` 每次把 `last_modified` 重写成上一提交时间——
-   这行重写在 event 文档里同样计为「改写一行」。error 级会让元数据自动维护与
-   append-only 互斥（`doc` / `check` 长期报错），warn 保留可见性且提交钩子本不跑该检查。
+5. ~~文档 append_only 检查降为 warn 级~~——该条已由 [adr/0006](0006-提交门禁执行文档规则.md)
+   取代并从本 ADR 移除（append_only 现为 error 级，判定已豁免工具自维护字段）。
 
 ## 后果与边界
 
@@ -65,5 +63,5 @@ last_modified: "2026-10-03 03:23"
   dependency-cruiser（只需 reachable 规则，不接管循环与声明检查）或一段 40 行脚本。
 - node_modules 级别的半隔离（如 client 半依赖 react）由 biome 语句级规则与 overrides 覆盖，
   不做传递判定。
-- pre-commit 无法外挂脚本，架构规则不在提交时即时拦截；与 ADR 0002 的类型闸门覆盖面相同
-  ——提交前必须自行跑 `pnpm test`。
+- pre-commit 无法外挂脚本，架构规则不在提交时即时拦截；与 [adr/0002](0002-类型检查纳入守门.md)
+  的类型闸门覆盖面相同——提交前必须自行跑 `pnpm test`。

@@ -1,6 +1,6 @@
 /**
  * 配置单一事实源：cordis 行级 Config（组合默认值）与 settings namespace
- *（用户层，经 dsh-settings-file 持久化到 $DSH_HOME/settings.yaml）共用同一
+ *（用户层＝profile 行级覆盖层 cordis.patch.yml，热生效）共用同一
  * schemastery schema。无密钥字段（apiKeyEnv 是凭据引用名而非密钥本身）。
  *
  * 与官方 llm-pi-ai 的差异：
@@ -17,11 +17,11 @@ import type { VolatileFields } from '@dsh-plus/shared'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
-/** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
+/** settings 命名空间（字面量即合法命名空间，编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
 export const SETTINGS_NS = NS_LITERAL
 
 /**
- * 官方适配器不可用/推导失败时的协议兜底三元组（自 0.1.2-alpha 线以来的稳定集）。
+ * 官方适配器不可用/推导失败时的协议兜底三元组。
  * 运行期生效集合来自已安装官方包的 `supportedProtocols()`（见 resolve-dsh.ts），
  * 本常量只用于 schema 描述、浏览器半首帧兜底与推导失败回退。
  */
@@ -45,9 +45,6 @@ export type AdapterKind = (typeof ADAPTER_KINDS)[number]
 /** deepseek 路由的思考/推理档位（线协议枚举，对齐官方 llm-deepseek）。 */
 export const DEEPSEEK_THINKING = ['enabled', 'disabled'] as const
 export const DEEPSEEK_REASONING_EFFORTS = ['off', 'low', 'high', 'max'] as const
-/** 旧版 imageDetail 枚举（0.1.2-alpha.1 已移除该字段；仅用于 schema 透传陷阱的取值集）。 */
-export const DEEPSEEK_IMAGE_DETAILS = ['auto', 'low'] as const
-
 export const DEFAULT_CONTEXT_WINDOW = 262144
 export const DEFAULT_MAX_TOKENS = 32768
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300000
@@ -201,12 +198,6 @@ const modelEntry = z.object({
     .step(1)
     .min(1)
     .description('（仅 adapter: deepseek）单张请求图片的编码字节上限；缺省继承官方目录'),
-  // 0.1.2-alpha.1 移除字段的 schema 透传陷阱：官方已删除 imageDetail（改用
-  // imagePixelBudget/imageMaxBytes），此处保留取值 union 让旧配置通过 schema、
-  // 在写时校验（assertServiceable）以中文迁移提示明确拒绝（见 profiles-deepseek.ts）。
-  imageDetail: z
-    .union(DEEPSEEK_IMAGE_DETAILS)
-    .description('（已移除）图片细节档位；0.1.2-alpha.1 起请改用 imagePixelBudget/imageMaxBytes'),
 })
 
 const providerProfile = z.object({
@@ -254,9 +245,7 @@ const providerProfile = z.object({
     .description('单支流式读取的最大空闲间隔毫秒'),
   maxRequestImageBytes: z
     .natural()
-    .description(
-      '单请求 base64 图片载荷上限字节；缺省 20MiB（0.1.2-alpha.1 起官方必需字段，旧配置免改）',
-    ),
+    .description('单请求 base64 图片载荷上限字节；缺省 20MiB（官方必需字段，旧配置免改）'),
   requestImagePixelBudget: z
     .number()
     .step(1)
@@ -333,10 +322,10 @@ const providerProfile = z.object({
     .description('本 route 的模型目录；缺省且 provider 有 extends 时继承该源全部模型'),
 })
 
-// 0.1.7：根字段全 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
+// 根字段全 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
 // loader 原位提交活动引用；输出面标注活动字段声明面（结构兼容 volatile 引用），
 // 平面消费契约保持 LlmPiConfig 接口不变（服务侧经 unwrapVolatile 解包现取）。
-/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+/** 活动字段形态（loader 解析产物：volatile 字段为活动引用）。 */
 export type LlmPiConfigFields = VolatileFields<LlmPiConfig>
 
 export const Config: z<LlmPiConfigInput, LlmPiConfigFields> = z.object({

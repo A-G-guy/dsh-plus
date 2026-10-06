@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-03 03:23"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/agent-preset-chat 文档索引"
 type: fact
 ---
@@ -11,15 +11,13 @@ type: fact
 
 ## 背景（为什么需要这个插件）
 
-遗留预设 `$DSH_HOME/.agent-presets/chat/{preset.yml,agent.cordis.yml}`
-自官方 preset registry（`@deepseek-ai/dsh-agent-preset-registry`）起
-**不再被任何代码读取**（官方技能 `editing-cordis-compositions`：
-"Nothing reads that directory any more"）。本插件是它在新机制下的等价物，
-经 `ctx.agentPresets.register()` 注册，迁移完成后遗留目录可删除。
+官方 `$DSH_HOME/.agent-presets/` 目录已无读取方，预设只能经
+`@deepseek-ai/dsh-agent-preset-registry` 注册。本插件把「纯聊天模式」按该
+机制注册为预设 `chat`，出现在设置 → Agent 预设名单里，可被会话选择。
 
 ## 预设语义
 
-与遗留 `agent.cordis.yml` 逐字段一致，仅一行 `persona`：
+仅一行 `persona`：
 
 ```yaml
 - id: persona
@@ -66,4 +64,4 @@ default 等引用会落空）。
 - 服务端插件，无浏览器半；平台包（`@deepseek-ai/dsh-agent-preset-registry`）
   一律 peer（宿主提供单实例），仅作类型来源，运行时不 import。
 - `chatPresetDefinition(config)`：配置 → 注册表声明的纯函数，供测试断言
-  与遗留文件逐字段对齐（`tests/agent-preset-chat.test.ts`）。
+  声明形状（`tests/agent-preset-chat.test.ts`）。

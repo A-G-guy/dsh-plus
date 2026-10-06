@@ -7,7 +7,7 @@
  * - 样式走 data-plugin / data-plugin-css 约定，dsh-client-hmr 热更时可卸载；
  * - slot 注入等任一环节因上游升级失配时静默降级（入口不出现），不影响原生 UI。
  *
- * 类型说明：0.1.2-alpha.1 起 dsh-client-runtime 删除，类型按包拆分——
+ * 类型说明： dsh-client-runtime 删除，类型按包拆分——
  * ctx.slots 来自 ui-renderer、ctx.locale 来自 locale。
  * （原「打开文件」手势接管已移除：官方侧栏文件能力已覆盖该诉求，
  * 会话内文件链接交还官方 openWorkspacePath 宿主实现。）

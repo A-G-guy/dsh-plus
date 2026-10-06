@@ -23,9 +23,9 @@ type EditableHost =
   | HTMLTextAreaElement
   | (HTMLElement & { isContentEditable: true })
 
-/** 可编辑宿主：经典 input/textarea，或 contenteditable 宿主（上游 composer
- *  自 0.1.2-rc.1 起为 Lexical 编辑器，根元素是 div[contenteditable]——
- *  只认 input/textarea 会让守卫整体失效，切会话即弹输入法）。
+/** 可编辑宿主：经典 input/textarea，或 contenteditable 宿主（上游 composer 是
+ *  Lexical 编辑器，根元素为 div[contenteditable]——只认 input/textarea 会让
+ *  守卫整体失效，切会话即弹输入法）。
  *  这里返回类型谓词而非 boolean：命中分支的调用方可直接访问 closest/blur；
  *  未命中分支仍保留"非编辑宿主的 HTMLElement"（Tooltip 复位要 blur 它们）。 */
 const isEditableTarget = (el: EventTarget | null): el is EditableHost => {
@@ -81,8 +81,7 @@ function installImeInset(): Dispose {
 
 /** 上游 composer 在会话切换/解锁的 useEffect 里 editor.getRootElement()?.focus()
  *  （conversation 包 `locked || editor === null` 分支），触屏上每切一次会话就弹
- *  一次输入法。composer 根元素是 Lexical 的 contenteditable div（data-composer-input，
- *  0.1.2-rc.1 基线，此前为 input/textarea——isEditableTarget 两种都认）。
+ *  一次输入法。composer 根元素是 Lexical 的 contenteditable div（data-composer-input）。
  *  这里只拦截 composer 容器内可编辑宿主的"无手势聚焦"：手势落点在 composer 之外
  *  （如侧栏会话标题）时，随后的程序化 focus 一律 blur；直点输入框不受影响。
  *  composer 之外的输入框（重命名、设置项等）本来就是用户主动触达，不拦截。 */
@@ -145,13 +144,11 @@ function installTapOutsideClose(): Dispose {
  *    管理器；onChange→addFiles 等其余流程全部保持官方）。
  *  仅 coarse 指针生效；桌面与其余逻辑保持官方原生。
  *
- * 0.1.6-alpha.1 上游把独立回形针按钮收进 composer 的加号菜单（+ → 添加 →
- * 文件，`input.commands` / `input.file`），旧的 `file.attach`「添加附件」
- * 按钮与 aria-label 一并移除。这里的锚点随之改为按【行文案 + 同 composer 内
- * 隐藏 file input】判定，不再依赖按钮 aria-label：
- * 官方 file input 始终由 InputBar 渲染在 composerSeat 内（`data-composer-seat`），
- * 菜单行点击 → inputHub.pickFiles → 同一个 input.click()，因此"点菜单行"与
- * 旧版"点回形针"是同一语义，接管点选在 [role="option"] 行上即可。
+ * 接管锚点＝加号菜单的「文件」行（+ → 添加 → 文件，官方 command 命名空间
+ * `input.file`）+ 同 composer 内的隐藏 file input：官方 file input 始终由
+ * InputBar 渲染在 composerSeat 内（`data-composer-seat`），菜单行点击 →
+ * inputHub.pickFiles → 同一个 input.click()，故在 [role="option"] 行上接管
+ * 点选即等价于官方手势。
  */
 
 /** 二次选择层要接管的"文件"菜单行文案（官方 command 命名空间 `input.file`）。 */
@@ -192,7 +189,7 @@ const COMPOSER_CONTAINER_SELECTOR = '[data-composer-seat], [class*="_composerSea
 
 /**
  * 在点按目标所属的 composer 容器内定位官方隐藏 file input。
- * @param target - 被点按的元素（菜单行或旧版按钮）。
+ * @param target - 被点按的菜单行。
  * @returns 官方 file input；不在 composer 内或未渲染时返回 null。
  */
 export function findComposerFileInput(target: Element): HTMLInputElement | null {
@@ -263,8 +260,8 @@ function installAttachPicker(): Dispose {
       close()
       return
     }
-    // 命中加号菜单的"文件"行（0.1.6-alpha.1+）。row 就是被点按元素本身或
-    // 其祖先，故从 target 向上找带 role=option 的最近祖先。
+    // 命中加号菜单的"文件"行。row 就是被点按元素本身或其祖先，故从 target
+    // 向上找带 role=option 的最近祖先。
     const row = target.closest('[role="option"]')
     if (row === null) return
     const label = readRowLabel(row)
@@ -272,8 +269,8 @@ function installAttachPicker(): Dispose {
     const input = findComposerFileInput(row)
     if (input === null) return
     // 吞掉该次点按：官方 onClick（React 根委托冒泡）不再触发原生选择器，
-    // 改由二次选择层接管。语言跟随官方行文案（页面根标签的 lang 属性在
-    // 0.1.6 由 client-locale 维护，但行文案本身就是当前 locale 的事实源）。
+    // 改由二次选择层接管。语言跟随官方行文案（行文案本身就是当前 locale
+    // 的事实源，无需另读页面 lang）。
     e.preventDefault()
     e.stopPropagation()
     open(input, label?.trim() === '文件')

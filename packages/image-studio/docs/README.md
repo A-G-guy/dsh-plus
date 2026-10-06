@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 03:57"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/image-studio"
 type: fact
 ---
@@ -53,7 +53,7 @@ type: fact
 
 ## 配置
 
-settings 命名空间 `dsh-plus-image-studio`（`$DSH_HOME/settings.yaml` 热生效）：
+settings 命名空间 `dsh-plus-image-studio`（用户层＝profile 行级覆盖层 `cordis.patch.yml`，热生效）：
 
 - `promptPresets[]`：`{id, name, text}` 提示词模板。
 - `paramPresets[]`：`{id, name, endpoint, paramSpecs}` 参数组合。

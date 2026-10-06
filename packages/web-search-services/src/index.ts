@@ -24,7 +24,7 @@ export { Config, SETTINGS_NS } from './config.ts'
 export { PROVIDER_ID, SearchServicesProvider } from './provider.ts'
 
 // config 运行期为 loader 解析的 volatile 活动字段（用户层 override 并入行级
-// config，写入原位提交）——每次读现取平面快照，替代 0.1.6 installSection/setSource。
+// config，写入原位提交）——每次读现取平面快照，替代已删除的 installSection/setSource。
 export function apply(
   ctx: Context,
   config: WebSearchServicesConfig | WebSearchServicesConfigFields,

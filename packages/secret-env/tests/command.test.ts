@@ -2,7 +2,7 @@
  * `/var` contribution 的跨边界契约单测。
  *
  * 官方 dsh-client-ui-commands 在候选合成期对每个 contribution 调
- * `description()`（0.1.5-rc.1 起；alpha 线读的是字符串字面量）。这里用一个
+ * `description()`（早期版本读的是字符串字面量）。这里用一个
  * 复现该调用序列的最小假 commandUi，把契约钉在单测里：形状漂移会在这里
  * 失败，而不是在生产环境被 input-trigger 静默摘除整个 `command` 源。
  * 假服务只复现官方行为，不引入任何平台依赖。

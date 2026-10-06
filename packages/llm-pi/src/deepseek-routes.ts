@@ -11,7 +11,7 @@
  * 请求生效）；retryPolicy 是注册期捕获事实，变化时 handle.replace 原地重注册
  * （官方同款模式）；route 移除即 dispose 释放路由名。
  *
- * 0.1.2-alpha 线：DeepSeekAdapterOptions 必需 prepareExtensions（官方接线
+ * DeepSeekAdapterOptions 必需 prepareExtensions（官方接线
  * ctx.get('deepseekLlmApiExtensions')，缺省空实现）与可选 resolveImageAccess。
  * @module llm-pi/deepseek-routes
  */
@@ -158,7 +158,7 @@ export class DeepseekRouteRegistrar {
             )?.processPathFromHostPath(hostPath),
           ref,
         ) as never,
-      // 0.1.2-alpha 线必需：官方扩展注册表（deepseekLlmApiExtensions）缺席时
+      // 必需项：官方扩展注册表（deepseekLlmApiExtensions）缺席时
       // 给空实现（官方接线范式，llm-deepseek/src/index.ts:404-470）。
       prepareExtensions: (request) => {
         const extensions = ctx.get('deepseekLlmApiExtensions') as

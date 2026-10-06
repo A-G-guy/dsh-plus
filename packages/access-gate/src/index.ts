@@ -56,7 +56,7 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** 围栏服务：持有当前配置读取器（0.1.7 起为 volatile 活动引用的平面解包，读即最新）。 */
+/** 围栏服务：持有当前配置读取器（volatile 活动引用的平面解包，读即最新）。 */
 export class AccessGateService extends Service {
   private current: () => AccessGateConfig
   /** 官方 browser-auth 签名密钥（惰性读取缓存；读取失败 = null，autoLogin fail-safe 降级）。 */
@@ -64,7 +64,7 @@ export class AccessGateService extends Service {
 
   constructor(ctx: Context, config: AccessGateConfig | AccessGateConfigFields) {
     super(ctx, 'accessGate')
-    // 0.1.7 替代 0.1.6 installSection/setSource：loader 解析层已把用户层
+    // 替代已删除的 installSection/setSource：loader 解析层已把用户层
     // override 并入行级 config 并以活动引用原位提交，current() 现取即热。
     this.current = () => unwrapVolatile(config)
     const logger = ctx.logger('access-gate')

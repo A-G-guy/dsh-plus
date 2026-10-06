@@ -1,5 +1,5 @@
 /**
- * extends 继承解析：唯一数据源是 pi-ai 内置目录（models.dev 兜底已随 0.1.43 移除）。
+ * extends 继承解析：唯一数据源是 pi-ai 内置目录（models.dev 兜底已移除）。
  * 覆盖引用语法、命中/未命中行为与"手写条目"退化。
  * @module @dsh-plus/llm-pi/tests/inherit
  */

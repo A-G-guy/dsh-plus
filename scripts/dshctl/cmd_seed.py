@@ -13,9 +13,9 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from .cmd_dev import (_dev_profile_dir, clear_mock_script, ensure_mock_running,
+from .cmd_dev import (clear_mock_script, ensure_mock_running,
                       write_mock_script)
-from .common import DEV_HOME, dsh_bin, dev_env, fail, run
+from .common import DEV_HOME, dev_env, dev_profile_ready, dsh_bin, fail, run
 
 SEED_WORKSPACE = DEV_HOME / "seed-workspace"
 SEED_TAG = "[seed]"
@@ -101,9 +101,9 @@ def _run_scenario(scenario: dict) -> None:
 
 
 def cmd_dev_seed(args) -> None:
-    if not (DEV_HOME / "settings.yaml").exists():
+    if not dev_profile_ready():
         fail("dev home 未初始化，请先运行: dshctl.py dev init")
-    if not (_dev_profile_dir("headless") / "package.json").exists():
+    if not dev_profile_ready("headless"):
         fail("headless profile 未初始化，请先运行: dshctl.py dev init")
     if args.reset:
         group = seed_group_dir()

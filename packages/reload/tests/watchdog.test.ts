@@ -41,7 +41,6 @@ function fakeWatchdog(first: HealthLike): Fake {
     reload: () => {
       fake.reloads += 1
     },
-    fallbackIntervalMs: 30_000,
     setIntervalFn: (fn, ms) => {
       timerFn = fn
       fake.timerMs = ms
@@ -54,10 +53,10 @@ function fakeWatchdog(first: HealthLike): Fake {
   return fake
 }
 
-const health = (bootId: string, intervalMs?: number): HealthLike => ({
+const health = (bootId: string, intervalMs = 30_000): HealthLike => ({
   ok: true,
   bootId,
-  ...(intervalMs === undefined ? {} : { watchdogIntervalMs: intervalMs }),
+  watchdogIntervalMs: intervalMs,
 })
 
 test('given 首次 health 成功，then 建立基线并按下发间隔排程，不刷新', async () => {
@@ -65,12 +64,6 @@ test('given 首次 health 成功，then 建立基线并按下发间隔排程，�
   await new Promise((resolve) => setImmediate(resolve))
   assert.equal(fake.reloads, 0)
   assert.equal(fake.timerMs, 10_000)
-})
-
-test('given health 未下发间隔，then 走兜底间隔', async () => {
-  const fake = fakeWatchdog(health('boot-a'))
-  await new Promise((resolve) => setImmediate(resolve))
-  assert.equal(fake.timerMs, 30_000)
 })
 
 test('given 下发间隔为 0，then 不排程（被动检测关闭）', async () => {

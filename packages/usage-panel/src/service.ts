@@ -88,7 +88,7 @@ export class UsagePanelService extends Service {
 
   constructor(ctx: Context, config: UsagePanelConfig | UsagePanelConfigFields) {
     super(ctx, 'usagePanel')
-    // 0.1.7 替代 installSection/setSource：活动引用原位提交，现取即热。
+    // 替代 installSection/setSource：活动引用原位提交，现取即热。
     this.current = () => unwrapVolatile(config)
     // volatile 提交事件（替代原 onChange→applyConfig）：目录参数与同步周期热更。
     ctx.events.on('loader/volatile-update', () => this.applyConfig())

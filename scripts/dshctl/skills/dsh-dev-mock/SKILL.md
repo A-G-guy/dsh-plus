@@ -91,7 +91,7 @@ dshctl doctor [--release]
 
 红线：平台包（`@deepseek-ai/*`、`@earendil-works/pi-ai`）必须声明为
 `peerDependencies` + `devDependencies` 双写，严禁进 `dependencies`
-（事故沉淀见 `docs/repo/adr/0001`）。改依赖声明或 dsh rc 升级后必跑 `smoke-prod`。
+（事故沉淀见 `docs/repo/adr/0001-平台依赖必须-peer.md`）。改依赖声明或 dsh rc 升级后必跑 `smoke-prod`。
 
 ## 注意
 

@@ -1,6 +1,6 @@
 /**
  * SubagentModelService：子代理模型配置中枢（host 半）。
- * - 配置：0.1.7 volatile 活动引用（loader 解析层并入用户层，GUI 写入原位提交
+ * - 配置：volatile 活动引用（loader 解析层并入用户层，GUI 写入原位提交
  *   热生效）；写入经 internal/config waterfall 校验（validateEntries 规则
  *   （model 不能脱离 provider 等），非法即拒、不落盘）。
  * - 委托挂钩：包装 ctx.subagents.start/startContinuable，按 provider 名
@@ -39,7 +39,7 @@ export class SubagentModelService extends Service {
 
   constructor(ctx: Context, config: SubagentModelConfig | SubagentModelConfigFields) {
     super(ctx, 'subagentModel')
-    // 0.1.7 替代 installSection/setSource：活动引用原位提交——委托挂钩
+    // 替代 installSection/setSource：活动引用原位提交——委托挂钩
     // 永远现取最新配置，热生效无竞态。
     this.current = () => unwrapVolatile(config)
     // 写入校验（原 installSection validate；官方 llm-pi-ai 同款 waterfall）：

@@ -5,7 +5,7 @@
   body {"type":"client-request","rpcId":"<uuid4>","method":..., "payload":...}
 - 响应：{"type":"server-response","rpcId":..., "result":{"ok":true,"value":...}
   或 {"ok":false,"error":{"code","message","details"}}}
-- 认证（dsh ≥ 0.1.2-alpha.2 基线核实）：官方 browser-auth 对 /api 连 loopback 也无豁免，
+- 认证（0.2.1-alpha.1 核实）：官方 browser-auth 对 /api 连 loopback 也无豁免，
   一律携 auth.cookie_header 自签的 dsh-auth-* cookie（密钥读目标实例 home 的
   .credentials.yaml，跨重启有效）。
 

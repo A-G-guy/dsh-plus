@@ -26,7 +26,9 @@ level = "error"
 # last_modified 的自动维护改写在 append-only 判定中被豁免（只动该字段的
 # hunk 不算改写），因此元数据维护与该检查不再互斥。
 [docs.append_only]
-level = "error"
+# 临时降为 warn：本次一次性重排 event 文档（ADR 按事件拆分、事故因果链归位），
+# 例外记录见 docs/repo/adr/0012；重排完成后本行恢复 "error"（同一推送内）。
+level = "warn"
 
 [docs.scope]
 # 内置豁免（README/CHANGELOG/CONTRIBUTING/SECURITY/LICENSE/AGENTS）默认生效，

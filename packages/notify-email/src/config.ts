@@ -1,8 +1,8 @@
 /**
  * 配置单一事实源：cordis 行级 Config（组合默认值，dev/prod patch 层可覆盖）
- * 与 settings namespace（用户层，经 dsh-settings-file 持久化到 $DSH_HOME/settings.yaml）
+ * 与 settings namespace（用户层＝profile 行级覆盖层 cordis.patch.yml）
  * 共用同一 schemastery schema。SMTP 密码走官方 credentials seam
- * （refs/NOTIFY_EMAIL_SMTP_PASS），不进 settings.yaml（存储规范）。
+ * （refs/NOTIFY_EMAIL_SMTP_PASS），不进 settings 用户层（存储规范）。
  * @module notify-email/config
  */
 
@@ -11,7 +11,7 @@ import type { UnwrapVolatile } from '@dsh-plus/shared'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
-/** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
+/** settings 命名空间（字面量即合法命名空间，编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
 export const SETTINGS_NS = NS_LITERAL
 
 /** SMTP 密码在官方 credentials seam 中的引用名。 */
@@ -65,7 +65,7 @@ export const Config = z.object({
   dryRun: z.boolean().description('仅记录日志不真实发送（开发调试用）').default(false).volatile(),
 })
 
-/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+/** 活动字段形态（loader 解析产物：volatile 字段为活动引用）。 */
 export type NotifyEmailConfigFields = Schemastery.TypeT<typeof Config>
 /** 平面配置形态（消费面的读取形态，由活动引用解包得到）。 */
 export type NotifyEmailConfig = UnwrapVolatile<NotifyEmailConfigFields>

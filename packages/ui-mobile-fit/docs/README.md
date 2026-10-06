@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 16:31"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/ui-mobile-fit"
 type: fact
 ---
@@ -25,8 +25,8 @@ type: fact
 | 层 | 文件 | 内容 |
 |---|---|---|
 | 基础 | `base.ts` | 一屏化根锁（整页两轴不可滚 + 根壳 100dvh，见坑 4）、长串折行（代码块例外）、输入框 ≥16px 防 iOS 缩放 |
-| 布局 | `layout.ts` | 收起态 rail 全隐+展开按钮外移 header、展开态侧栏/详情 drawer 化且内容满宽、composer 随 --dsh-ime-inset 上浮（仅 `html[data-dsh-ime]` 期间挂 transform）、触屏隐藏拖拽手柄 |
-| 会话 | `conversation.ts` | markdown 图片/表格/代码块容器内滚动、工具卡片防溢出、composer 全宽换行、接管卡片（计划待审/提问/审批）footer 换行防按钮裁剪 |
+| 布局 | `layout.ts` | 收起态 rail 全隐+展开按钮外移 header、展开态侧栏 drawer 化且内容满宽（右列由上游轨道机制自理）、composer 随 --dsh-ime-inset 上浮（仅 `html[data-dsh-ime]` 期间挂 transform）、触屏隐藏拖拽手柄 |
+| 会话 | `conversation.ts` | 内联媒体（video/canvas/svg）与代码块外壳防溢出、工具卡片防溢出、顶栏换行、composer 附件/模式行换行、接管卡片（计划待审/提问/审批）footer 换行防按钮裁剪 |
 | 覆盖层 | `overlays.ts` | 对话框/菜单视口内收编、设置面板 nav+content 纵向堆叠（nav 横向滚动）、触屏 Tooltip 气泡自动隐藏 |
 
 ### 非显而易见的坑（成因与对策）
@@ -44,7 +44,8 @@ type: fact
    mouseleave/blur 隐藏；触屏点按只有前半段（还会带 500ms delay），气泡永不消失
    遮挡内容（侧栏"收起侧边栏"、会话"视图选项"等）。修复为纯 CSS：coarse 媒体内给
    `span[class*="_bubble"][data-side]`（上游全包唯一标识 Tooltip 气泡）挂 1.6s
-   自动淡出动画，终态 `visibility:hidden` 由 forwards 保持；React 每次展示重挂
+   自动淡出动画，终态 `opacity:0` 由 forwards 保持（**勿用 `visibility:hidden`**：
+   Chrome 会在整个动画期间提前生效，气泡将全程不可见）；React 每次展示重挂
    span 使动画重启，桌面 hover 路径不受影响。对同用 primitives Tooltip 的
    dsh-plus 自家面板（web-files）一并生效。
 4. **整页可横竖拖动**（应一屏化，仅内部可滚）：三处成因叠加——(a) 旧规则只锁
@@ -61,30 +62,53 @@ type: fact
 
 ## 行为胶水（`src/behaviors.ts`，均限窄屏生效）
 
-纯 CSS 无法表达的三个交互，以全局监听实现，不触碰任何组件内部：
+纯 CSS 无法表达的交互以全局监听实现，不触碰任何组件内部：
 
 1. **IME 上浮**：meta viewport 追加 `interactive-widget=resizes-content`（Android
    布局随键盘收缩）；iOS 用 visualViewport 计算键盘高度写入 `--dsh-ime-inset`，
    并仅在键盘弹出期间给 `<html>` 挂 `data-dsh-ime` 属性，由 CSS translate
    composer（键盘收起即移除属性，transform 不常驻，见上方"坑 1"）。
-2. **自动聚焦屏蔽**：无近期 pointerdown/keydown 手势时对 input/textarea 的程序化
-   focus 一律 blur——切换会话不再弹出输入法（额外要求 pointer: coarse，桌面不受影响）。
+2. **自动聚焦屏蔽**：无近期 pointerdown/keydown 手势时对可编辑宿主（input/
+   textarea/contenteditable）的程序化 focus 一律 blur——切换会话不再弹出输入法
+   （额外要求 pointer: coarse，桌面不受影响）。
 3. **点按空白收起侧栏**：展开态下点按中列任意位置即收起（吞掉该次点按，模拟
    drawer 背板）。
+4. **触屏 Tooltip 复位**：点按 2.2s 后补发合成 mouseout/blur，使上游 Tooltip
+   真正移除条目而非只靠 CSS 淡出，下次点按可重新短暂提示。
+5. **触屏附件二次选择层**：拦截加号菜单「文件」行的点按，弹出「相册/拍照/选择
+   文件」层；选「文件」时给同一官方隐藏 file input 补 `accept` 后触发（仅
+   pointer: coarse，桌面路径完全走官方）。
 
 ## 选择器稳定性策略
 
-上游（基准 0.1.6-alpha.2）CSS Modules 类名 = 哈希前缀 + 语义后缀（`pI_x6G_frame`），
-shell 旧格式为 `_语义_哈希_序号`（`_remove_1hk8w_53`）。哈希随构建变化、语义后缀
-稳定，故一律用 `[class*="_语义后缀"]` 子串匹配；`!important` 仅用于对抗内联
-`grid-template-columns` 等内联样式，并就地注释说明。
+上游（基准 0.2.1-alpha.1）CSS Modules 类名 = 哈希前缀 + 语义后缀（`pI_x6G_frame`）。
+哈希随构建变化、语义后缀稳定，故一律用 `[class*="_语义后缀"]` 子串匹配；`!important`
+仅用于对抗内联 `grid-template-columns` 等内联样式，并就地注释说明。
 
 语义后缀稳定是观察结论而非保证：上游更名不触发任何告警，只会表现为覆盖规则静默
-失效（曾发生，见 [事故记录](../../../docs/repo/事故记录.md)），故**每次升级必须复核**——
-把 CSS/behaviors 里全部 `class*="_x"` 与 `[data-*]` 抽出来，逐一在官方安装树
-（各 `dsh-client-ui-*` 包的 `lib/*.js` + `dsh-web-frontend/dist/assets/*.css`）里检索：
-**存活选择器必须命中，未命中的即为死规则，需改锚或删除**。逐版本复核结论与本插件
-的锚点动作见 [上游跟进记录](上游跟进记录.md)。
+失效（曾发生，见 [事故记录](../../../docs/repo/事故记录.md)），故**每次升级必须复核**。
+复核要对每条规则判三选一：**仍需要 / 上游已实现（删）/ 死选择器（改锚或删）**。
+
+**退役条件**：上游原生支持一屏化根锁（`100dvh` + 双轴 overflow 锁）、
+`interactive-widget`/`visualViewport` 键盘适配、窄屏侧栏 drawer 化、触屏隐藏拖拽
+手柄与触屏 Tooltip 收尾，则本插件整体可退役。0.2.1-alpha.1 复核：以上均未实现
+（逐项证据见 [上游跟进记录](上游跟进记录.md)）。
+
+```bash
+# 权威树：dsh 自带闭包里的平台包（顶层 @deepseek-ai/* 可能是旧版残留，勿用）
+D="$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai"
+dsh --version                      # 先确认复核基准版本
+# 1) 抽出本插件全部分类锚点
+grep -rho 'class\*="[^"]*"' packages/ui-mobile-fit/src | sort -u
+grep -rho '\[data-[a-z-]*\]' packages/ui-mobile-fit/src | sort -u
+# 2) 逐一检索：js 与 css 都要查（部分模块样式是独立 .module.css 文件）
+grep -rl '_语义后缀' "$D" --include='*.js' --include='*.css'
+# 3) 判"上游是否已实现"：读命中处的规则体，逐属性比对取值
+```
+
+判"上游已实现"须逐属性同值或更强（如上游 `flex:none` ⊇ 本插件 `flex-shrink:0`）；
+只要有一条本插件属性上游没有，规则就仍需保留。逐版本复核结论与本插件的锚点动作见
+[上游跟进记录](上游跟进记录.md)。
 
 ## 开发与验证
 

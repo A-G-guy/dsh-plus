@@ -1,13 +1,13 @@
 /**
  * 运行时挂钩：子代理模型路由的注入点。
  *
- * 机制依据（官方 dsh-subagent 0.1.2-rc.1）：子代理的模型由【创建时】的
+ * 机制依据（官方 dsh-subagent）：子代理的模型由【创建时】的
  * AgentOptions 决定——`resolveChildAgentOptions(parent, request.agentOptions,
  * childDepth)` = 父 options 快照 + 显式 agentOptions（后者胜出），且原生读取
  * provider/model/reasoningEffort 三个字段（materialize → agents.create/resume
  * → agentLoop.options），冷恢复（continuable resume）经 descriptor 持久化保持。
  * 因此只需在 `request.agentOptions` 注入 provider/model/reasoningEffort，
- * 路由即命中，无需旧版 effort 瀑布的私有字段搬运。
+ * 路由即命中，无需搬运任何私有字段。
  *
  * 两个挂钩均幂等（Symbol 标记 + dispose 恢复），HMR 重载安全。
  * @module @dsh-plus/subagent-model/delegation

@@ -1,7 +1,7 @@
 /**
  * 浏览器半：修复非 loopback 页面下官方设置平面（settings describe mirror）不可用。
  *
- * 背景（0.1.7-alpha.2 基线）：服务端设置 RPC 可达性由统一 /api 信任围栏
+ * 背景：服务端设置 RPC 可达性由统一 /api 信任围栏
  * （loopback 或 --trusted-host 声明的 authority）+ 浏览器令牌 cookie 认证把关；
  * 但浏览器侧 dsh-client-ui-settings 仍按 `remote.$host.isLoopback`（纯页面
  * hostname 判定）选择持久化——域名/LAN IP 访问的页面把共享 describe mirror 与
@@ -18,8 +18,8 @@
  * memory 翻回 host、原地修复启动期已构造的 memory 表单，并触发一次 mirror.load()；
  * 不可达（直连且围栏未放行）维持官方降级，不做任何改动。
  *
- * 漂移面（0.1.7-alpha.2 构建产物首核，0.2.0-rc.1 再复核，全部按可选面探测、
- * 缺失即对应阶段 no-op）：
+ * 漂移面（按官方构建产物核实，0.2.1-alpha.1 复核；全部按可选面探测、缺失即
+ * 对应阶段 no-op）：
  *   - ConfigForms：persistence 属性、describe()→mirror、forms Map；
  *   - SettingsDescribeMirror：persistence 属性、load()、subscribe()；
  *   - ConfigFormController：persistence 属性、store.update()、derive()；
@@ -86,7 +86,7 @@ export interface DevToolsLike {
   enabled?: unknown
 }
 
-/** 官方 ConfigForms 服务的最小漂移面（0.1.7 起取代 settingsScope）。 */
+/** 官方 ConfigForms 服务的最小漂移面（取代 settingsScope）。 */
 export interface ConfigFormsLike {
   persistence?: string | undefined
   describe?(): MirrorLike

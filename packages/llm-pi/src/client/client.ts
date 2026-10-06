@@ -7,8 +7,8 @@
  *
  * 类型说明：浏览器半只用到 slots/locale/remote 的很窄一面，
  * scope 与基础控件走 @dsh-plus/shared/client 套件（收编自本插件原实现）。
- * 配置读写经 ctx.remote.settings 直连（0.1.2-alpha.1 起 connection.api.settings
- * 已移除；0.1.7 起 settingsScope 服务亦删除（configForms 取代）——插件卡片自始
+ * 配置读写经 ctx.remote.settings 直连（connection.api.settings
+ * 已移除； settingsScope 服务亦删除（configForms 取代）——插件卡片自始
  * 直连 remote.settings，见 @dsh-plus/shared/client scope.ts）；自定义端点只剩
  * `/catalog`（api.ts：运行期套件事实 + pi-ai 内置目录搜索，浏览器半读不到 pi-ai 包）。
  * 卡片 key/rowId 约定见 @dsh-plus/shared/client/config-slots。

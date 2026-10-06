@@ -68,7 +68,7 @@ function flush(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve))
 }
 
-test('Given 默认配置 When 应用 Then 以 chat 身份注册且声明与遗留预设一致', async () => {
+test('Given 默认配置 When 应用 Then 以 chat 身份注册空工具目录预设', async () => {
   const harness = createFakeCtx()
   apply(harness.ctx, defaults())
   await flush()

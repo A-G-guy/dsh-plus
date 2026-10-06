@@ -240,7 +240,7 @@ test('协议不在当前生效集合内时写时拒绝，错误里带生效版�
   )
 })
 
-test('0.1.2-alpha.1 必需字段：requestImagePixelBudget/requestImageMaxBytes 缺省取官方默认，显式配置透传', () => {
+test('官方必需字段：requestImagePixelBudget/requestImageMaxBytes 缺省取官方默认，显式配置透传', () => {
   const { profile } = modelsOf(
     buildProfiles(
       {
@@ -277,25 +277,6 @@ test('0.1.2-alpha.1 必需字段：requestImagePixelBudget/requestImageMaxBytes 
   assert.equal(overridden.maxRequestImageBytes, 1048576)
   assert.equal(overridden.requestImagePixelBudget, 1024 * 1024)
   assert.equal(overridden.requestImageMaxBytes, 262144)
-})
-
-test('pi 路由含 imageDetail 写时拒绝并提示迁移（schema 透传陷阱）', () => {
-  // 单独声明旧字段（不在 ModelEntryConfig 上）：复现 schema 透传陷阱的旧配置形状
-  const legacyModel = { id: 'm', imageDetail: 'low' }
-  assert.throws(
-    () =>
-      buildProfiles(
-        {
-          g: {
-            api: 'openai-completions',
-            baseURL: 'https://g.example/v1',
-            models: [legacyModel],
-          },
-        },
-        deps,
-      ),
-    /imageDetail 已随 0.1.2-alpha.1 移除/,
-  )
 })
 
 test('继承 reasoning 能力物化为显式档位字典（与内置目录语义逐档位一致）', () => {

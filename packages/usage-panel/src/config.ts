@@ -1,6 +1,6 @@
 /**
  * 配置单一事实源：cordis 行级 Config（组合默认值）与 settings namespace
- * （用户层，$DSH_HOME/settings.yaml 热生效）共用同一 schemastery schema。
+ * （用户层＝profile 行级覆盖层 cordis.patch.yml，热生效）共用同一 schemastery schema。
  * @module usage-panel/config
  */
 import z from '@deepseek-ai/schemastery'
@@ -10,10 +10,10 @@ import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 // 价目 schema 与 PriceEntry 类型同源在 pricing.ts（避免两处维护漂移）。
 import { PriceEntrySchema } from './pricing.ts'
 
-/** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验）。 */
+/** settings 命名空间（字面量即合法命名空间，编译期校验）。 */
 export const SETTINGS_NS = NS_LITERAL
 
-// 0.1.7：全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
+// 全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
 // loader 原位提交活动引用，current() 现取即热。
 export const Config = z.object({
   prices: z
@@ -39,7 +39,7 @@ export const Config = z.object({
     .volatile(),
 })
 
-/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+/** 活动字段形态（loader 解析产物：volatile 字段为活动引用）。 */
 export type UsagePanelConfigFields = Schemastery.TypeT<typeof Config>
 /** 平面配置形态（消费面的读取形态，由活动引用解包得到）。 */
 export type UsagePanelConfig = UnwrapVolatile<UsagePanelConfigFields>

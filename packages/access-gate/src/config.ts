@@ -1,6 +1,6 @@
 /**
  * 配置单一事实源：cordis 行级 Config（组合默认值，dev/prod patch 层可覆盖）
- * 与 settings namespace（用户层，经 dsh-settings-file 持久化到 $DSH_HOME/settings.yaml）
+ * 与 settings namespace（用户层＝profile 行级覆盖层 cordis.patch.yml，热生效）
  * 共用同一 schemastery schema（notify-email 同款约定）。
  *
  * 与官方认证合并后：访问凭据唯一化为官方 browser-auth cookie（dsh-auth-*，
@@ -15,10 +15,10 @@ import type { UnwrapVolatile } from '@dsh-plus/shared'
 
 import { SETTINGS_NS as NS_LITERAL } from './ns.ts'
 
-/** settings 命名空间（字面量即合法命名空间，0.1.2-alpha.2 起编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
+/** settings 命名空间（字面量即合法命名空间，编译期校验；webui 配置卡片与插件运行期读取同一份）。 */
 export const SETTINGS_NS = NS_LITERAL
 
-// 0.1.7：全部字段 `.volatile()`——loader 解析为活动引用（用户层 override 并入
+// 全部字段 `.volatile()`——loader 解析为活动引用（用户层 override 并入
 // 行级 config，GUI 写入原位提交热生效），同时使本条目进入 settings describe
 // 视图（配置卡片可读写）；缺 volatile 标记的条目会被 describe 跳过。
 export const Config = z.object({
@@ -50,7 +50,7 @@ export const Config = z.object({
     .volatile(),
 })
 
-/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+/** 活动字段形态（loader 解析产物：volatile 字段为活动引用）。 */
 export type AccessGateConfigFields = Schemastery.TypeT<typeof Config>
 /** 平面配置形态（服务与判定面的消费形态，由活动引用解包得到）。 */
 export type AccessGateConfig = UnwrapVolatile<AccessGateConfigFields>

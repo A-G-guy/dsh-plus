@@ -37,7 +37,7 @@ export { SETTINGS_NS } from './ns.ts'
 export type { WebCacheHeadersConfig }
 
 /**
- * 装配补丁并接线配置源：0.1.7 起配置为 loader 解析的 volatile 活动字段
+ * 装配补丁并接线配置源：配置为 loader 解析的 volatile 活动字段
  * （用户层 override 并入行级 config，写入原位提交），enabled 翻转即时装/卸
  * 补丁，无需 /reload；插件 dispose（profile 卸载 / live reload）保证卸下。
  * @param ctx - 宿主上下文。
@@ -64,7 +64,7 @@ export function apply(
     )
   }
 
-  // 活动引用原位提交（替代 0.1.6 setSource/onChange）：每次读现取平面快照，
+  // 活动引用原位提交（替代已删除的 setSource/onChange）：每次读现取平面快照，
   // volatile 提交事件驱动 enabled 翻转装卸。
   const current = (): WebCacheHeadersConfig => unwrapVolatile(config)
   ctx.events.on('loader/volatile-update', () => sync(current().enabled))

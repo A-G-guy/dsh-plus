@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 16:31"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/boot-retry"
 type: fact
 ---
@@ -43,7 +43,7 @@ el.addEventListener('error', () => reject(new Error(...)), { once: true })
 
 ### 时序：为什么一定被读到
 
-index.html 的 head 顺序（实测于 dsh 0.1.5-rc.2，0.1.6-alpha.2 复核结构不变）：
+index.html 的 head 顺序（0.2.1-alpha.1 实测）：
 模块表引导队列 → application 批次 `<link rel=preload>` → bootstrap 批次
 `<script src=/plugins/...>` → `__DSH_BOOT__` → **本插件注入行** → 外壳
 `<script type="module" src=assets/index-*.js>`。
@@ -105,3 +105,10 @@ cordis 行级 `config`（注意：patch 层是整体替换，覆盖时须写全�
   重复注入幂等。
 - 真实 dev 实例（`dshctl dev up`）：注入行出现在 served HTML，与单测产物一致；
   以真实插件 URL 模拟首次请求 abort → 自动重试并 RESOLVED。
+
+## 退役路径
+
+官方外壳若自带模块脚本失败重试（或在 index.html 里为外壳带上可切换 URL 的版本
+参数），本插件配置 `enabled: false` 即可退役。0.2.1-alpha.1 复核：`__DSH_TRANSPORT__`
+的 `loadBundle` 已带 bundle 重试，但外壳 `<script type="module" src=/assets/index-*.js>`
+本身仍无自动重试（同 src 的 module 只执行一次），退役条件未满足。

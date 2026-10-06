@@ -7,8 +7,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .common import (DEV_HOME, DEV_PORT, DEV_RUN_DIR, DSH_BIN, MOCK_PORT,
-                     PROD_HOME, PROD_PORTS, REPO_ROOT,
+from .common import (DEV_HOME, DEV_PORT, DEV_PROFILE, DEV_RUN_DIR, DSH_BIN,
+                     MOCK_PORT, PROD_HOME, PROD_PORTS, REPO_ROOT,
+                     dev_profile_dir, dev_profile_ready,
                      expected_platform_version, fail, find_platform_shadows,
                      package_dirs, read_json, run, yaml_scalar)
 
@@ -92,14 +93,16 @@ def _check_packages() -> None:
 
 
 def _check_isolation() -> None:
-    _check("dev home 已初始化", (DEV_HOME / "profiles/web/package.json").exists(),
+    _check("dev home 已初始化", dev_profile_ready(),
            "运行 dshctl.py dev init")
-    settings = DEV_HOME / "settings.yaml"
-    if settings.exists():
-        text = settings.read_text(encoding="utf-8")
-        _check("dev settings 仅指向 mock", "127.0.0.1" in text
+    # mock 接线落在 profile 行级覆盖层（0.2.x 起 settings.yaml 已废弃）：
+    # 判据 = 指向本机 mock 端口，且不含生产网关 authority。
+    patch = dev_profile_dir(DEV_PROFILE) / "cordis.patch.yml"
+    if patch.exists():
+        text = patch.read_text(encoding="utf-8")
+        _check("dev 模型接线仅指向 mock", f"127.0.0.1:{MOCK_PORT}" in text
                and "miniserver" not in text,
-               f"检查 {settings} 不得含真实网关")
+               f"检查 {patch} 不得含真实网关")
     _check("dev 端口规划", DEV_PORT not in PROD_PORTS and MOCK_PORT not in PROD_PORTS,
            f"dev/mock 端口不得占用生产端口 {PROD_PORTS}")
 

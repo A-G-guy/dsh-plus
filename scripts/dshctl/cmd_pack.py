@@ -140,10 +140,11 @@ _SNAPSHOT_FILES = ("package.json", "pnpm-workspace.yaml", "cordis.yml",
 
 
 def _snapshot_prod() -> Path:
-    """重启前快照生产 profile 配置层 + settings + vendor，返回快照目录。
+    """重启前快照生产 profile 配置层 + vendor，返回快照目录。
 
-    快照对象是"可回滚的最小完整状态"：profile 声明文件决定 pnpm 安装结果，
-    settings.yaml 决定插件配置；node_modules 由 `dsh plugin install` 依声明重建。
+    快照对象是"可回滚的最小完整状态"：profile 声明文件（`package.json` /
+    `pnpm-workspace.yaml` / `cordis.yml` / `cordis.patch.yml`）决定 pnpm 安装结果与
+    插件配置，node_modules 由 `dsh plugin install` 依声明重建。
     """
     stamp = time.strftime("%Y%m%d-%H%M%S")
     snap = PROD_HOME / "backups" / f"install-prod-{stamp}"
@@ -157,9 +158,6 @@ def _snapshot_prod() -> Path:
     vendor = prod_profile / "vendor"
     if vendor.is_dir():
         shutil.copytree(vendor, profile_dir / "vendor")
-    settings = PROD_HOME / "settings.yaml"
-    if settings.exists():
-        shutil.copy2(settings, snap / "settings.yaml")
     version = subprocess.run([dsh_bin(), "--version"], capture_output=True,
                              text=True, env=_prod_env())
     (snap / "dsh-version.txt").write_text(version.stdout.strip() + "\n",
@@ -237,7 +235,7 @@ def _health_check(since_epoch: float) -> list[str]:
 
 
 def _restore_snapshot(snap: Path) -> None:
-    """按快照还原 profile 声明层与 settings，并依声明重建 node_modules。"""
+    """按快照还原 profile 声明层（含插件配置所在的行级覆盖层），并重建 node_modules。"""
     prod_profile = _prod_profile_dir()
     for name in _SNAPSHOT_FILES:
         backup = snap / "profiles/web" / name
@@ -249,9 +247,6 @@ def _restore_snapshot(snap: Path) -> None:
         if vendor.exists():
             shutil.rmtree(vendor)
         shutil.copytree(vendor_backup, vendor)
-    settings_backup = snap / "settings.yaml"
-    if settings_backup.exists():
-        shutil.copy2(settings_backup, PROD_HOME / "settings.yaml")
     run([dsh_bin(), "plugin", "--profile", "web", "install"], env=_prod_env())
     print(f"[rollback] 已从快照还原: {snap}")
 

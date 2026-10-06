@@ -76,7 +76,7 @@ class TestEnsureMockRows(unittest.TestCase):
             profile_dir.mkdir(parents=True)
             patch = profile_dir / "cordis.patch.yml"
             patch.write_text(TEMPLATE, encoding="utf-8")
-            with mock.patch.object(cmd_dev, "_dev_profile_dir",
+            with mock.patch.object(cmd_dev, "dev_profile_dir",
                                    lambda name=cmd_dev.DEV_PROFILE: root / "profiles" / name):
                 cmd_dev._ensure_mock_rows("web")
             text = patch.read_text(encoding="utf-8")

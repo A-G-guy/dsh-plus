@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 16:31"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/notify-email"
 type: fact
 ---
@@ -34,8 +34,7 @@ type: fact
 ## 配置
 
 cordis 行级 `Config`（组合默认值）与 settings namespace `dsh-plus-notify-email`
-（用户层）共用同一 schemastery schema（`src/config.ts` 单一事实源）。用户层经
-dsh-settings-file 持久化到 `$DSH_HOME/settings.yaml`，热生效。
+（用户层＝profile 行级覆盖层 `cordis.patch.yml`）共用同一 schemastery schema（`src/config.ts` 单一事实源），写入即热生效。
 
 | 字段 | 默认 | 说明 |
 |---|---|---|

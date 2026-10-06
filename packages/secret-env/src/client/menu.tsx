@@ -7,7 +7,15 @@
  * bail 通道 'slash/input-insert-text'（span + draftRev CAS，编辑器内应用）。
  * @module secret-env/client/menu
  */
-import { type ReactElement, useEffect, useRef, useState } from 'react'
+import {
+  type Dispatch,
+  type MutableRefObject,
+  type ReactElement,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 
 import { fetchSecrets, type SecretList } from './api.ts'
 import type { Translate } from './i18n.ts'
@@ -116,6 +124,123 @@ function toCandidates(list: SecretList): SecretCandidate[] {
   ]
 }
 
+interface MenuKeyContext {
+  candidates: SecretCandidate[]
+  highlight: number
+  hit: SecretHit | null
+  suppressed: MutableRefObject<SecretHit | null>
+  pick: (entry: SecretCandidate) => void
+  setHighlight: Dispatch<SetStateAction<number>>
+  setHit: Dispatch<SetStateAction<SecretHit | null>>
+}
+
+/** 菜单展开期的按键处理（捕获阶段先於 Lexical/官方管线截获，已消费则阻止冒泡）。 */
+function handleMenuKey(event: KeyboardEvent, ctx: MenuKeyContext): void {
+  const list = ctx.candidates
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    event.stopPropagation()
+    const delta = event.key === 'ArrowDown' ? 1 : -1
+    ctx.setHighlight((prev) => (prev + delta + list.length) % list.length)
+    return
+  }
+  if (event.key === 'Enter' || event.key === 'Tab') {
+    const entry = list[ctx.highlight] ?? list[0]
+    if (entry !== undefined) {
+      event.preventDefault()
+      event.stopPropagation()
+      ctx.pick(entry)
+    }
+    return
+  }
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    ctx.suppressed.current = ctx.hit
+    ctx.setHit(null)
+  }
+}
+
+/** IME 组合期间不介入：在编辑器根上挂组合态监听，返回解绑函数。 */
+function bindCompositionGuards(
+  root: HTMLElement,
+  composing: MutableRefObject<boolean>,
+): () => void {
+  const onStart = (): void => {
+    composing.current = true
+  }
+  const onEnd = (): void => {
+    composing.current = false
+  }
+  root.addEventListener('compositionstart', onStart)
+  root.addEventListener('compositionend', onEnd)
+  return () => {
+    root.removeEventListener('compositionstart', onStart)
+    root.removeEventListener('compositionend', onEnd)
+  }
+}
+
+/** composer 卡片之外按下即关闭（对齐官方菜单的外部 dismiss 语义）。 */
+function bindOutsideDismiss(wrap: HTMLElement | null, dismiss: () => void): () => void {
+  const onDown = (event: PointerEvent): void => {
+    if (!(event.target instanceof Node)) return
+    const card = wrap?.closest('[data-composer-card]')
+    if (card?.contains(event.target) === true) return
+    dismiss()
+  }
+  document.addEventListener('pointerdown', onDown, true)
+  return () => document.removeEventListener('pointerdown', onDown, true)
+}
+
+interface SecretPanelProps {
+  candidates: SecretCandidate[]
+  highlight: number
+  wrapRef: MutableRefObject<HTMLDivElement | null>
+  t: Translate
+  onHighlight: (index: number) => void
+  onPick: (entry: SecretCandidate) => void
+}
+
+/** 展开态候选面板（闭合态的常驻锚点容器由调用方渲染）。 */
+function SecretPanel(props: SecretPanelProps): ReactElement {
+  const { candidates, highlight, wrapRef, t, onHighlight, onPick } = props
+  return (
+    <div className="dse-menuWrap" ref={wrapRef}>
+      <div className="dse-menu" role="listbox" aria-label={t('menu.aria')}>
+        <div className="dse-menuTitle">{t('menu.title')}</div>
+        {candidates.map((entry, index) => (
+          <button
+            key={`${entry.scope}:${entry.name}`}
+            type="button"
+            role="option"
+            aria-selected={index === highlight}
+            title={`$${entry.envName}`}
+            className={`dse-menuItem${index === highlight ? ' dse-menuItemActive' : ''}`}
+            onMouseEnter={() => onHighlight(index)}
+            onMouseDown={(event) => {
+              event.preventDefault()
+              onPick(entry)
+            }}
+          >
+            <span className="dse-menuName">{entry.name}</span>
+            <span className="dse-menuDesc">{entry.description}</span>
+            <span className="dse-menuBadges">
+              {entry.once === true ? <span className="dse-badge">{t('scopeOnce')}</span> : null}
+              <span className="dse-badge dse-badgeDim">
+                {entry.scope === 'session'
+                  ? t('scopeSession')
+                  : entry.scope === 'inherited'
+                    ? t('scopeInherited')
+                    : t('scopeGlobal')}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function SecretMenu(props: SecretMenuProps): ReactElement | null {
   const { sessionId, t, insertToken } = props
   // useInput 是标准钩子 prop，必须无条件调用；旧壳缺席时回落常量（菜单永不展开）。
@@ -182,18 +307,7 @@ export function SecretMenu(props: SecretMenuProps): ReactElement | null {
   useEffect(() => {
     const root = editorRootOf(wrapRef.current)
     if (root === null) return
-    const onStart = (): void => {
-      composingRef.current = true
-    }
-    const onEnd = (): void => {
-      composingRef.current = false
-    }
-    root.addEventListener('compositionstart', onStart)
-    root.addEventListener('compositionend', onEnd)
-    return () => {
-      root.removeEventListener('compositionstart', onStart)
-      root.removeEventListener('compositionend', onEnd)
-    }
+    return bindCompositionGuards(root, composingRef)
   }, [])
 
   const pick = (entry: SecretCandidate): void => {
@@ -217,29 +331,15 @@ export function SecretMenu(props: SecretMenuProps): ReactElement | null {
     const root = editorRootOf(wrapRef.current)
     if (root === null) return
     const onKey = (event: KeyboardEvent): void => {
-      const list = candidatesRef.current
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-        event.preventDefault()
-        event.stopPropagation()
-        const delta = event.key === 'ArrowDown' ? 1 : -1
-        setHighlight((prev) => (prev + delta + list.length) % list.length)
-        return
-      }
-      if (event.key === 'Enter' || event.key === 'Tab') {
-        const entry = list[highlightRef.current] ?? list[0]
-        if (entry !== undefined) {
-          event.preventDefault()
-          event.stopPropagation()
-          pickRef.current(entry)
-        }
-        return
-      }
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        event.stopPropagation()
-        suppressedRef.current = hit
-        setHit(null)
-      }
+      handleMenuKey(event, {
+        candidates: candidatesRef.current,
+        highlight: highlightRef.current,
+        hit,
+        suppressed: suppressedRef,
+        pick: (entry) => pickRef.current(entry),
+        setHighlight,
+        setHit,
+      })
     }
     root.addEventListener('keydown', onKey, true)
     return () => root.removeEventListener('keydown', onKey, true)
@@ -248,14 +348,7 @@ export function SecretMenu(props: SecretMenuProps): ReactElement | null {
   // 点 composer 卡片之外处关闭（对齐官方菜单的外部 dismiss 语义）。
   useEffect(() => {
     if (!open) return
-    const onDown = (event: PointerEvent): void => {
-      if (!(event.target instanceof Node)) return
-      const card = wrapRef.current?.closest('[data-composer-card]')
-      if (card?.contains(event.target) === true) return
-      setHit(null)
-    }
-    document.addEventListener('pointerdown', onDown, true)
-    return () => document.removeEventListener('pointerdown', onDown, true)
+    return bindOutsideDismiss(wrapRef.current, () => setHit(null))
   }, [open])
 
   // 高亮随候选集变化收敛到合法范围。
@@ -267,39 +360,15 @@ export function SecretMenu(props: SecretMenuProps): ReactElement | null {
     // 锚点常驻：闭合态也要挂载容器，检测效果依赖它定位 composer 编辑器根。
     return <div className="dse-menuWrap" ref={wrapRef} />
   }
+
   return (
-    <div className="dse-menuWrap" ref={wrapRef}>
-      <div className="dse-menu" role="listbox" aria-label={t('menu.aria')}>
-        <div className="dse-menuTitle">{t('menu.title')}</div>
-        {candidates.map((entry, index) => (
-          <button
-            key={`${entry.scope}:${entry.name}`}
-            type="button"
-            role="option"
-            aria-selected={index === highlight}
-            title={`$${entry.envName}`}
-            className={`dse-menuItem${index === highlight ? ' dse-menuItemActive' : ''}`}
-            onMouseEnter={() => setHighlight(index)}
-            onMouseDown={(event) => {
-              event.preventDefault()
-              pick(entry)
-            }}
-          >
-            <span className="dse-menuName">{entry.name}</span>
-            <span className="dse-menuDesc">{entry.description}</span>
-            <span className="dse-menuBadges">
-              {entry.once === true ? <span className="dse-badge">{t('scopeOnce')}</span> : null}
-              <span className="dse-badge dse-badgeDim">
-                {entry.scope === 'session'
-                  ? t('scopeSession')
-                  : entry.scope === 'inherited'
-                    ? t('scopeInherited')
-                    : t('scopeGlobal')}
-              </span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
+    <SecretPanel
+      candidates={candidates}
+      highlight={highlight}
+      wrapRef={wrapRef}
+      t={t}
+      onHighlight={setHighlight}
+      onPick={pick}
+    />
   )
 }

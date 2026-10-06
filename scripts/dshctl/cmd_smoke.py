@@ -16,9 +16,9 @@ import tempfile
 from pathlib import Path
 
 from .cmd_dev import (HEADLESS_DISABLED_IDS, MOCK_PATCH_MARKER, MOCK_PATCH_ROWS,
-                      _dev_profile_dir, append_patch_rows, clear_mock_script,
-                      ensure_mock_running, write_mock_script)
-from .common import (dsh_bin, PROD_HOME, dev_env, fail,
+                      append_patch_rows, clear_mock_script, ensure_mock_running,
+                      write_mock_script)
+from .common import (dsh_bin, PROD_HOME, dev_env, dev_profile_ready, fail,
                      find_platform_shadows, read_json, run, write_json,
                      yaml_scalar)
 
@@ -35,9 +35,9 @@ SMOKE_SCRIPT = [
 
 
 def cmd_smoke(_args) -> None:
-    if not (_dev_profile_dir() / "package.json").exists():
+    if not dev_profile_ready():
         fail("dev home 未初始化，请先运行: dshctl.py dev init")
-    if not (_dev_profile_dir("headless") / "package.json").exists():
+    if not dev_profile_ready("headless"):
         fail("headless profile 未初始化，请先运行: dshctl.py dev init")
     ensure_mock_running()
     write_mock_script(SMOKE_SCRIPT)
@@ -89,15 +89,15 @@ def _init_scratch_profile(scratch: Path, env: dict[str, str], linker: str) -> Pa
         # ERR_PNPM_IGNORED_BUILDS 非零退出）；与生产 profile 决策一致。
         "allowBuilds:\n  node-pty: true\n",
         encoding="utf-8")
-    # 0.1.2-alpha 线起 boot 把「等待不存在的服务」当硬失败（rc 期为挂起）；
+    # boot 把「等待不存在的服务」当硬失败（早期 rc 线为挂起）；
     # headless 无 webServer，与 dev headless 同策禁用 web 系插件。
     rows = "\n".join(f"- id: {pid}\n  disabled: true" for pid in HEADLESS_DISABLED_IDS)
     patch = profile / "cordis.patch.yml"
     patch.write_text(
         "# web 系插件在 headless 禁用（无 webServer/UI 面）\n" + rows + "\n",
         encoding="utf-8")
-    # mock 接线必须落到 patch 行：settings.yaml 只导入有 volatile 字段的段，
-    # llm-pi-ai 的 providers 会被拒（历史事故：冒烟打到真实网关）。
+    # mock 接线必须落到 patch 行（理由见 cmd_dev.MOCK_PATCH_ROWS 上方注释）；
+    # 历史事故：写 settings 用户层被拒收，冒烟打到真实网关。
     append_patch_rows(patch, MOCK_PATCH_ROWS, MOCK_PATCH_MARKER)
     return profile
 

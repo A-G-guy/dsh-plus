@@ -1,8 +1,8 @@
 /**
  * 运行时主逻辑：注册/热更新/发现（逐点对齐官方 dsh-llm-pi-ai apply 的模式）。
  *
- * - profiles 回调按原始 config 对象 identity 备忘；配置变更经 0.1.7
- *   volatile 原位提交（loader/volatile-update 换代快照）传播，下一请求生效
+ * - profiles 回调按原始 config 对象 identity 备忘；配置变更经 volatile 原位提交
+ *   （loader/volatile-update 换代快照）传播，下一请求生效
  *   （adapter 快照按 profiles identity 失效）；
  * - route 集或注册时捕获的事实（displayName/retryPolicy）变化 → 原子的
  *   handle.replace 重注册；写入被校验拒绝时保留旧注册（官方同款护栏）；
@@ -201,8 +201,8 @@ function createAdapter(options: {
     profiles,
     resolveApiKey: makeResolveApiKey(ctx, kit),
     resolveAttachments: () => ctx.get('attachments'),
-    // 0.1.2-alpha.2 必需（包根仍未导出官方 auth 助手）：登录/OAuth 类 provider 与
-    // pi-ai 自有凭据写入的落点。dsh 树 dev 布局（src/auth.ts 存在）时为官方助手，
+    // 官方 auth 助手只在 src 子路径导出：登录/OAuth 类 provider 与 pi-ai 自有
+    // 凭据写入的落点。dsh 树 dev 布局（src/auth.ts 存在）时为官方助手，
     // 其余形态为内联等价实现（resolve-dsh.ts 探测，见 auth-inline.ts）。
     auth: {
       credentials: kit.auth.credentialStoreFrom(ctx),
@@ -372,7 +372,7 @@ export async function startRuntime(
 ): Promise<LlmPiRuntime> {
   const logger = ctx.logger('llm-pi')
   // cordis 行级 config 可能未经 schema 解析（insert 行无 config 键时为原始空对象），
-  // 在此统一规范化；0.1.7 loader 解析出的 volatile 活动字段形态直接透传
+  // 在此统一规范化；loader 解析出的 volatile 活动字段形态直接透传
   // （hasVolatileRefs 辨识——重复校验会把引用再包一层、破坏 loader 原位提交）。
   const fields: LlmPiConfigFields = hasVolatileRefs(rawConfig)
     ? (rawConfig as LlmPiConfigFields)
@@ -434,7 +434,7 @@ export async function startRuntime(
   ensureDirectory()
   void copyWriter.ensureOfficialCopy()
 
-  // 0.1.7 替代 installSection（validate/setSource/onChange 三钩子）：
+  // 替代 installSection（validate/setSource/onChange 三钩子）：
   // - 活动引用原位提交 → volatile-update 触发快照换代与重注册（原 onChange 体）；
   // - internal/config waterfall 承接写入校验（原 validate；官方 llm-pi-ai
   //   同款）：configEditor.edit 落盘前先跑 waterfall，handler throw 即拒绝整笔写入。

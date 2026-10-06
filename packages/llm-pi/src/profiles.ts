@@ -1,5 +1,5 @@
 /**
- * profile 构建器（0.1.2-alpha.2 复核兼容）：插件 Config → 官方 schema 形状的
+ * profile 构建器：插件 Config → 官方 schema 形状的
  * 「前置数据源归一化」→ 官方 resolveProfiles（或插件等价兜底）→
  * ResolvedPiAiProviderProfile。
  *
@@ -190,14 +190,6 @@ function materializeModel(
   defaultInput: ('text' | 'image')[],
   deps: BuildDeps,
 ): MaterializedEntry | null {
-  const legacyImageDetail = (entry as ModelEntryConfig & { imageDetail?: unknown }).imageDetail
-  if (legacyImageDetail !== undefined) {
-    invalid(
-      route,
-      `model "${entry.id}" 的 imageDetail 已随 0.1.2-alpha.1 移除；` +
-        '请改用 imagePixelBudget/imageMaxBytes（仅 adapter: deepseek）并删除 imageDetail',
-    )
-  }
   const api = profile.api ?? base.api ?? routeApi
   if (api === undefined) {
     if (deps.lenient) {
@@ -606,7 +598,7 @@ export function resolveProfilesFallback(
     // 模型物化：全显式条目 + route 级 api/baseURL（官方 resolveRouteModels 镜像，
     // 无目录继承——归一化已把继承值落定在条目里）
     const configuredMaxTokens = new Map<string, number>()
-    // 官方 0.1.5-alpha.2（llm-pi-ai）adapter 读取 profile.modelErrors/catalogError：
+    // 官方 llm-pi-ai adapter 读取 profile.modelErrors/catalogError：
     // 本 fallback 对条目严格校验、坏条目整体拒绝（不产生"条目级不可服务"的
     // deferred 诊断），故补空表保持与官方 profile 形状一致——缺失会让
     // PiAiAdapter.modelOf 读 modelErrors.get 时以 TypeError 打崩。

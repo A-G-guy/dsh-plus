@@ -1,6 +1,6 @@
 /**
  * NotifyEmailService：通知编排中枢。
- * - 配置：0.1.7 volatile 活动引用（loader 解析层并入用户层，GUI 写入原位提交
+ * - 配置：volatile 活动引用（loader 解析层并入用户层，GUI 写入原位提交
  *   热生效），无 settings provider 时即 cordis 行级 config 本身；
  * - 触发器：registerTrigger 是第三方插件的扩展接口；内置官方适配器同路径注册。
  * - 投递：首个非空 EmailNotice 经 Mailer 发送；单个触发器抛错不影响其余。
@@ -32,9 +32,9 @@ function credentialsOf(ctx: Context): CredentialsSeamLike {
 }
 
 export class NotifyEmailService extends Service {
-  // cordis 4.0.2 以普通静态属性读取插件级 inject（Context.inject 符号在该版本
-  // 不存在，computed key 会静默变成字符串 'undefined' 使声明失效——0.1.18 的
-  // 553 回归即源于此：credentials 未就绪时构造读 ctx.credentials 抛
+  // cordis 以普通静态属性读取插件级 inject（Context.inject 符号不存在，
+  // computed key 会静默变成字符串 'undefined' 使声明失效——曾因此出过回归：
+  // credentials 未就绪时构造读 ctx.credentials 抛
   // "cannot get property credentials without inject"，服务 fiber 静默 FAILED）。
   static inject = ['agents', 'tools', 'credentials']
 
@@ -44,7 +44,7 @@ export class NotifyEmailService extends Service {
 
   constructor(ctx: Context, config: NotifyEmailConfig | NotifyEmailConfigFields) {
     super(ctx, 'notifyEmail')
-    // 0.1.7 替代 0.1.6 installSection/setSource：活动引用原位提交，现取即热。
+    // 替代已删除的 installSection/setSource：活动引用原位提交，现取即热。
     this.current = () => unwrapVolatile(config)
     const logger = ctx.logger('notify-email')
     const audit = createJsonlAuditSink(pluginDataPath('notify-email', 'audit.jsonl'), (message) =>

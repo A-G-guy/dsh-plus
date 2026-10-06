@@ -33,7 +33,7 @@ class TestEnsureHmrRoot(unittest.TestCase):
         return patch
 
     def _run(self, root: Path, profile: str) -> None:
-        with mock.patch.object(cmd_dev, "_dev_profile_dir",
+        with mock.patch.object(cmd_dev, "dev_profile_dir",
                                lambda name=cmd_dev.DEV_PROFILE: root / "profiles" / name):
             cmd_dev._ensure_hmr_root(profile)
 

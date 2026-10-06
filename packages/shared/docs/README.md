@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 16:31"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/shared"
 type: fact
 ---
@@ -22,7 +22,7 @@ alwaysBundle 需通配子路径——picomatch 裸包名不匹配 `pkg/subpath`�
 
 | 模块 | 内容 |
 |---|---|
-| `scope.ts` | `createSettingsScope` / `createNamespaceApi`：`ctx.remote.settings` 直连的命名空间 scope 与写/探活面（describe 读 + `settings/document-updated` / `connection/reset` 刷新，generation 防旧读覆盖；0.1.2-alpha 线起替代已删除的 connection.api.settings） |
+| `scope.ts` | `createSettingsScope` / `createNamespaceApi`：`ctx.remote.settings` 直连的命名空间 scope 与写/探活面（describe 读 + `settings/document-updated` / `connection/reset` 刷新，generation 防旧读覆盖；替代已删除的 connection.api.settings） |
 | `config-slots.ts` | `injectPluginConfigCard` 两槽位注册（插件页 `plugins.row.config` / `plugins.bundle.config`；旧的 `settings.plugin.item` 不注册） |
 | `card.tsx` | `CardChrome`：宿主内嵌**无边框分节**（13px/600 小节标题 + 字段区 + 非 sticky 页脚、横向零内边距、状态徽标/未保存标记/actions）；`CardLoading` 为同形态加载占位 |
 | `draft.ts` | `useNamespaceDraft`：单命名空间 staged 草稿 hook（播种/脏判定/revision fencing 保存/状态行），简单卡片免去重复实现；`from`/`patch` 必须传模块级稳定函数 |

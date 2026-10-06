@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 16:31"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/web-files"
 type: fact
 ---
@@ -39,8 +39,7 @@ DSH Web GUI 内嵌的类 SFTP 文件浏览与编辑插件。面向远程/移动�
   出口）切换 `wf-modal-fullscreen`；移动端本就真全屏，按钮隐藏。
 - 会话内「打开文件」手势不接管（原 `src/open-path.ts` 已删）：官方侧栏文件能力已
   覆盖 GUI 内查看诉求，ui-chat openFile → openWorkspacePath 交还宿主实现
-  （桌面端/Windows 走原生打开），移除背景见
-  [官方版本变更记录](../../../docs/reference/官方版本变更记录.md)。面板内部的 /stat
+  （桌面端/Windows 走原生打开）。面板内部的 /stat
   定位入口（目录导航、文件先定位父目录再打开，`src/panel/panel.tsx` 的
   `openExternal` + `src/paths.ts` 双分隔符 `parentPath`）仍然保留。
 - 列表排序（`src/panel/sort.ts` 纯函数 + 单测）：名称/大小/修改时间

@@ -71,7 +71,7 @@ export class ActualService extends Service {
 
   constructor(ctx: Context, config: ActualConfig | ActualConfigFields) {
     super(ctx, 'actual')
-    // 0.1.7 起配置为活动引用：现取即热，替代按需重建之外的任何缓存。
+    // 配置为活动引用：现取即热，替代按需重建之外的任何缓存。
     this.current = () => unwrapVolatile(config) as ActualConfig
     this.logger = ctx.logger('actual')
     this.deps = {

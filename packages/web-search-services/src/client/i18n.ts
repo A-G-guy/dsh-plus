@@ -30,7 +30,7 @@ const ownZh = {
   keysHint:
     '密钥主来源是上面的 env 文件，保持 skill 单事实源：TAVILY_API_KEY、EXA_API_KEY、SEARCH_OPENAI_API_KEY，以及可选的 SEARCH_OPENAI_BASE_URL、SEARCH_OPENAI_MODEL。',
   keysUserLayerHint:
-    'schema 里的 keys 段是行级覆盖逃生舱（role(secret) 字段只允许 profile 行级注入）；写入 settings.yaml 用户层会被脱敏遮蔽，因此配置卡片不提供编辑。需要覆盖时请改 env 文件，或在 profile 的 cordis.patch.yml 行级注入。',
+    'schema 里的 keys 段是行级覆盖逃生舱（role(secret) 字段只允许 profile 行级注入）；写入 settings 用户层会被脱敏遮蔽，因此配置卡片不提供编辑。需要覆盖时请改 env 文件，或在 profile 的 cordis.patch.yml 行级注入。',
   reloadHint: '改动热生效（下一次 web_search 调用即用新配置）；scriptPath / python 变化无需重启。',
 } as const
 
@@ -59,7 +59,7 @@ const ownEn = {
   keysHint:
     'Credentials come from the env file above, keeping the skill as the single source: TAVILY_API_KEY, EXA_API_KEY, SEARCH_OPENAI_API_KEY, plus optional SEARCH_OPENAI_BASE_URL and SEARCH_OPENAI_MODEL.',
   keysUserLayerHint:
-    'The keys section in the schema is a line-level escape hatch (role(secret) fields accept profile-line injection only); values written to the settings.yaml user layer are masked, so this card offers no editor. To override, edit the env file or inject at the profile row in cordis.patch.yml.',
+    'The keys section in the schema is a line-level escape hatch (role(secret) fields accept profile-line injection only); values written to the settings user layer are masked, so this card offers no editor. To override, edit the env file or inject at the profile row in cordis.patch.yml.',
   reloadHint:
     'Changes apply hot (the next web_search call uses them); scriptPath / python need no restart.',
 } as const

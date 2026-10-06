@@ -1,6 +1,6 @@
 /**
  * usage 折叠器（纯函数）：从会话事件流提取 token 用量行集。
- * 口径对齐 0.1.3 官方 token-meter（usage-projection fold）：
+ * 口径对齐官方 token-meter（usage-projection fold）：
  * - 会计源是 assistant 结算事件（assistant/message / assistant/attempt），
  *   usage 取 `message.usage`，缺席时回落 stream 记录内嵌的 usage chunk；
  * - 单一 `last` 替换槽：同一 (turn, step) 连续重结算按替换计入；

@@ -1,6 +1,6 @@
 /**
  * 配置单一事实源：cordis 行级 Config（组合默认值，patch 层可覆盖）与 settings
- * namespace（用户层 $DSH_HOME/settings.yaml，热生效）共用同一 schemastery schema。
+ * namespace（用户层＝profile 行级覆盖层 cordis.patch.yml，热生效）共用同一 schemastery schema。
  *
  * 密钥主来源是 search-services skill 的 env 文件（envFile，默认
  * ~/.config/search-services/env），保持 skill 单事实源、零搬迁。行级 keys 仅为
@@ -50,7 +50,7 @@ const KeysSchema = z.object({
     .default(''),
 })
 
-// 0.1.7：全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写；
+// 全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写；
 // keys 内 role('secret') 字段由 describe/write 层做密文遮蔽，用户层勿填），
 // loader 原位提交活动引用，current() 现取即热。
 export const Config = z.object({
@@ -91,7 +91,7 @@ export const Config = z.object({
   }).volatile(),
 })
 
-/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+/** 活动字段形态（loader 解析产物：volatile 字段为活动引用）。 */
 export type WebSearchServicesConfigFields = Schemastery.TypeT<typeof Config>
 /** 平面配置形态（消费面的读取形态，由活动引用解包得到）。 */
 export type WebSearchServicesConfig = UnwrapVolatile<WebSearchServicesConfigFields>

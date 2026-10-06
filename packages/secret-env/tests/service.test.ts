@@ -45,12 +45,12 @@ function createFakeCtx(
       store.delete(ref)
     },
   }
-  // 与 0.1.7 loader 原位提交同形：settings.data 即行级 config 对象——update 落这里，
+  // 与 loader 原位提交同形：settings.data 即行级 config 对象——update 落这里，
   // readIndex（unwrapVolatile(config)）下一次现取即能看到，测试断言直读同一对象。
   const config = { secrets: meta, masked: [] as string[] }
   const settings = {
     data: config as Record<string, unknown>,
-    // 0.1.7 窄面：服务只经 update 写入用户层（读由 loader 并入行级 config）。
+    // 窄面：服务只经 update 写入用户层（读由 loader 并入行级 config）。
     async update(_ns: string, patch: Record<string, unknown>) {
       Object.assign(config, patch)
     },

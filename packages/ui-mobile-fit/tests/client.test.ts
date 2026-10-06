@@ -69,25 +69,36 @@ test('given the conversation layer, when inspecting composer takeover cards, the
 
 test('given the conversation layer, when inspecting the mobile header, then it wraps and tightens so jobs and subagent entries stay tappable', () => {
   // 回归：顶栏横向空间被挤出视口时，后台任务/子代理入口无法点按。
-  // 0.1.6-alpha.1 起上游把 Session 日志胶囊改成 28px 图标按钮（_moreButton），
-  // 压缩胶囊的规则（_sessionLogButton）已成死选择器并被删除；此处锁住仍然
-  // 生效的兜底：标题行换行 + 工具区间距收紧。
+  // 0.2.1-alpha.1 上游 _titleRow 只有 min-height:0（不换行、不设 min-width），
+  // 故换行与间距收紧必须由本插件提供。
   assert.match(mobileFitCss, /\[class\*="_headerUtilities"\][^{]*\{[^}]*margin-left: 8px/)
   assert.match(mobileFitCss, /\[class\*="_titleRow"\][^{]*\{[^}]*flex-wrap: wrap/)
-  // 死选择器不得作为选择器回归（注释里可以提到它，故只匹配"选择器后跟 {"的形态）
-  assert.doesNotMatch(mobileFitCss, /\[class\*="_sessionLogButton"\][^{]*\{/)
+  // 上游已提供的声明不得再抄一遍：_headerActions/_headerUtilities 官方 flex:none，
+  // _crumbs 官方 min-width:0 + overflow:hidden。
+  assert.doesNotMatch(mobileFitCss, /\[class\*="_headerActions"\][^{]*\{/)
+  assert.doesNotMatch(mobileFitCss, /\[class\*="_crumbs"\]\s*\{/)
 })
 
-test('given the layout layer, when inspecting the right column, then it uses the 0.1.6 rightbar hooks and keeps no dead details selectors', () => {
-  // 0.1.6-alpha.1 上游把右列由 _detailsCol 更名为 _rightbarCol、data 钩子由
-  // data-details-collapsed 改为 data-rightbar-collapsed；旧规则在两个版本都是
-  // 死选择器（_detailsCol 自 0.1.5 起即不存在），必须清除以免误导。
-  assert.match(mobileFitCss, /\[class\*="_rightbarCol"\]/)
-  // 右面板的 drawer/全屏由上游自理（autoFullscreen = viewportWidth < 768，
-  // 与本插件断点重合），本插件不应再手写 position:absolute 接管面板本体
+test('given the conversation layer, when inspecting markdown, then upstream-owned overflow rules are not duplicated', () => {
+  // 上游 primitives 的 MarkdownText/CodeBlock 样式已覆盖 <img>（max-width:100% +
+  // height:auto）、表格滚动包裹层（_tableScroll）与 _markdown 内的 .katex-display；
+  // 本插件只保留上游未覆盖的部分：内联 video/canvas/svg 与代码块外壳宽度上限。
+  assert.match(mobileFitCss, /\[class\*="_markdown"\] video/)
+  assert.doesNotMatch(mobileFitCss, /\[class\*="_markdown"\] img/)
+  assert.doesNotMatch(mobileFitCss, /\[class\*="_markdown"\] table[^{]*\{/)
+  assert.doesNotMatch(mobileFitCss, /\.katex-display/)
+})
+
+test('given the layout layer, when inspecting the right column, then it only pins the grid track', () => {
+  // 右列是上游的"轨道"：面板自身 absolute 右贴边滑入，窄屏 autoFullscreen 全屏，
+  // 轨道 min-width:0 也由上游提供（_rightbarCol）。本插件只把脱离文档流的列钉回
+  // 各自 grid 轨道，不得接管面板本体，也不得重复上游的 min-width。
+  assert.match(mobileFitCss, /\[class\*="_rightbarCol"\]\s*\{[^}]*grid-column: 3/)
   assert.doesNotMatch(mobileFitCss, /_rightbarCol"\]\s*\{[^}]*position: absolute/)
-  assert.doesNotMatch(mobileFitCss, /\[class\*="_detailsCol"\][^{]*\{/)
-  assert.doesNotMatch(mobileFitCss, /\[data-details-collapsed\][^{]*\{/)
+  assert.doesNotMatch(mobileFitCss, /_rightbarCol"\]\s*\{[^}]*min-width/)
+  // 中列/侧列的 min-width:0 同由上游提供，不得抄进覆盖层
+  assert.doesNotMatch(mobileFitCss, /\[class\*="_centerCol"\]\s*\{[^}]*min-width/)
+  assert.doesNotMatch(mobileFitCss, /\[class\*="_sidebarCol"\]\s*\{[^}]*min-width/)
 })
 
 test('given the overlays layer, when inspecting tooltip handling, then coarse-pointer bubbles auto-hide', () => {
@@ -126,8 +137,8 @@ test('given the attach picker, then media keeps the official no-accept behavior 
 })
 
 test('given the attach row matcher, then only the localized File row is claimed', () => {
-  // 0.1.6-alpha.1 起官方文件入口是加号菜单的"文件"/"File"行；同菜单另有
-  // 目标/计划/反馈/指令等行，误命中会吞掉它们的点按。
+  // 官方文件入口是加号菜单的"文件"/"File"行；同菜单另有目标/计划/反馈/
+  // 指令等行，误命中会吞掉它们的点按。
   assert.equal(isAttachRow('文件'), true)
   assert.equal(isAttachRow('File'), true)
   assert.equal(isAttachRow('  文件  '), true)
@@ -135,7 +146,7 @@ test('given the attach row matcher, then only the localized File row is claimed'
   assert.equal(isAttachRow('Goal'), false)
   assert.equal(isAttachRow('指令'), false)
   assert.equal(isAttachRow(null), false)
-  // 旧版 aria-label 不应再命中（按钮已不存在，避免又变成死锚点）
+  // 非菜单行文案一律不接管（绝不误吞点按）
   assert.equal(isAttachRow('添加附件'), false)
   assert.equal(isAttachRow('Add attachment'), false)
 })
@@ -376,9 +387,9 @@ test('given the keyboard opens and closes, when the visual viewport shrinks then
 })
 
 test('given the composer is a contenteditable host, when a session switch focuses it without a gesture, then the focus is blurred (keyboard stays closed)', () => {
-  // 回归：上游 composer 自 0.1.2-rc.1 为 Lexical contenteditable div（不再
-  // 是 input/textarea），守卫只认 input/textarea 时整体失效——切会话即弹
-  // 输入法。contenteditable 宿主同样必须被无手势聚焦拦截。
+  // 回归：上游 composer 是 Lexical contenteditable div（不是 input/textarea），
+  // 守卫只认 input/textarea 时整体失效——切会话即弹输入法。contenteditable
+  // 宿主同样必须被无手势聚焦拦截。
   class FakeElement {}
   class FakeHTMLElement extends FakeElement {}
   class FakeComposer extends FakeHTMLElement {
@@ -426,7 +437,7 @@ test('given the composer is a contenteditable host, when a session switch focuse
 })
 
 /**
- * 附件二次选择层的共享替身：官方 popupSelect 行的 DOM（0.1.6-alpha.1+）是
+ * 附件二次选择层的共享替身：官方 popupSelect 行的 DOM 是
  * `[role=option] > span._label > span._labelText`，隐藏 file input 由 composer
  * 容器（[data-composer-seat]）渲染。这里用最小替身复现该结构：
  * 只有被测代码真正访问的成员（closest/querySelector/textContent/getAttribute…）。
@@ -528,8 +539,8 @@ function createFakeLayerFactory(created: FakeLayerNode[]) {
 
 test('given a coarse pointer, when tapping the composer File menu row, then a picker opens and the chosen kind drives the accept on the same official input', () => {
   // 回归：官方文件入口程序化 click 一个无 accept 的隐藏 file input，Android
-  // Photo Picker 只给拍照/录像/相册。0.1.6-alpha.1 起该入口是加号菜单的
-  // "文件"行（原独立回形针按钮已移除），接管点随之上移到 [role=option] 行：
+  // Photo Picker 只给拍照/录像/相册。该入口是加号菜单的"文件"行，接管点在
+  // [role=option] 行上：
   // - 相册：还原官方无 accept（媒体选择器）
   // - 文件：补文件类型 accept 后触发同一 input（onChange 等其余流程保持官方）
   const created: FakeLayerNode[] = []

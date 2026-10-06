@@ -22,7 +22,7 @@ const deps = { kit }
  * 从官方目录现场取一个满足形态的模型样本。
  *
  * 历史：本文件曾硬编码 `deepseek-v4-flash-vision-exp` / `deepseek-v4-flash`。
- * 0.1.6-alpha.2 官方默认目录移除这两个代号（改为 deepseek-flash 承载 image
+ * 官方默认目录不含这两个代号（deepseek-flash 承载 image
  * 模态、deepseek-v4-pro 纯文本），硬编码 id 会让"继承官方目录"的用例集体失效。
  * 样本改为按能力形态现取：官方换代号、增删模型时测试自动跟随，仅当官方目录
  * 不再提供该形态时才失败（那才是真正需要人工介入的契约变化）。
@@ -53,7 +53,7 @@ type ConfigValidationResult = Awaited<ReturnType<(typeof Config)['~standard']['v
  *
  * standard-schema 的 Props 不携带泛型，Output 只能标成 unknown；这里补回 schema
  * 自己声明的输出契约（Config: z<LlmPiConfigInput, LlmPiConfigFields>），断言安全；
- * 0.1.7 全字段 volatile，返回前经 unwrapVolatile 解出平面 LlmPiConfig 快照。
+ * 全字段 volatile，返回前经 unwrapVolatile 解出平面 LlmPiConfig 快照。
  */
 async function validateConfig(input: LlmPiConfigInput): Promise<LlmPiConfig> {
   const result: ConfigValidationResult = await Config['~standard'].validate(input)
@@ -117,15 +117,6 @@ test('条目显式字段逐字段覆盖官方继承值', () => {
   assert.equal(model.imagePixelBudget, 480000)
   // 未覆盖的字段仍继承官方目录
   assert.deepEqual(model.inputModalities, ['text', 'image'])
-})
-
-test('imageDetail 已随 0.1.2-alpha.1 移除：写时拒绝并提示迁移', () => {
-  // 单独声明旧字段（不在 ModelEntryConfig 上）：复现 schema 透传陷阱的旧配置形状
-  const legacyModel = { id: visionSample.id, imageDetail: 'low' }
-  assert.throws(
-    () => buildOne({ models: [legacyModel] }),
-    /imageDetail 已随 0.1.2-alpha.1 移除；请改用 imagePixelBudget\/imageMaxBytes/,
-  )
 })
 
 test("provider 级 extends: 'deepseek' 全量继承官方目录", () => {
@@ -218,7 +209,7 @@ test('缺 baseURL 且未 extends deepseek 写入即拒绝；extends 时继承官
     deps,
   ).get('relay')
   assert.ok(built)
-  // 端点取自官方 resolveAdapterOptions（0.1.6-alpha.1 起 DeepSeek 默认走
+  // 端点取自官方 resolveAdapterOptions（DeepSeek 默认走
   // Messages 协议，官方根地址随之变为 .../anthropic），断言"等于官方当前值"
   // 而非硬编码字面量，官方再次调整端点时测试自动跟随。
   assert.equal(built.connection.baseURL, officialBaseUrl(kit))

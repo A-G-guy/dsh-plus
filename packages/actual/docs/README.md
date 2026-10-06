@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-05 06:35"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/actual：Actual Budget 能力发现主插件与 actual agent 预设的契约、配置项与部署方式"
 type: fact
 ---
@@ -156,7 +156,7 @@ GUI 覆盖不到的字段见卡片内的「其余字段」说明；密钥推荐�
 - 运行时依赖 `@dsh-plus/actual-mcp`（能力派生与 MCP 服务端）、
   `@dsh-plus/shared`（插件数据目录）、`@modelcontextprotocol/client`（进程内会话）；
 - peer 依赖：`@deepseek-ai/cordis`、`@deepseek-ai/dsh-agent-preset-registry`、
-  `@deepseek-ai/schemastery`（平台包一律 peer + dev 精确版，见 ADR 0001）；
+  `@deepseek-ai/schemastery`（平台包一律 peer + dev 精确版，见 [ADR 0001](../../../docs/repo/adr/0001-平台依赖必须-peer.md)）；
 - 对子插件公开：`discover()` / `manifest()` / `invoke()` / `status()` /
   `onChange()`，并 re-export 契约类型与读/写判定默认值；
 - 双入口构建（`tsdown.config.ts`，与 web-cache-headers 同约定）：`src/index.ts`

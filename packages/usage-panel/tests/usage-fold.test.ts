@@ -31,7 +31,7 @@ function messageEvent(
   }
 }
 
-/** stream 内嵌 usage chunk（0.1.3：usage 随 stream 落盘在 message/attempt 内）。 */
+/** stream 内嵌 usage chunk（usage 随 stream 落盘在 message/attempt 内）。 */
 function messageWithStreamUsage(
   turn: number,
   step: number,

@@ -4,7 +4,7 @@
  * 外壳与基础控件走 @dsh-plus/shared/client 套件（CardChrome/TextField/CheckRow），
  * 本文件只保留业务字段与保存/测试逻辑。交互对齐官方卡片：折叠/展开、
  * staged draft、未保存标记、保存/放弃；另加「发送测试邮件」。
- * 配置读写经 ctx.remote.settings 直连（0.1.2-alpha.1 起 connection.api.settings
+ * 配置读写经 ctx.remote.settings 直连（connection.api.settings
  * 已移除）：value 为 schema 解析后的脱敏视图
  * （smtp.pass 不出现，passConfigured 由 describe 的 secrets 探测），
  * 保存经 settings.update 深合并（空 pass 剔除 = 保持不变）。

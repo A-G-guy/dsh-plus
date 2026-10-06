@@ -12,13 +12,15 @@ from pathlib import Path
 
 from .common import (DEV_HOME, DEV_PORT, DEV_PROFILE, DEV_RUN_DIR, dsh_bin,
                      MOCK_PORT, PACKAGES_DIR, REPO_ROOT, daemon_running,
-                     daemon_status, dev_env, fail, port_open, read_json, run,
-                     start_daemon, stop_daemon, wait_port, write_json)
+                     daemon_status, dev_env, dev_profile_dir, dev_profile_ready,
+                     fail, port_open, read_json, run, start_daemon,
+                     stop_daemon, wait_port, write_json)
 
-# mock LLM 接线：0.2.x 起 settings.yaml 已废弃，且 settings 服务只导入「有 volatile
-# 字段」的段（llm-pi-ai 的 providers 不在其列，会被拒并原样留在 settings.yaml.imported），
-# 因此 mock 接线一律以 profile patch 行注入：patch 整行替换 config，缺省字段由
-# schemastery 兜底（permission 的 presets 就有默认值，只覆盖 defaultPreset 即可）。
+# mock LLM 接线：0.2.x 起 settings.yaml 已废弃（启动时改名 .imported 并并入
+# profile），且 settings 服务只导入「有 volatile 字段」的段（llm-pi-ai 的 providers
+# 不在其列，会被拒），因此 mock 接线一律以 profile patch 行注入：patch 整行替换
+# config，缺省字段由 schemastery 兜底（permission 的 presets 就有默认值，
+# 只覆盖 defaultPreset 即可）。
 MOCK_PATCH_MARKER = "# ── mock LLM 接线（dev/smoke 专用）"
 MOCK_PATCH_ROWS = f"""\
 {MOCK_PATCH_MARKER}：所有 provider 指向本机 mock，严禁真实网关 ──────
@@ -82,16 +84,12 @@ def _workspace_link_deps() -> dict[str, str]:
     return deps
 
 
-def _dev_profile_dir(profile: str = DEV_PROFILE) -> Path:
-    return DEV_HOME / "profiles" / profile
-
-
 def _ensure_profile(env: dict[str, str], profile: str) -> None:
     """触发 profile 模板自动初始化（首次使用时 dsh 自建）。"""
-    if (_dev_profile_dir(profile) / "package.json").exists():
+    if dev_profile_ready(profile):
         return
     run([dsh_bin(), "--profile", profile, "--dump-config"], env=env)
-    if not (_dev_profile_dir(profile) / "package.json").exists():
+    if not dev_profile_ready(profile):
         fail(f"{profile} profile 自动初始化失败，请手动检查 dsh 输出")
 
 
@@ -113,7 +111,7 @@ HEADLESS_DISABLED_IDS = (
 
 
 def _ensure_demo_tool_row(profile: str) -> None:
-    patch = _dev_profile_dir(profile) / "cordis.patch.yml"
+    patch = dev_profile_dir(profile) / "cordis.patch.yml"
     if not patch.exists():
         return
     text = patch.read_text(encoding="utf-8")
@@ -129,7 +127,7 @@ def _ensure_demo_tool_row(profile: str) -> None:
 
 def _ensure_headless_disables() -> None:
     """headless 用户补丁层补齐 web 系插件禁用行（缺失才追加，幂等）。"""
-    patch = _dev_profile_dir("headless") / "cordis.patch.yml"
+    patch = dev_profile_dir("headless") / "cordis.patch.yml"
     if not patch.exists():
         return
     text = patch.read_text(encoding="utf-8")
@@ -183,7 +181,7 @@ def _ensure_hmr_root(profile: str) -> None:
     """向 dev profile 注入 HMR 模块监听根（幂等；已有 hmr 行则不动，尊重用户配置）。"""
     if profile not in HMR_PROFILES:
         return
-    patch = _dev_profile_dir(profile) / "cordis.patch.yml"
+    patch = dev_profile_dir(profile) / "cordis.patch.yml"
     if patch.exists() and "\n- id: hmr" in f"\n{patch.read_text(encoding='utf-8')}":
         return
     if append_patch_rows(patch, DEV_HMR_ROW.format(packages_dir=PACKAGES_DIR), "- id: hmr"):
@@ -192,13 +190,13 @@ def _ensure_hmr_root(profile: str) -> None:
 
 def _ensure_mock_rows(profile: str) -> None:
     """向 dev profile 注入 mock LLM 接线行（幂等；patch 行在 prod 补丁之后，故 mock 生效）。"""
-    patch = _dev_profile_dir(profile) / "cordis.patch.yml"
+    patch = dev_profile_dir(profile) / "cordis.patch.yml"
     if append_patch_rows(patch, MOCK_PATCH_ROWS, MOCK_PATCH_MARKER):
         print(f"[dev] mock LLM 接线已注入 {profile}/cordis.patch.yml")
 
 
 def _link_workspace_packages(profile: str) -> None:
-    pkg_json = _dev_profile_dir(profile) / "package.json"
+    pkg_json = dev_profile_dir(profile) / "package.json"
     meta = read_json(pkg_json)
     deps = meta.setdefault("dependencies", {})
     current = _workspace_link_deps()
@@ -225,8 +223,8 @@ def _link_workspace_packages(profile: str) -> None:
 def cmd_dev_init(_args) -> None:
     env = dev_env()
     DEV_RUN_DIR.mkdir(parents=True, exist_ok=True)
-    # mock 接线不写 settings.yaml：0.2.x 的 settings 服务只导入有 volatile 字段的段，
-    # llm-pi-ai 的 providers 会被拒；改由 _link_workspace_packages 注入 patch 行。
+    # mock 接线一律走 patch 行注入（理由见文件头 MOCK_PATCH_ROWS 上方注释）：
+    # settings 用户层只收有 volatile 字段的段，llm-pi-ai 的 providers 会被拒。
     for extra in ("AGENTS.md", "skills"):
         src = Path.home() / ".dsh" / extra
         dst = DEV_HOME / extra
@@ -239,7 +237,7 @@ def cmd_dev_init(_args) -> None:
         _ensure_profile(env, profile)
     # 复制生产补丁必须早于 dev 专属行注入：判据是「dev 补丁仍是空模板 []」。
     prod_patch = Path.home() / ".dsh/profiles/web/cordis.patch.yml"
-    dev_patch = _dev_profile_dir("web") / "cordis.patch.yml"
+    dev_patch = dev_profile_dir("web") / "cordis.patch.yml"
     if prod_patch.exists() and dev_patch.read_text(encoding="utf-8").strip().endswith("[]"):
         shutil.copy2(prod_patch, dev_patch)
         print("[dev] 已复制生产 cordis.patch.yml（subagent 路由到 mock provider）")
@@ -251,7 +249,7 @@ def cmd_dev_init(_args) -> None:
 def cmd_dev_link(_args) -> None:
     linked = []
     for profile in PROFILES:
-        if (_dev_profile_dir(profile) / "package.json").exists():
+        if dev_profile_ready(profile):
             _link_workspace_packages(profile)
             linked.append(profile)
     if not linked:
@@ -285,12 +283,12 @@ def dev_authed_url(port: int = DEV_PORT) -> str:
 
 
 def cmd_dev_up(args) -> None:
-    if not (_dev_profile_dir() / "package.json").exists():
+    if not dev_profile_ready():
         fail("dev profile 未初始化，请先运行: dshctl.py dev init")
     if not getattr(args, "fast", False):
         run(["pnpm", "-r", "build"], cwd=REPO_ROOT)
         for profile in PROFILES:
-            if (_dev_profile_dir(profile) / "package.json").exists():
+            if dev_profile_ready(profile):
                 _link_workspace_packages(profile)
     _start_daemons()
     cmd_dev_status(args)
@@ -300,7 +298,7 @@ def ensure_dev_up() -> None:
     """dev 未监听时按 fast 路径自动拉起（不重建）；供会话/mock/pw 命令调用。"""
     if port_open(DEV_PORT):
         return
-    if not (_dev_profile_dir() / "package.json").exists():
+    if not dev_profile_ready():
         fail("dev profile 未初始化，请先运行: dshctl.py dev init && dshctl.py dev up")
     _start_daemons()
     print(f"[dev] dev 实例已自动拉起（未重建；改了源码请手动 dshctl.py dev up）",

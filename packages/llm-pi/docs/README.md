@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-06 13:52"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/llm-pi 文档索引"
 type: fact
 ---
@@ -133,18 +133,13 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
   能力（如 `deepseek-flash` 自动获得 image 模态 + `imageMaxBytes`）；route 级
   `extends: deepseek` 全量继承官方目录，模型级 `extends: 'deepseek/<id>'` 可起别名。
   官方目录取自 `resolveAdapterOptions({}, undefined)`，随 dsh 树升级自动更新。
-  注意**官方目录的模型代号会变**：写死的旧代号（如 `deepseek-v4-flash`）未命中官方
-  目录时按"手写条目"处理（不报错，但拿不到继承能力）；显式
-  `extends: 'deepseek/<旧代号>'` 则会**写入即拒绝**。官方端点与模型代号的历次变更见
-  [官方版本变更记录](../../../docs/reference/官方版本变更记录.md)。`imageDetail` 不在
-  官方目录字段内（含该字段的目录模型官方直接抛错）——旧配置含 `imageDetail` 时
-  **写时拒绝**并提示改用 `imagePixelBudget`/`imageMaxBytes`。
+  注意**官方目录的模型代号会变**：写死的旧代号未命中官方目录时按"手写条目"处理
+  （不报错，但拿不到继承能力）；显式 `extends: 'deepseek/<未知代号>'` 则**写入即拒绝**。
 - **接线**：认证头经 `resolveAuth` 一次性给出（同官方 `llm-deepseek-api-key` 给
   `x-api-key`）；模型发现经 `discoverModels`（官方缺省即空目录），本插件从当前物化
   `connection.models` 经同树 `catalogModelInfo` 映射，否则模型选择器对该 route 无项。
   套件形状自检（`checkDeepseekShape`）因此要求 `catalogModelInfo`，缺项即判定
-  deepseek route 不可用。破坏性变更背景见
-  [官方版本变更记录](../../../docs/reference/官方版本变更记录.md)。
+  deepseek route 不可用。
 - **文件通道免费获得**：视觉模型的图片输入先经 Files API 上传为 file_id 引用
   （配额清理、过期刷新、`file_id` 被拒后失效重传），上传失败自动降级 base64 内联——
   全套策略在官方适配器内部，本插件只喂配置。
@@ -187,7 +182,7 @@ provider 条目设 `adapter: deepseek` 后，该 route 由官方 `DeepSeekAdapte
 | `defaultContextWindow` / `defaultMaxTokens` / `defaultInput` | 模型与继承源都未标注时的兜底 |
 | `reasoning` / `thinkingBudgets` / `cacheRetention` / `transport` | 同官方语义 |
 | `timeoutMs` / `websocketConnectTimeoutMs` / `streamIdleTimeoutMs` / `retryPolicy` | 同官方语义 |
-| `maxRequestImageBytes` | 单请求 base64 图片载荷上限（字节）；缺省 20MiB（官方必需字段，旧配置免改自动生效） |
+| `maxRequestImageBytes` | 单请求 base64 图片载荷上限（字节）；缺省 20MiB（官方必需字段，缺省时由本插件的默认值补齐） |
 | `requestImagePixelBudget` / `requestImageMaxBytes` | 单请求每个确定性内联图片版本的像素总预算 / 编码字节目标；缺省官方同值（2048² / 1MiB） |
 | `models` | 模型条目数组；**缺省且 provider 有 extends 时继承该源全部模型**；两者皆无即"草稿路由"——不注册进 adapter（无模型可服务），但仍出现在可配置 provider 目录里，便于先占位后补模型 |
 

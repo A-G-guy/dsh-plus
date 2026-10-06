@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 03:57"
+last_modified: "2026-10-07 00:39"
 description: "@dsh-plus/subagent-model"
 type: fact
 ---
@@ -10,7 +10,7 @@ type: fact
 
 ## 背景：为什么需要它
 
-官方 `subagent-model-selection`（settings 命名空间 + 工具行 `modelSelectionSettings: true`）提供的是**主代理可选的模型白名单**：主代理在工具调用里显式传 provider/model 时按白名单校验，但**不强制**任何模型——主代理未显式选择时，子代理默认继承主代理路由（`resolveChildAgentOptions` 的父快照）。因此"配置了官方白名单但子代理依旧用主代理模型"是官方机制的设计行为，不是配置错误。
+官方 `subagent-model-selection`（服务端 settings 命名空间 + 工具行 `modelSelectionSettings: true`，客户端卡片为 `dsh-client-ui-settings-subagent`「子代理模型」）提供的是**主代理可选的模型白名单**：主代理在工具调用里显式传 provider/model 时按白名单校验，但**不强制**任何模型——主代理未显式选择时，子代理默认继承主代理路由（`resolveChildAgentOptions` 的父快照）。因此"配置了官方白名单但子代理依旧用主代理模型"是官方机制的设计行为，不是配置错误。
 
 本插件补的是**管理端强制默认路由**：主代理未显式选择时，按 provider 名注入 `request.agentOptions`（provider/model/reasoningEffort）；主代理显式选择的路由仍优先（只补空缺，不覆盖）。
 
@@ -25,7 +25,7 @@ type: fact
 「模型目录」端点 `/dsh-plus/subagent-model/catalog`）。与官方「子代理模型」卡片
 （主代理侧白名单）并存不冲突。
 
-settings 命名空间 `dsh-plus-subagent-model`（`$DSH_HOME/settings.yaml`，热生效）：
+settings 命名空间 `dsh-plus-subagent-model`（用户层＝profile 行级覆盖层 `cordis.patch.yml`，热生效）：
 
 ```yaml
 dsh-plus-subagent-model:
@@ -65,7 +65,11 @@ dsh-plus-subagent-model:
 
 ## 机制
 
-包装 `ctx.subagents.start` / `startContinuable`（幂等 + dispose 恢复），按 provider 名命中条目（未命中回落 `default`）后向委托请求注入 `agentOptions`。当前平台（0.1.2-rc.1）的 `resolveChildAgentOptions` 原生读取 provider/model/reasoningEffort 三个字段（热路径与冷恢复 descriptor 一致），无需旧版 effort 瀑布搬运。
+包装 `ctx.subagents.start` / `startContinuable`（幂等 + dispose 恢复），按 provider 名命中条目（未命中回落 `default`）后向委托请求注入 `agentOptions`。平台的 `resolveChildAgentOptions(parent, request.agentOptions, childDepth)` 原生读取 provider/model/reasoningEffort（热路径与冷恢复 descriptor 一致），故只需注入这两个字段、无需搬运任何私有字段。
+
+## 与官方能力的分工（勿误判为可删）
+
+0.2.1-alpha.1 复核：官方 `dsh-client-ui-settings-subagent` 与 `dsh-subagent` 在**请求期**的 provider/model/reasoningEffort 选择仍在，但它们只覆盖「主代理显式选择」这条路径；**未选择时的强制默认**仍是官方缺口，由本插件补。删除本插件会退回"子代理继承主代理模型"的官方默认行为。
 
 ## 测试
 

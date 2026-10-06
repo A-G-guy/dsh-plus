@@ -19,7 +19,7 @@ export const commonZh = {
   unsaved: '未保存',
   loading: '加载中…',
   unavailable: '配置服务不可用。',
-  readOnly: '当前部署无 settings provider，配置为只读；请编辑 settings.yaml。',
+  readOnly: '当前部署无 settings provider，配置为只读；请在 profile 的 cordis.patch.yml 行级配置。',
   invalidNumber: '请输入正整数。',
   collapse: '收起',
   expand: '展开',
@@ -40,7 +40,8 @@ export const commonEn: Record<CommonDictKey, string> = {
   unsaved: 'Unsaved',
   loading: 'Loading…',
   unavailable: 'Settings service unavailable.',
-  readOnly: 'No settings provider in this deployment; config is read-only. Edit settings.yaml.',
+  readOnly:
+    'No settings provider in this deployment; config is read-only. Configure it at the profile row in cordis.patch.yml.',
   invalidNumber: 'Enter a positive integer.',
   collapse: 'Collapse',
   expand: 'Expand',

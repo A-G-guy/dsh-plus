@@ -3,7 +3,7 @@
  *
  * 数据源只有一个：**pi-ai 内置目录**（随已装 dsh 的 pi-ai 版本自动跟随，
  * 含官方校正的 compat/thinkingLevelMap/模态）。未命中即「手写条目」，
- * 必填字段由 route 级配置或兜底给出。models.dev 兜底源已随 0.1.43 移除——
+ * 必填字段由 route 级配置或兜底给出。models.dev 兜底源已移除——
  * 版本漂移靠「现场推导 + 状态行显示生效版本」处理，不引入第二份可能过期的目录。
  *
  * 引用语法：`"provider/model"` 显式引用；裸 `"model"` 随 route 级 extends 源；

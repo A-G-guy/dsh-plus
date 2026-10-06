@@ -1,14 +1,13 @@
 /**
  * 配置单一事实源：cordis 行级 Config（组合默认值）与 settings namespace
- * （用户层，经 dsh-settings-file 持久化到 $DSH_HOME/settings.yaml）共用同一
+ * （用户层＝profile 行级覆盖层 cordis.patch.yml，热生效）共用同一
  * schemastery schema。条目按【子代理 provider 名】键控（standard preset
  * 事实映射：subagent↔spawn、subagent_fork↔fork），特殊键 `default` 作为
  * 未命中具体 provider 时的兜底（spawn/fork 共享同一路由的便捷写法）。
  *
- * 运行时语义（详见 delegation.ts）：provider/model/reasoningEffort 显式时
- * 注入子代理 `request.agentOptions`——当前平台（0.1.2-rc.1）的
- * resolveChildAgentOptions 原生读取 provider/model/reasoningEffort 三个字段
- * （含冷恢复 descriptor），不再需要旧版 effort 瀑布的私有字段搬运。
+ * 运行时语义（详见 delegation.ts）：provider/model/reasoningEffort 显式时注入
+ * 子代理 `request.agentOptions`——平台的 resolveChildAgentOptions 原生读取这三个
+ * 字段（含冷恢复 descriptor），本插件无需搬运任何私有字段。
  *
  * 与官方 subagent-model-selection 的关系：官方机制是"主代理模型可选白名单"，
  * 不强制任何模型（未显式选择时子代理继承主代理路由）；本插件补的是
@@ -71,10 +70,10 @@ const EntrySchema = z.object({
     .default(EFFORT_INHERIT),
 })
 
-// 0.1.7：全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
+// 全字段 `.volatile()`——条目进入 settings describe 视图（卡片可读写），
 // loader 原位提交活动引用；输出面标注活动字段声明面（结构兼容 volatile 引用），
 // 平面消费契约保持 SubagentModelConfig 接口不变。
-/** 活动字段形态（0.1.7 loader 解析产物：volatile 字段为活动引用）。 */
+/** 活动字段形态（loader 解析产物：volatile 字段为活动引用）。 */
 export type SubagentModelConfigFields = VolatileFields<SubagentModelConfig>
 
 export const Config: z<SubagentModelConfigInput, SubagentModelConfigFields> = z.object({

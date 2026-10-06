@@ -2,11 +2,10 @@
  * 移动端覆盖样式：基础层。断点 767px（手机竖屏）为主；上游布局框架自带
  * 1024px 侧栏自动折叠，本层只补内容级防溢出与触屏可达性。
  *
- * 选择器策略（上游版本基准 0.1.2-alpha.2 复核：CSS 局部名不变、hash 免疫）：
+ * 选择器策略（上游版本基准 0.2.1-alpha.1 复核：CSS 局部名不变、hash 免疫）：
  * - 上游 CSS Modules 类名 = 哈希前缀_语义后缀（如 pI_x6G_frame），哈希随构建变、
  *   后缀稳定，故一律用 [class*="_语义后缀"] 子串匹配；
- * - shell 侧旧格式为 _语义_哈希_序号（如 _remove_1hk8w_53），子串同样适配；
- * - 全局稳定类（.md-code-block、.katex-display）直接使用。
+ * - 全局稳定类（.md-code-block 等由渲染器直接输出的类）可直接使用。
  * @module @dsh-plus/ui-mobile-fit/styles/base
  */
 
@@ -38,9 +37,10 @@ export const baseCss = /* css */ `
 }
 
 @media (max-width: 767px) {
-  /* 长 URL / 无空格串在 markdown 与面包屑内折行（0.1.2-alpha.2 基线 chip 系统为
-     nowrap+缩放方案，自带溢出处理，无需此处覆盖） */
-  [class*="_markdown"],
+  /* 长 URL / 无空格串在面包屑与摘要内折行。markdown 不需要：上游 .markdown 已
+     overflow-wrap:anywhere（primitives MarkdownText.module.css）；叶子节点
+     _crumb/_summary 上游是 nowrap + ellipsis，此处管的是容器与分段（_crumbs、
+     _crumbSeg 无 nowrap），避免长串把整行撑破。 */
   [class*="_crumb"],
   [class*="_summary"] {
     overflow-wrap: anywhere;

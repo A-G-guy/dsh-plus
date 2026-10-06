@@ -19,7 +19,7 @@
  * 模型条目字段集同样现场推导（official-surface.ts）。生效版本只用于状态行显示，
  * 超出已验证区间也只是提示（kit-meta.ts），永不阻断。
  *
- * 0.1.2-alpha 线的新面（0.1.2-alpha.2 复核包根仍未导出、仅 src 子路径有）：
+ * 仅 src 子路径导出、包根不导出的两块面：
  * - resolveProfiles（config.ts）：官方解析链，dev 布局树可经 src 子路径复用；
  * - credentialStoreFrom/authContextFrom（auth.ts）：PiAiAdapter 必需 auth 注入。
  * npm 发布形态（lib/index.js 单 bundle + 无 src/）两者都拿不到：dsh 树优先
@@ -76,7 +76,7 @@ import { type ResolverDeps, resolveProfilesFallback } from './profiles.ts'
 
 /**
  * deepseek 适配器模块表面（可选）：dsh-llm-deepseek 的官方 DeepSeekAdapter
- * 与目录解析器 + 匿名用户 id。缺失（旧版 dsh 树或形状漂移）不拖垮核心
+ * 与目录解析器 + 匿名用户 id。缺失（形状漂移）不拖垮核心
  * 套件——deepseek 类 route 在构建期以明确错误拒绝，pi 路由不受影响。
  * 与核心套件强制同源（杜绝跨源模块混用：brand/LlmError 恒等性敏感）。
  */
@@ -161,8 +161,8 @@ function assertKitShape(kit: DshKit, origin: string): void {
   const problems: string[] = []
   if (typeof kit.PiAiAdapter !== 'function') problems.push('PiAiAdapter 不是类')
   else {
-    // 0.1.2-alpha.2 的 LlmAdapter 抽象面：prepareCall/providerRetryPolicy 为
-    // master 适配器必需 override；models.getModels/getModel 语义未变
+    // LlmAdapter 抽象面：prepareCall/providerRetryPolicy 为适配器必需 override；
+    // models.getModels/getModel 语义
     // （pi-ai 0.84.2 Models.getModel(provider,id)/getModels(provider)，
     // 由同源 adapter 内部消费，本插件不直调）。
     for (const method of [

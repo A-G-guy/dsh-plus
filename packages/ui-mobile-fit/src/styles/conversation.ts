@@ -7,8 +7,11 @@
 /** 窄屏会话区修复。 */
 export const conversationCss = /* css */ `
 @media (max-width: 767px) {
-  /* markdown 富媒体：图片/视频不撑破，表格转块级内部横滚 */
-  [class*="_markdown"] img,
+  /* markdown 富媒体：<img> 由上游 .image 兜住（primitives 的 MarkdownText
+     模块样式：display:block / width:auto / max-width:100% / height:auto），
+     此处只补上游未覆盖的内联媒体元素；表格上游已改为滚动包裹层
+     （_tableScroll，max-width:100% + overflow-x:auto，宽表配 md-table-wide），
+     不再需要给 table 本身加 display:block 的历史写法。 */
   [class*="_markdown"] video,
   [class*="_markdown"] canvas,
   [class*="_markdown"] svg {
@@ -16,16 +19,9 @@ export const conversationCss = /* css */ `
     height: auto;
   }
 
-  [class*="_markdown"] table {
-    display: block;
-    max-width: 100%;
-    overflow-x: auto;
-  }
-
-  /* 代码块与 KaTeX 公式：上限容器宽，内部横滚（上游 body 已 overflow-x:auto，
-     这里兜底块级外壳） */
+  /* 代码块外壳：上游 .markdown pre 只有 overflow:auto（无宽度上限），
+     这里补 max-width 兜底块级外壳 */
   .md-code-block,
-  .katex-display,
   [class*="_markdown"] pre {
     max-width: 100%;
     overflow-x: auto;
@@ -45,15 +41,8 @@ export const conversationCss = /* css */ `
     min-width: 0;
   }
 
-  [class*="_crumbs"] {
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  [class*="_headerActions"],
-  [class*="_headerUtilities"] {
-    flex-shrink: 0;
-  }
+  /* 面包屑与头部操作组不需要额外规则：上游 _crumbs 已 min-width:0 +
+     overflow:hidden，_headerActions/_headerUtilities 已 flex:none（= 不收缩）。 */
 
   /* 顶栏横向空间紧张时允许换行（会话名/后台任务/子代理与右侧工具区各占一行），
      防止右侧操作被挤出视口无法点按 */
@@ -67,23 +56,11 @@ export const conversationCss = /* css */ `
     gap: 6px;
   }
 
-  /* 旧版 Session 日志胶囊（dsh-session-log-export 的 HeaderAction，历史类名
-     _sessionLogButton、min-width:111px）曾是顶栏最大的固定宽度消耗者，此处
-     把它压缩成图标按钮。0.1.6-alpha.1 起上游已将该入口本身改为 28px 图标按钮
-     （_moreButton，"更多"菜单），胶囊不再存在——选择器在两个版本都失配，
-     属死规则，故删除；顶栏空间由上面的 titleRow 换行 + headerUtilities 收紧兜底。 */
-
-  /* composer：占满窄屏宽度，附件/模式行允许换行。
-     0.1.2-alpha.2 基线上游 composer 输入行（ui-conversation InputBar 的 .row）
-     已自带 flex-wrap:wrap（窄屏布局），此处保留 _tools/_modes 子级换行兜底；
-     附件区 _accessory 已核对存在于 master（InputBar.module.css .accessory，
-     ui-attachment 的 rail 为横向滚动，无需换行） */
-  [class*="_composerStack"],
-  [class*="_composerSeat"],
-  [class*="_composerHero"] {
-    max-width: 100%;
-  }
-
+  /* composer：窄屏下附件/模式行允许换行。
+     上游 _composerStack/_composerSeat 是 flex:none 的纵向容器（块级默认宽度已
+     ≤ 容器），_composerHero 官方显式 width:min(…, 100%)，故不再需要 max-width
+     兜底；上游 composer 输入行用容器查询（@container (width<=560px)）收紧间距，
+     但没有换行，_tools/_modes/_accessory 的换行仍由本插件提供。 */
   [class*="_tools"],
   [class*="_modes"],
   [class*="_accessory"] {
