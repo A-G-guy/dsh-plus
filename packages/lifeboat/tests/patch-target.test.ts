@@ -17,7 +17,7 @@ function fakeCtx(profileContext: unknown): Context {
   } as unknown as Context
 }
 
-const baseConfig = { enabled: true, patchFile: '', llmFallback: true, alertCooldownMs: 300000 }
+const baseConfig = { enabled: true, patchFile: '', alertCooldownMs: 300000 }
 
 test('given explicit patchFile config, when resolving, then it wins over profileContext', () => {
   const ctx = fakeCtx({ patchPath: '/home/u/.dsh/profiles/desktop/cordis.patch.yml' })

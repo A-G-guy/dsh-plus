@@ -18,6 +18,14 @@ export interface WireKitInfo {
   protocolSource: string
   catalog: { providers: number; models: number; generatedAt?: number }
   compatSource: string
+  /** 官方应急副本状态（服务端 official-copy-writer 的 OfficialCopyStatus 镜像）。 */
+  officialCopy: {
+    path: string
+    updatedAt?: number
+    routes: number
+    warnings: string[]
+    error?: string
+  }
   diagnostics: string[]
 }
 

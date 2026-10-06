@@ -17,10 +17,6 @@ export const Config = z.object({
       '隔离写入的 profile 用户 patch 文件绝对路径；留空自动取当前 profile 的 cordis.patch.yml（profileContext.patchPath，CLI 与桌面端 desktop profile 同源）',
     )
     .default(''),
-  llmFallback: z
-    .boolean()
-    .description('llm-pi 缺席时自动翻译其配置到官方 llm-pi-ai 并切换默认模型')
-    .default(true),
   alertCooldownMs: z.natural().description('同一插件重复告警的最小间隔毫秒数').default(300000),
 })
 
@@ -31,14 +27,4 @@ export interface JournalEntryT {
   at: string
   kind: string
   detail: string
-}
-
-/** LLM 应急翻译的持久状态（还原依据；纯类型，磁盘收窄见 state-file.ts）。 */
-export interface FallbackStateT {
-  active: boolean
-  originalProvider: string
-  originalModel: string
-  fallbackProvider: string
-  providers: string[]
-  at: string
 }

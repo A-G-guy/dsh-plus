@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 16:31"
+last_modified: "2026-10-06 13:52"
 description: "@dsh-plus/lifeboat 文档索引"
 type: fact
 ---
@@ -20,17 +20,20 @@ type: fact
   写入幂等、先备份（`.lifeboat.bak`）、原子落盘。隔离时摘录 fiber 的失败原因
   （`fiber._error`，截断 500 字符）进 journal 与告警正文——dsh 的插件 logger
   不落 stdout，无此摘录则故障根因不可见。
-- **LLM 应急翻译**（`src/fallback-llm.ts`）：默认模型 provider 无已注册 adapter 时，
-  读 settings.yaml 的 `dsh-plus-llm-pi` 段（只读），翻译为官方 `llm-pi-ai`
-  原生格式（键加 `-fb` 后缀防 DUPLICATE_ADAPTER），切换 `agent-default-model`；
-  源 provider 恢复后按 journal 自动还原。协议推断为启发式（显式 api > 路由名 >
-  模型继承源 > openai-completions）。
+- **LLM 应急副本指引**（`src/copy-guide.ts`）：默认模型 provider 无已注册 adapter
+  时，读取 llm-pi 常备的官方应急副本（`$DSH_HOME/llm-pi.official-patch.yaml`；
+  `src/official-copy-status.ts` 按文件契约同路径派生、只读），按副本形态告警：
+  就绪（附生成时间/route 数与 `dsh <profile> --patch <路径>` 应用指引）、缺失、
+  空副本（应用无效果）。启动宽限 60s + settings/llm 事件触发，同指引受
+  `alertCooldownMs` 冷却。**只告警不写**：旧「出错时自动改写配置」实现因不稳定、
+  常无效已移除，应用与回退操作交还给人。
 - **journal 与告警**：一切动作写入自身数据文件
-  （`$DSH_HOME/dsh-plus/lifeboat/state.json`，封顶 50 条；settings 仅存应急翻译等
-  配置，运行期状态不入 settings），告警优先走
+  （`$DSH_HOME/dsh-plus/lifeboat/state.json`，封顶 50 条；运行期状态不入
+  settings），告警优先走
   notify-email 的 `sendNotice`，缺席降级为日志。
 - **健康面板**（`src/client/health-tab.tsx`）：设置 → 插件 → 「救生艇」tab
-  （官方 `settings.plugins.tab` 插槽）。展示应急翻译状态 banner、已隔离插件
+  （官方 `settings.plugins.tab` 插槽）。展示官方应急副本状态卡片（路径/生成时间/
+  覆盖 route/生成警告 + 应用指引）、已隔离插件
   卡片（两段确认「恢复」= 调 `POST /dsh-plus/lifeboat/restore` 移除用户 patch
   层的禁用覆盖；用户 patch 层热应用，恢复无需重启）、journal 时间线
   （kind 徽标着色：alert 红 / quarantine 橙 / restore 绿）。宿主面端点
@@ -43,6 +46,8 @@ type: fact
 - 首次启动失败不可自动避免（客户端 boot 是 fail-loud 内核设计）；自动化的是恢复。
 - lifeboat 自身故障时退化为手动恢复：编辑上述 patch 文件删除/添加 disabled 条目，
   或 `dsh plugin --profile web remove <pkg>`。
+- 应急副本只读不写：lifeboat 不改任何 LLM 配置（自动改写实现已移除），指引文案
+  给出人工应用步骤。
 - 零 dsh-plus 内部依赖（不 import 本仓库其他包），防止共享代码故障团灭。
 
 ## 平台支持

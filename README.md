@@ -25,8 +25,8 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | [`@dsh-plus/ui-mobile-fit`](packages/ui-mobile-fit) | UI | 通用 | 纯 CSS 覆盖的移动端窄屏响应式适配，不 fork 上游、跟随升级 | [docs](packages/ui-mobile-fit/docs/README.md) |
 | [`@dsh-plus/remote-settings`](packages/remote-settings) | UI | 通用 | 修复非 loopback 访问（loopback-rewrite 反代）下设置→模型目录报错与插件配置卡片不渲染 | [docs](packages/remote-settings/docs/README.md) |
 | [`@dsh-plus/notify-email`](packages/notify-email) | service + UI | 通用 | 任务完成 / 等待决策 / 出错停止时向指定邮箱发送邮件通知 | [docs](packages/notify-email/docs/README.md) |
-| [`@dsh-plus/llm-pi`](packages/llm-pi) | service + UI | 通用 | 基于 pi-ai 的自定义 LLM 路由：协议集合现场推导、官方目录继承与字段级覆盖、全量 compat、内置模型目录浏览器 | [docs](packages/llm-pi/docs/README.md) |
-| [`@dsh-plus/lifeboat`](packages/lifeboat) | service | 通用 | 故障救生艇：兄弟插件崩溃自动隔离（写 patch 层禁用）+ LLM 应急翻译 + 邮件告警 | [docs](packages/lifeboat/docs/README.md) |
+| [`@dsh-plus/llm-pi`](packages/llm-pi) | service + UI | 通用 | 基于 pi-ai 的自定义 LLM 路由：协议集合现场推导、官方目录继承与字段级覆盖、全量 compat、内置模型目录浏览器；常备官方应急 LLM 配置副本 | [docs](packages/llm-pi/docs/README.md) |
+| [`@dsh-plus/lifeboat`](packages/lifeboat) | service | 通用 | 故障救生艇：兄弟插件崩溃自动隔离（写 patch 层禁用）+ LLM 应急副本指引 + 邮件告警 | [docs](packages/lifeboat/docs/README.md) |
 | [`@dsh-plus/reload`](packages/reload) | service + UI | Linux | 设置页「重新加载」按钮与 `/reload` 命令：两段确认+倒计时后重启 dsh-web（systemd，桌面/Windows 下按钮禁用并提示） | [docs](packages/reload/docs/README.md) |
 | [`@dsh-plus/usage-panel`](packages/usage-panel) | service + UI | 通用 | 全量会话 token 用量面板：实时+历史扫描双通道聚合，按日/模型报表，可选价目估算费用 | [docs](packages/usage-panel/docs/README.md) |
 | [`@dsh-plus/access-gate`](packages/access-gate) | service + UI | 通用 | Web 访问围栏（已合并官方认证）：官方 cookie 为唯一凭据，未认证导航渲染 token 输入页（PWA 可恢复），可选 IP 附加围栏，loopback 管理通道取当前认证链接 | [docs](packages/access-gate/docs/README.md) |
@@ -124,8 +124,8 @@ packages/
   ui-mobile-fit/        移动端窄屏适配（UI 覆盖）
   remote-settings/      非 loopback 页面设置平面修复
   notify-email/         任务结束邮件通知
-  llm-pi/               自定义 LLM 路由
-  lifeboat/             故障救生艇（隔离/应急翻译/告警）
+  llm-pi/               自定义 LLM 路由（含官方应急 LLM 配置副本）
+  lifeboat/             故障救生艇（隔离/应急副本指引/告警）
   reload/               设置按钮 + /reload 命令重载或重启 dsh-web
   usage-panel/          用量统计面板（token 聚合/报表/费用估算）
   access-gate/          Web 访问围栏（合并官方认证 / token 输入页恢复 PWA / IP 附加围栏）

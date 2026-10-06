@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-04 16:31"
+last_modified: "2026-10-06 13:52"
 description: "@dsh-plus/llm-pi 文档索引"
 type: fact
 ---
@@ -92,6 +92,37 @@ Provider 路由列表（每 route 收起，route 内模型行同样默认收起�
   子路径导出，npm 发布形态不携带 src/——dev 布局时经 src 子路径复用官方实现，
   其余形态走插件等价实现（profile 解析语义逐行对齐官方 resolveProfiles，compat
   门控以官方现场表为准；认证助手为官方 auth.ts 等价移植），并经形状自检兜底。
+
+## 官方应急副本（应急能力）
+
+常备一份**官方可识别**的应急配置副本，llm-pi 缺席/故障时用 dsh 原生方式即可
+恢复 LLM 能力；lifeboat 面板只读展示其状态并给出应用指引告警。
+
+- **文件契约**：`$DSH_HOME/llm-pi.official-patch.yaml`（`src/official-copy.ts` 的
+  `OFFICIAL_COPY_PATH`，`src/official-copy-writer.ts` 生成）。头注释即使用说明
+  （两种应用方式、回退方法、生成警告；mtime 即生成时间），正文为 profile patch
+  行：`- id: dsh-plus-llm-pi, disabled: true` + `- id: llm-pi-ai, config.providers`。
+- **生成时机**：插件启动、配置热更新（`loader/volatile-update`）、
+  `llm/adapters-updated`（官方 llm-pi-ai 晚注册时补入手写条目）。内容未变跳过
+  写盘（备忘 + 存在性自愈）；原子落盘，写失败只降级为状态与日志，不影响路由注册。
+- **翻译规则**（`buildOfficialCopy`，纯函数）：
+  - route 字段白名单现场取自官方 `Config` schema（布局不可识别时回退内置键集并
+    告警），模型条目字段取 `kit.officialModelFields`；
+  - 模型条目来自 normalizeRoute 的全物化产物（官方 schema 无 `extends`），compat
+    只保留当前协议 offer 的键（withhold/未知键丢弃——目录继承值可能携带）；
+  - `adapter: deepseek` 路由改写为 `api: openai-completions`（中继网关本就是
+    OpenAI 兼容面），连接事实取官方 `resolveAdapterOptions` 的校验产物；文件通道
+    与思考配置无对应字段**不迁移**，逐项写进头注释警告（绝不静默丢弃）；
+  - 官方 `llm-pi-ai` 现有 providers 经 `settings.describe()` 生效视图合并
+    （profile patch 行 + settings 用户层，schema 已解析），同名 key 手写条目优先。
+- **逐 route 官方校验**：官方 `Config` 解析 + 官方 `resolveProfiles` 可服务性链，
+  任一不过即从副本剔除并记警告——**写不进官方的配置绝不落盘**（旧「出错时自动
+  改写配置」不稳定、常无效，根因即在此前无此校验；该实现已由 lifeboat 移除）。
+- **应用与回退**：`dsh <profile> --patch <副本路径>`（单次启动）或把行并入该
+  profile 的 `cordis.patch.yml`（web 热应用）；应用即切换（禁用本插件、整行替换
+  llm-pi-ai config），回退只需移除 `--patch` 参数或并入的条目。
+- **边界**：零 route 时渲染空补丁 `[]`（不产出「只禁用不供给」的误导副本）；
+  多 profile 写同一路径，后写者覆盖；副本头注释警告同步进配置卡「诊断」与状态行。
 
 ## adapter: deepseek 路由（文件通道）
 

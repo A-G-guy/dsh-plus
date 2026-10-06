@@ -40,6 +40,11 @@ import { DeepseekRouteRegistrar } from './deepseek-routes.ts'
 import { buildDirectoryEntries, commitDirectory, type DirectoryEntry } from './directory.ts'
 import { discoverModels } from './discovery.ts'
 import { type KitVersions, piAiVersionNotice, VERIFIED_PI_AI_RANGE } from './kit-meta.ts'
+import {
+  createOfficialCopyWriter,
+  type OfficialCopyStatus,
+  readManualProviders,
+} from './official-copy-writer.ts'
 import { assertServiceable, buildProfiles, isDraftRoute } from './profiles.ts'
 import { buildDeepseekRoutes, type ResolvedDeepseekRoute } from './profiles-deepseek.ts'
 import { type DshKit, resolveDshKit } from './resolve-dsh.ts'
@@ -64,6 +69,8 @@ export interface LlmPiKitInfo {
   catalog: { providers: number; models: number; generatedAt?: number }
   /** compat 门控表来源：official / fallback。 */
   compatSource: string
+  /** 官方应急副本状态（路径/生成时间/覆盖 route/警告；error = 最近生成失败）。 */
+  officialCopy: OfficialCopyStatus
   /** 回退与逐项降级诊断（有内容时界面显式展示）。 */
   diagnostics: string[]
 }
@@ -412,9 +419,20 @@ export async function startRuntime(
   })
   const ensureDeepseek = (): void => deepseekRegistrar.sync(deepseekRoutes())
 
+  // 官方应急副本：启动即生成一次；热更新与 adapter 注册变化（官方 llm-pi-ai
+  // 晚注册时手写条目在此补入）再生成。写失败只降级为状态，不影响路由注册。
+  const copyWriter = createOfficialCopyWriter({
+    kit,
+    current,
+    readManual: () => readManualProviders(ctx.settings),
+    profile: ctx.get('profileContext')?.name,
+    logger,
+  })
+
   ensureRegistration()
   ensureDeepseek()
   ensureDirectory()
+  void copyWriter.ensureOfficialCopy()
 
   // 0.1.7 替代 installSection（validate/setSource/onChange 三钩子）：
   // - 活动引用原位提交 → volatile-update 触发快照换代与重注册（原 onChange 体）；
@@ -425,8 +443,12 @@ export async function startRuntime(
     attempt(logger, 'llm-pi: 更新被拒，保留此前注册的 route', ensureRegistration)
     attempt(logger, 'llm-pi: deepseek route 更新失败，保留此前注册', ensureDeepseek)
     attempt(logger, 'llm-pi: 更新被拒，保留此前的 configurable-provider 目录', ensureDirectory)
+    void copyWriter.ensureOfficialCopy()
   }
   ctx.events.on('loader/volatile-update', reconfigure)
+  // 官方 llm-pi-ai 晚于本插件注册时，describe 的手写条目视图此时才完整——
+  // adapter 集变化即重新生成副本（无 provider 变化时内容未变、跳过写盘）。
+  ctx.root.on('llm/adapters-updated', () => void copyWriter.ensureOfficialCopy())
   ctx.on('internal/config', function (_raw: unknown, next: () => unknown) {
     const candidate = next()
     if (this !== ctx.fiber) return candidate
@@ -439,6 +461,7 @@ export async function startRuntime(
     const providers = listProviders(kit)
     const generatedAt = kit.catalogGeneratedAt
     const notice = piAiVersionNotice(kit.versions.piAi)
+    const copy = copyWriter.status()
     return {
       source: kit.source,
       ...(kit.root === undefined ? {} : { root: kit.root }),
@@ -453,7 +476,12 @@ export async function startRuntime(
         ...(generatedAt === undefined ? {} : { generatedAt }),
       },
       compatSource: compatTableInfo().source,
-      diagnostics,
+      officialCopy: copy,
+      diagnostics: [
+        ...diagnostics,
+        ...copy.warnings.map((warning) => `应急副本：${warning}`),
+        ...(copy.error === undefined ? [] : [`应急副本：生成失败（${copy.error}）`]),
+      ],
     }
   }
 

@@ -1,9 +1,8 @@
 /**
  * lifeboat 健康面板 host 接收面：
- * - GET  /dsh-plus/lifeboat/status  → journal + 翻译状态 + 当前用户 patch 层已禁用的 dsh-plus 插件
+ * - GET  /dsh-plus/lifeboat/status  → journal + 应急副本状态 + 当前用户 patch 层已禁用的 dsh-plus 插件
  * - POST /dsh-plus/lifeboat/restore {name} → removeDisable + journal + 告警
  * rc8 用户 patch 层热应用：恢复无需重启，watchUserPatches 即时重载。
- * （0.1.2-alpha.2 基线复核：用户 patch 层热应用机制保留，行为不变。）
  * @module lifeboat/health-api
  */
 import { readFile } from 'node:fs/promises'
@@ -12,6 +11,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { parseDocument } from 'yaml'
 import type { Alerter } from './notify.ts'
+import type { OfficialCopyStatus } from './official-copy-status.ts'
 import { listDisabled, type PatchEntry, removeDisable } from './patch-file.ts'
 import { isGuardedPlugin } from './quarantine.ts'
 
@@ -22,15 +22,10 @@ export interface HealthDeps {
   patchFile: string
   journal: (kind: string, detail: string) => void
   alert: Alerter
-  /** journal 文档（settings 命名空间内，最新在前的尾插列表）。 */
+  /** journal 文档（最新在前的尾插列表）。 */
   readJournal(): Array<{ at: string; kind: string; detail: string }>
-  readFallback(): {
-    active: boolean
-    originalProvider: string
-    originalModel: string
-    fallbackProvider: string
-    at: string
-  } | null
+  /** 官方应急副本状态（每次 status 请求现读，mtime 即生成时间）。 */
+  readCopy(): Promise<OfficialCopyStatus>
 }
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
@@ -72,7 +67,7 @@ export function registerHealthApi(ctx: Context, deps: HealthDeps): void {
         const quarantined = await readQuarantined(deps.patchFile)
         sendJson(res, 200, {
           journal: deps.readJournal(),
-          llmFallback: deps.readFallback(),
+          officialCopy: await deps.readCopy(),
           quarantined,
         })
       } catch (error) {

@@ -68,6 +68,7 @@ test('wire 契约的锚点断言（形状一致性由类型级断言保证）', 
     protocolSource: 'official',
     catalog: { providers: 1, models: 1 },
     compatSource: 'official',
+    officialCopy: { path: '/tmp/llm-pi.official-patch.yaml', routes: 1, warnings: [] },
     diagnostics: [],
   }
   const wire: WireKitInfo = kit

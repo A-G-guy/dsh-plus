@@ -36,6 +36,14 @@ function sourceLabel(t: Translate, source: string): string {
   return source === 'official' ? t('runtimeDerived') : t('runtimeFallback')
 }
 
+/** 应急副本状态行：路径 · route 数 · 生成时间；未生成/失败显式提示。 */
+function officialCopyText(kit: WireKitInfo, t: Translate): string {
+  const copy = kit.officialCopy
+  if (copy.error !== undefined) return `${t('officialCopyFailed')}${copy.error}`
+  if (copy.updatedAt === undefined) return t('officialCopyPending')
+  return `${copy.path} · ${copy.routes} ${t('officialCopyRoutes')} · ${formatTime(copy.updatedAt, t('runtimeVersionUnknown'))}`
+}
+
 export interface RootFieldsProps {
   t: Translate
   draft: Draft
@@ -79,6 +87,9 @@ export function RootFields(props: RootFieldsProps): ReactElement {
           </p>
           <p className="lpc-statusRow">
             {`${t('runtimeCompat')}：${sourceLabel(t, kit.compatSource)}`}
+          </p>
+          <p className="lpc-statusRow">
+            {`${t('runtimeOfficialCopy')}：${officialCopyText(kit, t)}`}
           </p>
           {kit.versionNotice !== undefined ? (
             <p className="lpc-invalid">{`${t('runtimeNotice')}：${kit.versionNotice}`}</p>

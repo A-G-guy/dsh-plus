@@ -1,6 +1,6 @@
 /**
  * lifeboat 健康页：settings.plugins.tab 第三页「救生艇」。
- * - 应急翻译状态 banner（激活中显示源路由/临时路由/时间）
+ * - 官方应急副本状态卡片（路径/生成时间/覆盖 route/警告 + 应用指引）
  * - 已隔离插件卡片 + 「恢复」按钮（两段确认）
  * - journal 时间线（kind 徽标着色）
  * - dsh-plus 兄弟插件状态点（pluginInventory.list）
@@ -20,17 +20,18 @@ interface JournalEntry {
   detail: string
 }
 
-interface FallbackState {
-  active: boolean
-  originalProvider: string
-  originalModel: string
-  fallbackProvider: string
-  at: string
+interface CopyState {
+  path: string
+  exists: boolean
+  updatedAt?: number
+  routes?: number
+  warnings: string[]
+  detail?: string
 }
 
 interface StatusResponse {
   journal: JournalEntry[]
-  llmFallback: FallbackState | null
+  officialCopy?: CopyState
   quarantined: string[]
 }
 
@@ -77,16 +78,19 @@ const KIND_STYLES: Record<string, string> = {
   alert: 'dlb-kindAlert',
   quarantine: 'dlb-kindQuarantine',
   'quarantine-restore': 'dlb-kindRestore',
-  'llm-fallback': 'dlb-kindFallback',
-  'llm-fallback-revert': 'dlb-kindRestore',
+  'llm-copy-guide': 'dlb-kindFallback',
 }
 
 const zhDict = {
   tab: '救生艇',
-  fallbackActive: 'LLM 应急翻译进行中',
-  fallbackFrom: '源路由',
-  fallbackTo: '临时路由',
-  fallbackAt: '启用时间',
+  copyTitle: '官方应急 LLM 副本',
+  copyPath: '副本路径',
+  copyAt: '生成时间',
+  copyRoutes: '覆盖 route',
+  copyMissing: '未生成',
+  copyWarning: '警告',
+  copyApplyHint:
+    '应用：dsh <profile> --patch 上述路径（重启/重载生效），或把副本条目并入当前 profile 的 cordis.patch.yml（热应用）。应用即禁用 dsh-plus-llm-pi 并切换 llm-pi-ai 配置；回退只需移除 --patch/并入条目。',
   quarantined: '已隔离插件',
   restore: '恢复',
   restoring: '恢复中…',
@@ -106,10 +110,14 @@ const zhDict = {
 
 const enDict = {
   tab: 'Lifeboat',
-  fallbackActive: 'LLM emergency translation active',
-  fallbackFrom: 'Source route',
-  fallbackTo: 'Fallback route',
-  fallbackAt: 'Since',
+  copyTitle: 'Official emergency LLM copy',
+  copyPath: 'Path',
+  copyAt: 'Generated',
+  copyRoutes: 'Routes',
+  copyMissing: 'not generated',
+  copyWarning: 'Warning',
+  copyApplyHint:
+    "Apply: dsh <profile> --patch <path above> (restart/reload), or merge the rows into this profile's cordis.patch.yml (hot-applied). Applying disables dsh-plus-llm-pi and switches llm-pi-ai; revert by removing the --patch flag/rows.",
   quarantined: 'Quarantined plugins',
   restore: 'Restore',
   restoring: 'Restoring…',
@@ -126,6 +134,41 @@ const enDict = {
   retry: 'Retry',
   restored: 'Restored; hot-applied immediately.',
   restoreFailed: 'Restore failed: ',
+}
+
+/** 官方应急副本状态卡片（纯展示：路径/生成时间/覆盖 route/警告 + 应用指引）。 */
+function CopyStatusCard(props: { copy: CopyState; t(key: string): string }): ReactElement {
+  const { copy, t } = props
+  const generated =
+    copy.updatedAt === undefined
+      ? t('copyMissing')
+      : new Date(copy.updatedAt).toISOString().slice(0, 19).replace('T', ' ')
+  return (
+    <div className="dlb-copy" role="status">
+      <p className="dlb-copyTitle">{t('copyTitle')}</p>
+      <div className="dlb-kv">
+        <span>{t('copyPath')}</span>
+        <code>{copy.path}</code>
+      </div>
+      <div className="dlb-kv">
+        <span>{t('copyAt')}</span>
+        <code>{generated}</code>
+      </div>
+      {copy.routes !== undefined ? (
+        <div className="dlb-kv">
+          <span>{t('copyRoutes')}</span>
+          <code>{copy.routes}</code>
+        </div>
+      ) : null}
+      {copy.detail !== undefined ? <p className="dlb-copyWarning">{copy.detail}</p> : null}
+      {copy.warnings.map((warning) => (
+        <p className="dlb-copyWarning" key={warning}>
+          {`${t('copyWarning')}：${warning}`}
+        </p>
+      ))}
+      <p className="dlb-copyHint">{t('copyApplyHint')}</p>
+    </div>
+  )
 }
 
 function HealthTab(props: { t(key: string): string }): ReactElement {
@@ -196,24 +239,8 @@ function HealthTab(props: { t(key: string): string }): ReactElement {
         </p>
       ) : null}
 
-      {status.llmFallback?.active === true ? (
-        <div className="dlb-fallback" role="status">
-          <p className="dlb-fallbackTitle">{t('fallbackActive')}</p>
-          <div className="dlb-kv">
-            <span>{t('fallbackFrom')}</span>
-            <code>
-              {status.llmFallback.originalProvider}/{status.llmFallback.originalModel}
-            </code>
-          </div>
-          <div className="dlb-kv">
-            <span>{t('fallbackTo')}</span>
-            <code>{status.llmFallback.fallbackProvider}</code>
-          </div>
-          <div className="dlb-kv">
-            <span>{t('fallbackAt')}</span>
-            <code>{status.llmFallback.at.slice(0, 19).replace('T', ' ')}</code>
-          </div>
-        </div>
+      {status.officialCopy !== undefined ? (
+        <CopyStatusCard copy={status.officialCopy} t={t} />
       ) : null}
 
       <h3 className="dlb-title">{t('quarantined')}</h3>

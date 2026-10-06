@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/llm-pi",
-  "version": "0.1.45",
+  "version": "0.2.0",
   "description": "dsh-plus service+ui plugin: 基于 PiAiAdapter 的自定义 LLM 路由（全量 compat、模型继承、pi-ai 内置目录；协议/compat/字段集现场推导，自动跟随已装 dsh）",
   "type": "module",
   "main": "lib/index.js",
@@ -35,7 +35,8 @@
     }
   },
   "dependencies": {
-    "@dsh-plus/shared": "workspace:*"
+    "@dsh-plus/shared": "workspace:*",
+    "yaml": "^2.9.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.5-alpha.1",

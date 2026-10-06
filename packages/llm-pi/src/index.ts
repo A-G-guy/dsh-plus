@@ -11,7 +11,10 @@
  *
  * 接线约束：inject 须含 credentials（auth-inline/deepseek-routes 经
  * ctx.get('credentials') 读 seam；凭据解析为请求时惰性调用，硬声明保证
- * 时序，消除启动早窗口的一次性 MISSING_CREDENTIAL）。
+ * 时序，消除启动早窗口的一次性 MISSING_CREDENTIAL）与 settings
+ * （应急副本手写条目来源：readManualProviders 经 ctx.settings.describe
+ * 读官方 llm-pi-ai 生效视图；漏声明即启动期 "cannot get property without
+ * inject" → 插件树加载失败）。
  * @module @dsh-plus/llm-pi
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -22,7 +25,7 @@ import { startRuntime } from './service.ts'
 
 export const name = 'dsh-plus-llm-pi'
 
-export const inject = ['credentials', 'llm'] as const
+export const inject = ['credentials', 'llm', 'settings'] as const
 
 export type {
   LlmPiConfig,

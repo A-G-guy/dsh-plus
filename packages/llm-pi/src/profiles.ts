@@ -710,6 +710,38 @@ export function buildProfiles(
   return resolved
 }
 
+/**
+ * 应急副本用：逐 route 归一化为官方 schema 形状的 profile（与运行期同一条
+ * normalizeRoute 链：extends 物化、单协议单端点约束、模型条目全显式）。
+ *
+ * 与运行期 buildProfiles 的两点差异：
+ * - 不受 `enabled` 开关影响——副本是配置层事实，插件关闭时其 route 仍应可复制；
+ * - 逐 route 隔离失败（不依赖 lenient 开关）——一个坏条目只丢它自己，
+ *   不让整份应急副本变空。
+ *
+ * adapter: deepseek 的 route 与草稿路由不在此列（前者由 profiles-deepseek
+ * 物化、后者本就不可服务），调用方按缺席另行告警。
+ */
+export function normalizeOfficialRoutes(
+  providers: Record<string, ProviderProfileConfig> | undefined,
+  deps: BuildDeps,
+): Map<string, PiAiProviderProfile> {
+  const out = new Map<string, PiAiProviderProfile>()
+  for (const [route, profile] of Object.entries(providers ?? {})) {
+    try {
+      const normalized = normalizeRoute(route, profile, deps)
+      if (normalized !== undefined) out.set(route, normalized.profile)
+    } catch (error) {
+      deps.warn?.(
+        `llm-pi: provider "${route}" 无法物化为官方形状（${
+          error instanceof Error ? error.message : String(error)
+        }），已跳过应急副本的该 route`,
+      )
+    }
+  }
+  return out
+}
+
 /** settings 写入校验钩子：完整试跑解析，非法配置在写入处拒绝。 */
 export function assertServiceable(
   config: { providers?: Record<string, ProviderProfileConfig> },

@@ -93,6 +93,13 @@ export type ResolveProfiles = (
   providers: Readonly<Record<string, PiAiProviderProfile>> | undefined,
 ) => Map<string, ResolvedPiAiProviderProfile>
 
+/**
+ * 官方 Config schema 的调用面（根导出 `Config`，schemastery schema 的可调用形态）：
+ * 应急副本写前校验「官方是否接受这个形状」——非法协议/取值越界在此抛错。
+ * 只用其抛错语义，解析产物（volatile 视图）不消费。
+ */
+export type OfficialConfigSchema = (value: unknown) => unknown
+
 /** PiAiAdapter 必需 auth 注入的两个助手（官方 auth.ts 面；包根未导出）。 */
 export interface AuthHelpers {
   credentialStoreFrom(ctx: Context): CredentialStore
@@ -117,6 +124,11 @@ export interface DshKit {
   /** 内置目录数据生成时间（毫秒）；官方未导出该信息时省略。 */
   catalogGeneratedAt?: number
   PiAiAdapter: typeof PiAiAdapterType
+  /**
+   * 官方 `Config` schema（与 PiAiAdapter 同一模块根导出，同源取用）：
+   * 应急副本落盘前的官方可识别性校验（见 {@link OfficialConfigSchema}）。
+   */
+  officialConfig: OfficialConfigSchema
   LlmError: typeof DshLlm.LlmError
   resolveRetryPolicy: typeof DshLlm.resolveRetryPolicy
   attributionHeaders: typeof DshLlm.attributionHeaders
@@ -173,6 +185,7 @@ function assertKitShape(kit: DshKit, origin: string): void {
     }
   }
   if (typeof kit.createProvider !== 'function') problems.push('pi-ai createProvider 缺失')
+  if (typeof kit.officialConfig !== 'function') problems.push('dsh-llm-pi-ai Config schema 缺失')
   if (typeof kit.getBuiltinModels !== 'function') problems.push('pi-ai getBuiltinModels 缺失')
   if (typeof kit.builtinProviders !== 'function') problems.push('pi-ai builtinProviders 缺失')
   if (kit.protocols.length === 0) problems.push('没有可服务的线协议（协议工厂全部加载失败）')
@@ -529,6 +542,7 @@ function kitFromTree(options: {
       ? {}
       : { catalogGeneratedAt: surface.catalogGeneratedAt }),
     PiAiAdapter: mods.piAiAdapter['PiAiAdapter'] as DshKit['PiAiAdapter'],
+    officialConfig: mods.piAiAdapter['Config'] as DshKit['officialConfig'],
     LlmError: mods.llm['LlmError'] as DshKit['LlmError'],
     resolveRetryPolicy: mods.llm['resolveRetryPolicy'] as DshKit['resolveRetryPolicy'],
     attributionHeaders: mods.llm['attributionHeaders'] as DshKit['attributionHeaders'],
@@ -626,6 +640,7 @@ export function loadVendoredKit(diagnostics: string[] = []): DshKit {
       ? {}
       : { catalogGeneratedAt: surface.catalogGeneratedAt }),
     PiAiAdapter: vendoredPiAiAdapter.PiAiAdapter,
+    officialConfig: vendoredPiAiAdapter.Config as DshKit['officialConfig'],
     LlmError: vendoredLlm.LlmError,
     resolveRetryPolicy: vendoredLlm.resolveRetryPolicy,
     attributionHeaders: vendoredLlm.attributionHeaders,
