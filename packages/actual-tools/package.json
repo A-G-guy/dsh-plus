@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/actual-tools",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "dsh-plus preset tool plugin: Actual Budget 能力包装——把主插件发现的 Actual 能力清单 1:1 注册为 agent 作用域 DSH 工具（写操作确认 + CLI 兜底执行）",
   "type": "module",
   "main": "lib/index.js",

@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/actual-mcp",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "dsh-plus portable MCP server: 把本机 @actual-app/cli 按 help 文本运行时自动封装为 MCP 服务（命令族×动作×参数零硬编码），供任意 MCP 宿主使用",
   "type": "module",
   "main": "lib/index.js",
