@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // host-only 包不给 DOM：host 代码误用 document/window 应在类型层被拦住。
+    // 若新增浏览器半（src/client.tsx），参照其他 UI 包的 tsconfig 补 jsx 与 DOM 项。
+    "lib": ["ES2022"]
+  },
+  "include": ["src", "tests", "tsdown.config.ts"]
+}

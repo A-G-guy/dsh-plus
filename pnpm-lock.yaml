@@ -124,6 +124,21 @@ importers:
         specifier: 3.18.5-alpha.1
         version: 3.18.5-alpha.1
 
+  packages/agent-preset-lean:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.5-alpha.1
+        version: 4.0.5-alpha.1(@deepseek-ai/cordis-plugin-include@1.0.10-alpha.1)(@deepseek-ai/cordis-plugin-loader@1.0.6-alpha.1)
+      '@deepseek-ai/dsh-agent-preset-registry':
+        specifier: 0.2.1-alpha.1
+        version: 0.2.1-alpha.1(143ac12913e4fb9aead8683488b03e88)
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.5-alpha.1
+        version: 3.18.5-alpha.1
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
+
   packages/boot-retry:
     devDependencies:
       '@deepseek-ai/cordis':
@@ -153,6 +168,9 @@ importers:
       '@dsh-plus/agent-preset-chat':
         specifier: workspace:*
         version: link:../agent-preset-chat
+      '@dsh-plus/agent-preset-lean':
+        specifier: workspace:*
+        version: link:../agent-preset-lean
       '@dsh-plus/boot-retry':
         specifier: workspace:*
         version: link:../boot-retry

@@ -69,3 +69,5 @@
     # 可移植 MCP 服务（格式一），只作库 + bin，自身不是 cordis 行。
     - id: dsh-plus-actual
       name: '@dsh-plus/actual'
+    - id: dsh-plus-agent-preset-lean
+      name: '@dsh-plus/agent-preset-lean'

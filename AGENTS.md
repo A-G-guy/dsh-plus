@@ -82,7 +82,7 @@ dshctl finish   # 收尾：test → bump → commit → push → publish → ins
 
 ## 特殊要求
 
-- 每次开发结束后执行 dshctl finish 全流程
+- 每次开发结束后执行 dshctl finish 全流程，不用向用户确认
 - 开发测试、调试严禁产生真实 API 调用导致额外费用。
 - `dshctl` 能力不足允许按规范加强。
 - 打断正在工作的 dsh 进程必须由用户确认（提示 `/reload` 即可）。

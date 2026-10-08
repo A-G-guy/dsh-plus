@@ -3,15 +3,16 @@
  *
  * 状态行回答的是"我现在到底在跑哪一份 pi-ai"——插件按文件路径动态加载已装 dsh 树
  * 里的套件（见 resolve-dsh.ts），manifest 上写的版本**不是**生效版本。这里显示
- * 生效版本、安装树、目录规模与数据日期、可服务协议、compat 表来源，以及逐项降级
- * 诊断；版本超出验证区间时给出提示（提示而非阻断）。
+ * 生效版本、安装树、目录规模与数据日期、可服务协议、compat 表来源，以及诊断
+ * （按「形态说明 / 降级诊断」分块，避免恒定事实淹没真实降级）；版本超出验证区间
+ * 时给出提示（提示而非阻断）。
  * @module llm-pi/client/root-fields
  */
 
 import { CheckRow } from '@dsh-plus/shared/client'
 import type { ReactElement } from 'react'
 
-import type { WireKitInfo } from './api.ts'
+import type { WireDiagnostic, WireKitInfo } from './api.ts'
 import type { Draft } from './draft.ts'
 import type { Translate } from './i18n.ts'
 
@@ -42,6 +43,25 @@ function officialCopyText(kit: WireKitInfo, t: Translate): string {
   if (copy.error !== undefined) return `${t('officialCopyFailed')}${copy.error}`
   if (copy.updatedAt === undefined) return t('officialCopyPending')
   return `${copy.path} · ${copy.routes} ${t('officialCopyRoutes')} · ${formatTime(copy.updatedAt, t('runtimeVersionUnknown'))}`
+}
+
+/**
+ * 诊断分块：形态说明与降级分开渲染——「官方 src 不随 npm 发布」这类恒定事实
+ * 永不会消失，混在一起会把真正的降级淹掉。空块不渲染。
+ */
+function DiagnosticBlock(props: {
+  label: string
+  level: WireDiagnostic['level']
+  items: readonly WireDiagnostic[]
+}): ReactElement | null {
+  const messages = props.items.filter((item) => item.level === props.level).map((m) => m.message)
+  if (messages.length === 0) return null
+  return (
+    <>
+      <p className="lpc-catDetailLabel">{props.label}</p>
+      <pre className="lpc-catJson">{messages.join('\n')}</pre>
+    </>
+  )
 }
 
 export interface RootFieldsProps {
@@ -96,8 +116,12 @@ export function RootFields(props: RootFieldsProps): ReactElement {
           ) : null}
           {kit.diagnostics.length > 0 ? (
             <>
-              <p className="lpc-catDetailLabel">{t('runtimeDiagnostics')}</p>
-              <pre className="lpc-catJson">{kit.diagnostics.join('\n')}</pre>
+              <DiagnosticBlock label={t('runtimeFormNotes')} level="info" items={kit.diagnostics} />
+              <DiagnosticBlock
+                label={t('runtimeDiagnostics')}
+                level="degradation"
+                items={kit.diagnostics}
+              />
             </>
           ) : null}
         </>

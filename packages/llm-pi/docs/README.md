@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-07 00:39"
+last_modified: "2026-10-08 20:04"
 description: "@dsh-plus/llm-pi 文档索引"
 type: fact
 ---
@@ -48,7 +48,8 @@ Files API 文件通道、失败自动降级 base64），模型继承官方内置
 - **`api` 不在 schema 里钉死枚举**：合法集合运行期推导，非法协议在写时以
   "本插件无法服务（当前生效 pi-ai X 支持的协议：…）"拒绝。
 - **版本显示与提示**：配置卡片状态行显示生效的 `pi-ai` / `dsh-llm-pi-ai` / `dsh`
-  版本、安装树路径、目录规模与数据生成时间、协议/compat 来源与全部降级诊断。
+  版本、安装树路径、目录规模与数据生成时间、协议/compat 来源，诊断按「形态说明」
+  与「降级诊断」分块列出（恒定事实不淹没真降级）。
   生效 pi-ai 超出 `VERIFIED_PI_AI_RANGE`（当前 `>=0.85.1 <0.88.0`）**只提示不阻断**
   ——能不能用由运行期形状自检与逐项降级决定；peer 范围也写成 `>=0.85.1`（无上界），
   不因版本号把插件挡在新版 dsh 之外。
@@ -89,9 +90,12 @@ Provider 路由列表（每 route 收起，route 内模型行同样默认收起�
   `resolveAttachments` / `auth` / `resolveImageAccess` / `onReplayDegrade`）是官方
   给出的插件自有解析钩子；schema 校验完全在 adapter 之外，本插件自行实现配置层。
 - **src 子路径双轨**：`resolveProfiles` 与认证助手仅从官方 `src/config.ts`/`src/auth.ts`
-  子路径导出，npm 发布形态不携带 src/——dev 布局时经 src 子路径复用官方实现，
-  其余形态走插件等价实现（profile 解析语义逐行对齐官方 resolveProfiles，compat
-  门控以官方现场表为准；认证助手为官方 auth.ts 等价移植），并经形状自检兜底。
+  子路径导出，而官方发布清单只含 `lib/index.js` + `lib/types/**`（包根也不导出这三个
+  符号）——**任何 npm 安装形态都拿不到**。源码布局（上游工作区，`src/` 在位）经子路径
+  复用官方实现，其余形态走插件等价实现（profile 解析语义对齐官方 `config.ts:resolveProfiles`；
+  认证助手为官方 `auth.ts` 等价移植，记录作用域由官方包根导出的 `recordKeyFor`
+  现场推导而非手抄常量），并经形状自检兜底。这是**打包形态的恒定事实而非降级**，
+  配置页按「形态说明」单列，与「降级诊断」分块展示（否则恒定事实会淹没真降级）。
 
 ## 官方应急副本（应急能力）
 

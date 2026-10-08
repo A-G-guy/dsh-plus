@@ -4,8 +4,8 @@ last_modified: "2026-10-08 21:45"
 ---
 <!-- projects-go:generated -->
 
-# plugin-dev
+# docs
 
 | Document | description | last_modified | type |
 | --- | --- | --- | --- |
-| [插件开发指南](插件开发指南.md) | 插件开发指南 | 2026-10-08 21:45 | fact |
+| [README](README.md) | @dsh-plus/agent-preset-lean 文档索引 | 2026-10-08 21:45 | fact |

@@ -26,7 +26,14 @@ export interface WireKitInfo {
     warnings: string[]
     error?: string
   }
-  diagnostics: string[]
+  diagnostics: WireDiagnostic[]
+}
+
+/** 套件诊断条目（服务端 KitDiagnostic 的镜像）。 */
+export interface WireDiagnostic {
+  /** info = 打包形态说明（非缺陷）；degradation = 回退与逐项降级。 */
+  level: 'info' | 'degradation'
+  message: string
 }
 
 /** 内置 provider 条目。 */

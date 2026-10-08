@@ -1,7 +1,7 @@
 {
-  "name": "@dsh-plus/actual",
-  "version": "0.2.2",
-  "description": "dsh-plus service + UI plugin: Actual Budget 能力发现（@actual-app/cli help 树运行时派生 × 进程内 MCP tools/list）、actual agent 预设注册与配置卡片——零手工工具清单",
+  "name": "@dsh-plus/agent-preset-lean",
+  "version": "0.1.0",
+  "description": "dsh-plus service plugin: 注册精简模式 agent preset（id=lean）——官方 standard 预设的行镜像子集，去掉委派与编排类工具",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -9,9 +9,6 @@
     ".": {
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
-    },
-    "./client": {
-      "default": "./lib/client.js"
     },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
@@ -21,23 +18,7 @@
     "src"
   ],
   "scripts": {
-    "build": "tsdown",
-    "watch": "tsdown --watch"
-  },
-  "dsh": {
-    "client": {
-      "inject": [
-        "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-ui-renderer",
-        "@deepseek-ai/dsh-api-remotes"
-      ],
-      "platform": "web"
-    }
-  },
-  "dependencies": {
-    "@dsh-plus/actual-mcp": "workspace:*",
-    "@dsh-plus/shared": "workspace:*",
-    "@modelcontextprotocol/client": "2.3.0"
+    "build": "tsdown src/index.ts -d lib --format esm --dts --no-fixed-extension"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.5-alpha.1",
@@ -48,8 +29,7 @@
     "@deepseek-ai/cordis": "4.0.5-alpha.1",
     "@deepseek-ai/dsh-agent-preset-registry": "0.2.1-alpha.1",
     "@deepseek-ai/schemastery": "3.18.5-alpha.1",
-    "@types/react": "~18.3.31",
-    "react": "^18.2.0"
+    "yaml": "^2.9.0"
   },
   "publishConfig": {
     "access": "public"
@@ -58,6 +38,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/A-G-guy/dsh-plus.git",
-    "directory": "packages/actual"
+    "directory": "packages/agent-preset-lean"
   }
 }

@@ -47,6 +47,7 @@ scope 下，可单独安装，也可经 `@dsh-plus/bundle-main` 聚合为一层�
 | [`@dsh-plus/actual-tools`](packages/actual-tools) | tool | 通用 | Actual Budget 子插件（仅 actual 预设挂载）：能力 1:1 包装为 agent 作用域 DSH 工具，写操作按 DSH 审批策略确认（完全权限自动通过、绝不静默拒绝），`actual:env` 环境快照（含版本不匹配告警），MCP 优先 CLI 兜底 | [docs](packages/actual-tools/docs/README.md) |
 | [`@dsh-plus/tool-text-transform`](packages/tool-text-transform) | tool | 通用 | 纯函数演示工具（uppercase / lowercase / reverse / length），插件链路参考实现 | [docs](packages/tool-text-transform/docs/README.md) |
 | [`@dsh-plus/agent-preset-chat`](packages/agent-preset-chat) | persona | 通用 | 注册纯聊天模式 agent 预设（id=`chat`）：空工具目录 + complete persona 前缀，含遗留 `.agent-presets/chat` 迁移 | [docs](packages/agent-preset-chat/docs/README.md) |
+| [`@dsh-plus/agent-preset-lean`](packages/agent-preset-lean) | persona | 通用 | 注册精简模式 agent 预设（id=`lean`）：镜像官方 `standard` 预设的行子集（shell/文件/联网/技能/待办/提问/计划/交付 + 压缩），去掉委派与编排类工具以降低固定开销；上游行漂移由镜像测试拦下 | [docs](packages/agent-preset-lean/docs/README.md) |
 | [`@dsh-plus/bundle-main`](packages/bundle-main) | bundle | 通用 | 聚合编排层：按序 insert 正式插件行，单插件脱离 bundle 亦可独立安装 | — |
 | [`@dsh-plus/shared`](packages/shared) | library | 通用 | 工作区共享纯函数库（非插件；原子写委托官方 dsh-atomic-write） | — |
 各包版本号见对应 `packages/*/package.json` 与 npm 页面，不在此复述（避免与发版脱节）。
@@ -146,6 +147,7 @@ packages/
   actual-tools/         Actual 子插件（预设内工具包装 + 审批/环境快照）
   tool-text-transform/  演示工具（dev-only，不进生产 bundle）
   agent-preset-chat/    纯聊天 agent 预设（id=chat）
+  agent-preset-lean/    精简 agent 预设（id=lean，官方 standard 行子集）
   bundle-main/          聚合编排层
   shared/               共享纯函数库
 scripts/

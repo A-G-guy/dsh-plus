@@ -156,10 +156,11 @@ class MockHandler(BaseHTTPRequestHandler):
         self._send_json(404, {"error": "unknown path"})
 
     def _log_request_meta(self, req: dict) -> None:
-        """请求元数据日志（调试用）：模型名 + tools 名单，单行 JSON。
+        """请求元数据日志（调试用）：模型名 + tools 名单 + 体量，单行 JSON。
 
-        供组合/预设类验证（如功能开关插件核对模型可见工具目录）从
-        mock-llm.log 直接提取，无需 GUI 截图或会话内容解析。
+        供组合/预设类验证（如功能开关插件核对模型可见工具目录、预设间固定开销
+        对比）从 mock-llm.log 直接提取，无需 GUI 截图或会话内容解析。
+        `chars` = 请求体字节数，`toolsChars` = tools 数组序列化后的字节数。
         """
         tools = req.get("tools") or []
         names = []
@@ -168,7 +169,12 @@ class MockHandler(BaseHTTPRequestHandler):
                 name = tool.get("function", {}).get("name") or tool.get("name")
                 if isinstance(name, str):
                     names.append(name)
-        meta = {"model": req.get("model"), "tools": names}
+        meta = {
+            "model": req.get("model"),
+            "tools": names,
+            "toolsChars": len(json.dumps(tools, ensure_ascii=False).encode()),
+            "chars": len(json.dumps(req, ensure_ascii=False).encode()),
+        }
         sys.stderr.write("[mock-llm] tools " + json.dumps(meta, ensure_ascii=False) + "\n")
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib 命名

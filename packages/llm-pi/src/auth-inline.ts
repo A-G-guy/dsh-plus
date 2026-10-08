@@ -3,11 +3,11 @@
  *
  * 官方 credentialStoreFrom/authContextFrom 仅在 @deepseek-ai/dsh-llm-pi-ai 的
  * src/auth.ts 子路径导出（包根只导出 recordKeyFor），而 npm 发布形态不携带
- * src/（lib/index.js 单 bundle）——dsh 树 dev 布局优先经 src 子路径走官方
- * 实现（见 resolve-dsh.ts 探测），本文件在其余形态（npm 布局的 dsh 树 /
+ * src/（lib/index.js 单 bundle）——源码布局优先经 src 子路径走官方实现
+ * （见 resolve-dsh.ts 探测），本文件在其余形态（npm 布局的 dsh 树 /
  * vendored 兜底）下按官方语义逐行等价实现，并经 assertKitShape 自检兜底。
  * recordKeyFor 由调用方注入（与 PiAiAdapter 同源模块的包根导出，保证记录
- * 键格式与官方写入方一致）。
+ * 键格式与官方写入方一致）；记录作用域不手抄，由它现场推导（见 recordScopeOf）。
  * @module llm-pi/auth-inline
  */
 import { access } from 'node:fs/promises'
@@ -35,9 +35,6 @@ import type {
   CredentialInfo,
   CredentialStore,
 } from '@earendil-works/pi-ai'
-
-/** 官方 RECORD_SCOPE 常量（llm-pi-ai/src/auth.ts）——读写作用域必须与官方一致。 */
-export const INLINE_RECORD_SCOPE = 'llm-pi-ai'
 
 /** 官方 jsonImage：pi-ai 凭据里显式 undefined 成员 JSON 序列化为缺省/数组 null。 */
 function jsonImage(value: unknown): unknown {
@@ -94,15 +91,31 @@ function writableStore(ctx: Context): CredentialProvider {
   return credentials
 }
 
+/** 作用域推导的探针 provider id（合法记录段，故 recordKeyFor 给出完整键）。 */
+const RECORD_SCOPE_PROBE_ID = 'record-scope-probe'
+
+/**
+ * 记录作用域的现场推导（**不手抄**官方常量）：`recordKeyFor` 由与 PiAiAdapter
+ * 同源的官方包根注入，其产物 `scope/id` 的 scope 段就是官方写入方使用的作用域。
+ * 官方改作用域时此处自动跟随——硬编码镜像一旦落后，{@link credentialStoreFrom}
+ * 的 list() 会把本插件自己的登录记录判成他人的而凭空消失，且无任何报错
+ * （与 compat 门控表手抄镜像同一类故障，见 docs/repo/事故记录.md）。
+ */
+function recordScopeOf(recordKeyFor: (providerId: string) => CredentialKey): string {
+  return credentialKeyScope(recordKeyFor(RECORD_SCOPE_PROBE_ID))
+}
+
 /**
  * pi-ai `CredentialStore`（官方 credentialStoreFrom 等价实现）。
  * 路由键任意而记录 id 受语法约束：语法外的 id 读答"未存储"、删除无事可做、
- * modify 拒绝（写不落地不能报成功）。
+ * modify 拒绝（写不落地不能报成功）。list() 的归属判定用现场推导的作用域
+ * （{@link recordScopeOf}），不比对硬编码常量。
  */
 export function credentialStoreFrom(
   ctx: Context,
   recordKeyFor: (providerId: string) => CredentialKey,
 ): CredentialStore {
+  const recordScope = recordScopeOf(recordKeyFor)
   return {
     async read(providerId) {
       const credentials = ctx.get('credentials')
@@ -114,7 +127,7 @@ export function credentialStoreFrom(
       const stored = (await ctx.get('credentials')?.listRecords()) ?? []
       const mine: CredentialInfo[] = []
       for (const entry of stored) {
-        if (credentialKeyScope(entry.key) !== INLINE_RECORD_SCOPE) continue
+        if (credentialKeyScope(entry.key) !== recordScope) continue
         mine.push({
           providerId: credentialKeyId(entry.key),
           type: entry.kind === 'api-key' ? 'api_key' : 'oauth',

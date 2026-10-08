@@ -47,7 +47,7 @@ import {
 } from './official-copy-writer.ts'
 import { assertServiceable, buildProfiles, isDraftRoute } from './profiles.ts'
 import { buildDeepseekRoutes, type ResolvedDeepseekRoute } from './profiles-deepseek.ts'
-import { type DshKit, resolveDshKit } from './resolve-dsh.ts'
+import { type DshKit, degradation, type KitDiagnostic, resolveDshKit } from './resolve-dsh.ts'
 
 /** 配置页「运行期状态」所需的事实（纯 JSON，可直接进 HTTP 响应）。 */
 export interface LlmPiKitInfo {
@@ -71,8 +71,11 @@ export interface LlmPiKitInfo {
   compatSource: string
   /** 官方应急副本状态（路径/生成时间/覆盖 route/警告；error = 最近生成失败）。 */
   officialCopy: OfficialCopyStatus
-  /** 回退与逐项降级诊断（有内容时界面显式展示）。 */
-  diagnostics: string[]
+  /**
+   * 套件诊断（分档，界面分块展示）：`info` = 打包形态说明（恒定事实、非缺陷），
+   * `degradation` = 回退与逐项降级。
+   */
+  diagnostics: KitDiagnostic[]
 }
 
 export interface LlmPiRuntime {
@@ -132,13 +135,16 @@ function makeResolveApiKey(ctx: Context, kit: DshKit) {
   }
 }
 
-/** 解析运行期套件并落启动日志（来源/生效版本/协议/逐项降级诊断）。 */
+/** 解析运行期套件并落启动日志（来源/生效版本/协议/形态说明与逐项降级）。 */
 async function loadRuntimeKit(
   ctx: Context,
   logger: PluginLogger,
-): Promise<{ kit: DshKit; diagnostics: string[] }> {
+): Promise<{ kit: DshKit; diagnostics: KitDiagnostic[] }> {
   const { kit, diagnostics } = await resolveDshKit(ctx.get('profileContext')?.installAnchor)
-  for (const line of diagnostics) logger.warn(line)
+  for (const item of diagnostics) {
+    if (item.level === 'info') logger.info(item.message)
+    else logger.warn(item.message)
+  }
   logger.info(
     `运行时套件来源：${kit.source}；pi-ai ${kit.versions.piAi ?? '?'} / ` +
       `dsh-llm-pi-ai ${kit.versions.piAiAdapter ?? '?'}；协议 ${kit.protocols.join('/')}`,
@@ -479,8 +485,8 @@ export async function startRuntime(
       officialCopy: copy,
       diagnostics: [
         ...diagnostics,
-        ...copy.warnings.map((warning) => `应急副本：${warning}`),
-        ...(copy.error === undefined ? [] : [`应急副本：生成失败（${copy.error}）`]),
+        ...copy.warnings.map((warning) => degradation(`应急副本：${warning}`)),
+        ...(copy.error === undefined ? [] : [degradation(`应急副本：生成失败（${copy.error}）`)]),
       ],
     }
   }
