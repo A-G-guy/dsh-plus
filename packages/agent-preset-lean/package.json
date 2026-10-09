@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/agent-preset-lean",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "dsh-plus service plugin: 注册精简模式 agent preset（id=lean）——官方 standard 预设的行镜像子集，去掉委派与编排类工具",
   "type": "module",
   "main": "lib/index.js",

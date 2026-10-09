@@ -71,7 +71,8 @@ export function leanPresetDefinition(config: AgentPresetLeanConfig): PresetDefin
     order: config.order,
     plugins: [
       // 身份：保留官方装配（非 complete、保留运行时上下文快照），只换前缀；
-      // 上游只声明 prefix（工作目录改由官方 working_directory 工具传达），本行不补后缀。
+      // 上游只声明 prefix，本行不补后缀——工作目录已由宿主平面的 working-directory
+      // 服务以必填提示区（顺序 100，随 cd 刷新）传达，另配 working_directory 工具。
       {
         id: 'persona',
         name: '@deepseek-ai/dsh-persona',
