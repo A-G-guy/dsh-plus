@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/actual",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "dsh-plus service + UI plugin: Actual Budget 能力发现（@actual-app/cli help 树运行时派生 × 进程内 MCP tools/list）、actual agent 预设注册与配置卡片——零手工工具清单",
   "type": "module",
   "main": "lib/index.js",
@@ -41,12 +41,12 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.5-alpha.1",
-    "@deepseek-ai/dsh-agent-preset-registry": "^0.2.1-alpha.1",
+    "@deepseek-ai/dsh-agent-preset-registry": "^0.2.1-alpha.2",
     "@deepseek-ai/schemastery": "^3.18.5-alpha.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.5-alpha.1",
-    "@deepseek-ai/dsh-agent-preset-registry": "0.2.1-alpha.1",
+    "@deepseek-ai/dsh-agent-preset-registry": "0.2.1-alpha.2",
     "@deepseek-ai/schemastery": "3.18.5-alpha.1",
     "@types/react": "~18.3.31",
     "react": "^18.2.0"

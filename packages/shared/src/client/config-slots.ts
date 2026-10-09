@@ -1,5 +1,5 @@
 /**
- * 配置卡片的槽位注册助手（目标宿主：dsh 0.2.1-alpha.1）。
+ * 配置卡片的槽位注册助手（目标宿主：dsh 0.2.1-alpha.2）。
  *
  * 官方插件页（`dsh-client-ui-plugin-manager`）为第三方配置视图声明两个 keyed 槽位：
  * - `plugins.row.config`（key = `<bundle 包名>#<row id>`）：bundle 详情页对应行出现
@@ -42,7 +42,7 @@ export interface PluginConfigCardReg {
 
 /**
  * 把一张配置卡片注册进插件页的两个配置槽位。
- * 两个槽位都由 0.2.1-alpha.1 的插件页声明，任一缺席即报错——不做版本探测。
+ * 两个槽位都由 0.2.1-alpha.2 的插件页声明，任一缺席即报错——不做版本探测。
  */
 export function injectPluginConfigCard(slots: SlotsLike, reg: PluginConfigCardReg): void {
   const base = { locale: reg.ns, inject: reg.inject }

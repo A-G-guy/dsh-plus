@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-07 00:39"
+last_modified: "2026-10-09 20:53"
 description: "@dsh-plus/boot-retry"
 type: fact
 ---
@@ -109,6 +109,6 @@ cordis 行级 `config`（注意：patch 层是整体替换，覆盖时须写全�
 ## 退役路径
 
 官方外壳若自带模块脚本失败重试（或在 index.html 里为外壳带上可切换 URL 的版本
-参数），本插件配置 `enabled: false` 即可退役。0.2.1-alpha.1 复核：`__DSH_TRANSPORT__`
+参数），本插件配置 `enabled: false` 即可退役。0.2.1-alpha.2 复核：`__DSH_TRANSPORT__`
 的 `loadBundle` 已带 bundle 重试，但外壳 `<script type="module" src=/assets/index-*.js>`
 本身仍无自动重试（同 src 的 module 只执行一次），退役条件未满足。

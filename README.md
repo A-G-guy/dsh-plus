@@ -63,7 +63,7 @@ systemd，桌面端/Windows 下相关能力显式降级。桌面/Windows 的验�
 
 - Node.js **≥ 22**（测试依赖 `node --test` 直接运行 TypeScript）
 - pnpm（经 corepack 启用）
-- 已安装 DSH（`@deepseek-ai/dsh@0.2.1-alpha.1`，本仓唯一受支持基线）
+- 已安装 DSH（`@deepseek-ai/dsh@0.2.1-alpha.2`，本仓唯一受支持基线）
 
 ### 安装到 DSH
 

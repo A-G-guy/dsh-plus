@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-08 21:45"
+last_modified: "2026-10-09 20:53"
 description: "@dsh-plus/agent-preset-lean 文档索引"
 type: fact
 ---
@@ -25,7 +25,7 @@ type: fact
 ## 行清单
 
 每条保留行的 `id`/`name`/`config`（含平台门控表达式）都与上游
-`@deepseek-ai/dsh-web-app@0.2.1-alpha.1` 的 `presets/standard.patch.yml` 逐字
+`@deepseek-ai/dsh-web-app@0.2.1-alpha.2` 的 `presets/standard.patch.yml` 逐字
 一致，唯一例外是 persona 行（只换前缀、后缀沿用上游）。
 
 | 行 id | 官方行 | 说明 |

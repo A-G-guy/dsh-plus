@@ -18,7 +18,7 @@
  * memory 翻回 host、原地修复启动期已构造的 memory 表单，并触发一次 mirror.load()；
  * 不可达（直连且围栏未放行）维持官方降级，不做任何改动。
  *
- * 漂移面（按官方构建产物核实，0.2.1-alpha.1 复核；全部按可选面探测、缺失即
+ * 漂移面（按官方构建产物核实，0.2.1-alpha.2 复核；全部按可选面探测、缺失即
  * 对应阶段 no-op）：
  *   - ConfigForms：persistence 属性、describe()→mirror、forms Map；
  *   - SettingsDescribeMirror：persistence 属性、load()、subscribe()；

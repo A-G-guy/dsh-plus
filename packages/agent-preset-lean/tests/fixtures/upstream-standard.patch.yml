@@ -1,7 +1,7 @@
 # 上游镜像夹具（逐字副本 + 本注释头）：@deepseek-ai/dsh-web-app 的 standard 预设声明。
 #
-# 来源：@deepseek-ai/dsh-web-app@0.2.1-alpha.1 presets/standard.patch.yml
-# 取得：2026-10-08，自本机全局安装
+# 来源：@deepseek-ai/dsh-web-app@0.2.1-alpha.2 presets/standard.patch.yml
+# 取得：2026-10-09，自本机全局安装
 #       （@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-web-app/presets/standard.patch.yml）
 # 用途：tests/upstream-mirror.test.ts 断言 src/definition.ts 的行镜像与去除清单；
 #       dsh 升级后按 docs/ops/新版适配流程.md 的步骤用新版文件覆盖本夹具。
@@ -19,7 +19,6 @@
           - id: persona
             name: '@deepseek-ai/dsh-persona'
             config:
-              suffix: Your working directory is {{cwd}}.
               prefix: You are a coding agent powered by the {{model}} model.
           - id: agent-instructions
             name: '@deepseek-ai/dsh-agent-instructions'
@@ -105,7 +104,6 @@
                   provider: spawn
                   toolName: subagent
                   modelSelectionSettings: true
-                  backgroundMode: continuable
                   toolFilter:
                     deny:
                       - schedule_create
@@ -117,41 +115,18 @@
                 config:
                   provider: fork
                   toolName: subagent_fork
-                  backgroundMode: continuable
                   toolFilter:
                     deny:
                       - schedule_create
                       - schedule_delete
                       - schedule_list
                       - schedule_update
-              - id: tool-subagent-codex
-                name: '@deepseek-ai/dsh-tool-subagent'
-                disabled: true
-                config:
-                  provider: codex
-                  toolName: subagent_codex
-                  backgroundMode: one-shot
-                  maxDepth: provider-managed
-              - id: tool-subagent-claude-code
-                name: '@deepseek-ai/dsh-tool-subagent'
-                disabled: true
-                config:
-                  provider: claude-code
-                  toolName: subagent_claude_code
-                  backgroundMode: one-shot
-                  maxDepth: provider-managed
               - id: workflow-ptc
                 name: '@deepseek-ai/dsh-workflow-ptc'
                 config:
                   provider: spawn
               - id: tool-workflow
                 name: '@deepseek-ai/dsh-tool-workflow'
-              - id: tool-ralph
-                name: '@deepseek-ai/dsh-tool-ralph'
-                disabled: true
-                config:
-                  subagentProvider: spawn
-                  maxRounds: 64
           - id: tool-ask-user
             name: '@deepseek-ai/dsh-tool-ask-user'
           - id: tool-todo

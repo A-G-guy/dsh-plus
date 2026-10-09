@@ -7,7 +7,7 @@
  * 用户全程无感、免启动 token。
  *
  * 契约（对官方 client-connection browser-auth 逐行核实，见 docs/README.md
- * 「信任模型」；0.2.1-alpha.1 复核不变）：
+ * 「信任模型」；0.2.1-alpha.2 复核不变）：
  * - 签名密钥持久化于 $DSH_HOME/.credentials.yaml
  *   （records → client-connection/browser-session → payload.secret，
  *   base64url 无填充 32B；跨重启不变）；

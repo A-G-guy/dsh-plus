@@ -91,10 +91,7 @@ test('Given 默认配置 When 应用 Then 以 lean 身份注册精简预设', as
   )
   assert.equal(definition.order, 5)
   const persona = definition.plugins.find((row) => row.id === 'persona')
-  assert.deepEqual(persona?.config, {
-    prefix: LEAN_PERSONA_PREFIX,
-    suffix: 'Your working directory is {{cwd}}.',
-  })
+  assert.deepEqual(persona?.config, { prefix: LEAN_PERSONA_PREFIX })
 })
 
 test('Given 定制显示面 When 构造声明 Then id 固定 lean、显示字段与次序来自配置', () => {

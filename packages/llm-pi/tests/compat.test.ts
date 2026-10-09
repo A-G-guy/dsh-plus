@@ -40,7 +40,7 @@ test('validateCompat 拒绝未知键并列出可配置字段（对齐官方门�
 
 test('validateCompat 拒绝官方 withhold 字段（逐个取自现场推导表，不写死字段名）', () => {
   // 官方会随版本增删 withhold 字段：断言"表里标 withhold 的每一个都被拒"，
-  // 而不是钉住某几个可能被官方删掉的字段名（0.2.1-alpha.1 已删除 supportsToolReferences）。
+  // 而不是钉住某几个可能被官方删掉的字段名（0.2.1-alpha.1 起已无 supportsToolReferences）。
   let checked = 0
   for (const api of compatProtocols()) {
     for (const field of compatWithholdFieldsOf(api)) {
@@ -60,7 +60,7 @@ test('validateCompat 拒绝官方 withhold 字段（逐个取自现场推导表�
 
 test('compatProtocols 覆盖运行期协议（官方表可能另有本插件不服务的协议门控）', () => {
   const table = compatProtocols()
-  // 官方 0.2.1-alpha.1 的 COMPAT_GATES 含 7 个协议，而 supportedProtocols() 只声明 3 个：
+  // 官方 0.2.1-alpha.2 的 COMPAT_GATES 含 7 个协议，而 supportedProtocols() 只声明 3 个：
   // 渲染兜底要覆盖"本插件能服务的全部协议"，不要求与官方表逐键相等。
   for (const api of ['openai-completions', 'openai-responses', 'anthropic-messages']) {
     assert.ok(table.includes(api), `${api} 应在生效表内`)

@@ -1,6 +1,6 @@
 ---
 description: "Auto-generated index of this document folder."
-last_modified: "2026-10-07 00:40"
+last_modified: "2026-10-09 20:53"
 ---
 <!-- projects-go:generated -->
 
@@ -8,4 +8,4 @@ last_modified: "2026-10-07 00:40"
 
 | Document | description | last_modified | type |
 | --- | --- | --- | --- |
-| [README](README.md) | @dsh-plus/subagent-model | 2026-10-07 00:39 | fact |
+| [README](README.md) | @dsh-plus/subagent-model | 2026-10-09 20:53 | fact |

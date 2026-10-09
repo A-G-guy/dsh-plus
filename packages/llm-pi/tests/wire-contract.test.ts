@@ -62,8 +62,8 @@ test('wire 契约的锚点断言（形状一致性由类型级断言保证）', 
   // 任何一侧增删必填字段都会让上面的 Assert 编译失败。
   const kit: LlmPiKitInfo = {
     source: 'vendored',
-    versions: { piAi: '0.87.1' },
-    verifiedRange: '>=0.85.1 <0.88.0',
+    versions: { piAi: '1.1.0' },
+    verifiedRange: '>=1.0.2 <2.0.0',
     protocols: ['openai-completions'],
     protocolSource: 'official',
     catalog: { providers: 1, models: 1 },

@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/actual-tools",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "dsh-plus preset tool plugin: Actual Budget 能力包装——把主插件发现的 Actual 能力清单 1:1 注册为 agent 作用域 DSH 工具（写操作确认 + CLI 兜底执行）",
   "type": "module",
   "main": "lib/index.js",
@@ -25,14 +25,14 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.5-alpha.1",
-    "@deepseek-ai/dsh-mcp-client": "^0.2.1-alpha.1",
-    "@deepseek-ai/dsh-tools": "^0.2.1-alpha.1",
+    "@deepseek-ai/dsh-mcp-client": "^0.2.1-alpha.2",
+    "@deepseek-ai/dsh-tools": "^0.2.1-alpha.2",
     "@deepseek-ai/schemastery": "^3.18.5-alpha.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.5-alpha.1",
-    "@deepseek-ai/dsh-mcp-client": "0.2.1-alpha.1",
-    "@deepseek-ai/dsh-tools": "0.2.1-alpha.1",
+    "@deepseek-ai/dsh-mcp-client": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-tools": "0.2.1-alpha.2",
     "@deepseek-ai/schemastery": "3.18.5-alpha.1"
   },
   "publishConfig": {

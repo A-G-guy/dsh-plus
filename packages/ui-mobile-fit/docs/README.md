@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-07 00:39"
+last_modified: "2026-10-09 20:53"
 description: "@dsh-plus/ui-mobile-fit"
 type: fact
 ---
@@ -81,7 +81,7 @@ type: fact
 
 ## 选择器稳定性策略
 
-上游（基准 0.2.1-alpha.1）CSS Modules 类名 = 哈希前缀 + 语义后缀（`pI_x6G_frame`）。
+上游（基准 0.2.1-alpha.2）CSS Modules 类名 = 哈希前缀 + 语义后缀（`pI_x6G_frame`）。
 哈希随构建变化、语义后缀稳定，故一律用 `[class*="_语义后缀"]` 子串匹配；`!important`
 仅用于对抗内联 `grid-template-columns` 等内联样式，并就地注释说明。
 
@@ -91,7 +91,7 @@ type: fact
 
 **退役条件**：上游原生支持一屏化根锁（`100dvh` + 双轴 overflow 锁）、
 `interactive-widget`/`visualViewport` 键盘适配、窄屏侧栏 drawer 化、触屏隐藏拖拽
-手柄与触屏 Tooltip 收尾，则本插件整体可退役。0.2.1-alpha.1 复核：以上均未实现
+手柄与触屏 Tooltip 收尾，则本插件整体可退役。0.2.1-alpha.2 复核：以上均未实现
 （逐项证据见 [上游跟进记录](上游跟进记录.md)）。
 
 ```bash

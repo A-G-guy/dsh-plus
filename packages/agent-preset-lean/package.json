@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/agent-preset-lean",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "dsh-plus service plugin: 注册精简模式 agent preset（id=lean）——官方 standard 预设的行镜像子集，去掉委派与编排类工具",
   "type": "module",
   "main": "lib/index.js",
@@ -22,12 +22,12 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.5-alpha.1",
-    "@deepseek-ai/dsh-agent-preset-registry": "^0.2.1-alpha.1",
+    "@deepseek-ai/dsh-agent-preset-registry": "^0.2.1-alpha.2",
     "@deepseek-ai/schemastery": "^3.18.5-alpha.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.5-alpha.1",
-    "@deepseek-ai/dsh-agent-preset-registry": "0.2.1-alpha.1",
+    "@deepseek-ai/dsh-agent-preset-registry": "0.2.1-alpha.2",
     "@deepseek-ai/schemastery": "3.18.5-alpha.1",
     "yaml": "^2.9.0"
   },

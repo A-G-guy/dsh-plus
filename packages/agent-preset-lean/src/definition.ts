@@ -34,17 +34,14 @@ export const DROPPED_ROWS: readonly string[] = [
   // 同会话目标：/goal 命令与模型面目标工具
   'command-goal',
   'tool-goal',
-  // 委派与编排：子代理、fork、workflow、ralph 整组
+  // 委派与编排：子代理、fork、workflow 整组
   'delegation',
   'tool-subagent-control',
   'tool-subagent-list-agents',
   'tool-subagent',
   'tool-subagent-fork',
-  'tool-subagent-codex',
-  'tool-subagent-claude-code',
   'workflow-ptc',
   'tool-workflow',
-  'tool-ralph',
   // 宿主插件管理（上游 standard 里同样是 disabled 行）
   'tool-plugin-manager',
 ]
@@ -74,13 +71,12 @@ export function leanPresetDefinition(config: AgentPresetLeanConfig): PresetDefin
     order: config.order,
     plugins: [
       // 身份：保留官方装配（非 complete、保留运行时上下文快照），只换前缀；
-      // suffix 逐字取上游，避免本行把部署后缀一并遮蔽掉。
+      // 上游只声明 prefix（工作目录改由官方 working_directory 工具传达），本行不补后缀。
       {
         id: 'persona',
         name: '@deepseek-ai/dsh-persona',
         config: {
           prefix: resolvePersonaPrefix(config),
-          suffix: 'Your working directory is {{cwd}}.',
         },
       },
       // 项目指令（AGENTS.md）与逐步时钟上下文（默认 10 分钟一条）。

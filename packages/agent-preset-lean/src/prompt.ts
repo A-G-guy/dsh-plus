@@ -5,7 +5,7 @@
  * `config.section`：dsh-plan-mode 要求该字段非空（部署方所有权），因此必须随包携带；
  * 逐字相等由 tests/upstream-mirror.test.ts 守卫（上游升级后夹具一变即失败）。
  *
- * 上游 persona 行（仅供比对，不镜像）：{"suffix":"Your working directory is {{cwd}}.","prefix":"You are a coding agent powered by the {{model}} model."}
+ * 上游 persona 行（仅供比对，不镜像）：{"prefix":"You are a coding agent powered by the {{model}} model."}
  * @module @dsh-plus/agent-preset-lean/prompt
  */
 

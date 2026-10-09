@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/web-boot-timing",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "dsh-plus ui plugin: 弱网首屏计时观测——导航/绘制/资源分桶/遮罩移除/首次输入五相报告，输出控制台 + globalThis 钩子 + localStorage 历史对比；纯观测零行为改动，settings 一键关闭",
   "type": "module",
   "main": "lib/index.js",
@@ -38,14 +38,14 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.5-alpha.1",
-    "@deepseek-ai/dsh-host-webserver": "^0.2.1-alpha.1",
-    "@deepseek-ai/dsh-settings": "^0.2.1-alpha.1",
+    "@deepseek-ai/dsh-host-webserver": "^0.2.1-alpha.2",
+    "@deepseek-ai/dsh-settings": "^0.2.1-alpha.2",
     "@deepseek-ai/schemastery": "^3.18.5-alpha.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.5-alpha.1",
-    "@deepseek-ai/dsh-host-webserver": "0.2.1-alpha.1",
-    "@deepseek-ai/dsh-settings": "0.2.1-alpha.1",
+    "@deepseek-ai/dsh-host-webserver": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-settings": "0.2.1-alpha.2",
     "@deepseek-ai/schemastery": "3.18.5-alpha.1",
     "@types/react": "~18.3.31",
     "react": "^18.2.0"

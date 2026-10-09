@@ -9,8 +9,8 @@ export const conversationCss = /* css */ `
 @media (max-width: 767px) {
   /* markdown 富媒体：<img> 由上游 .image 兜住（primitives 的 MarkdownText
      模块样式：display:block / width:auto / max-width:100% / height:auto），
-     此处只补上游未覆盖的内联媒体元素；表格上游已改为滚动包裹层
-     （_tableScroll，max-width:100% + overflow-x:auto，宽表配 md-table-wide），
+     此处只补上游未覆盖的内联媒体元素；表格上游在助手正文里用
+     .md-table-wide 全宽带（容器查询单位算左右外扩）自行处理横向溢出，
      不再需要给 table 本身加 display:block 的历史写法。 */
   [class*="_markdown"] video,
   [class*="_markdown"] canvas,

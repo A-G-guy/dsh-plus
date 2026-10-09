@@ -81,7 +81,7 @@ test('given the conversation layer, when inspecting the mobile header, then it w
 
 test('given the conversation layer, when inspecting markdown, then upstream-owned overflow rules are not duplicated', () => {
   // 上游 primitives 的 MarkdownText/CodeBlock 样式已覆盖 <img>（max-width:100% +
-  // height:auto）、表格滚动包裹层（_tableScroll）与 _markdown 内的 .katex-display；
+  // height:auto）、表格横向溢出（.md-table-wide 全宽带）与 _markdown 内的 .katex-display；
   // 本插件只保留上游未覆盖的部分：内联 video/canvas/svg 与代码块外壳宽度上限。
   assert.match(mobileFitCss, /\[class\*="_markdown"\] video/)
   assert.doesNotMatch(mobileFitCss, /\[class\*="_markdown"\] img/)

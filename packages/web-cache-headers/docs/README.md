@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-07 00:39"
+last_modified: "2026-10-09 20:53"
 description: "@dsh-plus/web-cache-headers"
 type: fact
 ---
@@ -63,5 +63,5 @@ dsh 前端 dist 由 `dsh-host-frontend-static` 经 webserver fallback 服务，�
 若 dsh 上游为 `dsh-host-frontend-static` 原生支持哈希资源缓存头，本插件配置
 `enabled: false` 即可退役，无需删代码。
 
-0.2.1-alpha.1 复核：官方静态应答仍只写 `content-type`（`dsh-host-frontend-static`
+0.2.1-alpha.2 复核：官方静态应答仍只写 `content-type`（`dsh-host-frontend-static`
 的 index/资产应答，未见 `cache-control`/`etag`），退役条件未满足。

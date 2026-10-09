@@ -1,6 +1,6 @@
 /**
  * cookie.ts 单元测试：官方 browser-auth cookie 铸造面（IP 信任自动登录核心）。
- * 契约对齐官方 client-connection browser-auth（逐行核实，0.2.1-alpha.1 复核）：
+ * 契约对齐官方 client-connection browser-auth（逐行核实，0.2.1-alpha.2 复核）：
  * cookie 名 = dsh-auth-<b64url(sha256(authority))>；值 = v1.<b64url(payload)>.<b64url(hmac)>；
  * payload 键序 {"version":1,"authority","issuedAt","expiresAt"}（紧凑 JSON）；
  * 属性 Max-Age/Expires/Path=/HttpOnly/SameSite=Strict；服务端校验时长 <= 30 天。

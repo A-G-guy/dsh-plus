@@ -1,6 +1,6 @@
 {
   "name": "@dsh-plus/shared",
-  "version": "0.1.37",
+  "version": "0.1.38",
   "description": "dsh-plus workspace shared pure helpers (not a dsh plugin)",
   "type": "module",
   "main": "lib/index.js",
@@ -31,17 +31,17 @@
     "directory": "packages/shared"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-atomic-write": "0.2.1-alpha.1",
-    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-alpha.1",
+    "@deepseek-ai/dsh-atomic-write": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.1-alpha.2",
     "@types/react": "~18.3.31",
     "react": "^18.2.0",
-    "@deepseek-ai/dsh-home-paths": "0.2.1-alpha.1"
+    "@deepseek-ai/dsh-home-paths": "0.2.1-alpha.2"
   },
   "dependencies": {
     "lucide-react": "1.38.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-atomic-write": "^0.2.1-alpha.1",
-    "@deepseek-ai/dsh-home-paths": "^0.2.1-alpha.1"
+    "@deepseek-ai/dsh-atomic-write": "^0.2.1-alpha.2",
+    "@deepseek-ai/dsh-home-paths": "^0.2.1-alpha.2"
   }
 }

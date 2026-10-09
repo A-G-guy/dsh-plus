@@ -206,7 +206,7 @@ export function fallbackProtocols(): string[] {
 }
 
 /**
- * 官方门控表不可解析时的兜底快照（0.2.1-alpha.1 现场推导值）。
+ * 官方门控表不可解析时的兜底快照（0.2.1-alpha.2 现场推导值）。
  *
  * 只在官方改打包形态、`COMPAT_GATES` 解析失败时启用（此时未知键放行、只拦快照里
  * 明确 withhold 的键，见 compat.ts 的「语义分两档」）。快照过期会重新引入

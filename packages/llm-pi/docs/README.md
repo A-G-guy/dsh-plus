@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-08 20:04"
+last_modified: "2026-10-09 20:53"
 description: "@dsh-plus/llm-pi 文档索引"
 type: fact
 ---
@@ -50,8 +50,8 @@ Files API 文件通道、失败自动降级 base64），模型继承官方内置
 - **版本显示与提示**：配置卡片状态行显示生效的 `pi-ai` / `dsh-llm-pi-ai` / `dsh`
   版本、安装树路径、目录规模与数据生成时间、协议/compat 来源，诊断按「形态说明」
   与「降级诊断」分块列出（恒定事实不淹没真降级）。
-  生效 pi-ai 超出 `VERIFIED_PI_AI_RANGE`（当前 `>=0.85.1 <0.88.0`）**只提示不阻断**
-  ——能不能用由运行期形状自检与逐项降级决定；peer 范围也写成 `>=0.85.1`（无上界），
+  生效 pi-ai 超出 `VERIFIED_PI_AI_RANGE`（当前 `>=1.0.2 <2.0.0`）**只提示不阻断**
+  ——能不能用由运行期形状自检与逐项降级决定；peer 范围也写成 `>=1.0.2`（无上界），
   不因版本号把插件挡在新版 dsh 之外。
 
 ## 内置模型目录浏览器（配置页）
@@ -281,8 +281,8 @@ node --test packages/llm-pi/tests/*.test.ts        # 单测（vendored 套件，
 ```
 
 - 依赖对齐：devDependencies 的 `@deepseek-ai/*` 与 `@earendil-works/pi-ai` 跟随
-  本机安装的 dsh 线（当前 0.2.1-alpha.1 / pi-ai 0.87.1），供构建、类型与单测使用；
-  peer 里 `@earendil-works/pi-ai` 写成 `>=0.85.1`（无上界），运行时以形状自检为准。
+  本机安装的 dsh 线（当前 0.2.1-alpha.2 / pi-ai 1.1.0），供构建、类型与单测使用；
+  peer 里 `@earendil-works/pi-ai` 写成 `>=1.0.2`（无上界），运行时以形状自检为准。
 - 新增模型走目录浏览器一键 extend（或 `extends: provider/model` 手写）即可；
   本仓生产配置示例：newapi 中转的 anthropic 路由在 `k3`/`k3-256k` 之外再挂
   `kimi-for-coding` = `extends: kimi-coding/kimi-for-coding`，中转侧无需登记 ID。

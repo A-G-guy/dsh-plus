@@ -104,16 +104,23 @@ test('Given 被镜像的行 When 与夹具逐行深比较 Then name 与 config �
   }
 })
 
-test('Given persona 行 When 与夹具比较 Then 只换前缀、后缀沿用上游', () => {
+test('Given persona 行 When 与夹具比较 Then 只换前缀、其余字段沿用上游', () => {
   const upstream = byId(flatten(upstreamPlugins()))
   const source = upstream.get('persona')
   const ours = byId(flatten(leanPlugins())).get('persona')
   assert.ok(source !== undefined && ours !== undefined)
-  const sourceConfig = source.config as { prefix: string; suffix: string }
-  const ourConfig = ours.config as { prefix: string; suffix: string }
-  assert.equal(ourConfig.suffix, sourceConfig.suffix)
-  assert.deepEqual(Object.keys(ourConfig).sort(), ['prefix', 'suffix'])
+  const sourceConfig = source.config as Record<string, unknown>
+  const ourConfig = ours.config as Record<string, unknown>
+  assert.deepEqual(
+    Object.keys(ourConfig).sort(),
+    Object.keys(sourceConfig).sort(),
+    'persona 行的配置字段集与上游不一致',
+  )
   assert.notEqual(ourConfig.prefix, sourceConfig.prefix)
+  for (const key of Object.keys(sourceConfig)) {
+    if (key === 'prefix') continue
+    assert.deepEqual(ourConfig[key], sourceConfig[key], `persona 行的 ${key} 与上游不一致`)
+  }
 })
 
 test('Given shell 行 When 与夹具比较 Then 平台门控表达式逐字相同', () => {

@@ -1,5 +1,5 @@
 ---
-last_modified: "2026-10-07 00:39"
+last_modified: "2026-10-09 20:53"
 description: "@dsh-plus/subagent-model"
 type: fact
 ---
@@ -65,11 +65,11 @@ dsh-plus-subagent-model:
 
 ## 机制
 
-包装 `ctx.subagents.start` / `startContinuable`（幂等 + dispose 恢复），按 provider 名命中条目（未命中回落 `default`）后向委托请求注入 `agentOptions`。平台的 `resolveChildAgentOptions(parent, request.agentOptions, childDepth)` 原生读取 provider/model/reasoningEffort（热路径与冷恢复 descriptor 一致），故只需注入这两个字段、无需搬运任何私有字段。
+包装 `ctx.subagents.startActivation`（官方把一次性执行与可继续子代理统一收进该入口；幂等 + dispose 恢复），按 provider 名命中条目（未命中回落 `default`）后向 `spec.request` 注入 `agentOptions`。平台的 `resolveChildAgentOptions(parent, request.agentOptions, childDepth)` 原生读取 provider/model/reasoningEffort（热路径与冷恢复 descriptor 一致），故只需注入这三个字段、无需搬运任何私有字段。
 
 ## 与官方能力的分工（勿误判为可删）
 
-0.2.1-alpha.1 复核：官方 `dsh-client-ui-settings-subagent` 与 `dsh-subagent` 在**请求期**的 provider/model/reasoningEffort 选择仍在，但它们只覆盖「主代理显式选择」这条路径；**未选择时的强制默认**仍是官方缺口，由本插件补。删除本插件会退回"子代理继承主代理模型"的官方默认行为。
+0.2.1-alpha.2 复核：官方 `dsh-client-ui-settings-subagent` 与 `dsh-subagent` 在**请求期**的 provider/model/reasoningEffort 选择仍在，但它们只覆盖「主代理显式选择」这条路径；**未选择时的强制默认**仍是官方缺口，由本插件补。删除本插件会退回"子代理继承主代理模型"的官方默认行为。
 
 ## 测试
 

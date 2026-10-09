@@ -24,7 +24,7 @@ export interface KitVersions {
 }
 
 /** 本插件开发/测试覆盖过的 pi-ai 区间（semver range，仅用于状态行提示）。 */
-export const VERIFIED_PI_AI_RANGE = '>=0.85.1 <0.88.0'
+export const VERIFIED_PI_AI_RANGE = '>=1.0.2 <2.0.0'
 
 /** 读 package.json 的 version；文件不存在/非 JSON/无 version 都返回 undefined。 */
 export function readPackageVersion(manifestPath: string): string | undefined {
@@ -109,8 +109,8 @@ export function collectVendoredVersions(): KitVersions {
 }
 
 /** 已验证区间的解析端点（与 {@link VERIFIED_PI_AI_RANGE} 同步维护）。 */
-const VERIFIED_MIN: readonly [number, number, number] = [0, 85, 1]
-const VERIFIED_MAX_EXCLUSIVE: readonly [number, number, number] = [0, 88, 0]
+const VERIFIED_MIN: readonly [number, number, number] = [1, 0, 2]
+const VERIFIED_MAX_EXCLUSIVE: readonly [number, number, number] = [2, 0, 0]
 
 /** 解析 `x.y.z[-pre][+build]` 的数值三元组；形状不符返回 undefined。 */
 function numericTriple(version: string): [number, number, number] | undefined {

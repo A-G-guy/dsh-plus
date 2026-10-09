@@ -1,5 +1,5 @@
 /**
- * injectPluginConfigCard 两槽位注册（0.2.1-alpha.1）：key/名称拼装正确、
+ * injectPluginConfigCard 两槽位注册（0.2.1-alpha.2）：key/名称拼装正确、
  * inject 面两槽位共用、注册回调按槽位声明周期执行（fake slots 只记录，无 DOM）。
  */
 import assert from 'node:assert/strict'

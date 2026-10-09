@@ -93,7 +93,7 @@ def _rewrite_manifests(version: str) -> list[Path]:
 def cmd_platform_sync(args: object) -> None:
     version = getattr(args, "version", None)
     if not version or not VERSION_RE.match(version):
-        fail("用法: dshctl.py platform-sync <版本>（如 0.2.1-alpha.1）")
+        fail("用法: dshctl.py platform-sync <版本>（如 0.2.1-alpha.2）")
     used = _used_dsh_packages()
     if not used:
         fail("仓库未使用任何 dsh 版本线平台包")

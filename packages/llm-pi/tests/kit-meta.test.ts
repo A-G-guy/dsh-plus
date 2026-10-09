@@ -103,14 +103,14 @@ test('collectVendoredVersions / installedPackageDir：指向插件自己装的�
 test('piAiVersionNotice：区间内不提示，区间外/过低提示，未知版本不提示', () => {
   assert.equal(piAiVersionNotice(undefined), undefined)
   assert.equal(piAiVersionNotice('not-a-version'), undefined)
-  assert.equal(piAiVersionNotice('0.85.1'), undefined)
-  assert.equal(piAiVersionNotice('0.87.1'), undefined)
-  assert.equal(piAiVersionNotice('0.87.1-alpha.1'), undefined)
-  assert.match(piAiVersionNotice('0.88.0') ?? '', /超出本插件验证过的区间/)
-  assert.match(piAiVersionNotice('0.90.3') ?? '', /超出本插件验证过的区间/)
-  assert.match(piAiVersionNotice('1.0.0') ?? '', /超出本插件验证过的区间/)
-  assert.match(piAiVersionNotice('0.85.0') ?? '', /低于本插件验证过的下限/)
-  assert.match(VERIFIED_PI_AI_RANGE, /0\.85\.1/)
+  assert.equal(piAiVersionNotice('1.0.2'), undefined)
+  assert.equal(piAiVersionNotice('1.1.0'), undefined)
+  assert.equal(piAiVersionNotice('1.1.0-alpha.1'), undefined)
+  assert.match(piAiVersionNotice('2.0.0') ?? '', /超出本插件验证过的区间/)
+  assert.match(piAiVersionNotice('2.4.1') ?? '', /超出本插件验证过的区间/)
+  assert.match(piAiVersionNotice('0.87.1') ?? '', /低于本插件验证过的下限/)
+  assert.match(piAiVersionNotice('1.0.1') ?? '', /低于本插件验证过的下限/)
+  assert.match(VERIFIED_PI_AI_RANGE, /1\.0\.2/)
 })
 
 test('生效版本就地断言：当前装的两份副本都在已验证区间内（超出时本测试会提示）', () => {

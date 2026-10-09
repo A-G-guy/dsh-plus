@@ -1,7 +1,7 @@
 /**
  * 配置分节样式工厂（各插件 client 的公共收编版）。
  *
- * 目标宿主 dsh 0.2.1-alpha.1：插件页把配置视图放进已有页面级内边距的容器里
+ * 目标宿主 dsh 0.2.1-alpha.2：插件页把配置视图放进已有页面级内边距的容器里
  * （`div.detailSections[data-plugin-config]` 或 `section.detailSection[data-plugin-config]`），
  * 外层无边框——故这里输出的是**无边框分节**（小节标题 13px/600、字段 12px 0、
  * 横向零内边距、页脚非 sticky），度量对齐官方设置页

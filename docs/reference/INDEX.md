@@ -1,6 +1,6 @@
 ---
 description: "Auto-generated index of this document folder."
-last_modified: "2026-10-08 20:04"
+last_modified: "2026-10-09 20:53"
 ---
 <!-- projects-go:generated -->
 
@@ -8,4 +8,4 @@ last_modified: "2026-10-08 20:04"
 
 | Document | description | last_modified | type |
 | --- | --- | --- | --- |
-| [官方机制参照](官方机制参照.md) | 官方机制参照 | 2026-10-08 20:04 | fact |
+| [官方机制参照](官方机制参照.md) | 官方机制参照 | 2026-10-09 20:53 | fact |

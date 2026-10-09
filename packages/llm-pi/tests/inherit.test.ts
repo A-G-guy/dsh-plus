@@ -72,7 +72,7 @@ test('缺省 extends 且 route 有 extends 源时按同名模型继承；无 ext
 
 test('继承 base 带上目录给出的可继承字段（extra 透传）', () => {
   const hit = resolveModelBase('chat', {}, { id: 'flash', extends: 'deepseek/deepseek-flash' }, kit)
-  // 0.87.1 目录的 deepseek-flash 带 cost/inputLimits：官方模型条目 schema 不接受，
+  // 1.x 目录的 deepseek-flash 带 cost/inputLimits：官方模型条目 schema 不接受，
   // 故不进 extra；这里断言的是"不会把目录字段误塞进条目"。
   assert.equal(hit.base.extra, undefined)
   assert.equal(hit.base.name, 'DeepSeek V4.1 Flash')
